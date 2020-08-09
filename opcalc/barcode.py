@@ -2,6 +2,8 @@ import time  as tt
 
 import numpy as np
 
+import utils as ut
+
 
 def hyperion(l):
     '''
@@ -101,8 +103,8 @@ def barcode_engine(
 def main():
     t0 = tt.time()
     print(barcode_engine(
-        target_size=100000,
-        barcode_length=10,
+        target_size=80000,
+        barcode_length=12,
         min_hdist=3).shape)
     print(tt.time()-t0)
 

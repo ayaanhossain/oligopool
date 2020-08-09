@@ -1,77 +1,140 @@
 import time  as tt
 
-import numpy as np
+import collections as cx
+import numpy       as np
 
 import utils as ut
 
 
-def hyperion(l):
+def get_walkertype(barcodelength):
     '''
-    Hyper jump through sequence space and
-    stream barcodes. Internal use only.
+    Return appropriate walker type.
+    Internal use only.
 
-    :; l
+    :: barcodelength
        type - integer
        desc - required barcode length
     '''
 
-    # RNG Setup
-    rng = np.random.default_rng()
-    lwb = 0
-    upb = np.power(4, l)
-    txf = lambda x: float(ord(x))
-
-    # Iterator Setup
-    if l <= 12:
-        # Finite Random Walk
-        hype = iter(np.random.permutation(upb))
+    if barcodelength <= 12:
+        return 1 # Finite   Random Walker
     else:
-        # Infinite Random Walk
-        hype = iter(lambda: rng.integers(lwb, upb), None)
+        return 2 # Infinite Random Walker
+
+def get_finite_walker(upb):
+    '''
+    Return finite space walker.
+    Internal use only.
+
+    :: upb
+       type - integer
+       desc - space uppberbound
+    '''
     
-    # Hyper Jump!
+    # Setup Basis
+    deq = cx.deque(np.random.permutation(upb))
+    
+    # Stream Coordinates
+    while deq:
+        yield deq.popleft()
+
+def get_infinite_walker(upb):
+    '''
+    Return infinite space walker.
+    Internal use only.
+
+    :: upb
+       type - integer
+       desc - space upperbound
+    '''
+
+    # Setup Basis
+    rng = np.random.default_rng()
+
+    # Stream Coordinates
     while True:
-        # Fetch a Walk Coordinate
+        yield rng.integers(0, upb)
+
+
+def hyperion(barcodelength):
+    '''
+    Hyper jump through sequence space and
+    stream barcodes. Internal use only.
+
+    :: barcodelength
+       type - integer
+       desc - required barcode length
+    '''
+
+    # Walker Setup
+    upb = np.power(4, barcodelength)
+    wtp = get_walkertype(
+        barcodelength=barcodelength)
+    if wtp == 1:
+        walker = get_finite_walker(upb)
+    else:
+        walker = get_infinite_walker(upb)
+
+    # Transformer Setup
+    txf = lambda x: float(ord(x))
+    
+    # Hyperion Jump!
+    while True:
+        # Fetch a Coordinate
         try:
-            idx = next(hype)
+            idx = next(walker)
         except StopIteration:
             yield None # Finite Iterator Exhaused
 
         # Stream Coordinate Transformed to Barcode
         yield tuple(map(txf, np.base_repr(
-            idx, base=4).zfill(l)))
+            idx, base=4).zfill(barcodelength)))
 
 def barcode_engine(
-    target_size,
-    barcode_length,
-    min_hdist):
+    targetsize,
+    barcodelength,
+    minhdist):
     '''
     Given a library size of t, generate
     l-bp barcodes such that the minimum
     hamming distance between any two
     barcodes is d.
 
-    :: target_size
+    :: targetsize
        type - integer
        desc - required library size
-    :: barcode_length
+    :: barcodelength
        type - integer
        desc - required barcode length
-    :: min_hdist
+    :: minhdist
        type - integer
        desc - minimum pairwise hamming
               distance between a pair
               of barcodes
     '''
 
+    # Determine Walker
+    wtp = get_walkertype(
+        barcodelength=barcodelength)
+
     # Book-keeping
-    fill  = 0
+    count = 0
     store = np.zeros((
-        target_size,
-        barcode_length))
+        targetsize,
+        barcodelength))
+    prob  = ut.get_prob(
+        success=1,
+        trials=np.power(
+            4, barcodelength - minhdist))
+    trial = ut.get_trials(
+        prob=prob)
+    sscnt = 1
+    flcnt = 0
+    excnt = trial
 
     # Generator Setup
-    barcodes = hyperion(l=barcode_length)
+    barcodes = hyperion(
+        barcodelength=barcodelength)
     
     # Build Barcodes
     while True:
@@ -81,31 +144,54 @@ def barcode_engine(
 
         # Space Exhausted?
         if barcode is None:
-            return store[:fill, :]
+            return store[:count, :]
         
         # Compare Sample with Stored
-        if fill:
-            _d = (store[:fill, :] != barcode).sum(1).min()
+        if count:
+            _d = (store[:count, :] != barcode).sum(1).min()
         else:
-            _d = min_hdist
+            _d = minhdist
+
+        if wtp == 2:
+            excnt += 1
         
         # Accept Sample into Store?
-        if _d >= min_hdist:
-            store[fill, :] = barcode
-            fill += 1
-            if (fill+1) % 100 == 0:
-                print(fill, _d, barcode)
+        if _d >= minhdist:
+            store[count, :] = barcode
+            count += 1            
+            
+            # Inifinite Walker Book-keeping Update
+            if wtp == 2:
+                sscnt += 1
+                prob  = ut.get_prob(
+                    success=sscnt,
+                    trials=excnt)
+                trial = ut.get_trials(
+                    prob=prob)
+                flcnt = 0
+
+            if (count+1) % 10 == 0:
+                print(count, _d, barcode)
+        else:
+            # Inifinite Walker Book-keeping Update
+            if wtp == 2:
+                flcnt += 1
         
         # Target Reached?
-        if fill == target_size:
-            return store[:fill, :]
+        if count == targetsize:
+            return store[:count, :]
+
+        # Trials Exhausted for Inifinite Walker?
+        if wtp == 2:
+            if flcnt == trial:
+                return store[:count, :]
 
 def main():
     t0 = tt.time()
     print(barcode_engine(
-        target_size=80000,
-        barcode_length=12,
-        min_hdist=3).shape)
+        targetsize=80000,
+        barcodelength=8,
+        minhdist=5).shape)
     print(tt.time()-t0)
 
 if __name__ == '__main__':

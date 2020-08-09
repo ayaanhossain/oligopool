@@ -61,29 +61,31 @@ def liner_engine(online=True):
 # Numeric Functions
 
 def get_trials(prob):
-	'''
-	Return the number of required trials
-	given a probability of success.
-	Internal use only.
+    '''
+    Return the number of required trials
+    given a probability of success.
+    Internal use only.
 
-	:: prob
-	   type - float
-	   desc - probability of a rate event
-	'''
-	return 2 * int(ceil(
-		-10 / np.log(1. - prob)))
+    :: prob
+       type - float
+       desc - probability of a rate event
+    '''
+    growth_rate = -100.0 # Lower is Rarer
+    # print(-10 / np.log(1. - prob))
+    return 2 * int(np.ceil(
+        growth_rate / np.log(1. - prob)))
 
 def get_prob(success, trials):
-	'''
-	Return the probability of success given
-	the number of successes in some finite
-	trials. Internal use only.
+    '''
+    Return the probability of success given
+    the number of successes in some finite
+    trials. Internal use only.
 
-	:: success
-	   type - integer
-	   desc - total number of successes
-	:: trials
-	   type - integer
-	   desc - total number of attempts made
-	'''
-	return (success + 1.) / (trials + 2.)
+    :: success
+       type - integer
+       desc - total number of successes
+    :: trials
+       type - integer
+       desc - total number of attempts made
+    '''
+    return (success + 1.) / (trials + 2.)

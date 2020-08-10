@@ -85,7 +85,7 @@ def stream_barcodes(barcodelength):
     txf = lambda x: float(ord(x))
     txb = lambda x: x == '1'
     
-    # Hyperion Jump!
+    # Stream Jumps!
     while True:
         # Fetch a Jump Coordinate
         try:
@@ -130,7 +130,6 @@ def barcode_engine(
     targetsize,
     barcodelength,
     minhdist,
-
     liner):
     '''
     Given a library size of t, generate

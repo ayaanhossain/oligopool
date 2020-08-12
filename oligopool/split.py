@@ -181,8 +181,19 @@ def get_varcont(entvec):
     # Return Results
     return varcont
 
+def get_num_oligos(seqlen, splitlen):
+    if seqlen < splitlen:
+        return seqlen
+    balance = seqlen % splitlen
+    if balance > seqlen // 2:
+        return seqlen // splitlen + 2
+    return seqlen // splitlen + 1
+
 def split_engine(
-    seqlist):
+    seqlist,
+    splitlen=170,
+    mintm=50,
+    minhdist=10):
     seqmat = get_seqmat(
         seqlist=seqlist,
         numseq=len(seqlist),
@@ -193,6 +204,8 @@ def split_engine(
 
     print(get_varcont(entvec))
 
+    # Assess if splitting is feasible
+
 
 
 def get_DNA(l):
@@ -200,13 +213,15 @@ def get_DNA(l):
     return ''.join(np.random.choice(fld) for _ in range(l))
 
 def main():
+    print(get_num_oligos(90, 30))
+
     #       Constant                                         Constant
     #       ------------------                  ------------------
     seq1 = 'CCATAGTCAGACGCATCGAGAGTAGGCTGAGAGTGAAATCTGCGCATATCGACG'
     seq2 = 'CCATAGTCAGACGCATCGCCGACTCCAATCCTAGACAATCTGCGCATATCGACG'
 
     seqlist = [seq1, seq2]
-    split_engine(seqlist)
+    # split_engine(seqlist)
 
     #                        40
     #      ----------------------------------------

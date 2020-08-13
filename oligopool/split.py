@@ -81,9 +81,11 @@ def get_seqvec(seq):
        desc - a sequence to split
     '''
     
-    return np.array(tuple(ord(nt) for nt in seq))
+    return np.array(
+        tuple(ord(nt) for nt in seq),
+        dtype=np.float64)
 
-def get_seqmat(seqlist, numseq, seqlen):
+def get_seqmat(seqlist):
     '''
     Return the numeric representation
     of seqlist. Internal use only.
@@ -91,19 +93,14 @@ def get_seqmat(seqlist, numseq, seqlen):
     :: seqlist
        type - iterable
        desc - list of sequences to split
-    :: numseq
-       type - integer
-       desc - total number of elements in
-              seqlist
-    :: seqlen
-       type - integer
-       desc - length of each sequence
     '''
     
-    seqmat = np.zeros((numseq, seqlen), dtype=np.float64)
+    seqmat = np.zeros(
+        (len(seqlist), len(seqlist[0])),
+        dtype=np.float64)
     for idx,seq in enumerate(seqlist):
-        seqmat[idx, :] = get_seqvec(seq)
-    return seqmat
+        seqmat[idx, :] = get_seqvec(seq=seq)
+    return np.array(seqmat, dtype=np.float64)
 
 def get_entvec(seqmat):
     '''
@@ -116,23 +113,23 @@ def get_entvec(seqmat):
     '''
 
     d = seqmat / seqmat.sum(0)
-    return 1. - ((d*np.log2(d)).sum(0) * -1)
+    return cx.deque(
+        1. - ((d*np.log2(d)).sum(0) * -1))
 
 def get_varcont(entvec):
     '''
-    Return all variable region indices.
+    Return all variable region span indices.
     Internal use only.
 
     :: entvec
-       type - np.array
+       type - cx.deque
        desc - positional entropy
     '''
 
     # Setup Parsing
-    varcont = []
+    varcont = cx.deque()
     start   = None
     end     = None
-    entvec  = cx.deque(entvec)
     i       = -1
 
     # Parse Contigs
@@ -181,6 +178,39 @@ def get_varcont(entvec):
     # Return Results
     return varcont
 
+def get_merged_varcont(varcont, mergefactor):
+    '''
+    Return a merged varcont, merging variables
+    separated by at most mergefactor constants.
+    Internal use only.
+
+    :: varcont
+       type - cx.deque
+       desc - all variable region span indices
+    :: mergefactor
+       type - integer
+       desc - maximum gap length between two
+              variable regions to be merged
+              into a single contig
+    '''
+
+    # Setup
+    merged  = cx.deque()
+    current = list(varcont.popleft())
+    
+    # Merge Contigs
+    while varcont:
+        contig = varcont.popleft()
+        if contig[0]-current[1] <= mergefactor:
+            current[1] = contig[1]
+        else:
+            merged.append(tuple(current))
+            current = list(contig)
+    merged.append(tuple(current))
+    
+    # Return Result
+    return merged
+
 def get_num_oligos(seqlen, splitlen):
     if seqlen < splitlen:
         return seqlen
@@ -189,22 +219,55 @@ def get_num_oligos(seqlen, splitlen):
         return seqlen // splitlen + 2
     return seqlen // splitlen + 1
 
+def get_breakvecs(varcont, seqlen):
+
+    # Setup Start4End and End4Starts
+    alphavec = [None] * seqlen
+    betavec  = [None] * seqlen
+
+    # Compute Breakpoints
+    while varcont:
+        p,q = varcont.popleft()
+        for i in range(p, q):
+            alphavec[i] = p
+            betavec [i] = q
+
+    # Return Breakpoint Vectors
+    return alphavec, betavec
+
 def split_engine(
     seqlist,
     splitlen=170,
     mintm=50,
     minhdist=10):
-    seqmat = get_seqmat(
-        seqlist=seqlist,
-        numseq=len(seqlist),
-        seqlen=len(seqlist[0]))
+
+    liner = ut.liner_engine()
+    
+    seqmat = get_seqmat(seqlist=list(seqlist))
     print(seqmat)
-    entvec = get_entvec(seqmat)
-    print(entvec)
+    print(seqmat.shape)
 
-    print(get_varcont(entvec))
+    # If sequences are shorter or equal to
+    # splitlen, then no splitting required
 
-    # Assess if splitting is feasible
+    entvec  = get_entvec(
+        seqmat=seqmat)
+
+    entvec = cx.deque(map(int, '00000000000111111111000000011011111111110000000011111111110000'))
+    varcont = get_merged_varcont(
+        varcont=get_varcont(
+            entvec=entvec),
+        mergefactor=2)#minhdist // 4)
+    print(varcont)
+
+    alphavec, betavec = get_breakvecs(
+        varcont=varcont,
+        seqlen=62)#seqmat.shape[-1])
+    print(alphavec)
+    print(betavec)
+
+    
+
 
 
 
@@ -213,15 +276,24 @@ def get_DNA(l):
     return ''.join(np.random.choice(fld) for _ in range(l))
 
 def main():
-    print(get_num_oligos(90, 30))
+    # print(get_num_oligos(54, 20))
 
     #       Constant                                         Constant
     #       ------------------                  ------------------
     seq1 = 'CCATAGTCAGACGCATCGAGAGTAGGCTGAGAGTGAAATCTGCGCATATCGACG'
     seq2 = 'CCATAGTCAGACGCATCGCCGACTCCAATCCTAGACAATCTGCGCATATCGACG'
 
+    # --------------------
+    #                 --------------------
+    #                                   --------------------
+    # CCATAGTCAGACGCATCGAGAGTAGGCTGAGAGTGAAATCTGCGCATATCGACG
+
     seqlist = [seq1, seq2]
-    # split_engine(seqlist)
+    split_engine(
+        seqlist=seqlist,
+        splitlen=30,
+        mintm=50,
+        minhdist=10)
 
     #                        40
     #      ----------------------------------------

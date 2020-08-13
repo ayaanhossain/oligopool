@@ -112,9 +112,24 @@ def get_entvec(seqmat):
        desc - numeric sequence matrix
     '''
 
-    d = seqmat / seqmat.sum(0)
-    return cx.deque(
-        1. - ((d*np.log2(d)).sum(0) * -1))
+    # Compute Count Frequency
+    d = np.zeros(
+        (4, seqmat.shape[1]),
+        dtype=np.float64)
+    for i in range(seqmat.shape[1]):
+        p = np.zeros(4)
+        m = np.unique(
+            seqmat[:, i],
+            return_counts=True)[1]
+        p[:m.shape[0]] = m
+        d[:, i] += p
+
+    # Convert to Normalized Distribution
+    d = d / d.sum(0)
+
+    # Return Results
+    return cx.deque(np.abs(
+        (d*(np.log(d, where=d>0.) / np.log(4))).sum(0)))
 
 def get_varcont(entvec):
     '''
@@ -252,17 +267,18 @@ def split_engine(
 
     entvec  = get_entvec(
         seqmat=seqmat)
+    print(entvec)
 
-    entvec = cx.deque(map(int, '00000000000111111111000000011011111111110000000011111111110000'))
+    # entvec = cx.deque(map(int, '00000000000111111111000000011011111111110000000011111111110000'))
     varcont = get_merged_varcont(
         varcont=get_varcont(
             entvec=entvec),
-        mergefactor=2)#minhdist // 4)
+        mergefactor=minhdist // 4)
     print(varcont)
 
     alphavec, betavec = get_breakvecs(
         varcont=varcont,
-        seqlen=62)#seqmat.shape[-1])
+        seqlen=seqmat.shape[-1])
     print(alphavec)
     print(betavec)
 

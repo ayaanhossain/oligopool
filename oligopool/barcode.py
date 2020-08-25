@@ -132,11 +132,16 @@ def is_barcode_feasible(
        desc - numeric vector encoding barcode
     :: count
        type - integer
-       desc - current storage fill count    
+       desc - current storage fill count
     '''
 
-    return (store[:count, :] != barcode).sum(
-        1).min() >= minhdist
+    # We have store to compare
+    if count:
+        return (store[:count, :] != barcode).sum(
+            1).min() >= minhdist
+
+    # Nothing to compare
+    return True
 
 def show_update(
     count,
@@ -346,8 +351,8 @@ def main():
     t0 = tt.time()
     
     store = barcode_engine(
-        targetsize=1000,
-        barcodelength=10,
+        targetsize=768,
+        barcodelength=8,
         minhdist=3,
         liner=liner)
 

@@ -260,7 +260,7 @@ def get_endpoints(varcont, start, pcend, splitlen):
     :: start
        type - integer
        desc - current split starting point
-    :: piend
+    :: pcend
        type - integer
        desc - previous contig interval end
     :: splitlen
@@ -329,14 +329,14 @@ def is_splittable(varcont, splitlen, minhdist):
         qq = q
     return True
 
-def is_last_fragment(start, splitlen, seqlen):
+def is_last_fragment(pcstart, splitlen, seqlen):
     '''
     Determine if the current split is the last
     frament in split. Internal use only.
 
-    :: start
+    :: pcstart
        type - integer
-       desc - current split starting point
+       desc - previous contig interval start
     :: splitlen
        type - integer
        desc - maximum split length
@@ -344,7 +344,7 @@ def is_last_fragment(start, splitlen, seqlen):
        type - integer
        desc - complete oligo length
     '''
-    if start+splitlen >= seqlen:
+    if pcstart+splitlen >= seqlen:
         return True
     return False
 
@@ -431,17 +431,12 @@ def split_engine(
     # Build all Fragments
     split = [] # Store all Splits
     start = 0  # Current  Frag Start
-    pcend = -1 # Previous Frag End
+    pcend = 0  # Previous Frag End
+
+    unsoln = False
     
     # Main Loop
     while True:
-
-        # Is this the last fragment?
-        if is_last_fragment(
-            start=start,
-            splitlen=splitlen,
-            seqlen=seqlen):
-            break
 
         # Get Endpoints for Current Fragment
         epq = get_endpoints(
@@ -453,9 +448,11 @@ def split_engine(
         
         # We don't have any contigs left
         # to build further fragments
-        if not epq: break
+        if not epq:
+            unsoln = True
+            break
 
-        # Get the Tm based split
+        # Get the Tm and HDist based split
         r, q = get_split(
             seqmat=seqmat,
             runmat=runmat,
@@ -466,56 +463,29 @@ def split_engine(
 
         # No Tm based split possible
         if r is None:
+            unsoln = True
             break
 
-        break           
+        # Prepare for next split
+        else:
+            split.append((r, q))
+            pcstart = r
+            pcend   = q
+            start   = q + 1
 
+        # Is this the last fragment?
+        if is_last_fragment(
+            pcstart=pcstart,
+            splitlen=splitlen,
+            seqlen=seqlen):
+            print('LF!')
+            # split.append((pc, seqlen))
+            break
 
-    return
-
-    # Build all Fragments
-    start, end = 0, splitlen
-    while True:
-
-        # Where is the breakpoint given our ending?
-        bpstart, bpend = alphavec[end], betavec[end]
-
-        # Adjust ending
-        bpend = min(end, bpend)
-
-        # Is the varible region long enough for our Hamming needs?
-        if bpend-bpstart < minhdist:
-            liner.send(' Variable Region ({}, {}) too small\n'.format(
-                bpstart, bpend))
-
-        # If current end is same as previous end
-        # no more variable region on right to
-        # extend, no viable solution
-
-        print(bpstart, bpend)
-
-        # Select span based on Tm
-        # (a full sub-engine)
-        tmstart = get_split(
-            mintm=mintm,
-            runmat=runmat,
-            bpstart=bpstart,
-            bpend=bpend,
-            minspan=minhdist)
-
-        # If span overrides boundary on left
-        # there is no viable solution
-
-        # Extend span to meet minhammdist
-        # (a full sub-engine)
-
-        # If span overrides boundary on left
-        # there is no viable solution
-
-        # Adjust end to build next fragment set
-
-        # Breaking condition execute
-        break
+    if unsoln:
+        return None
+    else:
+        return split
 
 # @nb.njit
 def get_hdist(
@@ -652,22 +622,6 @@ def get_split(seqmat, runmat, epq, mintm, minhdist):
     # Return Results
     return r, q
 
-
-def get_Tm_start(mintm, runvec, i, j, minspan):
-    maxstart = i
-    p = j-minspan
-    while p >= maxstart:
-        tm = get_approx_Tm(
-            rv=runvec,
-            i=p,
-            j=j)
-        print(tm, runvec[p:j], p, j)
-        if tm > mintm:
-            return p
-        p -= 1
-    return None
-
-
 def test1():
     entvec = cx.deque(map(
         int,'00000000000111111111000000011011111111110000000011111111110000'))
@@ -722,11 +676,14 @@ def main():
     #                             ++++++++++----------------------
 
     seqlist = [seq1, seq2, seq3, seq4]
-    split_engine(
+    split = split_engine(
         seqlist=seqlist,
-        splitlen=32,
-        mintm=5,
-        minhdist=10)
+        splitlen=32,#26,
+        mintm=-5,#10,
+        minhdist=9)#5)
+    print(split)
+
+    print(seq1[28:36])
 
     # seq1 = 'TGATTCCTAG'
     # seqlist = [seq1]

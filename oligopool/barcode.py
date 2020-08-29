@@ -111,10 +111,8 @@ def stream_barcodes(barcodelength):
                     barcodelength))),
             dtype=np.float64)
 
-@nb.njit
 def is_barcode_feasible(
     store,
-    barcode,
     count,
     minhdist):
     '''
@@ -127,21 +125,20 @@ def is_barcode_feasible(
        type - np.array
        desc - vectorized storage of numeric
               encoding of all previous barcodes
-    :: barcode
-       type - np.array
-       desc - numeric vector encoding barcode
     :: count
        type - integer
        desc - current storage fill count
+    :: minhdist
+       type - integer
+       desc - minimum pairwise hamming
+              distance between a pair
+              of barcodes
     '''
 
-    # We have store to compare
-    if count:
-        return (store[:count, :] != barcode).sum(
-            1).min() >= minhdist
-
-    # Nothing to compare
-    return True
+    return ut.get_hdist(
+        store=store,
+        idx=count,
+        direction=0) >= minhdist
 
 def show_update(
     count,
@@ -228,17 +225,19 @@ def barcode_engine(
     plen = len(str(targetsize)) + \
         int(np.log10(targetsize) / 3)
 
+    # TODO: Setup Exmotifs
+
     # Generator Setup
     barcodes = stream_barcodes(
         barcodelength=barcodelength)
-    barcode  = None
-    acccode  = None
+    barcode  = None # Current Candidate
+    acccode  = None # Last Successful Candidate
     
     # Build Barcodes
     while True:
 
         # Sample a Barcode in Space
-        barcode  = next(barcodes)
+        barcode = next(barcodes)
 
         # Space Exhausted?
         if barcode is None:
@@ -249,16 +248,15 @@ def barcode_engine(
                 cf=True,
                 liner=liner)
             return store[:count, :]
+
+        # Update Barcode Store
+        store[count, :] = barcode
         
         # Compare Sample with Stored
-        if count:
-            cf = is_barcode_feasible(
-                store=store,
-                barcode=barcode,
-                count=count,
-                minhdist=minhdist)
-        else:
-            cf = True
+        cf = is_barcode_feasible(
+            store=store,
+            count=count,
+            minhdist=minhdist)
 
         # Inifinite Jumper Book-keeping Update
         if jtp == 2:
@@ -275,8 +273,7 @@ def barcode_engine(
                 cf=cf,
                 liner=liner)
 
-            # Update Barcode Store
-            store[count, :] = barcode
+            # Update Last Accounted Barcode
             acccode = barcode
 
             # Update Store Fill Count
@@ -351,9 +348,9 @@ def main():
     t0 = tt.time()
     
     store = barcode_engine(
-        targetsize=768,
-        barcodelength=8,
-        minhdist=3,
+        targetsize=10000,
+        barcodelength=10,
+        minhdist=2,
         liner=liner)
 
     print('\n{}'.format(store.shape))

@@ -1,6 +1,7 @@
 import sys
 
 import numpy   as np
+import numba   as nb
 import primer3 as p3
 
 
@@ -94,8 +95,65 @@ def get_prob(success, trials):
 
 # Oligo Functions
 
-def get_exact_Tm(
+@nb.njit
+def get_hdist(
+    store,
+    idx,
+    i=0,
+    j=None,
+    direction=0):
+    '''
+    Return the minimum pairwise hamming
+    distance between store[idx, i:j] and
+    store[*: i:j] depending on direction.
+    Internal use only.
+
+    :: store
+       type - np.array
+       desc - numeric sequence array
+    :: idx
+       type - integer
+       desc - location index of sequence
+              being compared
+    :: i
+       type - integer
+       desc - starting index of comparison
+    :: j
+       type - integer
+       desc - ending   index of comparison
+    :: direction
+       type - integer
+       desc - direction flag;
+              0 = upward   comparison
+              1 = downward comparison
+              2 = all-pair comparison
+    '''
+
+    # Default Result
+    hdist = store.shape[1]
+
+    # Something to compare agains?
+    if idx > 0:
+
+        # Upward / All-Pair Comparison
+        if direction == 0 or direction == 2:
+            hdist = min(
+                hdist,
+                (store[:idx, i:j] != store[idx, i:j]).sum(1).min())
+
+        # Downward / All-Pair Comparison
+        if direction == 1  or direction == 2:
+            hdist = min(
+                hdist,
+                (store[idx:, i:j] != store[idx, i:j]).sum(1).min())
+
+    # Return Result
+    return hdist
+
+def get_tmelt(
     seq,
+    i=0,
+    j=None,
     mvc=50.,
     dvc=0.,
     ntc=0.8,
@@ -109,7 +167,14 @@ def get_exact_Tm(
     :: seq
        type - string
        desc - DNA string in context
-    :; mvc
+    :: i
+       type - integer
+       desc - starting index of comparison
+              (default=)
+    :: j
+       type - integer
+       desc - ending index of comparison
+    :: mvc
        type - float
        desc - monovalent cation conc. (mM)
               (default=50.0 nM)
@@ -127,7 +192,7 @@ def get_exact_Tm(
               (default=50 nM)
     '''
     return p3.bindings.calcTm(
-        seq=seq,
+        seq=seq[i:j],
         mv_conc=mvc,
         dv_conc=dvc,
         dntp_conc=ntc,

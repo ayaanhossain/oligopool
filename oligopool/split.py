@@ -7,90 +7,21 @@ import numba as nb
 
 import utils as ut
 
-
-def get_runvec(seqvec):
+def get_spanlen(minoverlap, minhdist):
     '''
-    Return GC run vector for melting temp calc.
+    Return the minimum required split span length.
     Internal use only.
 
-    :: seq
-       type - string
-       desc - sequence to decompose
-    '''
-
-    # Compute run vector
-    rv = np.zeros(seqvec.shape[0]+1, dtype=np.float64)
-    i  = 0
-    gc = set([float(ord('G')), float(ord('C'))])
-    while i < seqvec.shape[0]:
-        rv[i+1] = rv[i] + (1. if seqvec[i] in gc else 0.)
-        i += 1
-
-    # Return result
-    return rv
-
-def get_runmat(seqmat):
-    '''
-    Return the GC run matrix for given seqmat.
-    Internal use only.
-
-    :: seqmat
-       type - np.array
-       desc - numeric sequence matrix
-    '''
-    
-    j,k = seqmat.shape
-    rm  = np.zeros((j, k+1), dtype=np.float64)
-    i   = 0
-    while i < j:
-        rm[i, :] = get_runvec(seqmat[i, :])
-        i += 1
-    return rm
-
-def get_approx_Tm(rv, i, j, mvc=50):
-    '''
-    Return approximate melting temperature
-    based on the GC run vector. Internal
-    use only.
-
-    :: rv
-       type - np.array
-       desc - GC run vector
-    :: i
+    :: minoverlap
        type - integer
-       desc - sequence starting index (0-based)
-    :: j
-       type - integer / None
-       desc - sequence ending index (0-based)
-    :: mvc
-       type - float
-       desc - monovalent conc in mM
-              (default=50 mM)
+       desc - minimum fragment overlap length
+    :: minhdist
+       type - integer
+       desc - minimum pairwise hamming distance
     '''
 
-    # Calculate terms
-    na = mvc / 1000.
-    t1 = 81.5
-    t2 = 16.6 * np.log10(na)
-    gc = rv[j] - rv[i]
-    rl = j - i
-    t3 = 0.41 * 100. * (gc / rl)
-    t4 = 600. / rl
-
-    # Calculate correction
-    cr = 0.
-    if (j-i) < 60:
-        if rv[j]   - rv[j-1] > 0 or \
-           rv[i+1] - rv[i]   > 0:
-            cr += 1.2
-        if rv[j-1] - rv[j-2] > 0 or \
-           rv[i+2] - rv[i+1] > 0:
-            cr += 0.8
-        if cr == 0.:
-            cr = -1.0
-
-    # Return result
-    return t1 + t2 + t3 - t4 + cr
+    # Automatically fulfills minoverlap
+    return max(minoverlap, minhdist)
 
 def get_seqvec(seq):
     '''
@@ -106,7 +37,7 @@ def get_seqvec(seq):
         tuple(float(ord(nt)) for nt in seq),
         dtype=np.float64)
 
-def get_seqmat(seqlist):
+def get_seqmat(seqlist, seqlen, liner):
     '''
     Return the numeric representation
     of seqlist. Internal use only.
@@ -114,16 +45,48 @@ def get_seqmat(seqlist):
     :: seqlist
        type - iterable
        desc - list of sequences to split
+    :: seqlen
+       type - integer
+       desc - length of sequences to split
+    :: liner
+       type - coroutine
+       desc - dynamic printing
     '''
+
+    # Show Segment
+    liner.send('\n[Building Sequence Matrix]\n')
     
+    # Setup Store
     seqmat = np.zeros(
-        (len(seqlist), len(seqlist[0])),
+        (len(seqlist), seqlen),
         dtype=np.float64)
+
+    # Update-keeping
+    short = True if seqlen > 10 else False
+
+    # Time-keeping
+    t0 = tt.time()
+
+    # Fill Store
     for idx,seq in enumerate(seqlist):
-        seqmat[idx, :] = get_seqvec(seq=seq)
+        seqvec = get_seqvec(seq=seq)
+        seqmat[idx, :] = seqvec
+
+        if short:
+            liner.send(' Storing Vectorized Sequence {}: {}..{}'.format(
+                idx, seqvec[:5], seqvec[-5:]))
+        else:
+            liner.send(' Storing Vectorized Sequence {}: {}'.format(
+                idx, seqvec))
+
+    # Final Updates
+    liner.send('   Vectorized: {} Sequences\n'.format(idx+1))
+    liner.send(' Time Elapsed: {:.2f} sec\n'.format(tt.time()-t0))
+    
+    # Return Results
     return np.array(seqmat, dtype=np.float64)
 
-def get_entvec(seqmat):
+def get_entvec(seqmat, seqlen, liner):
     '''
     Return entropy of sequence matrix.
     Internal use only.
@@ -131,29 +94,74 @@ def get_entvec(seqmat):
     :: seqmat
        type - np.array
        desc - numeric sequence matrix
+    :: seqlen
+       type - integer
+       desc - length of sequences to split
+    :: liner
+       type - coroutine
+       desc - dynamic printing
     '''
 
-    # Compute Count Frequency
+    # Show Segment
+    liner.send('\n[Building Entropy Vector]\n')
+
+    # Update-keeping
+    short = True if seqlen > 10 else False
+
+    # Time-keeping
+    t0 = tt.time()
+
+    # Show Update
+    liner.send(' Computing Count Vector ...')
+    
+    # Setup Data Structures
     d = np.zeros(
         (4, seqmat.shape[1]),
         dtype=np.float64)
     p = np.zeros(4)
-    for i in range(seqmat.shape[1]):
+    
+    # Compute Count Frequency
+    for idx in range(seqmat.shape[1]):
+        
+        # Count Symbol Counts at i-th Index
         m = np.unique(
-            seqmat[:, i],
+            seqmat[:, idx],
             return_counts=True)[1]
-        p[:m.shape[0]] = m
-        d[:, i] += p
-        p *= 0.
+        
+        # Update Data Structure and Show Updates
+        p[:m.shape[0]] = m # Absorb Local
 
-    # Convert to Normalized Distribution
+        liner.send(' Index {} Unique Count: {}'.format(
+            idx, p))
+
+        d[:, idx] += p     # Update Global
+        p *= 0.            # Reset  Local
+
+    # Normalize Counts
     d = d / d.sum(0)
 
-    # Return Results
-    return cx.deque(np.abs(
-        (d*(np.log(d, where=d>0.) / np.log(4))).sum(0)))
+    # Show Updates
+    liner.send('   Count Vector Normalized in {:.2f} sec\n'.format(
+        tt.time() - t0))
 
-def get_varcont(entvec):
+    # Reset Time-keeping
+    t0 = tt.time()
+
+    # Show Updates
+    liner.send(' Computing Entropy Vector ...')
+    
+    # Compute Entropy Vector
+    entvec = cx.deque(np.abs(
+        (d*(np.log(d, where=d>0.) / np.log(4))).sum(0)))
+    
+    # Show Updates
+    liner.send(' Entropy Vector Computed   in {:.2f} sec\n'.format(
+        tt.time() - t0))
+
+    # Return Results
+    return entvec
+
+def get_varcont(entvec, liner):
     '''
     Return all variable region span indices.
     Internal use only.
@@ -161,25 +169,44 @@ def get_varcont(entvec):
     :: entvec
        type - cx.deque
        desc - positional entropy
+    :: liner
+       type - coroutine
+       desc - dynamic printing
     '''
+
+    # Show Segment
+    liner.send('\n[Extracting Variable Contigs]\n')
 
     # Setup Parsing
     varcont = cx.deque()
     start   = None
     end     = None
-    i       = -1
+    idx     = -1
+
+    # Time-keeping
+    t0 = tt.time()
 
     # Parse Contigs
     while entvec:
 
         # Update index
-        i += 1
+        idx += 1
 
         # Extract entropy
         ent = entvec.popleft()
 
+        # Show Update
+        if varcont:
+            liner.send(
+                ' Entropy Index: {} | Recorded Contig: (Start={}, End={})'.format(
+                    idx, varcont[-1][0], varcont[-1][1]))
+        else:
+            liner.send(
+                ' Entropy Index: {} | Recorded Contig: (Start=None, End=None)'.format(
+                    idx))
+
         # Constant Region
-        if ent <= 0.25:
+        if ent <= 0.25: # Constant Upper Bound
 
             # A contig built?
             if not start is None and \
@@ -198,9 +225,9 @@ def get_varcont(entvec):
 
             # Contig continues?
             if start is None:
-                start = i
+                start = idx
             if end is None:
-                end = i
+                end = idx
             
             # Update ending index
             end += 1
@@ -212,10 +239,14 @@ def get_varcont(entvec):
     if not end is None:
         varcont.append((start, end))
 
+    # Final Update
+    liner.send(' Variable Contigs: {}\n'.format(len(varcont)))
+    liner.send('     Time Elapsed: {:.2f} sec\n'.format(tt.time() - t0))
+
     # Return Results
     return varcont
 
-def get_merged_varcont(varcont, mergefactor):
+def get_merged_varcont(varcont, mergefactor, liner):
     '''
     Return a merged varcont, merging variables
     separated by at most mergefactor constants.
@@ -229,24 +260,154 @@ def get_merged_varcont(varcont, mergefactor):
        desc - maximum gap length between two
               variable regions to be merged
               into a single contig
+    :: liner
+       type - coroutine
+       desc - dynamic printing
     '''
 
-    # Setup
-    merged  = cx.deque()
-    current = list(varcont.popleft())
+    # Do we merge?
+    if not varcont:
+        return varcont
+
+    # Show Segment
+    liner.send('\n[Merging Variable Contigs]\n')
+
+    # Setup Data Structures
+    merged   = cx.deque()
+    previous = list(varcont.popleft())
+
+    # Time-keeping
+    t0 = tt.time()
     
     # Merge Contigs
     while varcont:
-        contig = varcont.popleft()
-        if contig[0]-current[1] <= mergefactor:
-            current[1] = contig[1]
+        current = varcont.popleft()
+        if current[0]-previous[1] <= mergefactor:
+            # Show Update
+            liner.send(' Contigs (Start={}, End={}) and (Start={}, End={}) -> Merged (Start={}, End={})'.format(
+                *previous, *current, *[previous[0], current[1]]))
+            previous[1] = current[1]
         else:
-            merged.append(tuple(current))
-            current = list(contig)
-    merged.append(tuple(current))
+            # Show Update
+            liner.send(' Contigs (Start={}, End={}) and (Start={}, End={}) -> Unmerged'.format(
+                *previous, *current))
+            merged.append(tuple(previous))
+            previous = list(current)
+    merged.append(tuple(previous))
+
+    # Show Updates
+    liner.send(' Merged Contigs: {}\n'.format(len(merged)))
+    liner.send('   Time Elapsed: {:.2f} sec\n'.format(tt.time() - t0))
     
     # Return Result
     return merged
+
+def is_spannable(p, q, spanlen):
+    '''
+    Determine if a contig span satisfies spanlen.
+    Internal use only.
+
+    :: p
+       type - integer
+       desc - span start
+    :: q
+       type - integer
+       desc - span end
+    :: spanlen
+       type - integer
+       desc - minimum required split span length
+    '''
+
+    if q - p < spanlen:
+        return False
+    return True
+
+def get_filtered_varcont(varcont, spanlen, liner):
+
+    # Do we filter varcont?
+    if not varcont:
+        return varcont
+
+    # Show Segment
+    liner.send('\n[Filtering Variable Contigs]\n')
+    
+    # Setup Data Structure
+    filtered = cx.deque()
+
+    # Time-keeping
+    t0 = tt.time()
+
+    # Filter Contigs
+    for p,q in varcont:
+        if is_spannable(p, q, spanlen):
+            # Show Update
+            liner.send(' Contig (Start={}, End={}) Survived'.format(p, q))
+            filtered.append((p, q))
+        else:
+            # Show Update
+            liner.send(' Contig (Start={}, End={}) Eliminated'.format(p, q))
+
+    # Show Updates
+    liner.send(' Survived Contigs: {}\n'.format(len(filtered)))
+    liner.send('     Time Elapsed: {:.2f} sec\n'.format(tt.time() - t0))
+
+    # Return Result
+    return filtered
+
+def is_varcont_feasible(varcont, seqlen, splitlen, spanlen, liner):
+    '''
+    Determine if the variable contigs are
+    within splitlen range, otherwise there
+    is no solution to problem instance.
+    Internal use only.
+
+    :: varcont
+       type - cx.deque
+       desc - all variable region span indices
+    :: seqlen
+       type - integer
+       desc - length of sequences to split
+    :: splitlen
+       type - integer
+       desc - maximum split length
+    :: spanlen
+       type - integer
+       desc - minimum required split span length
+    :: liner
+       type - coroutine
+       desc - dynamic printing
+    '''
+
+    # Book-keeping
+    ci     = iter(varcont)
+    pp, qq = next(ci)
+
+    # Check for the first fragment
+    if pp + spanlen > splitlen:
+        liner.send(
+            ' Verdict: Infeasible (first contig (Start={}, End={}) too far from start)\n'.format(
+                pp, qq))
+        return False
+
+    # Check between contigs
+    for p,q in varcont:
+        if p - qq + 2*spanlen > splitlen:
+            liner.send(
+                ' Verdict: Infeasible (adjacent contigs (Start={}, End={}) and (Start={}, End={}) far apart)\n'.format(
+                    pp, qq, p, q))
+            return False
+        qq = q
+        pp = p
+
+    # Check for the last fragment
+    if qq - spanlen + splitlen < seqlen:
+        liner.send(
+            ' Verdict: Infeasible (last contig (Start={}, End={}) too far from end\n'.format(
+                pp, qq))
+        return False
+
+    # No problems found
+    return True
 
 def get_endpoints(varcont, start, pcend, splitlen):
     '''
@@ -303,32 +464,6 @@ def get_endpoints(varcont, start, pcend, splitlen):
     # Return Results
     return epq
 
-def is_splittable(varcont, splitlen, minhdist):
-    '''
-    Determine if the variable contigs are
-    within splitlen range, otherwise there
-    is no solution to problem instance.
-    Internal use only.
-
-    :: varcont
-       type - cx.deque
-       desc - all variable region span indices
-    :: splitlen
-       type - integer
-       desc - maximum split length
-    :: minhdist
-       type - integer
-       desc - minimum pairwise hamming distance
-    '''
-
-    ci = iter(varcont)
-    qq = next(ci)[1]
-    for p,q in varcont:
-        if p - qq + 2*minhdist > splitlen:
-            return False
-        qq = q
-    return True
-
 def is_last_fragment(pcstart, splitlen, seqlen):
     '''
     Determine if the current split is the last
@@ -348,85 +483,240 @@ def is_last_fragment(pcstart, splitlen, seqlen):
         return True
     return False
 
-def is_spannable(p, q, minhdist):
+def get_split(seqlist, seqmat, epq, mintmelt, minhdist):
     '''
-    Determine if a contig span satisfies minhdist.
+    Return an integer r (p < r < q) from epq intervals such
+    that Tm(runmat[r:q]) > mintmelt and HD(seqmat) > minhdist.
     Internal use only.
-
-    :: p
-       type - integer
-       desc - span start
-    :: q
-       type - integer
-       desc - span end
+    
+    :: seqlist
+       type - list
+       desc - list of sequences to split
+    :: seqmat
+       type - np.array
+       desc - numeric sequence matrix
+    :: epq
+       type - deque
+       desc - endpoint variable contigs
+    :: mintmelt
+       type - float
+       desc - melting temperature lower bound
     :: minhdist
        type - integer
        desc - minimum pairwise hamming distance
     '''
-    if q - p < minhdist:
-        return False
-    return True
+    
+    # Candidate Results
+    r, q = None, None
+
+    # Tm computation loop
+    while epq:
+
+        # Fetch Current Interval
+        p, q = epq.popleft()
+        
+        # Span Smaller than minhdist
+        if not is_spannable(p, q, minhdist):
+            r = None
+            continue
+
+        # Maximum r Value
+        r = q - minhdist
+
+        # Unresolvable
+        if r < p:
+            # No solution to current split
+            r = None
+            break
+
+        # Constraint Match Tracers
+        condtm = False
+        condhd = False
+
+        # Iterate and Adjust
+        idx = 0
+        while idx < seqmat.shape[0]:
+
+            # Optimize Tm
+            if not condtm:
+
+                # Compute Tm for current split
+                tmelt = ut.get_tmelt(
+                    seq=seqlist[idx],
+                    i=r,
+                    j=q)
+
+                print(idx, p, r, q, tmelt, 'TM', tmelt >= mintmelt)
+
+                # Tm was Lower ..
+                if tmelt < mintmelt:
+
+                    # Minimize r Value
+                    r = r - 1
+
+                    # Unresolvable
+                    if r < p:
+                        # No solution to current split
+                        r = None
+                        break
+                    
+                    # Try again ..
+                    else:
+                        continue
+                
+                # Tm was OK!
+                elif tmelt >= mintmelt:
+                    condtm = True
+
+            # Optimize Hamming Distance
+            if not condhd:
+
+                # Compute Hamming Distance for current split
+                # hd = get_hdist(seqmat=seqmat, i=r, j=q, idx=idx)
+                hdist = ut.get_hdist(
+                    store=seqmat,
+                    idx=idx,
+                    i=r,
+                    j=q,
+                    direction=0)
+
+                print(idx, p, r, q, hdist, 'HD', hdist >= minhdist)
+
+                # HDist was Lower ..
+                if hdist < minhdist:
+
+                    # Minimize r Value
+                    r = r - minhdist + hdist
+                    
+                    # Unresolvable
+                    if r < p:
+                        # No solution to current split
+                        r = None
+                        break
+                    
+                    # Try again ..
+                    else:
+                        continue
+
+                # HDist was OK!
+                elif hdist >= minhdist:
+                    condhd = True
+
+            # Both Conditions Met!
+            if condtm and condhd:
+                # Move to next sequence
+                idx += 1
+                condtm = False # Reset Tm    Tracer
+                condhd = False # Reset HDist Tracer
+                continue
+
+        # Do we have a solution?
+        if not r is None:
+            return r, q
+    
+    # Return Results
+    return r, q
 
 def split_engine(
     seqlist,
     splitlen=170,
-    mintm=50,
-    minhdist=10):
+    mintmelt=50,
+    minhdist=10,
+    minoverlap=20,
+    liner=None):
+    '''
+    Return a list of split coordinates.
 
-    liner = ut.liner_engine()
-    
-    seqmat = get_seqmat(seqlist=list(seqlist))
-    seqlen = seqmat.shape[1]
-    print(seqmat)
-    print(seqmat.shape)
+    :: seqlist
+       type - list
+       desc - list of sequences to split
+    :: splitlen
+       type - integer
+       desc - maximum oligo length for splitting
+    :: mintmelt
+       type - float
+       desc - minimum melting temperature of
+              split regions
+    :: minhdist
+       type - integer
+       desc - minimum pairwise hamming distance
+              between all regions at a split
+    :: liner
+       type - coroutine
+       desc - dynamic printing
+    '''
 
-    # If sequences are shorter or equal to
-    # splitlen, then no splitting required
-    if seqlen < splitlen:
-        liner.send(' Splitting unnecessary, all sequences synthesizable\n')
-        return None
+    # Absorb seqlist
+    seqlist = list(seqlist)
+    seqlen  = len(seqlist[0])
 
-    entvec  = get_entvec(
-        seqmat=seqmat)
-    print(entvec)
-    
+    # spanlen is the minimum span of a split
+    liner.send('\n[Computing Split Region Span Length]\n')
+    spanlen = get_spanlen(
+        minoverlap=minoverlap,
+        minhdist=minhdist)
+    liner.send(' Split Span Length: {} bp\n'.format(spanlen))
+
+    # Note to future self: seqlen perhaps a parameter to engine
+    # when driver checks for seqlen equality in input (must).
+
+    # Splitting Feasibility Check: Necessity
+    liner.send('\n[Checking Splitting Feasibility]\n')
+    if seqlen <= splitlen: # Splitting unnecessary
+        liner.send(' Verdict: Unnecessary (seqlen <= splitlen).\n')
+        return None # No Solution
+    else:
+        liner.send(
+            ' Verdict: At Least {} Fragments per Sequence.\n'.format(
+                int(np.ceil(seqlen / (splitlen * 1.))))) # Fragment count lowerbound
+
+    # Build seqmat
+    seqmat = get_seqmat(
+        seqlist=seqlist,
+        seqlen=seqlen,
+        liner=liner)
+
+    # Build entvec
+    entvec = get_entvec(
+        seqmat=seqmat,
+        seqlen=seqlen,
+        liner=liner)
+
+    # Extract varcont
+    varcont = get_varcont(
+        entvec=entvec,
+        liner=liner)
+
+    # Merge varcont
     varcont = get_merged_varcont(
-        varcont=get_varcont(
-            entvec=entvec),
-        mergefactor=minhdist // 2)
-    print(varcont)
+        varcont=varcont,
+        mergefactor=minhdist // 2,
+        liner=liner)
+
+    # Filter varcont
+    varcont = get_filtered_varcont(
+        varcont=varcont,
+        spanlen=spanlen,
+        liner=liner)
+
+    # Splitting Feasibility Check: >= 1 Variable Contigs
+    liner.send('\n[Checking Splitting Feasibility]\n')
+    if len(varcont) == 0: # No region to split
+        liner.send(' Verdict: Infeasible (sequences in pool are very similar)\n')
+        return None # No Solution
+    if not is_varcont_feasible(
+        varcont=varcont,
+        seqlen=seqlen,
+        splitlen=splitlen,
+        spanlen=spanlen,
+        liner=liner):
+        return None # No Solution
+    liner.send(' Verdict: Feasible Contigs Found\n')
+    
+    return
 
     # Note: Need to check for splittability before processing
     #       as well as when a split region is selected
-
-    # This check is necessary upon ending
-    # # If any of the varcont intervals are
-    # # smaller than minhdist, then there is
-    # # no solution to the present splitting
-    # for p,q in varcont:
-    #     if q-p < minhdist:
-    #         liner.send(
-    #             ' Variable ({}, {}) VR, smaller than Dmin\n'.format(
-    #                 p,q))
-    #         return None
-
-    # If there are two regions are separated
-    # by more than splitlen, then there is
-    # no solution to the present splitting
-    pp, qq = None, None
-    for p,q in varcont:
-        if not pp is None:
-            if p - qq + 2*minhdist > splitlen:
-                liner.send(
-                    ' Too large separation ({}, {}) and ({}, {}) VR\n'.format(
-                        pp, qq, p, q))
-                return None
-        qq = q
-        pp = p
-
-    runmat = get_runmat(
-        seqmat=seqmat)
-    # print(runmat)
 
     # Build all Fragments
     split = [] # Store all Splits
@@ -454,10 +744,10 @@ def split_engine(
 
         # Get the Tm and HDist based split
         r, q = get_split(
+            seqlist=seqlist,
             seqmat=seqmat,
-            runmat=runmat,
             epq=epq,
-            mintm=mintm,
+            mintmelt=mintmelt,
             minhdist=minhdist)
         print((r, q))
 
@@ -486,141 +776,6 @@ def split_engine(
         return None
     else:
         return split
-
-# @nb.njit
-def get_hdist(
-    seqmat,
-    i,
-    j,
-    idx):
-    '''
-    '''
-
-    # We have store to compare
-    if idx:
-        return (seqmat[:idx, i:j] != seqmat[idx, i:j]).sum(1).min()
-
-    # Nothing to compare
-    return float('inf')
-
-def get_split(seqmat, runmat, epq, mintm, minhdist):
-    '''
-    Return an integer r (p < r < q) from epq intervals such
-    that Tm(runmat[r:q]) > mintm and HD(seqmat) > minhdist.
-    Internal use only.
-    
-    :: seqmat
-       type - np.array
-       desc - numeric sequence matrix
-    :: runmat
-       type - np.array
-       desc - numeric GC run matrix
-    :: epq
-       type - deque
-       desc - endpoint variable contigs
-    :: mintm
-       type - float
-       desc - melting temperature lower bound
-    :: minhdist
-       type - integer
-       desc - minimum pairwise hamming distance
-    '''
-    
-    # Candidate Results
-    r, q = None, None
-
-    # Tm computation loop
-    while epq:
-
-        # Fetch Current Interval
-        p, q = epq.popleft()
-        
-        # Span Smaller than minhdist
-        if not is_spannable(p, q, minhdist):
-            r = None
-            continue
-
-        # Maximum r Value
-        r = q - minhdist
-
-        # Constraint Match Tracers
-        condtm = False
-        condhd = False
-
-        # Iterate and Adjust
-        idx = 0
-        while idx < runmat.shape[0]:
-
-            # Optimize Tm
-            if not condtm:
-
-                # Compute Tm for current split
-                tm = get_approx_Tm(rv=runmat[idx, :], i=r, j=q)
-
-                print(idx, p, r, q, tm, 'TM', tm >= mintm)
-
-                # Tm was Lower ..
-                if tm < mintm:
-
-                    # Minimize r Value
-                    r = r - 1
-
-                    # Unresolvable
-                    if r < p:
-                        # No solution to current split
-                        r = None
-                        break
-                    
-                    # Try again ..
-                    else:
-                        continue
-                
-                # Tm was OK!
-                elif tm >= mintm:
-                    condtm = True
-
-            # Optimize Hamming Distance
-            if not condhd:
-
-                # Compute Hamming Distance for current split
-                hd = get_hdist(seqmat=seqmat, i=r, j=q, idx=idx)
-
-                print(idx, p, r, q, hd, 'HD', hd >= minhdist)
-
-                # HDist was Lower ..
-                if hd < minhdist:
-
-                    # Minimize r Value
-                    r = r - minhdist + hd
-                    
-                    # Unresolvable
-                    if r < p:
-                        # No solution to current split
-                        r = None
-                        break
-                    
-                    # Try again ..
-                    else:
-                        continue
-
-                # HDist was OK!
-                elif hd >= minhdist:
-                    condhd = True
-
-            # Both Conditions Met!
-            if condtm and condhd:
-                # Move to next sequence
-                idx += 1
-                condtm = False # Reset Tm    Tracer
-                condhd = False # Reset HDist Tracer
-                continue
-
-        # Do we have a solution?
-        if not r is None:
-            return r, q
-    
-    # Return Results
-    return r, q
 
 def test1():
     entvec = cx.deque(map(
@@ -675,39 +830,20 @@ def main():
     #       ----------------------++++++++++
     #                             ++++++++++----------------------
 
+    liner = ut.liner_engine()
     seqlist = [seq1, seq2, seq3, seq4]
     split = split_engine(
         seqlist=seqlist,
         splitlen=32,#26,
-        mintm=-5,#10,
-        minhdist=9)#5)
+        mintmelt=10,#10,
+        minhdist=9,#5,
+        minoverlap=5,
+        liner=liner)
+    
+    print()
     print(split)
 
     print(seq1[28:36])
-
-    # seq1 = 'TGATTCCTAG'
-    # seqlist = [seq1]
-    # runmat = get_runmat(
-    #     seqmat=get_seqmat(
-    #         seqlist=seqlist))
-    # print(runmat)
-    # print(get_approx_Tm(runmat[0, :], 0, len(seq1)))
-
-    #                        40
-    #      ----------------------------------------
-    #                          ||||||||||||||||||||
-    #                          --------------------
-    seq = 'ACGAGAGTAGGCTGAGTGCTAATTTAATCTGCTTTTTAAAAGCGGACTCCCATTAGACGCXX' # 60
-    #                            --------------------
-    #                            ||||||||||||||||||||
-    #                            ----------------------------------------
-    #                                                40
-
-    #                        20
-    #      --------------------
-    seq = 'ACGAGAGTAGGCTGAGTGCTAATTTAATCTGCTTTTTAAAAGCGGACTCCCATTAGACGC' # 60
-    #                                              --------------------
-    #                                              20
 
 if __name__ == '__main__':
     main()

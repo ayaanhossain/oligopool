@@ -239,6 +239,11 @@ def barcode_engine(
         # Sample a Barcode in Space
         barcode = next(barcodes)
 
+        # NEED TO TRY OUT STATE BASED
+        # CHANGE OF barcode FETCHING
+        # from randomly selected minimal
+        # base configuration from store
+
         # Space Exhausted?
         if barcode is None:
             show_update(

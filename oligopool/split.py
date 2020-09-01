@@ -161,21 +161,15 @@ def get_entvec(seqmat, seqlen, liner):
     # Return Results
     return entvec
 
-def get_varcont(entvec, liner):
+def get_base_varcont(entvec):
     '''
-    Return all variable region span indices.
+    Return all base variable region span indices.
     Internal use only.
 
     :: entvec
        type - cx.deque
        desc - positional entropy
-    :: liner
-       type - coroutine
-       desc - dynamic printing
     '''
-
-    # Show Segment
-    liner.send('\n[Extracting Variable Contigs]\n')
 
     # Setup Parsing
     varcont = cx.deque()
@@ -194,16 +188,6 @@ def get_varcont(entvec, liner):
 
         # Extract entropy
         ent = entvec.popleft()
-
-        # Show Update
-        if varcont:
-            liner.send(
-                ' Entropy Index: {} | Recorded Contig: (Start={}, End={})'.format(
-                    idx, varcont[-1][0], varcont[-1][1]))
-        else:
-            liner.send(
-                ' Entropy Index: {} | Recorded Contig: (Start=None, End=None)'.format(
-                    idx))
 
         # Constant Region
         if ent <= 0.25: # Constant Upper Bound
@@ -239,14 +223,10 @@ def get_varcont(entvec, liner):
     if not end is None:
         varcont.append((start, end))
 
-    # Final Update
-    liner.send(' Variable Contigs: {}\n'.format(len(varcont)))
-    liner.send('     Time Elapsed: {:.2f} sec\n'.format(tt.time() - t0))
-
     # Return Results
     return varcont
 
-def get_merged_varcont(varcont, mergefactor, liner):
+def get_merged_varcont(varcont, mergefactor):
     '''
     Return a merged varcont, merging variables
     separated by at most mergefactor constants.
@@ -260,17 +240,11 @@ def get_merged_varcont(varcont, mergefactor, liner):
        desc - maximum gap length between two
               variable regions to be merged
               into a single contig
-    :: liner
-       type - coroutine
-       desc - dynamic printing
     '''
 
     # Do we merge?
     if not varcont:
         return varcont
-
-    # Show Segment
-    liner.send('\n[Merging Variable Contigs]\n')
 
     # Setup Data Structures
     merged   = cx.deque()
@@ -283,21 +257,11 @@ def get_merged_varcont(varcont, mergefactor, liner):
     while varcont:
         current = varcont.popleft()
         if current[0]-previous[1] <= mergefactor:
-            # Show Update
-            liner.send(' Contigs (Start={}, End={}) and (Start={}, End={}) -> Merged (Start={}, End={})'.format(
-                *previous, *current, *[previous[0], current[1]]))
             previous[1] = current[1]
         else:
-            # Show Update
-            liner.send(' Contigs (Start={}, End={}) and (Start={}, End={}) -> Unmerged'.format(
-                *previous, *current))
             merged.append(tuple(previous))
             previous = list(current)
     merged.append(tuple(previous))
-
-    # Show Updates
-    liner.send(' Merged Contigs: {}\n'.format(len(merged)))
-    liner.send('   Time Elapsed: {:.2f} sec\n'.format(tt.time() - t0))
     
     # Return Result
     return merged
@@ -322,14 +286,23 @@ def is_spannable(p, q, spanlen):
         return False
     return True
 
-def get_filtered_varcont(varcont, spanlen, liner):
+def get_filtered_varcont(varcont, spanlen):
+    '''
+    Filter all variable regions shorter than
+    the required spanlen. Internal use only.
+
+    :: varcont
+       type - cx.deque
+       desc - a deque of tuple with start and
+              end coordinates of variable regions
+    :: spanlen
+       type - integer
+       desc - minimum required split span length
+    '''
 
     # Do we filter varcont?
     if not varcont:
         return varcont
-
-    # Show Segment
-    liner.send('\n[Filtering Variable Contigs]\n')
     
     # Setup Data Structure
     filtered = cx.deque()
@@ -340,19 +313,44 @@ def get_filtered_varcont(varcont, spanlen, liner):
     # Filter Contigs
     for p,q in varcont:
         if is_spannable(p, q, spanlen):
-            # Show Update
-            liner.send(' Contig (Start={}, End={}) Survived'.format(p, q))
             filtered.append((p, q))
-        else:
-            # Show Update
-            liner.send(' Contig (Start={}, End={}) Eliminated'.format(p, q))
-
-    # Show Updates
-    liner.send(' Survived Contigs: {}\n'.format(len(filtered)))
-    liner.send('     Time Elapsed: {:.2f} sec\n'.format(tt.time() - t0))
 
     # Return Result
     return filtered
+
+def get_varcont(entvec, minhdist, spanlen, liner):
+
+    # Show Segment
+    liner.send('\n[Computing Variable Contigs]\n')
+
+    # Extract varcont
+    liner.send(' Extracting Variable Contigs ...')
+    t0 = tt.time()
+    varcont = get_base_varcont(
+        entvec=entvec)
+    liner.send(' Extracted Variable Contigs: {} ({:.2f} sec)\n'.format(
+        len(varcont), tt.time()-t0))
+
+    # Merge varcont
+    liner.send('   Merging Variable Contigs ...')
+    t0 = tt.time()
+    varcont = get_merged_varcont(
+        varcont=varcont,
+        mergefactor=minhdist // 2)
+    liner.send('    Merged Variable Contigs: {} ({:.2f} sec)\n'.format(
+        len(varcont), tt.time()-t0))
+
+    # Filter varcont
+    liner.send(' Filtering Variable Contigs ...')
+    t0 = tt.time()
+    varcont = get_filtered_varcont(
+        varcont=varcont,
+        spanlen=spanlen)
+    liner.send('  Filtered Variable Contigs: {} ({:.2f} sec)\n'.format(
+        len(varcont), tt.time()-t0))
+
+    # Return Results
+    return varcont
 
 def is_varcont_feasible(varcont, seqlen, splitlen, spanlen, liner):
     '''
@@ -385,7 +383,7 @@ def is_varcont_feasible(varcont, seqlen, splitlen, spanlen, liner):
     # Check for the first fragment
     if pp + spanlen > splitlen:
         liner.send(
-            ' Verdict: Infeasible (first contig (Start={}, End={}) too far from start)\n'.format(
+            ' Verdict: Infeasible (First Contig (Start={}, End={}) too Far from Beginning)\n'.format(
                 pp, qq))
         return False
 
@@ -393,7 +391,7 @@ def is_varcont_feasible(varcont, seqlen, splitlen, spanlen, liner):
     for p,q in varcont:
         if p - qq + 2*spanlen > splitlen:
             liner.send(
-                ' Verdict: Infeasible (adjacent contigs (Start={}, End={}) and (Start={}, End={}) far apart)\n'.format(
+                ' Verdict: Infeasible (Adjacent Contigs (Start={}, End={}) and (Start={}, End={}) Far Apart)\n'.format(
                     pp, qq, p, q))
             return False
         qq = q
@@ -402,7 +400,7 @@ def is_varcont_feasible(varcont, seqlen, splitlen, spanlen, liner):
     # Check for the last fragment
     if qq - spanlen + splitlen < seqlen:
         liner.send(
-            ' Verdict: Infeasible (last contig (Start={}, End={}) too far from end\n'.format(
+            ' Verdict: Infeasible (Last Contig (Start={}, End={}) too far from Ending)\n'.format(
                 pp, qq))
         return False
 
@@ -663,11 +661,11 @@ def split_engine(
     # Splitting Feasibility Check: Necessity
     liner.send('\n[Checking Splitting Feasibility]\n')
     if seqlen <= splitlen: # Splitting unnecessary
-        liner.send(' Verdict: Unnecessary (seqlen <= splitlen).\n')
+        liner.send(' Verdict: Unnecessary (seqlen <= splitlen)\n')
         return None # No Solution
     else:
         liner.send(
-            ' Verdict: At Least {} Fragments per Sequence.\n'.format(
+            ' Verdict: At Least {} Fragments per Sequence\n'.format(
                 int(np.ceil(seqlen / (splitlen * 1.))))) # Fragment count lowerbound
 
     # Build seqmat
@@ -682,27 +680,17 @@ def split_engine(
         seqlen=seqlen,
         liner=liner)
 
-    # Extract varcont
+    # Build varcont
     varcont = get_varcont(
         entvec=entvec,
-        liner=liner)
-
-    # Merge varcont
-    varcont = get_merged_varcont(
-        varcont=varcont,
-        mergefactor=minhdist // 2,
-        liner=liner)
-
-    # Filter varcont
-    varcont = get_filtered_varcont(
-        varcont=varcont,
+        minhdist=minhdist,
         spanlen=spanlen,
         liner=liner)
 
     # Splitting Feasibility Check: >= 1 Variable Contigs
     liner.send('\n[Checking Splitting Feasibility]\n')
     if len(varcont) == 0: # No region to split
-        liner.send(' Verdict: Infeasible (sequences in pool are very similar)\n')
+        liner.send(' Verdict: Infeasible (Sequences in Pool are Similar)\n')
         return None # No Solution
     if not is_varcont_feasible(
         varcont=varcont,

@@ -48,7 +48,13 @@ def liner_engine(online=True):
         while True:
             
             # Receive String
-            printstr = (yield)            
+            printstr = (yield)
+
+            # Line Preservation
+            if printstr.startswith('\*'):
+                sys.stdout.write('\n')
+                clrlen   = 0
+                printstr = printstr.lstrip('\*')
             
             # Line String
             if online:
@@ -131,8 +137,10 @@ def get_hdist(
 
     # Default Result
     hdist = store.shape[1]
+    if i >= 0 and not j is None:
+        hdist = j-i
 
-    # Something to compare agains?
+    # Something to compare against?
     if idx > 0:
 
         # Upward / All-Pair Comparison
@@ -141,11 +149,14 @@ def get_hdist(
                 hdist,
                 (store[:idx, i:j] != store[idx, i:j]).sum(1).min())
 
+    # Something to compare against?
+    if idx < store.shape[0] - 1:
+
         # Downward / All-Pair Comparison
-        if direction == 1  or direction == 2:
-            hdist = min(
-                hdist,
-                (store[idx:, i:j] != store[idx, i:j]).sum(1).min())
+        if direction == 1 or direction == 2:
+                hdist = min(
+                    hdist,
+                    (store[idx+1:, i:j] != store[idx, i:j]).sum(1).min())
 
     # Return Result
     return hdist

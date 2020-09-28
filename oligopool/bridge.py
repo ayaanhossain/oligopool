@@ -4,151 +4,374 @@ import collections as cx
 import itertools   as ix
 
 import numpy as np
-import numba as nb
 
 import utils as ut
 
-def enque_exmotifs(exmotifs):
+def enque_exmotifs(exmotifs, liner):
+    '''
+    Return all exmotifs sorted by
+    length. Internal use only.
 
-    # Sort motifs by lengeh
+    :: exmotifs
+       type - list
+       desc - list of all motifs
+              to be excluded
+    :: liner
+       type - coroutine
+       desc - dynamic printing
+    '''
+
+    # Sort motifs by length
+    liner.send(' Sorting Motifs ...')
+    t0 = tt.time()
     exmotifs.sort(key=len)
-    # print(exmotifs)
-    # Return deque
-    return cx.deque(exmotifs)
+    liner.send(' Sorted {} Motifs in {:.2f} sec\n'.format(
+        len(exmotifs), tt.time()-t0))
 
-def get_bll(exmotifs):
+    # Enque all motifs
+    liner.send(' Enqueing Motifs ...')
+    t0 = tt.time()
+    dq = cx.deque(exmotifs)
+    liner.send(' Enqued {} Motifs in {:.2f} sec\n'.format(
+        len(exmotifs), tt.time()-t0))
 
-    bll = 2
+    # Return Results
+    return dq
+
+def get_bll(exmotifs, liner):
+    '''
+    Return the bridge-mer length limit (BLL).
+    Internal use only.
+
+    :: exmotifs
+       type - deque
+       desc - list of all motifs
+              to be excluded
+    :: liner
+       type - coroutine
+       desc - dynamic printing
+    '''
+
+    # Minimum BLL (default)
+    bll = 0
+
+    # BLL is the length of the last element
     if exmotifs:
         maxel = exmotifs.pop()
-        bll   = len(maxel)
+        bll   = len(maxel) - 1
         exmotifs.append(maxel)
+
+    # Show update
+    liner.send(' Bridge Length Limit: {} bp\n'.format(
+        bll))
+
+    # Return Results
     return bll
 
-def partition_exmotifs(lt, ge, bl):
-    
-    while ge:
-        motif = ge.popleft()
-        if len(motif) < bl:
-            lt.append(motif)
-        else:
-            ge.appendleft(motif)
-            break
-
-    return lt, ge
-
-def is_lt_embedded(lt, candidate):
-    
-    for motif in lt:
-        if motif in candidate:
-            return True
-    return False
-
-def is_ge_embedded(ge, candidate):
-    
-    for motif in ge:
-        if candidate in motif:
-            return True
-    return False
-
-def get_verdict(lt, ge, candidate):
-
-    ltf = is_lt_embedded(lt, candidate)
-    # print(candidate, 'ltf', ltf)
-
-    if ltf:
-        return -1 # Rejection I
-
-    gef = is_ge_embedded(ge, candidate)
-    # print(candidate, 'gtf', ltf)
-
-    if gef:
-        return 0 # Rejection II
-
-    return 1
-
 def get_bases(rng):
+    '''
+    Return a random permutation of bases.
+    Internal use only.
+
+    :: rng
+       type - np.default_rng
+       desc - RNG object
+    '''
 
     bases = ['A', 'T', 'G', 'C']
     rng.shuffle(bases)
     return bases
 
-def get_branched_candidates(rng, candidates):
+def partition_exmotifs(lt, ge, bl, liner):
+    '''
+    Partition the excluded motifs into shorter or
+    longer queues, based on bridge-mer length.
+
+    :: lt
+       type - deque
+       desc - queue of shorter than bl motifs
+    :: ge
+       type - deque
+       desc - queue of longer or equal motifs
+    :: bl
+       type - integer
+       desc - bridge-mer length
+    :: liner
+       type - coroutine
+       desc - dynamic printing
+    '''
     
-    expanded = cx.deque()
-    for candidate in candidates:
-        bases = get_bases(rng)
-        for base in bases:
-            expanded.append(
-                candidate+base)
-    return expanded
+    # Time-keeping
+    t0 = tt.time()
 
-def get_bounded_candidates(lt, ge, candidates):
+    # Partition Loop
+    while ge:
 
-    grow   = cx.deque()
-    accept = cx.deque()
+        # Get Motif
+        motif = ge.popleft()
+        
+        # Shorter Queue
+        if len(motif) < bl:
+            liner.send(' {} in Shorter Queue'.format(
+                motif))
+            lt.append(motif)
 
-    for candidate in candidates:
+        # Longer Queue
+        else:
+            liner.send(' {} in Longer  Queue'.format(
+                motif))
+            ge.appendleft(motif)
+            break
 
-        verdict = get_verdict(
+    # Show Updates
+    liner.send(' Shorter Queue Count: {} Motifs\n'.format(
+        len(lt)))
+    liner.send('  Longer Queue Count: {} Motifs\n'.format(
+        len(ge)))
+    liner.send('        Time Elapsed: {:.2f} sec\n'.format(
+        tt.time()-t0))
+
+    # Return Results
+    return lt, ge
+
+def is_lt_embedded(lt, bridge):
+    '''
+    Determind if candidate contains a smaller
+    exmotif. Internal use only.
+
+    :: lt
+       type - deque
+       desc - queue of shorter than bl motifs
+    :: bridge
+       type - string
+       desc - candidate bridge
+    '''
+    
+    for motif in lt:
+        if motif in bridge:
+            return True
+    return False
+
+def is_ge_embedded(ge, bridge):
+    '''
+    Determine if bridge contained in a longer
+    exmotif. Internal use only.
+
+    :: ge
+       type - deque
+       desc - queue of longer or equal motifs
+    :: bridge
+       type - string
+       desc - bridge bridge
+    '''
+    
+    for motif in ge:
+        if bridge in motif:
+            return True
+    return False
+
+def get_status(lt, ge, bridge):
+    '''
+    Return candidate bridge feasibility.
+    Internal use only.
+
+    :: lt
+       type - deque
+       desc - queue of shorter than bl motifs
+    :: ge
+       type - deque
+       desc - queue of longer or equal motifs
+    :: bridge
+       type - string
+       desc - candidate bridge
+    '''
+
+    # Is bridge grown in wrong path?
+    ltf = is_lt_embedded(lt, bridge)
+    if ltf:
+        return -1 # Rejection
+
+    # Is bridge potentially in correct path?
+    gef = is_ge_embedded(ge, bridge)
+    if gef:
+        return 0  # Partial Acceptance
+
+    # Candidate is completely accepted
+    return 1 # Complete Acceptance
+
+def get_bounded_bridges(lt, ge, bridges, liner):
+    '''
+    Return all bounded bridge-mers. Internal
+    use only.
+
+    :: lt
+       type - deque
+       desc - queue of shorter than bl motifs
+    :: ge
+       type - deque
+       desc - queue of longer or equal motifs
+    :: bridges
+       type - list
+       desc - list of candidate bridges
+    :: liner
+       type - coroutine
+       desc - dynamic printing
+    '''
+
+    # Book-keeping
+    partial  = [] # Potential for growth
+    complete = [] # Completely grown
+
+    # Time-keeping
+    t0 = tt.time()
+
+    # Bounding Loop
+    for bridge in bridges:
+
+        # Show Update
+        liner.send(' Evaluating Bridge {} ...'.format(
+            bridge))
+
+        # Is bridge feasible?
+        status = get_status(
             lt=lt,
             ge=ge,
-            candidate=candidate)
+            bridge=bridge)
 
-        print(candidate, verdict)
+        # Candidate Rejected
+        if status == -1:
+            liner.send(' Bridge {} Rejected'.format(bridge))
 
-        if verdict == 0:
-            grow.append(candidate)
+        # Candidate Partially Accepted
+        if status == 0:
+            liner.send(' Bridge {} Paritally Accepted'.format(bridge))
+            partial.append(bridge)
         
-        if verdict == 1:
-            accept.append(candidate)
+        # Candidate Accepted
+        if status == 1:
+            liner.send(' Bridge {} Accepted'.format(bridge))
+            complete.append(bridge)
 
-    return grow, accept    
+    # Show Updates
+    liner.send('  Partial Candidates: {} Bridge(s) ({:6.2f} %)\n'.format(
+        len(partial),  (100. * len(partial)) / len(bridges)))
+    liner.send(' Complete Candidates: {} Bridge(s) ({:6.2f} %)\n'.format(
+        len(complete), (100. * len(complete)) / len(bridges)))
+    liner.send('        Time Elapsed: {:.2f} sec\n'.format(
+        tt.time()-t0))
+
+    # Return Results
+    return partial, complete
+
+def get_branched_bridges(rng, partial, liner):
+    '''
+    Return all branched candidate bridges from
+    partial solutions. Internal use only.
+
+    :: rng
+       type - np.default_rng
+       desc - RNG object
+    :: partial
+       type - list
+       desc - list of all partially accepted
+              bridge candidates
+    :: liner
+       type - coroutine
+       desc - dynamic printing
+    '''
+
+    # Book-keeping
+    branched = [] # Explorable
+
+    # Time-keeping
+    t0 = tt.time()
+
+    # Branching Loop
+    for bridge in partial:
+        
+        # Generate Branches
+        for base in get_bases(rng):
+            branch = bridge+base    # Next Ppossible Bridge
+            branched.append(branch) # Store
+
+            # Show Updates
+            liner.send(' Branched Bridge {} -> {}'.format(
+                bridge, branch))
+
+    # Show Updates
+    liner.send(' Branched Candidates: {} Bridge(s)\n'.format(
+        len(branched)))
+    liner.send('        Time Elapsed: {:.2f} sec\n'.format(
+        tt.time()-t0))
+    
+    # Return Results
+    return branched
 
 def bridge_engine(
     exmotifs,
     liner):
     
-    exmotifs = enque_exmotifs(exmotifs)
-    bll      = get_bll(exmotifs)
+    # Preprocessing and BLL Computation
+    liner.send('\n[Preprocessing Excluded Motifs]\n')    
+    exmotifs = enque_exmotifs(
+        exmotifs=exmotifs,
+        liner=liner)
+    bll = get_bll(
+        exmotifs=exmotifs,
+        liner=liner)
 
+    # Initialize RNG
     rng = np.random.default_rng()
 
-    candidates = cx.deque(get_bases(rng))
-    bl         = 1
-    lt, ge = partition_exmotifs(
+    # Initialize Bridge Candidates
+    bridges = list(get_bases(rng))
+
+    # Parition Exmotifs
+    liner.send('\n[Partitioning Exmotifs]\n')
+    bl = 1
+    lt, exmotifs = partition_exmotifs(
         lt=cx.deque(),
         ge=exmotifs,
-        bl=bl)
+        bl=bl,
+        liner=liner)
 
-    print(lt)
-    print(ge)
+    # Bridge-mer Loop
+    while bl <= bll:
 
-    while bl < bll:
-
-        print(candidates)
-
-        grow, accept = get_bounded_candidates(lt, ge, candidates)
-
-        if accept:
-            print(accept, 'Accepted')
-            return accept
-
-        if not grow:
-            print('Impossible')
-            return None
-
-        candidates = get_branched_candidates(rng, grow)
-
-        bl += 1
-
-        lt, ge = partition_exmotifs(
+        # Bound Candidates
+        liner.send('\n[Bounding Level {} Bridges]\n'.format(bl))
+        partial, complete = get_bounded_bridges(
             lt=lt,
-            ge=ge,
-            bl=bl)
+            ge=exmotifs,
+            bridges=bridges,
+            liner=liner)
 
-        print(lt)
-        print(ge)
+        # We have complete solutions!
+        if complete:            
+            return complete # Recovered Solutions
+
+        # We cannot branch anymore, RIP!
+        if not partial:
+            return None # No Solution
+        
+        # Branch Candidates
+        liner.send('\n[Branching Level {} Bridges]\n'.format(bl+1))
+        bridges = get_branched_bridges(
+            rng=rng,
+            partial=partial,
+            liner=liner)
+
+        # Partition Exmotifs
+        liner.send('\n[Partitioning Exmotifs]\n')
+        bl += 1
+        lt, exmotifs = partition_exmotifs(
+            lt=lt,
+            ge=exmotifs,
+            bl=bl,
+            liner=liner)
+
+    # Nothing Computed
+    return None
 
 def main():
 
@@ -156,14 +379,16 @@ def main():
 
     exmotifs = ['AAAA', 'GGGG', 'CCCC', 'TTTT', 'GGATCC', 'TCTAGA', 'GAATTC'][::-1]
 
-    # exmotifs = []
-    # exmotifs += [''.join(x) for x in ix.product('ATGC', repeat=3)][:8]
-    # np.random.shuffle(exmotifs)
-    # exmotifs = exmotifs[:7]
+    exmotifs = []
+    exmotifs += [''.join(x) for x in ix.product('ATGC', repeat=4)]
+    exmotifs += [''.join(x) for x in ix.product('ATGC', repeat=5)]
+    exmotifs += [''.join(x) for x in ix.product('ATGC', repeat=6)]
+    np.random.shuffle(exmotifs)
+    exmotifs = exmotifs[:256]
 
-    print(len(exmotifs))
+    # print(len(exmotifs))
 
-    # exmotifs += ['AA',  'TT', 'GG', 'CC', 'A', 'T', 'G', 'C']
+    # exmotifs = ['AA',  'TT', 'GG', 'CC', 'A', 'T', 'G', 'C']
 
     soln = bridge_engine(exmotifs, liner)
     if soln:

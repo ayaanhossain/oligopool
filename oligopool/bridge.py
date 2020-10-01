@@ -7,36 +7,6 @@ import numpy as np
 
 import utils as ut
 
-def enque_exmotifs(exmotifs, liner):
-    '''
-    Return all exmotifs sorted by
-    length. Internal use only.
-
-    :: exmotifs
-       type - list
-       desc - list of all motifs
-              to be excluded
-    :: liner
-       type - coroutine
-       desc - dynamic printing
-    '''
-
-    # Sort motifs by length
-    liner.send(' Sorting Motifs ...')
-    t0 = tt.time()
-    exmotifs.sort(key=len)
-    liner.send(' Sorted {} Motifs in {:.2f} sec\n'.format(
-        len(exmotifs), tt.time()-t0))
-
-    # Enque all motifs
-    liner.send(' Enqueing Motifs ...')
-    t0 = tt.time()
-    dq = cx.deque(exmotifs)
-    liner.send(' Enqued {} Motifs in {:.2f} sec\n'.format(
-        len(exmotifs), tt.time()-t0))
-
-    # Return Results
-    return dq
 
 def get_bll(exmotifs, liner):
     '''
@@ -313,8 +283,9 @@ def bridge_engine(
     
     # Preprocessing and BLL Computation
     liner.send('\n[Preprocessing Excluded Motifs]\n')    
-    exmotifs = enque_exmotifs(
+    exmotifs = ut.prep_exmotifs(
         exmotifs=exmotifs,
+        packing=cx.deque,
         liner=liner)
     bll = get_bll(
         exmotifs=exmotifs,

@@ -1,5 +1,7 @@
 import sys
 
+import time    as tt
+
 import numpy   as np
 import numba   as nb
 import primer3 as p3
@@ -209,3 +211,43 @@ def get_tmelt(
         dntp_conc=ntc,
         dna_conc=olc)
 
+# Motif Functions
+
+def prep_exmotifs(exmotifs, packing, liner):
+    '''
+    Return all exmotifs sorted by
+    length. Internal use only.
+
+    :: exmotifs
+       type - list
+       desc - list of all motifs
+              to be excluded
+    :: packing
+       type - function
+       desc - factory function for
+              wrapping exmotifs
+    :: liner
+       type - coroutine
+       desc - dynamic printing
+    '''
+
+    # Sort motifs by length
+    liner.send(' Sorting Motifs ...')
+    t0 = tt.time()
+    exmotifs.sort(key=len)
+    liner.send(' Sorted {} Motifs in {:.2f} sec\n'.format(
+        len(exmotifs), tt.time()-t0))
+
+    # Enque all motifs
+    liner.send(' Enqueing Motifs ...')
+    t0 = tt.time()
+    dq = packing(exmotifs)
+    liner.send(' Enqued {} Motifs in {:.2f} sec\n'.format(
+        len(exmotifs), tt.time()-t0))
+
+    # Return Results
+    return dq
+
+def get_context_len(exmotifs):
+
+    return len(exmotifs[-1]) - 1

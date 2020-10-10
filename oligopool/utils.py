@@ -249,5 +249,13 @@ def prep_exmotifs(exmotifs, packing, liner):
     return dq
 
 def get_context_len(exmotifs):
+    '''
+    Get the exmotif context length.
+    Internal use only.
+
+    :: exmotifs
+       type - cx.deque
+       desc - 
+    '''
 
     return len(exmotifs[-1]) - 1

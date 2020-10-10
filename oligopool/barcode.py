@@ -142,7 +142,10 @@ def is_motif_feasible(
 
     :: barcodeseq
        type - string
-       desc - barcode sequence
+       desc - decoded barcode sequence
+    :: barcodelength
+       type - string
+       desc - barcode length
     :: exmotifs
        type - list / None
        desc - list of motifs to exclude
@@ -192,6 +195,17 @@ def is_barcode_feasible(
        desc - minimum pairwise hamming
               distance between a pair
               of barcodes
+    :: barcodeseq
+       type - string
+       desc - decoded barcode sequence
+    :: barcodelength
+       type - string
+       desc - barcode length
+    :: exmotifs
+       type - list / None
+       desc - list of motifs to exclude
+              in designed barcodes,
+              None otherwise
     '''
 
     # Hamming Condition
@@ -213,12 +227,31 @@ def is_barcode_feasible(
     return (True, 0)
 
 def get_barcodeseq(barcode):
+    '''
+    Return the decoded sequence from
+    barcode coordinate array.
+    Internal use only.
+
+    :: barcode
+       type - np.array
+       desc - encoded barcode array
+    '''
 
     return ''.join(map(
         lambda x: decoder[x],
         barcode))
 
 def get_context_inference_fn(context):
+    '''
+    Return selectors functions for building
+    barcode context. Internal use only.
+
+    :: context
+       type - list / string / None
+       desc - list of context sequence,
+              or a single context sequence,
+              or None
+    '''
 
     if isinstance(context, list):
         linf = lambda x: context[x]
@@ -237,36 +270,78 @@ def get_assignment_index(
     cntxlen,
     midx,
     marr):
-    
-    aidx = midx
+    '''
+    Determine the context assignment index
+    for generated barcode. Internal use only.
 
+    :: barcodeseq
+       type - string
+       desc - decoded barcode sequence
+    :: exmotifs
+       type - list / None
+       desc - list of motifs to exclude
+              in designed barcodes,
+              None otherwise
+    :: linfn
+       type - lambda
+       desc - selector for the left
+              sequence context
+    :: rinfn
+       type - lambda
+       desc - selector for the right
+              sequence context
+    :: cntxlen
+       type - lambda
+       desc - total length of context
+              to extract from either
+              left or right
+    :: midx
+       type - integer
+       desc - starting context assignment
+              index
+    :: marr
+       type - np.array
+       desc - context assignment array
+    '''
+    
+    # Book-keeping
+    aidx   = midx
+    cfails = cx.Counter()
+
+    # Loop through all contexts for assignment
     while aidx < len(marr):
 
+        # We already assigned to this context
         if marr[aidx] is True:
-            # print(marr[aidx])
-            aidx += 1
+            aidx += 1 # Try next context
             continue
 
+        # Fetch left and right contexts
         lcntx = linfn(aidx)[-cntxlen:]
         rcntx = rinfn(aidx)[:+cntxlen]
 
+        # Build out in-context sequence
         incntxseq = lcntx + barcodeseq + rcntx
 
+        # Determine context feasibility
         mcond, motif = is_motif_feasible(
             barcodeseq=incntxseq,
             barcodelength=len(incntxseq),
             exmotifs=exmotifs)
 
+        # We have a winner folks!
         if mcond:
-            return (True, aidx)
+            return (True, aidx, None)
 
+        # We lost an assignment, record cause
         else:
-            print('{}: {} | {} | {} | {}'.format(aidx, motif, linfn(aidx), incntxseq, barcodeseq))
+            cfails[motif] += 1
         
+        # Try next context
         aidx += 1
 
-    return (False, None)
-
+    # Failed Assignment
+    return (False, None, cfails)
 
 def show_update(
     count,
@@ -299,7 +374,7 @@ def show_update(
        desc - dynamic printing
     '''
 
-    liner.send(' [Slot: {:{},d}] Barcode {} is {} {}\n'.format(
+    liner.send(' [Slot: {:{},d}] Barcode {} is {} {}'.format(
         count,
         plen,
         barcodeseq,
@@ -308,9 +383,6 @@ def show_update(
          'due to Hamming Infeasibility',
          'due to Motif Infeasibility',
          'due to Context Infeasibility'][stm]))
-
-    # if stm == 3:
-    #     tt.sleep(5)
 
 def barcode_engine(
     targetsize,
@@ -321,7 +393,7 @@ def barcode_engine(
     rightcontext,
     liner):
     '''
-    Stream barcodes fulfilling constraints.
+    Return barcodes fulfilling constraints.
     Internal use only.
 
     :: targetsize
@@ -368,12 +440,13 @@ def barcode_engine(
     mstore = np.ones(
         targetsize,
         dtype=np.float64) * -1.
-    marr  = ba.bitarray('0'*targetsize)
-    linfn = get_context_inference_fn(
+    marr   = ba.bitarray('0'*targetsize)
+    linfn  = get_context_inference_fn(
         context=leftcontext)
-    rinfn = get_context_inference_fn(
+    rinfn  = get_context_inference_fn(
         context=rightcontext)
-    midx  = 0
+    midx   = 0
+    mfails = cx.Counter()
     
     codes = []
     
@@ -430,16 +503,13 @@ def barcode_engine(
                 cf=True,
                 stm=0,
                 liner=liner)
-            return store[:count, :]
-
-        # print(barcode)
+            return None, mfails # No Solution
 
         # Update Barcode Store
         store[count, :] = barcode
 
         # Decode Barcode Sequence
         barcodeseq = get_barcodeseq(barcode)
-        # print(barcodeseq)
         
         # Check Feasibility
         cf, stm = is_barcode_feasible(
@@ -450,12 +520,9 @@ def barcode_engine(
             barcodelength=barcodelength,
             exmotifs=exmotifs)
 
-        # if cf:
-        #     print('Basic OK')
-
         # Get Barcode Matching / Assignment
         if cf:
-            cf, aidx = get_assignment_index(
+            cf, aidx, afails = get_assignment_index(
                 barcodeseq=barcodeseq,
                 exmotifs=exmotifs,
                 linfn=linfn,
@@ -464,10 +531,13 @@ def barcode_engine(
                 midx=midx,
                 marr=marr)
 
+            # Update the Failure State Marker
             if not cf:
                 stm = 3
 
-            # liner.send('Barcode {} -> Context {}\n'.format(midx, aidx))
+            # Record Context Failure Motifs
+            if afails:
+                mfails += afails
 
         # Inifinite Jumper Book-keeping Update
         if jtp == 2:
@@ -529,7 +599,7 @@ def barcode_engine(
         
         # Target Reached?
         if count == targetsize:
-            return store[:count, :]
+            return store[:count, :], None # Solution Reached!
 
         # Trials Exhausted for Inifinite Jumper?
         if jtp == 2:
@@ -541,7 +611,7 @@ def barcode_engine(
                     cf=True,
                     stm=0,
                     liner=liner)
-                return store[:count, :]
+                return None, mfails
 
 def get_stats():
     '''
@@ -573,6 +643,7 @@ def main():
 
     # exmotifs = ['AAAA', 'GGGG', 'CCCC', 'TTTT', 'GGATCC', 'TCTAGA', 'GAATTC'][::-1]
     exmotifs = ['GGATCC', 'TCTAGA']
+    # exmotifs = []
 
     lcntx = get_context()
     

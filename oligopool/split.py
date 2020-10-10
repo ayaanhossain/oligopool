@@ -1042,5 +1042,48 @@ def main():
 
     print(seq1[28:36])
 
+def yeast():
+
+    liner = ut.liner_engine()
+
+    # extract
+    pdict = {}
+    ldict = {}
+    with open('yeast.txt') as infile:
+        for line in infile:
+            i,j = line.strip().split()
+            i = int(i.strip())
+            j = j.strip()
+            if not i in pdict:
+                pdict[i] = []
+            pdict[i].append(j)
+            x = len(j)
+            if not i in ldict:
+                ldict[i] = x
+            else:
+                ldict[i] = max(x, ldict[i])
+
+    print(pdict.keys())
+
+    for i in pdict:
+        for p in range(len(pdict[i])):
+            l = len(pdict[i][p])
+            x = ldict[i] - l + 15
+            sub = 'CCATAGTCAGACGCATCGTTCGGCGAGGCGTCACTGAATCTGCGCATATCGACG'[-x:]
+            # print(l, x, sub)
+            pdict[i][p] = 'CCATAGTCAGACGCA' + pdict[i][p] + sub
+            assert len(pdict[i][p]) - 15 - 15 == ldict[i]
+
+    for i in sorted(pdict.keys()):
+        print('\nNow Splitting PoolID={}'.format(i))
+        split = split_engine(
+            seqlist=pdict[i],
+            splitlen=150,
+            mintmelt=1,
+            minhdist=5,
+            minoverlap=15,
+            liner=liner)
+
 if __name__ == '__main__':
-    main()
+    yeast()
+    # main()

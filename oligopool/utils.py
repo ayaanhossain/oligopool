@@ -2,6 +2,8 @@ import sys
 
 import time    as tt
 
+import collections as cx
+
 import numpy   as np
 import numba   as nb
 import primer3 as p3
@@ -254,8 +256,155 @@ def get_context_len(exmotifs):
     Internal use only.
 
     :: exmotifs
-       type - cx.deque
-       desc - 
+       type - iterable / None
+       desc - iterable of motifs to exlude,
+              None otherwise
     '''
 
     return len(exmotifs[-1]) - 1
+
+def get_context_inference_fn(context):
+    '''
+    Return selector functions for building
+    barcode context. Internal use only.
+
+    :: context
+       type - list / string / None
+       desc - list of context sequence,
+              or a single context sequence,
+              or None
+    '''
+
+    # All contexts unique
+    if isinstance(context, list):
+        cifn = lambda x: context[x]
+
+    # All contexts constant
+    elif isinstance(context, str):
+        cifn = lambda x: context
+    
+    # No context
+    elif context == None:
+        cifn = lambda x: ''
+
+    # Return Selector
+    return cifn
+
+def get_motif_conflict(
+    seq,
+    seqlen,
+    exmotifs):
+    '''
+    Determine if the barcode does not contain or is
+    contained in one of the exluded motifs (motif
+    feasibility). Internal use only.
+
+    :: seq
+       type - string
+       desc - sequence for conflict checking
+    :: seqlen
+       type - integer
+       desc - length of sequence
+    :: exmotifs
+       type - iterable / None
+       desc - list of motifs to exclude
+              in designed barcodes,
+              None otherwise
+    '''
+
+    # Do we have anything to exclude?
+    if exmotifs:
+
+        # Loop through all motifs
+        for motif in exmotifs:
+
+            # Embedding Conflict
+            if len(motif) <= seqlen and \
+               motif in seq:
+                return False, motif
+
+            # Embedded Conflict
+            if len(motif)  > seqlen and \
+               seq in motif:
+                return False, motif
+    
+    # No Motif Conflct
+    return (True, None)
+
+def get_assignment_index(
+    seq,
+    exmotifs,
+    lcifn,
+    rcifn,
+    cntxlen,
+    carr):
+    '''
+    Determine the context assignment index
+    for designed sequence. Internal use only.
+
+    :: seq
+       type - string
+       desc - designed sequence to be
+              assigned
+    :: exmotifs
+       type - list / None
+       desc - list of motifs to exclude
+              in designed barcodes,
+              None otherwise
+    :: lcifn
+       type - lambda
+       desc - selector for the left
+              sequence context
+    :: rcifn
+       type - lambda
+       desc - selector for the right
+              sequence context
+    :: cntxlen
+       type - lambda
+       desc - total length of context
+              to extract from either
+              left or right
+    :: carr
+       type - np.array
+       desc - context assignment array
+    '''
+    
+    # Book-keeping
+    i      = 0
+    cfails = cx.Counter()
+
+    # Loop through all contexts for assignment
+    while i < len(carr):
+
+        # Fetch Context
+        aidx = carr.popleft()
+
+        # Fetch left and right contexts
+        lcntx = lcifn(aidx)[-cntxlen:]
+        rcntx = rcifn(aidx)[:+cntxlen]
+
+        # Build out in-context sequence
+        incntxseq = lcntx + seq + rcntx
+
+        # Determine context feasibility
+        mcond, motif = get_motif_conflict(
+            seq=incntxseq,
+            seqlen=len(incntxseq),
+            exmotifs=exmotifs)
+
+        # We have a winner folks!
+        if mcond:
+            return (True, aidx, None)
+
+        # We lost an assignment, record cause
+        else:
+            cfails[motif] += 1
+
+        # Update Iteration
+        i += 1
+        
+        # We will try this context again
+        carr.append(aidx)
+
+    # Failed Assignment
+    return (False, None, cfails)

@@ -3,7 +3,6 @@ import time  as tt
 import collections as cx
 import numpy       as np
 import numba       as nb
-import bitarray    as ba
 
 import utils as ut
 
@@ -176,7 +175,8 @@ def is_motif_feasible(
     return ut.get_motif_conflict(
         seq=barcodeseq,
         seqlen=barcodelength,
-        exmotifs=exmotifs)
+        exmotifs=exmotifs,
+        partial=False)
 
 def is_assignment_feasible(
     barcodeseq,
@@ -394,25 +394,25 @@ def barcode_engine(
        desc - dynamic printing
     '''
 
+    # Book-keeping
+    count  = 0                            # Barcode Count
+    store  = np.zeros(                    # Store Encoded Barcodes
+        (targetsize, barcodelength),
+        dtype=np.float64)
+    codes  = []                           # Store Decoded Barcodes
+    aarr   = []                           # Assignment Array
+    mfails = cx.Counter()                 # Motif Fail Counter
+
     # Determine Jumper
     jtp = get_jumpertype(
         barcodelength=barcodelength)
-
-    # Book-keeping
-    count = 0                             # Barcode Count
-    store = np.zeros(                     # Store Encoded Barcodes
-        (targetsize, barcodelength),
-        dtype=np.float64)
-    codes = []                            # Store Decoded Barcodes
     
-    # Context Assignment Storage
+    # Context Setup
     carr   = cx.deque(range(targetsize))  # Context Array
     lcifn  = ut.get_context_inference_fn( # Left  Context Selector
         context=leftcontext)
     rcifn  = ut.get_context_inference_fn( # Right Context Selector
         context=rightcontext)
-    aarr   = []                           # Assignment Array
-    mfails = cx.Counter()                 # Motif Fail Counter
     
     # Infinite Jumper Failure
     prob  = ut.get_prob(                  # Probability of Success
@@ -645,7 +645,7 @@ def main():
     t0 = tt.time()
 
     # exmotifs = ['AAAA', 'GGGG', 'CCCC', 'TTTT', 'GGATCC', 'TCTAGA', 'GAATTC'][::-1]
-    exmotifs = ['AAAA', 'GGATCC', 'TCTAGA']
+    exmotifs = ['GGATCC', 'TCTAGA']
     # exmotifs = []
 
     lcntx = get_context()

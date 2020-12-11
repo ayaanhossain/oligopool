@@ -14,8 +14,13 @@ import primer3 as p3
 
 
 # Global Lookups
-complement_table = str.maketrans('ATGCUN', 'TACGAN')
-dna_alpha = set('ATGC')
+complement_table = str.maketrans(
+    'ACGTURYSWKMBVDHN',
+    'TGCATKYWSRMBDHVN')
+
+dna_alpha = set(
+    'ATGC')
+
 dna_space = {
     'A': {'A'},
     'C': {'C'},
@@ -31,8 +36,44 @@ dna_space = {
     'V': {'A', 'C', 'G'},
     'D': {'A', 'G', 'T'},
     'H': {'A', 'C', 'T'},
-    'N': {'A', 'T', 'G', 'C'}
-}
+    'N': {'A', 'T', 'G', 'C'}}
+
+typeIIS_dict = {
+        'acui'    : 'CTGAAG'  + 'N' * 16,
+        'alwi'    : 'GGATC'   + 'N' *  5,
+        'bbsi'    : 'GAAGAC'  + 'N' *  6,
+        'bcci'    : 'CCATC'   + 'N' *  5,
+        'bceai'   : 'ACGGC'   + 'N' * 14,
+        'bcivi'   : 'GTATCC'  + 'N' *  6,
+        'bcodi'   : 'GTCTC'   + 'N' *  5,
+        'bmri'    : 'ACTGGG'  + 'N' *  5,
+        'bpuei'   : 'CTTGAG'  + 'N' * 16,
+        'bsai'    : 'GGTCTC'  + 'N' *  5,
+        'bseri'   : 'GAGGAG'  + 'N' * 10,
+        'bsmai'   : 'GTCTC'   + 'N' *  5,
+        'bsmbi'   : 'CGTCTC'  + 'N' *  5,
+        'bsmfi'   : 'GGGAC'   + 'N' * 14,
+        'bsmi'    : 'GAATGC'  + 'N' *  1,
+        'bspcni'  : 'CTCAG'   + 'N' *  9,
+        'bspqi'   : 'GCTCTTC' + 'N' *  4,
+        'bsrdi'   : 'GCAATG'  + 'N' *  2,
+        'bsri'    : 'ACTGG'   + 'N' *  1,
+        'btgzi'   : 'GCGATG'  + 'N' * 14,
+        'btsci'   : 'GGATG'   + 'N' *  2,
+        'btsi'    : 'GCAGTG'  + 'N' *  2,
+        'btsimuti': 'CAGTG'   + 'N' *  2,
+        'eari'    : 'CTCTTC'  + 'N' *  4,
+        'ecii'    : 'GGCGGA'  + 'N' * 11,
+        'esp3i'   : 'CGTCTC'  + 'N' *  5,
+        'faui'    : 'CCCGC'   + 'N' *  6,
+        'hgai'    : 'GACGC'   + 'N' * 10,
+        'hphi'    : 'GGTGA'   + 'N' *  8,
+        'hpyav'   : 'CCTTC'   + 'N' *  6,
+        'mlyi'    : 'GAGTC'   + 'N' *  5,
+        'mnli'    : 'CCTC'    + 'N' *  7,
+        'sapi'    : 'GCTCTTC' + 'N' *  4,
+        'sfani'   : 'GCATC'   + 'N' *  9,
+    }
 
 # Decorators
 
@@ -131,7 +172,7 @@ def get_prob(success, trials):
 # Oligo Functions
 
 @nb.njit
-def get_hdist(
+def get_store_hdist(
     store,
     idx,
     i=0,
@@ -365,7 +406,8 @@ def get_motif_conflict(
     seq,
     seqlen,
     exmotifs,
-    partial):
+    partial=False,
+    checkall=False):
     '''
     Determine if the barcode does not contain or is
     contained in one of the exluded motifs (motif
@@ -388,7 +430,18 @@ def get_motif_conflict(
               conflicts for motifs longer
               than seqlen, otherwise run
               all checks
+              (default=False)
+    :: checkall
+       type - boolean
+       desc - if True will check for all
+              possible conflicts due to
+              exmotifs
+              (default=False)
     '''
+
+    # Book-keeping
+    status = True
+    pmotif = set() if checkall else None
 
     # Do we have anything to exclude?
     if exmotifs:
@@ -401,18 +454,22 @@ def get_motif_conflict(
                 if len(motif) > seqlen:
                     break # No need to check further
 
-            # Embedding Conflict
-            if len(motif) <= seqlen and \
-               motif in seq:
-                return False, motif
-
-            # Embedded Conflict
-            if len(motif)  > seqlen and \
-               seq in motif:
-                return False, motif
+            # Embedding and Embedded Conflict
+            if (len(motif) <= seqlen and motif in seq) or \
+               (len(motif)  > seqlen and seq   in motif):
+                
+                # We got Conflict!
+                status = False
+                
+                # What is the Conflict?
+                if checkall:
+                    pmotif.add(motif)
+                else:
+                    pmotif = motif
+                    break
     
     # No Motif Conflct
-    return (True, None)
+    return (status, pmotif)
 
 def get_assignment_index(
     seq,
@@ -615,7 +672,84 @@ def stream_canon_spectrum(seq, k):
         lambda x: min(x, get_revcomp(x)),
         stream_spectrum(seq=seq, k=k))
 
+def get_hdist(seq1, seq2, max_hd=None):
+    '''
+    Compute the hamming distance between
+    seq1 and seq2, within max_hd bound.
+    Internal use only.
+
+    :: seq1
+       type - string
+       desc - a string in alphabet
+              {A, T, G, C}
+    :: seq2
+       type - string
+       desc - a string in alphabet
+              {A, T, G, C}
+    :: max_hd
+       type - integer / None
+       desc - compute hamming distance
+              between seq1 and seq2,
+              within max_hd bound,
+              return None otherwise
+              (default=None)
+    '''
+    
+    seq_len = min(len(seq1), len(seq2))
+    i = 0
+    hdist = 0
+    while i < seq_len:
+        hdist += seq1[i] != seq2[i]
+        i += 1
+        if not max_hd is None and \
+           hdist > max_hd:
+            return None
+    return hdist
+
+def get_edist(seq1, seq2, max_ed=None, mode='NW'):
+    '''
+    Compute the mode edit distance between
+    seq1 and seq2, within max_ed bound.
+    Internal use only.
+
+    :: seq1
+       type - string
+       desc - a string in alphabet
+              {A, T, G, C}
+    :: seq2
+       type - string
+       desc - a string in alphabet
+              {A, T, G, C}
+    :: max_hd
+       type - integer / None
+       desc - compute edit distance
+              between seq1 and seq2,
+              within max_ed bound,
+              return None otherwise
+    :: mode
+       type - string
+       desc - 'NW' / 'HW' for global
+              / infix alignments
+    '''
+    
+    if len(seq2) > len(seq2):
+        seq1, seq2 = seq2, seq1
+    i = 0
+    if max_ed is None:
+        max_ed = -1
+    ed_align = ed.align(
+        seq2,
+        seq1,
+        mode=mode,
+        task='distance',
+        k=max_ed)
+    edist = ed_align['editDistance']
+    if edist == -1:
+        return None
+    return edist
+
 # Workspace Functions
+
 def get_adjusted_path(path, suffix):
     '''
     Adjust outfile with suffix.
@@ -759,7 +893,7 @@ def get_path_status(
                 name=parentpath,
                 exist_ok=True)
         
-        except Exception as E:
+        except:
             return 11 # Cannot create path
         
         else:
@@ -855,3 +989,4 @@ def remove_directory(dirpath):
         suffix=None)
     if os.path.exists(dirpath):
         su.rmtree(dirpath)
+

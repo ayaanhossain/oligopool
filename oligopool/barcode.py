@@ -145,7 +145,7 @@ def is_hamming_feasible(store, count, minhdist):
               of barcodes
     '''
 
-    return ut.get_hdist(
+    return ut.get_store_hdist(
         store=store,
         idx=count,
         direction=0) >= minhdist

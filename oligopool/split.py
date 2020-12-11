@@ -681,7 +681,7 @@ def get_split(
             if condtm and not condhd:
 
                 # Compute Hamming Distance for current split
-                hdist = ut.get_hdist(
+                hdist = ut.get_store_hdist(
                     store=seqmat,
                     idx=idx,
                     i=r,
@@ -937,7 +937,6 @@ def split_engine(
 
     # Final Updates
     liner.send('\n  Time Elapsed: {:.2f} sec\n'.format(
-        tt.time()-mt0))
 
     # Return Results
     if not state:

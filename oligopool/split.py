@@ -35,7 +35,7 @@ def get_seqvec(
        type - string
        desc - a sequence to split
     '''
-    
+
     return np.array(
         tuple(float(ord(nt)) for nt in seq),
         dtype=np.float64)
@@ -61,7 +61,7 @@ def get_seqmat(
 
     # Show Segment
     liner.send('\n[Building Sequence Matrix]\n')
-    
+
     # Setup Store
     seqmat = np.zeros(
         (len(seqlist), seqlen),
@@ -88,7 +88,7 @@ def get_seqmat(
     # Final Updates
     liner.send('   Vectorized: {} Sequences\n'.format(idx+1))
     liner.send(' Time Elapsed: {:.2f} sec\n'.format(tt.time()-t0))
-    
+
     # Return Results
     return np.array(seqmat, dtype=np.float64)
 
@@ -122,21 +122,21 @@ def get_entvec(
 
     # Show Update
     liner.send(' Computing Count Vector ...')
-    
+
     # Setup Data Structures
     d = np.zeros(
         (4, seqmat.shape[1]),
         dtype=np.float64)
     p = np.zeros(4)
-    
+
     # Compute Count Frequency
     for idx in range(seqmat.shape[1]):
-        
+
         # Count Symbol Counts at i-th Index
         m = np.unique(
             seqmat[:, idx],
             return_counts=True)[1]
-        
+
         # Update Data Structure and Show Updates
         p[:m.shape[0]] = m # Absorb Local
 
@@ -158,11 +158,11 @@ def get_entvec(
 
     # Show Updates
     liner.send(' Computing Entropy Vector ...')
-    
+
     # Compute Entropy Vector
     entvec = cx.deque(np.abs(
         (d*(np.log(d, where=d>0.) / np.log(4))).sum(0)))
-    
+
     # Show Updates
     liner.send(' Entropy Vector Computed   in {:.2f} sec\n'.format(
         tt.time() - t0))
@@ -206,7 +206,7 @@ def get_base_varcont(
             if not start is None and \
                not end   is None:
                 varcont.append((start, end))
-            
+
             # Reset for next contig
             start = None
             end   = None
@@ -222,7 +222,7 @@ def get_base_varcont(
                 start = idx
             if end is None:
                 end = idx
-            
+
             # Update ending index
             end += 1
 
@@ -264,7 +264,7 @@ def get_merged_varcont(
 
     # Time-keeping
     t0 = tt.time()
-    
+
     # Merge Contigs
     while varcont:
         current = varcont.popleft()
@@ -274,7 +274,7 @@ def get_merged_varcont(
             merged.append(tuple(previous))
             previous = list(current)
     merged.append(tuple(previous))
-    
+
     # Return Result
     return merged
 
@@ -320,7 +320,7 @@ def get_filtered_varcont(
     # Do we filter varcont?
     if not varcont:
         return varcont
-    
+
     # Setup Data Structure
     filtered = cx.deque()
 
@@ -524,7 +524,7 @@ def get_splitqueue(
         # Absorb Condition:
         # Contig Starts before End
         if p < end:
-            
+
             # Add Splitpoint
             spq.appendleft((
                 max(p, sstart),
@@ -537,7 +537,7 @@ def get_splitqueue(
             # Contig encompasses End
             if end <= q:
                 break # We're done!
-        
+
         # Exhaustion Condition:
         # Contig Starts after End
         if p >= end:
@@ -572,7 +572,7 @@ def continue_splitting(
         splitlen=splitlen,
         seqlen=seqlen) == seqlen:
         return False # No more splitting required
-    
+
     return True # Splitting may be required
 
 def get_split(
@@ -587,7 +587,7 @@ def get_split(
     Return an integer r (p < r < q) from spq intervals such
     that Tm(runmat[r:q]) > mintmelt and HD(seqmat) > minhdist.
     Internal use only.
-    
+
     :: seqlist
        type - list
        desc - list of sequences to split
@@ -610,10 +610,10 @@ def get_split(
        type - coroutine
        desc - dynamic printing
     '''
-    
+
     # Book-keeping
     r, q  = None, None # Split Coordinates
-    state = False      # Solution State 
+    state = False      # Solution State
 
     # Splitting Loop
     while spq:
@@ -624,7 +624,7 @@ def get_split(
         # Show Update
         liner.send('    Attempting Split in Region: (Start={}, End={})\n'.format(
             p, q))
-        
+
         # Is current splitpoint feasigle?
         if not is_spannable(p, q, spanlen):
             liner.send('      Current Split Region of {} bp Infeasible ... Skipping\n'.format(
@@ -667,7 +667,7 @@ def get_split(
 
                     # Minimize r Value
                     r = r - 1
-                
+
                 # Tm was OK!
                 elif tmelt >= mintmelt:
                     condtm = True
@@ -725,22 +725,20 @@ def get_split(
             else:
                 # Unresolvable
                 if r < p:
-                    liner.send('\*      Current Split Region Infeasible for Sequence {} ... Skipping\n'.format(
-                            idx))
+                    liner.send('\*      Current Split Region Infeasible for Sequence {} ... Skipping\n'.format(idx))
                     r = None # No solution to current split
                     break    # Try Next Split Region ..
-                
+
                 # Try again ..
                 else:
                     continue
 
         # Do we have a solution?
         if not r is None:
-            liner.send('\*      Current Split Region Optimized for All {} Sequences\n'.format(
-                    idx))
+            liner.send('\*      Current Split Region Optimized for All {} Sequences\n'.format(idx))
             state  = True  # Solution Found!
             break # We're done!
-    
+
     # Return Results
     if not state:
         return None # No Solution
@@ -844,7 +842,7 @@ def split_engine(
 
     # Show Segment
     liner.send('\n[Computing Split Fragment Coordinates]\n')
-    
+
     # Compute Split Coordinates
     mt0 = tt.time() # Total Split Time-keeping
     while True:
@@ -872,7 +870,7 @@ def split_engine(
             liner.send('    Split Required? No\n')
             liner.send('    Final Fragment Coordinates: (Start={}, End={})\n'.format(
                     *split[-1]))
-            
+
             # Book-keeping Update
             state = True # Problem Solved!
             break # No more splitting required
@@ -893,7 +891,7 @@ def split_engine(
                 sstart=sstart,
                 splitlen=splitlen,
                 seqlen=seqlen)
-            
+
             # Did we find split regions?
             if not spq: # No Split Regions Found
                 liner.send('    No Splittable Regions Found ... Terminating\n')
@@ -919,12 +917,12 @@ def split_engine(
                 liner.send('    No Feasible Splits Found ... Terminating\n')
                 state = False # No Solution
                 break
-            
+
             else:          # Feasigle Split Found
                 r,q = rq   # Parse Split
                 # Store Current Fragment Coordinates
                 split.append((fstart, q))
-                
+
                 # Book-keeping Update
                 fstart = r # Next Fragment Start Coordinate
                 sstart = q # Next Split    Start Coordinate
@@ -936,7 +934,7 @@ def split_engine(
                     *split[-1]))
 
     # Final Updates
-    liner.send('\n  Time Elapsed: {:.2f} sec\n'.format(
+    liner.send('\n  Time Elapsed: {:.2f} sec\n'.format(tt.time() - mt0))
 
     # Return Results
     if not state:
@@ -966,8 +964,8 @@ def test1():
     print(get_splitqueue(varcont, 20, 19, 32))
 
     entvec = cx.deque(map(
-        #               |                     |                             
-        #                  |                  |                             
+        #               |                     |
+        #                  |                  |
         #                                      |             |
         int,'00000000000111111111111111111111111111111111111110000000000000'))
            # 0000000000011111111111111111111111
@@ -977,7 +975,7 @@ def test1():
         minhdist=4,
         spanlen=9,
         liner=liner)
-    
+
     print(varcont)
     print(get_splitqueue(varcont, 0,  0, 34))
     print(get_splitqueue(varcont, 34, 33, 34))
@@ -1035,7 +1033,7 @@ def main():
     #     minhdist=9,#5,
     #     minoverlap=5,
     #     liner=liner)
-    
+
     print()
     print(split)
 
@@ -1084,5 +1082,5 @@ def yeast():
             liner=liner)
 
 if __name__ == '__main__':
-    yeast()
-    # main()
+    # yeast()
+    main()

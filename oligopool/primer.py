@@ -128,7 +128,7 @@ def primer_engine(
     rightcontext,
     background,
     liner):
-    
+
     # Book-keeping
     primerstruct = 'x'*len(primerseq)    # Primer Structure Constraint
     mfails       = cx.Counter()          # Motif Fail Counter
@@ -174,7 +174,7 @@ def primer_engine(
             liner=liner)
         cntxlen = ut.get_context_len(
             exmotifs=exmotifs)
-    
+
     # Determine Sequence Constraint Feasibility
     liner.send('\n[Checking Primer Sequence Feasibility]\n')
     (seqstatus,
@@ -182,13 +182,13 @@ def primer_engine(
         primerseq=primerseq,
         exmotifs=exmotifs,
         liner=liner)
-    
+
     if not seqstatus:
         liner.send(' Verdict: Primer Design Infeasible due to Sequence Constraint\n')
         return (False, None)
     else:
         liner.send(' Verdict: Primer Design Possibly Feasible\n')
-    
+
 
     # Determine Tm Feasibility
     liner.send('\n[Checking Primer Tm Feasibility]\n')
@@ -223,7 +223,7 @@ def primer_engine(
     # Evaluate Edge Effect Constraints
     if edgestatus:
         liner.send('\n[Checking Primer Edge Feasibility]\n')
-        
+
         if lcnum:
             liner.send(' Infeasible Left Context Sequences:\n')
             lcf, sxfails = cp.evaluate_edge_constraint(
@@ -381,7 +381,7 @@ def main():
         print()
         print(primer)
         print('Primer Tm = {}'.format(ut.get_tmelt(primer)))
-    
+
     print()
     print('Time Elapsed = {:.2f} sec'.format(tt.time()-t0))
 

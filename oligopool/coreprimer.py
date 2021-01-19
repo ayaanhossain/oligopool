@@ -23,7 +23,7 @@ def is_background_feasible(
     '''
     Local
     '''
-    
+
     if (background is None) or \
        (len(primer) < background.K):
         return True, None
@@ -61,7 +61,7 @@ def get_tmelt_traceback(
     failtype):
 
     tidx = len(primer)
-    
+
     if failtype == 0:
         lastweak = max(
             primer.rfind('A'),
@@ -78,11 +78,11 @@ def is_deltatmelt_feasible(
     primer,
     pairedtmelt,
     deltatment):
-    
+
     '''
     Uses tmelt feasibility
     '''
-    
+
     pass
 
 def is_motif_feasible(
@@ -104,7 +104,7 @@ def is_context_feasible(
     primer,
     primerlen,
     prefixgroup,
-    suffixgroup):    
+    suffixgroup):
     '''
     Local
     '''
@@ -160,7 +160,7 @@ def is_dimer_feasible(
     '''
     Cofold business
     '''
-    
+
     if len(primer) < primerlen:
         return True, None
 
@@ -173,14 +173,14 @@ def is_dimer_feasible(
         primer = ut.get_revcomp(
             seq=primer)
         revert = True
-    
+
     # For Padding
     if primerspan:
         primer = primer[-primerspan:]
 
     if dimertype == 0:
         pairedprimer = primer
-    
+
     # For Padding
     if pairedspan:
         pairedprimer = pairedprimer[-pairedspan:]
@@ -211,7 +211,7 @@ def stream_motif_splits(motif):
         for i in range(1, len(motif)-1))
 
 def get_exmotif_partition(exmotifs):
-    
+
     partition = cx.defaultdict(list)
 
     for motif in exmotifs:
@@ -269,7 +269,7 @@ def get_edge_contraints(
     # Build Left Context Partition
     lcp = get_exmotif_partition(
         exmotifs=exmotifs)
-    
+
     # Left Context Checks
     if lcnum:
 
@@ -323,7 +323,7 @@ def get_edge_contraints(
     if sx:
         sx = get_grouped_edge_constraints(
             edgeset=sx)
-    
+
     # Return Results
     return (ps or ss, px, sx, lcp, rcp)
 
@@ -356,7 +356,7 @@ def evaluate_edge_constraint(
 def get_primer_extreme(
     primerseq,
     exttype):
-    
+
     extbases = []
 
     for ib in primerseq:
@@ -367,7 +367,7 @@ def get_primer_extreme(
             extbases.append(np.random.choice(extrm))
         else:
             extbases.append(np.random.choice(space))
-    
+
     return ''.join(extbases)
 
 def evaluate_tmelt_constraint(
@@ -375,7 +375,7 @@ def evaluate_tmelt_constraint(
     mintmelt,
     maxtmelt,
     liner):
-    
+
     # Book-keeping
     extmintmelt = float('inf')  # Minimum Feasible Tm
     extmaxtmelt = float('-inf') # Maximum Feasible Tm
@@ -383,7 +383,7 @@ def evaluate_tmelt_constraint(
 
     # Time-keeping
     t0 = tt.time()
-    
+
     # Estimate Minimum Feasible Tm
     for i in range(100 * len(primerseq)):
         minprimer = get_primer_extreme(
@@ -432,7 +432,7 @@ def evaluate_tmelt_constraint(
     liner.send(
         ' Time Elapsed: {:.2f} sec\n'.format(
             tt.time()-t0))
-    
+
     # Return Results
     return (status, extmintmelt, extmaxtmelt)
 
@@ -445,14 +445,14 @@ def evaluate_seq_constraint(
     primerlen = len(primerseq)
 
     liner.send(' Conflicting Motifs:\n')
-    
+
     status, pmotif = ut.get_motif_conflict(
         seq=primerseq,
         seqlen=primerlen,
         exmotifs=exmotifs,
         partial=False,
         checkall=True)
-    
+
     if not status:
         for motif in pmotif:
             if len(motif) < primerlen:
@@ -465,10 +465,10 @@ def evaluate_seq_constraint(
                         motif))
     else:
         liner.send('  No Conflicting Motifs Found\n')
-    
+
     liner.send(' Time Elapsed: {:.2f} sec\n'.format(
         tt.time()-t0))
-    
+
     return (status, pmotif)
 
 def evaluate_typeIIS_constraint(
@@ -503,8 +503,8 @@ def evaluate_typeIIS_constraint(
         else:
             liner.send('   Gap Length ≥ 6 bp? No\n')
             typeIISstatus = typeIISstatus and False
-    
+
     liner.send(' Time Elapsed: {:.2f} sec\n'.format(
         tt.time()-t0))
-    
+
     return typeIISstatus, fwdavail, revavail

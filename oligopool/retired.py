@@ -84,3 +84,47 @@ def get_approx_Tm(rv, i, j, mvc=50):
 
     # Return result
     return t1 + t2 + t3 - t4 + cr
+
+def is_all_assignable(
+    seq,
+    exmotifs,
+    cifn,
+    cntxtype,
+    cntxnum,
+    cntxlen):
+
+    aidx  = 0
+
+    while aidx < cntxnum:
+
+        if cntxtype == 0:
+            lcntx = cifn(aidx)[-cntxlen:]
+            incntxseq = lcntx + seq
+        else:
+            rcntx = cifn(aidx)[:+cntxlen]
+            incntxseq = seq + rcntx
+
+        # Determine context feasibility
+        mcond, motif = get_motif_conflict(
+            seq=incntxseq,
+            seqlen=len(incntxseq),
+            exmotifs=exmotifs,
+            partial=True)
+
+        if not mcond:
+            mstart = incntxseq.find(motif)
+
+            # Context on Left
+            if cntxtype == 0:
+                # print((lcntx, seq, 'left'))
+                tloc = len(motif) - len(lcntx) + mstart - 1
+            # Context on Right
+            else:
+                # print((seq, rcntx, 'right'))
+                tloc = mstart
+
+            return False, tloc
+
+        aidx += 1
+
+    return True, None

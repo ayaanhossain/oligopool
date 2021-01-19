@@ -39,41 +39,40 @@ dna_space = {
     'N': {'A', 'T', 'G', 'C'}}
 
 typeIIS_dict = {
-        'acui'    : 'CTGAAG'  + 'N' * 16,
-        'alwi'    : 'GGATC'   + 'N' *  5,
-        'bbsi'    : 'GAAGAC'  + 'N' *  6,
-        'bcci'    : 'CCATC'   + 'N' *  5,
-        'bceai'   : 'ACGGC'   + 'N' * 14,
-        'bcivi'   : 'GTATCC'  + 'N' *  6,
-        'bcodi'   : 'GTCTC'   + 'N' *  5,
-        'bmri'    : 'ACTGGG'  + 'N' *  5,
-        'bpuei'   : 'CTTGAG'  + 'N' * 16,
-        'bsai'    : 'GGTCTC'  + 'N' *  5,
-        'bseri'   : 'GAGGAG'  + 'N' * 10,
-        'bsmai'   : 'GTCTC'   + 'N' *  5,
-        'bsmbi'   : 'CGTCTC'  + 'N' *  5,
-        'bsmfi'   : 'GGGAC'   + 'N' * 14,
-        'bsmi'    : 'GAATGC'  + 'N' *  1,
-        'bspcni'  : 'CTCAG'   + 'N' *  9,
-        'bspqi'   : 'GCTCTTC' + 'N' *  4,
-        'bsrdi'   : 'GCAATG'  + 'N' *  2,
-        'bsri'    : 'ACTGG'   + 'N' *  1,
-        'btgzi'   : 'GCGATG'  + 'N' * 14,
-        'btsci'   : 'GGATG'   + 'N' *  2,
-        'btsi'    : 'GCAGTG'  + 'N' *  2,
-        'btsimuti': 'CAGTG'   + 'N' *  2,
-        'eari'    : 'CTCTTC'  + 'N' *  4,
-        'ecii'    : 'GGCGGA'  + 'N' * 11,
-        'esp3i'   : 'CGTCTC'  + 'N' *  5,
-        'faui'    : 'CCCGC'   + 'N' *  6,
-        'hgai'    : 'GACGC'   + 'N' * 10,
-        'hphi'    : 'GGTGA'   + 'N' *  8,
-        'hpyav'   : 'CCTTC'   + 'N' *  6,
-        'mlyi'    : 'GAGTC'   + 'N' *  5,
-        'mnli'    : 'CCTC'    + 'N' *  7,
-        'sapi'    : 'GCTCTTC' + 'N' *  4,
-        'sfani'   : 'GCATC'   + 'N' *  9,
-    }
+    'acui'    : 'CTGAAG'  + 'N' * 16,
+    'alwi'    : 'GGATC'   + 'N' *  5,
+    'bbsi'    : 'GAAGAC'  + 'N' *  6,
+    'bcci'    : 'CCATC'   + 'N' *  5,
+    'bceai'   : 'ACGGC'   + 'N' * 14,
+    'bcivi'   : 'GTATCC'  + 'N' *  6,
+    'bcodi'   : 'GTCTC'   + 'N' *  5,
+    'bmri'    : 'ACTGGG'  + 'N' *  5,
+    'bpuei'   : 'CTTGAG'  + 'N' * 16,
+    'bsai'    : 'GGTCTC'  + 'N' *  5,
+    'bseri'   : 'GAGGAG'  + 'N' * 10,
+    'bsmai'   : 'GTCTC'   + 'N' *  5,
+    'bsmbi'   : 'CGTCTC'  + 'N' *  5,
+    'bsmfi'   : 'GGGAC'   + 'N' * 14,
+    'bsmi'    : 'GAATGC'  + 'N' *  1,
+    'bspcni'  : 'CTCAG'   + 'N' *  9,
+    'bspqi'   : 'GCTCTTC' + 'N' *  4,
+    'bsrdi'   : 'GCAATG'  + 'N' *  2,
+    'bsri'    : 'ACTGG'   + 'N' *  1,
+    'btgzi'   : 'GCGATG'  + 'N' * 14,
+    'btsci'   : 'GGATG'   + 'N' *  2,
+    'btsi'    : 'GCAGTG'  + 'N' *  2,
+    'btsimuti': 'CAGTG'   + 'N' *  2,
+    'eari'    : 'CTCTTC'  + 'N' *  4,
+    'ecii'    : 'GGCGGA'  + 'N' * 11,
+    'esp3i'   : 'CGTCTC'  + 'N' *  5,
+    'faui'    : 'CCCGC'   + 'N' *  6,
+    'hgai'    : 'GACGC'   + 'N' * 10,
+    'hphi'    : 'GGTGA'   + 'N' *  8,
+    'hpyav'   : 'CCTTC'   + 'N' *  6,
+    'mlyi'    : 'GAGTC'   + 'N' *  5,
+    'mnli'    : 'CCTC'    + 'N' *  7,
+    'sapi'    : 'GCTCTTC' + 'N' *  4,
+    'sfani'   : 'GCATC'   + 'N' *  9}
 
 # Decorators
 
@@ -91,7 +90,7 @@ def coroutine(func):
         _coroutine = func(*args, **kwargs)
         next(_coroutine)
         return _coroutine
-    
+
     return online
 
 # Printing / Logging
@@ -109,14 +108,14 @@ def liner_engine(online=True):
               strings to stdout
               (default=True)
     '''
-    
+
     # Book-keeping
     clrlen = 0
 
     # Online
     try:
         while True:
-            
+
             # Receive String
             printstr = (yield)
 
@@ -125,17 +124,31 @@ def liner_engine(online=True):
                 sys.stdout.write('\n')
                 clrlen   = 0
                 printstr = printstr.lstrip('\*')
-            
+
             # Line String
             if online:
                 sys.stdout.write('\r' + ' '*clrlen)
                 sys.stdout.write('\r' + printstr)
                 clrlen = len(printstr)
                 sys.stdout.flush()
-    
+
     # Closure
     except GeneratorExit:
-        sys.stdout.write('\n')
+        if online:
+            sys.stdout.write('\n')
+
+def get_printlen(value):
+    '''
+    Return printing length.
+    Internal use only.
+
+    :: value
+       type - nu.Real
+       desc - value to evaluate
+    '''
+
+    return len(str(value)) + \
+        int(safelog10(value) / 3)
 
 # Numeric Functions
 
@@ -168,6 +181,175 @@ def get_prob(success, trials):
        desc - total number of attempts made
     '''
     return (success + 1.) / (trials + 2.)
+
+def safediv(A, B):
+    '''
+    Return A / B, except when B is zero return
+    zero (no more pesky Div by Zero Errors).
+    Internal use only.
+
+    :: A
+       type - nu.Real
+       desc - numerator
+    :: B
+       type - nu.Real
+       desc - denominator
+    '''
+
+    return 0. if B == 0. else float(A) / B
+
+def safelog10(A):
+    '''
+    Return the log10 of A, except when A is less
+    than or equal to zero return zero (no more
+    pesky Math Domain Errors).
+    Internal use only.
+
+    :: A
+       type - nu.Real
+       desc - quantity
+    '''
+
+    return np.log10(A) if A > 0. else 0.
+
+def get_sample(value, lf, uf):
+    '''
+    Return a random integer between
+    (lf*value, uf*value).
+    Internal use only.
+
+    :: value
+       type - nu.Real
+       desc - numeric value
+    :: lf
+       type - nu.Real
+       desc - sample lower bound fraction
+              of value
+    :: uf
+       type - nu.Real
+       desc - sample upper bound fraction
+              of value
+    '''
+
+    return np.random.randint(
+        *map(np.round, (value * lf,
+                        value * uf)))
+
+# DataFrame Functions
+
+def get_uniques(
+    iterable,
+    typer):
+    '''
+    Return the unique elements in iterable
+    packed via typer. Internal use only.
+
+    :: iterable
+       type - iterable
+       desc - iterable to uniquify
+    :: typer
+       type - function
+       desc - factory function to wrap
+              uniques extracted
+    '''
+    uniques = []
+    seen    = set()
+    for element in iterable:
+        if not element in seen:
+            uniques.append(element)
+            seen.add(element)
+    return typer(uniques)
+
+def get_col_exist_idx(
+    col,
+    df):
+    '''
+    Determine if col exists as a column in df,
+    and return its index. Internal use only.
+
+    :: col
+       type - string
+       desc - column name to check for existence
+    ::df
+       type - pd.DataFrame
+       desc - DataFrame to check existence in
+    '''
+
+    col = col.lower()
+    collist = tuple(c.lower() for c in df.columns)
+    if col == df.index.name.lower() or \
+       col in collist:
+        return True, collist.index(col)
+    else:
+        return False, None
+
+def update_df(
+    indf,
+    lcname,
+    rcname,
+    out,
+    outcol):
+    '''
+    Insert out values in outcol between
+    lcname and rcname cols if provided.
+    Internal use only.
+
+    :: indf
+       type - pd.DataFrame
+       desc - DataFrame to update
+    :: lcname
+       type - string / None
+       desc - left context column name
+    :: rcname
+       type - string
+       desc - right context column name
+    :: out
+       type - list / string
+       desc - value(s) to insert
+    :: outcol
+       type - string
+       desc - column name for values
+    '''
+
+    # Book-keeping
+    insidx    = len(indf.columns)
+    insstatus = False
+
+    # Do we have a left context?
+    if not insstatus and \
+       not lcname is None:
+
+        # Determine existence and index
+        (lcexists,
+        lcidx) = get_col_exist_idx(
+            col=lcname,
+            df=indf)
+
+        # Update Book-keeping
+        if lcexists:
+            insidx    = lcidx + 1
+            insstatus = True
+
+    # Do we have a right context?
+    if not insstatus and \
+       not rcname is None:
+
+        # Determine existence and index
+        (rcexists,
+        rcidx) = get_col_exist_idx(
+            col=rcname,
+            df=indf)
+
+        # Update Book-keeping
+        if rcexists:
+            insidx    = max(0, rcidx-1)
+            insstatus = True
+
+    # Update indf
+    indf.insert(
+        loc=insidx,
+        column=outcol,
+        value=out)
 
 # Oligo Functions
 
@@ -224,9 +406,9 @@ def get_store_hdist(
 
         # Downward / All-Pair Comparison
         if direction == 1 or direction == 2:
-                hdist = min(
-                    hdist,
-                    (store[idx+1:, i:j] != store[idx, i:j]).sum(1).min())
+            hdist = min(
+                hdist,
+                (store[idx+1:, i:j] != store[idx, i:j]).sum(1).min())
 
     # Return Result
     return hdist
@@ -279,21 +461,29 @@ def get_tmelt(
         dntp_conc=ntc,
         dna_conc=olc)
 
-# Motif Functions
+# Motif and Context Functions
 
-def prep_exmotifs(exmotifs, packing, liner):
+def get_parsed_exmotifs(
+    exmotifs,
+    typer,
+    element,
+    liner):
     '''
-    Return all exmotifs sorted by
-    length. Internal use only.
+    Check feasibility and return all
+    exmotifs sorted by length.
+    Internal use only.
 
     :: exmotifs
        type - list
        desc - list of all motifs
               to be excluded
-    :: packing
+    :: typer
        type - function
        desc - factory function for
               wrapping exmotifs
+    :: element
+       type - string
+       desc - element being designed
     :: liner
        type - coroutine
        desc - dynamic printing
@@ -301,106 +491,82 @@ def prep_exmotifs(exmotifs, packing, liner):
 
     # Sort motifs by length
     liner.send(' Sorting Motifs ...')
+
     t0 = tt.time()
-    exmotifs.sort(key=len)
-    liner.send(' Sorted {} Motifs in {:.2f} sec\n'.format(
+
+    exmotifs = sorted(
+        exmotifs,
+        key=len)
+
+    liner.send(' Sorted {:,} Motifs in {:.2f} sec\n'.format(
         len(exmotifs), tt.time()-t0))
 
     # Enque all motifs
     liner.send(' Enqueing Motifs ...')
+
     t0 = tt.time()
-    dq = packing(exmotifs)
-    liner.send(' Enqued {} Motifs in {:.2f} sec\n'.format(
+
+    dq = typer(exmotifs)
+
+    liner.send(' Enqued {:,} Motifs in {:.2f} sec\n'.format(
         len(exmotifs), tt.time()-t0))
 
+    # Check motif feasibility
+    liner.send(' Computing Motif Length Distribution ...')
+
+    t0 = tt.time()
+
+    # Compute length distribution
+    cr = cx.Counter(len(m) for m in dq)
+
+    liner.send(' Motif Length Distribution:\n')
+    klen = get_printlen(
+        value=max(cr.keys()))
+    vlen = get_printlen(
+        value=max(cr.values()))
+
+    # Check for infeasible lengths
+    parsestatus = True
+    problens    = []
+
+    for mlen in sorted(cr.keys()):
+
+        # Compute infeasibility
+        parsemsg = ''
+        if cr[mlen] == 4**(mlen):
+            parsemsg     = ' [INFEASIBLE] [ALL {}-mers EXCLUDED]'.format(mlen)
+            parsestatus = False
+            problens.append(mlen)
+
+        # Show update
+        liner.send('   {:{},d} Motifs of Length {:{},d}{}\n'.format(
+            cr[mlen],
+            vlen,
+            mlen,
+            klen,
+            parsemsg))
+
+    # Finalize problens
+    problens = None if len(problens) == 0 else problens
+
+    # Show feasibility verdict
+    liner.send(
+        '   Time Elapsed: {:.2f} sec\n'.format(
+            tt.time()-t0))
+
+    if not parsestatus:
+        liner.send(
+            ' Verdict: {} Design Infeasible due to Excluded Motif Constraints\n'.format(
+                element))
+    else:
+        liner.send(
+            ' Verdict: {} Design Possibly Feasible\n'.format(
+                element))
+
     # Return Results
-    return dq
-
-def get_context_len(exmotifs):
-    '''
-    Get the exmotif context length.
-    Internal use only.
-
-    :: exmotifs
-       type - iterable / None
-       desc - iterable of motifs to exlude,
-              None otherwise
-    '''
-
-    return len(exmotifs[-1]) - 1
-
-def get_context_type(context):
-    # All contexts unique
-    if isinstance(context, list):
-        return 1
-
-    # All contexts constant
-    elif isinstance(context, str):
-        return 2
-    
-    # No context
-    elif context == None:
-        return 3
-
-    # Unknown context
-    else:
-        return -1
-
-def get_context_num(context):
-
-    cntxnum = 0
-    
-    cntxtype = get_context_type(
-        context=context)
-
-    # All contexts unique
-    if cntxtype   == 1:
-        cntxnum = max(
-            cntxnum,
-            len(context))
-    
-    # All contexts constant
-    elif cntxtype == 2:
-        cntxnum = max(
-            cntxnum,
-            1)
-
-    return cntxnum
-
-def get_context_inference_fn(context):
-    '''
-    Return selector functions for building
-    barcode context. Internal use only.
-
-    :: context
-       type - list / string / None
-       desc - list of context sequence,
-              or a single context sequence,
-              or None
-    '''
-
-    # Get context type
-    cntxtype = get_context_type(context)
-
-    # All contexts unique
-    if cntxtype == 1:
-        cifn = lambda x: context[x]
-
-    # All contexts constant
-    elif cntxtype == 2:
-        cifn = lambda x: context
-    
-    # No context
-    elif cntxtype == 3:
-        cifn = lambda x: ''
-
-    # Unknown packing
-    else:
-        raise ValueError(
-            'Context Packing Unknown')
-
-    # Return Selector
-    return cifn
+    return (parsestatus,
+        dq,
+        problens)
 
 def get_motif_conflict(
     seq,
@@ -440,7 +606,7 @@ def get_motif_conflict(
     '''
 
     # Book-keeping
-    status = True
+    status = True # No Conflict
     pmotif = set() if checkall else None
 
     # Do we have anything to exclude?
@@ -457,19 +623,184 @@ def get_motif_conflict(
             # Embedding and Embedded Conflict
             if (len(motif) <= seqlen and motif in seq) or \
                (len(motif)  > seqlen and seq   in motif):
-                
+
                 # We got Conflict!
                 status = False
-                
+
                 # What is the Conflict?
                 if checkall:
                     pmotif.add(motif)
                 else:
                     pmotif = motif
                     break
-    
+
     # No Motif Conflct
     return (status, pmotif)
+
+def get_edgeeffectlength(exmotifs):
+    '''
+    Get the context length to search in for exmotif
+    edge-effects. Internal use only.
+
+    :: exmotifs
+       type - iterable / None
+       desc - iterable of motifs to exlude,
+              None otherwise
+    '''
+
+    if not exmotifs is None:
+        return len(exmotifs[-1])
+    return 0
+
+def get_extracted_edge(
+    contextseq,
+    position,
+    edgeeffectlength):
+    '''
+    Extract context sequence edge based on
+    context position. Internal use only.
+
+    :: contextseq
+       type - string
+       desc - context sequence to evaluate
+    :: position
+       type - integer
+       desc - context position identifier
+              0 =  left context
+              1 = right context
+    :: edgeeffectlength
+       type - integer
+       desc - length of context sequence to
+              extract for edge-effect eval
+    '''
+    # Do we have edges to consider?
+    if not edgeeffectlength is None:
+
+        # Extract Left Context
+        if position == 0:
+            return contextseq[-edgeeffectlength:]
+
+        # Extract Right Context
+        else:
+            return contextseq[:+edgeeffectlength]
+
+    # No edges to consider
+    return None
+
+def get_extracted_context(
+    leftcontext,
+    rightcontext,
+    edgeeffectlength,
+    reduce,
+    liner):
+    '''
+    Return parsed context sequences.
+    Internal use only.
+
+    :: leftcontext
+       type - pd.Series
+       desc - left context sequences
+    :: rightcontext
+       type - pd.Series
+       desc - right context sequences
+    :: edgeeffectlength
+       type - integer / None
+       desc - length of context sequence to
+              extract for edge-effect eval
+    :: reduce
+       type - boolean
+       desc - if True will reduce multi-unique
+              context sequences to uniques;
+              otherwise return full context
+    :: liner
+       type - coroutine
+       desc - dynamic printing
+    '''
+
+    # Start Timer
+    t0 = tt.time()
+
+    # Setup Contexts
+    contexts         = ((leftcontext, 0),  (rightcontext, 1))
+    uniquecount      = []
+    extractedcontext = []
+    ignoredcounts    = []
+
+    # Parse Context
+    for context,position in contexts:
+
+        # No Context
+        if context is None:
+            uniquecount.append(0)
+            extractedcontext.append(None)
+
+        # Context Present
+        else:
+            # Extract Uniques
+            uniques = list(context.unique())
+            uniquecount.append(
+                len(uniques))
+
+            # Context is Constant
+            if uniquecount[-1] == 1:
+
+                # Extract Edge Sequence
+                edgeseq = get_extracted_edge(
+                    contextseq=uniques[-1],
+                    position=position,
+                    edgeeffectlength=edgeeffectlength)
+
+                # Store Edge Sequence
+                extractedcontext.append(
+                    edgeseq)
+
+            # Context is Variable
+            else:
+
+                # Reduce and Extract Context
+                if reduce:
+                    extractedcontext.append(
+                        uniques)
+                else:
+                    extractedcontext.append(
+                        context.to_list())
+
+                # Compute Ignored Indices
+                for idx,seq in enumerate(extractedcontext[-1]):
+
+                    # Extract Edge Sequence
+                    edgeseq = get_extracted_edge(
+                        contextseq=seq,
+                        position=position,
+                        edgeeffectlength=edgeeffectlength)
+
+                    # Show Update
+                    liner.send(
+                        ' Extracting {} Context: Processed {:,} Sequences'.format(
+                            ['Left', 'Right'][position],
+                            idx+1))
+
+                    # Update Edge Sequence
+                    extractedcontext[-1][idx] = edgeseq
+
+    # Compute plen
+    plen = get_printlen(
+        value=max(uniquecount))
+
+    # Show Updates
+    liner.send(
+        '  Left Context: {:{},d} Unique Sequence(s)\n'.format(
+            uniquecount[0],
+            plen))
+    liner.send(
+        ' Right Context: {:{},d} Unique Sequence(s)\n'.format(
+            uniquecount[1],
+            plen))
+    liner.send('  Time Elapsed: {:.2f} sec\n'.format(tt.time()-t0))
+
+    # Return Parsed Context
+    return (extractedcontext[0],
+        extractedcontext[1])
 
 def get_assignment_index(
     seq,
@@ -508,7 +839,7 @@ def get_assignment_index(
        type - np.array
        desc - context assignment array
     '''
-    
+
     # Book-keeping
     i      = 0
     cfails = cx.Counter()
@@ -543,56 +874,12 @@ def get_assignment_index(
 
         # Update Iteration
         i += 1
-        
+
         # We will try this context again
         carr.append(aidx)
 
     # Failed Assignment
     return (False, None, cfails)
-
-def is_all_assignable(
-    seq,
-    exmotifs,
-    cifn,
-    cntxtype,
-    cntxnum,
-    cntxlen):
-    
-    aidx  = 0
-
-    while aidx < cntxnum:
-
-        if cntxtype == 0:
-            lcntx = cifn(aidx)[-cntxlen:]
-            incntxseq = lcntx + seq
-        else:
-            rcntx = cifn(aidx)[:+cntxlen]
-            incntxseq = seq + rcntx
-
-        # Determine context feasibility
-        mcond, motif = get_motif_conflict(
-            seq=incntxseq,
-            seqlen=len(incntxseq),
-            exmotifs=exmotifs,
-            partial=True)
-
-        if not mcond:
-            mstart = incntxseq.find(motif)
-
-            # Context on Left
-            if cntxtype == 0:
-                # print((lcntx, seq, 'left'))
-                tloc = len(motif) - len(lcntx) + mstart - 1
-            # Context on Right
-            else:
-                # print((seq, rcntx, 'right'))
-                tloc = mstart
-
-            return False, tloc
-
-        aidx += 1
-
-    return True, None
 
 # Sequence Analysis
 
@@ -622,7 +909,7 @@ def get_comp(seq):
        desc - a string in alphabet
               {A, T, G, C}
     '''
-    
+
     return seq.translate(complement_table)
 
 def get_revcomp(seq):
@@ -635,7 +922,7 @@ def get_revcomp(seq):
        desc - a string in alphabet
               {A, T, G, C}
     '''
-    
+
     return get_comp(seq)[::-1]
 
 def stream_spectrum(seq, k):
@@ -651,7 +938,7 @@ def stream_spectrum(seq, k):
        type - integer
        desc - k-mer length / k-value
     '''
-    
+
     return (seq[i:i+k] for i in range(len(seq)-k+1))
 
 def stream_canon_spectrum(seq, k):
@@ -667,7 +954,7 @@ def stream_canon_spectrum(seq, k):
        type - integer
        desc - k-mer length / k-value
     '''
-    
+
     return map(
         lambda x: min(x, get_revcomp(x)),
         stream_spectrum(seq=seq, k=k))
@@ -694,7 +981,7 @@ def get_hdist(seq1, seq2, max_hd=None):
               return None otherwise
               (default=None)
     '''
-    
+
     seq_len = min(len(seq1), len(seq2))
     i = 0
     hdist = 0
@@ -731,7 +1018,7 @@ def get_edist(seq1, seq2, max_ed=None, mode='NW'):
        desc - 'NW' / 'HW' for global
               / infix alignments
     '''
-    
+
     if len(seq2) > len(seq2):
         seq1, seq2 = seq2, seq1
     i = 0
@@ -830,10 +1117,10 @@ def get_path_status(
     path = get_adjusted_path(
         path=path,
         suffix=suffix)
-    
+
     # Is the path in existence?
     if os.path.exists(path):
-        
+
         # Path points to a file?
         if os.path.isfile(path):
 
@@ -849,9 +1136,9 @@ def get_path_status(
                 if  writable and not \
                     os.access(path, os.W_OK):
                         return 2 # Unwritable file
-                
+
                 return 3 # Empty file
-            
+
             else:
                 return 4 # Non-empty file
 
@@ -872,7 +1159,7 @@ def get_path_status(
                         return 6 # Unwritable directory
 
                 return 7 # Empty Directory
-            
+
             else:
                 return 8 # Non-empty Directory
 
@@ -892,10 +1179,10 @@ def get_path_status(
             os.makedirs(
                 name=parentpath,
                 exist_ok=True)
-        
+
         except:
             return 11 # Cannot create path
-        
+
         else:
             return 10 # Can create path
 
@@ -967,11 +1254,12 @@ def remove_file(filepath):
        desc - a file to be removed
     '''
 
-    filepath = get_adjusted_path(
-        path=filepath,
-        suffix=None)
-    if os.path.exists(filepath):
-        os.remove(filepath)
+    if not filepath is None:
+        filepath = get_adjusted_path(
+            path=filepath,
+            suffix=None)
+        if os.path.exists(filepath):
+            os.remove(filepath)
 
 def remove_directory(dirpath):
     '''
@@ -983,10 +1271,10 @@ def remove_directory(dirpath):
        desc - a directory (with content)
               to be removed
     '''
-    
-    dirpath = get_adjusted_path(
-        path=dirpath,
-        suffix=None)
-    if os.path.exists(dirpath):
-        su.rmtree(dirpath)
 
+    if not dirpath is None:
+        dirpath = get_adjusted_path(
+            path=dirpath,
+            suffix=None)
+        if os.path.exists(dirpath):
+            su.rmtree(dirpath)

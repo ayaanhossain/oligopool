@@ -1,448 +1,306 @@
 import sys
-import time    as tt
-import shutil  as sh
+import time     as tt
+import shutil   as sh
 
-import leveldb as lv
-import nrpcalc as nr
+import leveldb  as lv
+import nrpcalc  as nr
+import atexit   as ae
 
-import utils   as ut
+import utils    as ut
+import vectordb as db
+import valparse as vp
 
 
-class kmerSetDB(object):
+def background_engine(
+    background,
+    maxreplen,
+    outdir,
+    stats,
+    liner):
     '''
-    Plyvel based scalable on disk kmerSetDB for k-mer storage.
+    Extract and populate background.
+    Internal use only.
+
+    :: background
+       type - list
+       desc - list of background sequences
+    :: maxreplen
+       type - integer
+       desc - maximum shared repeat length
+    :: outdir
+       type - string
+       desc - output directory
+    :: stats
+       type - dict
+       desc - background stats storage
+    :: liner
+       type - coroutine
+       desc - dynamic printing
     '''
-    
-    def __init__(self, path, homology, verbose=False):
-        '''
-        kmerSetDB constructor.
-        '''
-        try:
-            # Assert path is string
-            if not isinstance(path, str):
-                print('\n[OligoPool Calculator - Background]')
-                print('\n [ERROR]    Path must be a string, not {}'.format(
-                    path))
-                print(' [SOLUTION] Try correcting Path\n')
-                raise ValueError
 
-            # Assert homology is positive integer
-            if not isinstance(homology, int):
-                print('\n[OligoPool Calculator - Background]')
-                print('\n [ERROR]    Lmax must be an integer, not {}'.format(type(homology)))
-                print(' [SOLUTION] Try correcting Lmax\n')
-                raise ValueError
-            if homology-1 < 5:
-                print('\n[OligoPool Calculator - Background]')
-                print('\n [ERROR]    Lmax must be greater than 4, not \'{}\''.format(homology-1))
-                print(' [SOLUTION] Try correcting Lmax\n')
-                raise ValueError
-            
-            # Path setup
-            self.PATH = path.rstrip('/') + '/'
+    # Open vectorDB instance
+    vDB = db.vectorDB(
+        path=outdir,
+        maxreplen=maxreplen,
+        mode=0)
 
-            # Create/Open Plyvel object
-            self.DB = lv.LevelDB(
-                filename=self.PATH,
-                create_if_missing=True,
-                error_if_exists=False)
+    # Book-keeping
+    t0   = tt.time()
+    plen = ut.get_printlen(
+        value=len(background))
 
-            # Length setup
-            try:
-                self.LEN = int(self.DB.Get(b'LEN'))
-            except:
-                self.LEN = 0
-                self.DB.Put(b'LEN', b'0')
+    # Loop and insert background
+    for idx,seq in enumerate(background):
 
-            # K setup
-            try:
-                self.K = int(self.DB.Get(b'K'))
-            except:
-                self.K = int(homology)
-                self.DB.Put(b'K', str(homology).encode())
-
-            # Verbosity setup
-            self.VERB = bool(verbose)
-            
-            # Object ALIVE status
-            self.ALIVE = True
-
-        except ValueError as E:
-            raise ValueError('Invalid Path or Lmax')
-        except Exception as E:
-            raise E
-
-    def __repr__(self):
-        '''
-        User function to return the string representation of
-        kmerSetDB.
-        '''
-        return 'kmerSetDB stored at {} with {} {}-mers'.format(
-            self.PATH, self.LEN, self.K)
-
-    def __str__(self):
-        '''
-        See __repr__
-        '''
-        return self.__repr__()
-
-    def alivemethod(method):
-        '''
-        Internal decorator to gate kmerSetDB operation
-        once dropped.
-        '''
-        def wrapper(self, *args, **kwargs):
-            if self.ALIVE:
-                return method(self, *args, **kwargs)
-            else:
-                raise RuntimeError('kmerSetDB was closed or dropped')
-        return wrapper
-
-    def _verb_action(self, action, index, seq):
-        '''
-        Internal helper function to print sequence
-        updates to kmerSetDB based on verbosity.
-        '''
-        if self.VERB:
-            psl = min(len(seq), 10)
-            printed = ' {} Seq {}: {}...'.format(
-                action, index, seq[:psl])
-            clear_length = len(printed)
-            sys.stdout.write(' '*clear_length+'\r')
-            sys.stdout.write(printed)
-            sys.stdout.flush()
-
-    def _get(self, key):
-        '''
-        Internal helper to fetch value for given
-        key, from kmerSetDB instance.
-        '''
-        try:
-            val = self.DB.Get(key)
-            return str(val)
-        except:
-            return None
-
-    @alivemethod
-    def add(self, seq):
-        '''
-        User function to add seq k-mers to kmerSetDB.
-        '''
-        try:
-            if not seq in ['K', 'LEN']:
-                seq = seq.replace('U', 'T')
-                for kmer in ut.stream_canon_spectrum(
-                    seq=seq, k=self.K):
-                    kmer = kmer.encode()
-                    if self._get(kmer) is None:
-                        self.DB.Put(kmer, b'1')
-                        self.LEN += 1
-            self.DB.Put(b'LEN', str(self.LEN).encode())
-        except Exception as E:
-            raise E
-
-    @alivemethod
-    def multiadd(self, seq_list):
-        '''
-        User function to add seq k-mers for each seq in
-        seq_list to kmerSetDB via single transaction.
-        '''
-        try:
-            t0 = tt.time()
-            pt = False
-            WB = lv.WriteBatch()
-            index = 0
-            for seq in seq_list:
-                if not pt and self.VERB:
-                    print('\n[Background Processing]')
-                    pt = True
-                if not seq in ['K', 'LEN']:
-                    self._verb_action(
-                        action='Adding',
-                        index=index,
-                        seq=seq)
-                    index += 1
-                    seq = seq.replace('U', 'T')
-                    for kmer in ut.stream_canon_spectrum(
-                        seq=seq, k=self.K):
-                        kmer = kmer.encode()
-                        if self._get(kmer) is None:
-                            WB.Put(kmer, b'1')
-                            self.LEN += 1
-            WB.Put(b'LEN', str(self.LEN).encode())
-            self.DB.Write(WB, sync=True)
-            if self.VERB:
-                print('\n Time Elapsed: {:.2f} sec'.format(tt.time()-t0))
-        except Exception as E:
-            raise E
-
-    @alivemethod
-    def __contains__(self, seq, rna=True):
-        '''
-        Python dunder function to check existence of
-        any k-mer from seq in kmerSetDB.
-        '''
-        try:
-            if rna:
-                seq = seq.replace('U', 'T')
-            for kmer in ut.stream_canon_spectrum(
-                seq=seq, k=self.K):
-                kmer = kmer.encode()
-                if self._get(kmer):
-                    return True
-            return False
-        except Exception as E:
-            raise E
-
-    @alivemethod
-    def multicheck(self, seq_list):
-        '''
-        User function to check existence of any k-mer for
-        each seq in seq_list in kmerSetDB via single
-        transaction.
-        '''
-        try:
-            for seq in seq_list:
-                seq = seq.replace('U', 'T')
-                yield self.__contains__(
-                    seq=seq,
-                    rna=False)
-        except Exception as E:
-            raise E
-
-    @alivemethod
-    def __iter__(self):
-        '''
-        User fuction to iterate over k-mers stored in
-        kmerSetDB.
-        '''
-        for key, _ in self.DB.RangeIter(
-            key_from=None, key_to=None):
-            if not key in [b'K', b'LEN']:
-                yield str(key.decode('ascii'))
-
-    @alivemethod
-    def __len__(self):
-        '''
-        User function to return the number of keys stored
-        in kmerSetDB.
-        '''
-        return self.LEN
-
-    @alivemethod
-    def remove(self, seq):
-        '''
-        User function to remove all k-mers in seq
-        from kmerSetDB.
-        '''
-        try:
-            if not seq in ['K', 'LEN']:
-                seq = seq.replace('U', 'T')
-                for kmer in ut.stream_canon_spectrum(
-                    seq=seq, k=self.K):
-                    kmer = kmer.encode()
-                    if self._get(kmer):
-                        self.DB.Delete(kmer)
-                        self.LEN -= 1
-                self.DB.Put(b'LEN', str(self.LEN).encode())
-        except Exception as E:
-            raise E
-
-    @alivemethod
-    def multiremove(self, seq_list, clear=False):
-        '''
-        User function to remove all k-mers from each
-        seq in seq_list from kmerSetDB via single
-        transaction.
-        '''
-        try:
-            t0 = tt.time()
-            pt = False
-            WB = lv.WriteBatch()
-            index = 0
-            for seq in seq_list:
-                if not pt and self.VERB:
-                    print('\n[Background Processing]')
-                    pt = True
-                if not seq in ['K', 'LEN']:
-                    self._verb_action(
-                        action='Removing',
-                        index=index,
-                        seq=seq)
-                    index += 1
-                    seq = seq.replace('U', 'T')
-                    for kmer in ut.stream_canon_spectrum(
-                        seq=seq, k=self.K):
-                        kmer = kmer.encode()
-                        if clear:
-                            WB.Delete(kmer)
-                            self.LEN -= 1
-                        else:
-                            if self._get(kmer):
-                                WB.Delete(kmer)
-                                self.LEN -= 1
-            self.DB.Write(WB, sync=False)
-            self.DB.Put(b'LEN', str(self.LEN).encode())
-            if self.VERB:
-                print('\n Time Elapsed: {:.2f} sec'.format(tt.time()-t0))
-        except Exception as E:
-            raise E
-
-    def clear(self, Lmax=None):
-        '''
-        User function to clear all k-mers stored in
-        kmerSetDB.
-        '''
-        self.drop()
-        self.DB = lv.LevelDB(
-            filename=self.PATH,
-            create_if_missing=True,
-            error_if_exists=False)
-        self.LEN = 0
-        self.DB.Put(b'LEN', b'0')
-        if Lmax is None:
-            self.DB.Put(b'K', str(self.K).encode())
+        # Format sequence
+        if len(seq) > 20:
+            pseq = seq[:20]
+            pbuf = '...'
         else:
-            if not Lmax is None:
-                if not isinstance(Lmax, int):
-                    print('\n [ERROR]    Lmax must be an integer, not {}'.format(
-                        type(Lmax)))
-                    print(' [SOLUTION] Try correcting Lmax\n')
-                    raise ValueError
-                self.K = int(Lmax) + 1
-                if Lmax < 5:
-                    print('\n [ERROR]    Lmax must be greater than 4, not {}'.format(
-                        Lmax))
-                    print(' [SOLUTION] Try correcting Lmax\n')
-                    raise ValueError
-            self.DB.Put(b'K', str(self.K).encode())
-        self.ALIVE = True
+            pseq = seq
+            pbuf = ''
 
-    def close(self):
-        '''
-        User function to close kmerSetDB.
-        '''
-        if self.ALIVE:
-            del self.DB
-            self.DB = None
-            self.ALIVE = False
-            return True
-        return False
+        # Insert sequence
+        vDB.add(seq)
 
-    def drop(self):
-        '''
-        User function to drop kmerSetDB.
-        '''
-        if self.ALIVE:
-            del self.DB
-            self.DB = None
-            sh.rmtree(self.PATH)
-            self.ALIVE = False
-            return True
-        return False
+        # Show updates
+        liner.send(
+            ' Sequence {:{},d}: {}{} Inserted'.format(
+                idx+1, plen, pseq, pbuf))
 
-def test():
+    # Final Update
+    liner.send(
+        ' Sequence {:{},d}: {}{} Inserted\n'.format(
+            idx+1, plen, pseq, pbuf))
+    liner.send(' Time Elapsed: {:.2f} sec\n'.format(
+        tt.time()-t0))
 
-    # required test imports
-    import random
-    import time
+    # Populate Stats
+    kmerspace = ((4**(maxreplen+1)) // 2)
+    fillcount = min(kmerspace, len(vDB))
+    leftcount = kmerspace - fillcount
 
-    # returns a random DNA string of length
-    def get_DNA(length):
-        return ''.join(random.choice('ATGC') for _ in range(length))
-    
-    # create corpus
-    total_elements = 10000
-    dna_strings = sorted(get_DNA(100) for _ in range(total_elements))
-    print('Testing Operations on {} items'.format(total_elements*2))
+    stats['status'] = (leftcount * 1.) / kmerspace > .01
+    stats['basis']  = 'solved' if stats['status'] else 'infeasible'
+    stats['vars']['kmerspace'] = kmerspace
+    stats['vars']['fillcount'] = fillcount
+    stats['vars']['leftcount'] = leftcount
 
-    # clearance
-    try:
-        sh.rmtree('./testBG/')
-    except:
-        pass
+    # Update and close DB
+    vDB.DB.Put(
+        b'LEN',
+        str(fillcount).encode())
 
-    # object test
-    myBG = kmerSetDB(homology=99, path='./testBG')
-    assert isinstance(myBG, kmerSetDB)
-    assert repr(myBG) == 'kmerSetDB stored at ./testBG/ with 0 99-mers'
+    vDB.close()
 
-    # add test
-    t0 = time.time()
-    for i in range(total_elements):
-        myBG.add(dna_strings[i])
-    print('add          time = {} sec'.format(time.time()-t0))
-    myBG.clear()
-
-    # # multiadd test
-    t0 = time.time()
-    myBG.multiadd(dna_strings)
-    print('multiadd     time = {} sec'.format(time.time()-t0))
-
-    # __contains__ test
-    assert get_DNA(length=100) not in myBG
-    t0 = time.time()
-    for dna in dna_strings:
-        assert dna in myBG
-    print('__contains__ time = {} sec'.format(time.time()-t0))
-
-    # multicheck test
-    t0 = time.time()
-    assert all(myBG.multicheck(seq_list=dna_strings))
-    print('multicheck   time = {} sec'.format(time.time()-t0))
-
-    # __iter__ test
-    t0 = time.time()
-    sorted(myBG)
-    print('__iter__     time = {} sec'.format(time.time()-t0))
-
-    # __len__ test
-    t0 = time.time()
-    assert len(myBG) == total_elements * 2
-    print('__len__      time = {} sec'.format(time.time()-t0))
-
-    # remove test
-    t0 = time.time()
-    assert len(myBG) == total_elements*2
-    for dna_string in dna_strings:
-        myBG.remove(dna_string)
-    print('remove       time = {} sec'.format(time.time()-t0))
-    assert len(myBG) == 0
-
-    # multiremove test
-    myBG.multiadd(dna_strings)
-    assert len(myBG) == total_elements*2
-    t0 = time.time()
-    myBG.multiremove(dna_strings)
-    print('multiremove  time = {} sec'.format(time.time()-t0))
-    assert len(myBG) == 0
-
-    # clear test
-    myBG.multiadd(dna_strings)
-    t0 = time.time()
-    myBG.clear()
-    print('clear        time = {} sec'.format(time.time()-t0))
-
-    # close test
-    t0 = time.time()
-    myBG.close()
-    print('close        time = {} sec'.format(time.time()-t0))
-
-    # drop test
-    myBG = kmerSetDB(homology=99, path='./testBG')
-    t0 = time.time()
-    myBG.drop()
-    print('drop         time = {} sec'.format(time.time()-t0))
+    # Return Stats
+    return stats
 
 def background(
-    path,
-    Lmax,
-    verbose):
+    indata,
+    maxreplen,
+    outdir,
+    mode=0,
+    verbose=True):
+    '''
+    The background function builds a database of k-mers from a list
+    or CSV file of background sequences. The background database is
+    then specified during primer design, to generate primers which
+    are non-repetitive to background thus minimizing any off-target
+    amplification. Non-repetitiveness is controlled via the maximum
+    shared repeat length (replength) parameter. Generated database
+    is stored in <outdir>.
 
-    return kmerSetDB(
-        path=path,
-        homology=Lmax+1,
-        verbose=verbose)
+    :: indata
+       type - iterable / string / pd.DataFrame
+       desc - iterable of DNA strings to be against which designed
+              primers are ensured to be non-repetitive; optionally,
+              this can be a path to a CSV file containing uniquely
+              identified background sequences or an equivalent
+              pandas DataFrame
+    :: maxreplen
+       type - integer
+       desc - maximum shared repeat length between the primers and
+              the background sequences
+    :: outdir
+       type - string
+       desc - path to store the generated k-mer database
+    :: mode
+       type - integer
+       desc - background operation mode identifier
+              0 = write mode
+              1 = read  mode
+              (default=0)
+    :: verbose
+       type - boolean
+       desc - if True will log updates to stdout
+              (default=True)
 
-if __name__ == '__main__':
-    test()
+    Output: A directory <outdir> with '.oligoool.background' suffix.
+
+    Note 1. If <indata> points to a  CSV file or a DataFrame, it must
+            contain both an 'ID' column and a 'Sequence' column, with
+            'Sequence' containing background sequences.
+
+    Note 2. The column 'ID', must uniquely identify each background
+            sequence.
+
+    Note 3. All rows and columns in <indata> must be non-empty,
+            i.e. none of the cells must be empty.
+
+    Note 4. The value of Lmax must be greater than or equal to 5 bp.
+
+    Note 5. The maxreplen parameter used here is specifically related
+            to background sequences, and may be different from the
+            maxreplen parameter used in primer design, related to the
+            oligopool sequences flanking the primers.
+
+    Note 6. All values in <indata> except those in 'ID' must be
+            DNA strings.
+    '''
+
+    # Start Liner
+    liner = ut.liner_engine(verbose)
+
+    # Barcoding Verbage Print
+    liner.send('\n[Oligopool Calculator: Design Mode - Background]\n')
+
+    # Required Argument Parsing
+    liner.send('\n Required Arguments\n')
+
+    # First Pass indata Parsing and Validation
+    (background,
+    background_valid) = vp.get_parsed_exseqs_info(
+        exseqs=indata,
+        exseqs_field=' Background      Data',
+        exseqs_desc='Unique Sequence(s)',
+        df_field='Sequence',
+        required=True,
+        liner=liner)
+
+    # Full maxreplen Validation
+    maxreplen_valid = vp.get_numeric_validity(
+        numeric=maxreplen,
+        numeric_field='    Maximum    Repeat',
+        numeric_pre_desc=' Allow up to ',
+        numeric_post_desc=' Base Pair(s) Repeats',
+        minval=1,
+        maxval=20,
+        precheck=False,
+        liner=liner)
+
+    # Full outdir Validation
+    outdir_valid = vp.get_outdir_validity(
+        outdir=outdir,
+        outdir_suffix='.oligopool.background',
+        outdir_field='     Output Directory',
+        liner=liner)
+
+    # First Pass Validation
+    if not all([
+        background_valid,
+        maxreplen_valid,
+        outdir_valid]):
+        liner.send('\n')
+        raise RuntimeError(
+            'Invalid Argument Input(s).')
+
+    # Adjust Numeric Paramters
+    maxreplen = round(maxreplen)
+
+    # Adjust outdir Suffix
+    outdir = ut.get_adjusted_path(
+        path=outdir,
+        suffix='.oligopool.background')
+
+    # Schedule outdir deletion
+    oddeletion = ae.register(
+        ut.remove_directory,
+        outdir)
+
+    # Launching Background Extraction
+    liner.send('\n[Computing Background]\n')
+
+    # Define Background Stats
+    stats = {
+        'status': False,
+        'basis': 'infeasible',
+        'step': 1,
+        'vars': {
+            'kmerspace': 0,  # kmer Space
+            'fillcount': 0,  # kmer Fill Count
+            'leftcount': 0}} # kmer Left Count
+
+    # Start Timer
+    t0 = tt.time()
+
+    # Extract Background
+    stats = background_engine(
+        background=background,
+        maxreplen=maxreplen,
+        outdir=outdir,
+        stats=stats,
+        liner=liner)
+
+    # Counting Status
+    if stats['status']:
+        backgroundstatus = 'Successful'
+    else:
+        backgroundstatus = 'Failed'
+
+    # Background Statistics
+    liner.send('\n[Background Statistics]\n')
+
+    plen = ut.get_printlen(
+        value=max(stats['vars'][field] for field in (
+            'kmerspace',
+            'fillcount',
+            'leftcount')))
+
+    pfmt = 'e' if plen >= 15 else 'd'
+
+    liner.send(
+        ' Background Status: {}\n'.format(
+            backgroundstatus))
+    liner.send(
+        '      k-mer  Space: {:{},{}} Unique {:,}-mers\n'.format(
+            stats['vars']['kmerspace'],
+            plen,
+            pfmt,
+            maxreplen+1))
+    liner.send(
+        '     Filled  Space: {:{},{}} Unique {:,}-mers ({:6.2f} %)\n'.format(
+            stats['vars']['fillcount'],
+            plen,
+            pfmt,
+            maxreplen+1,
+            ut.safediv(
+                A=stats['vars']['fillcount'] * 100.,
+                B=stats['vars']['kmerspace'])))
+    liner.send(
+        '  Remaining  Space: {:{},{}} Unique {:,}-mers ({:6.2f} %)\n'.format(
+            stats['vars']['leftcount'],
+            plen,
+            pfmt,
+            maxreplen+1,
+            ut.safediv(
+                A=stats['vars']['leftcount'] * 100.,
+                B=stats['vars']['kmerspace'])))
+
+    liner.send(' Time Elapsed: {:.2f} sec\n'.format(tt.time()-t0))
+
+    # Unschedule outfile deletion
+    if backgroundstatus:
+        ae.unregister(oddeletion)
+
+    # Close Liner
+    liner.close()
+
+    # Return Statistics
+    return stats
+
+
+
+
+
+

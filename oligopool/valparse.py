@@ -9,6 +9,7 @@ import pandas as pd
 
 import utils as ut
 
+
 def get_infile_validity(
     infile,
     infile_suffix,
@@ -225,7 +226,7 @@ def get_parsed_data_info(
 
             # Unindexible df
             liner.send(
-                '{}: {} w/ {:,} Record(s) [NON-UNIQUE OR MISSING \'ID\']\n'.format(
+                '{}: {} w/ {:,} Record(s) [NON-UNIQUE OR MISSING COLUMN=\'ID\']\n'.format(
                     data_field,
                     data,
                     len(df.index)))
@@ -265,7 +266,7 @@ def get_parsed_data_info(
             # Requirement failed
             else:
                 liner.send(
-                    '{}: {} w/ {:,} Record(s) [MISSING \'{}\']\n'.format(
+                    '{}: {} w/ {:,} Record(s) [MISSING COLUMN=\'{}\']\n'.format(
                         data_field,
                         data,
                         len(df.index),
@@ -327,6 +328,10 @@ def get_parsed_data_info(
     # Is df valid?
     if df_valid:
 
+        # Uppercase all DNA Strings
+        for col in df.columns:
+            df[col] = df[col].str.upper()
+
         # Show update?
         if not precheck:
             liner.send(
@@ -361,7 +366,7 @@ def get_outfile_validity(
        desc - required outfile suffix
     :: outfile_field
        type - string
-       desc - dipath fieldname used in
+       desc - outfile fieldname used in
               printing
     :: liner
        type - coroutine
@@ -424,6 +429,88 @@ def get_outfile_validity(
     # Return outfile validity
     return outfile_valid
 
+def get_outdir_validity(
+    outdir,
+    outdir_suffix,
+    outdir_field,
+    liner):
+    '''
+    Determine if outdir points to an existing
+    empty directory or non-existent but creatable
+    path? Internal use only.
+
+    :: outdir
+       type - string
+       desc - output directory storing
+              computed information
+    :: outdir_suffix
+       type - string
+       desc - required outdir suffix
+    :: outdir_field
+       type - string
+       desc - outdir fieldname used in
+              printing
+    :: liner
+       type - coroutine
+       desc - dynamic printing
+    '''
+
+    # Append suffix to path?
+
+    # outdir is an existing empty directory
+    # or non-existent but creatable path?
+    outdir_status = ut.get_path_status(
+        path=outdir,
+        suffix=outdir_suffix,
+        readable=False,
+        writable=True,
+        creatable=True)
+
+    outdir_valid = False
+
+    # outdir is non-string type?
+    if outdir_status == 0:
+        liner.send(
+            '{}: {} [INPUT TYPE IS INVALID]\n'.format(
+                outdir_field, outdir))
+
+    else:
+
+        # Adjust outdir with suffix
+        outdir = ut.get_adjusted_path(
+            path=outdir,
+            suffix=outdir_suffix)
+
+        # outdir is invalid
+        if outdir_status in (6, 11):
+            liner.send(
+                '{}: {} [WRITE PERMISSION DENIED]\n'.format(
+                    outdir_field, outdir))
+
+        elif outdir_status == 8:
+            liner.send(
+                '{}: {} [DIRECTORY ALREADY EXISTS]\n'.format(
+                    outdir_field, outdir))
+
+        elif outdir_status == 'X':
+            liner.send(
+                '{}: {} [DIRECTORY IS SPECIAL]\n'.format(
+                    outdir_field, outdir))
+
+        elif 1 <= outdir_status <= 4:
+            liner.send(
+                '{}: {} [DIRECTORY IS FILE]\n'.format(
+                    outdir_field, outdir))
+
+        # outdir is valid
+        elif outdir_status in (7, 10):
+            liner.send('{}: {}\n'.format(
+                outdir_field, outdir))
+            outdir_valid = True
+
+    # Return outdir validity
+    return outdir_valid
+
 def get_outdf_validity(
     outdf,
     outdf_suffix,
@@ -456,7 +543,7 @@ def get_outdf_validity(
                 outdf_field))
         return True
 
-    # outdf is string?
+    # outdf is valid outfile?
     return get_outfile_validity(
         outfile=outdf,
         outfile_suffix=outdf_suffix,
@@ -636,7 +723,7 @@ def get_parsed_column_info(
                 col_field,
                 col_desc,
                 col))
-        parsedcol = df[col] if col_type == 0 else None
+        parsedcol = df[col].str.upper() if col_type == 0 else None
     else:
         parsedcol = None
 
@@ -647,107 +734,130 @@ def get_parsed_column_info(
         return (parsedcol,
             col_valid)
 
-def get_parsed_exmotif_info(
-    exmotifs,
-    exmotifs_field,
+def get_parsed_exseqs_info(
+    exseqs,
+    exseqs_field,
+    exseqs_desc,
+    df_field,
+    required,
     liner):
     '''
-    Determine if given exmotifs are valid.
+    Determine if given excluded sequences are valid.
     Internal use only.
 
-    :: exmotifs
-       type - iterable / string / DataFrame / None
-       desc - iterable of DNA string motifs to be
-              excluded from barcodes and around
-              edges; optionally a DataFrame or a
-              path to CSV file containing exmotifs
-    :: exmotifs_field
+    :: exseqs
+       type - iterable / string / pd.DataFrame / None
+       desc - iterable of DNA strings to be excluded
+              from barcodes and around edges; optionally
+              a DataFrame or a path to a CSV file with
+              such sequences
+    :: exseqs_field
        type - string
-       desc - exmotifs fieldname used in printing
+       desc - exseqs fieldname used in printing
+    :: exseqs_desc
+       type - string
+       desc - exseqs description used in printing
+    :: df_field
+       type - string
+       desc - name of the column in DataFrame storing
+              excluded sequences
+    :: required
+       type - boolean
+       desc - if True then exseqs cannot be None
     :: liner
        type - coroutine
        desc - dynamic printing
     '''
 
-    # Is exmotifs None?
-    if exmotifs is None:
+    # Is exseqs None?
+    if exseqs is None:
         liner.send(
-            '{}: 0 Unique Motif(s)\n'.format(
-                exmotifs_field))
-        return (None, True)
+            '{}: 0 {}\n'.format(
+                exseqs_field,
+                exseqs_desc,))
+        # Required but missing
+        if required:
+            return (None, False)
+        # Non required so OK
+        else:
+            return (None, True)
 
-    # Is exmotifs string?
-    if isinstance(exmotifs, str):
+    # Is exseqs string?
+    if isinstance(exseqs, str):
 
-        # Is exmotifs a single DNA string?
-        if ut.is_DNA(seq=exmotifs):
+        # Is exseqs a single DNA string?
+        if ut.is_DNA(seq=exseqs.upper()):
             liner.send(
-                '{}: 1 Unique Motif(s)\n'.format(
-                    exmotifs_field))
-            return ([exmotifs], True)
+                '{}: 1 {}\n'.format(
+                    exseqs_field,
+                    exseqs_desc,))
+            return ([exseqs.upper()], True)
 
-    # Is exmotifs iterable?
-    if not isinstance(exmotifs, pd.DataFrame) and \
-       not isinstance(exmotifs, str):
+    # Is exseqs iterable?
+    if not isinstance(exseqs, pd.DataFrame) and \
+       not isinstance(exseqs, str):
 
-        # Try extracting exmotifs
+        # Try extracting exseqs
         try:
-            exmotifs = ut.get_uniques(
-                iterable=exmotifs,
-                typer=list)
+            exseqs = list(map(lambda x: x.upper(), ut.get_uniques(
+                iterable=exseqs,
+                typer=list)))
 
         # Error during extraction
         except:
             liner.send(
                 '{}: {} [INPUT TYPE IS INVALID]\n'.format(
-                    exmotifs_field,
-                    exmotifs))
+                    exseqs_field,
+                    exseqs))
             return (None, False)
 
         # Ensure all motifs are DNA strings
-        for motif in exmotifs:
+        for seq in exseqs:
 
             # Non-DNA element found!
-            if not ut.is_DNA(seq=motif):
+            if not ut.is_DNA(seq=seq):
                 liner.send(
-                    '{}: {:,} Unique Motif(s) [NON-DNA MOTIF=\'{}\']\n'.format(
-                        exmotifs_field,
-                        len(exmotifs),
-                        motif))
+                    '{}: {:,} {} [NON-DNA SEQUENCE=\'{}\']\n'.format(
+                        exseqs_field,
+                        len(exseqs),
+                        exseqs_desc,
+                        seq))
                 return (None, False)
 
         # No error in extraction
-        # All Motifs are DNA strings
+        # All sequences are DNA strings
         liner.send(
-            '{}: {:,} Unique Motif(s)\n'.format(
-                exmotifs_field,
-                len(exmotifs)))
+            '{}: {:,} {}\n'.format(
+                exseqs_field,
+                len(exseqs),
+                exseqs_desc))
 
-        return (exmotifs, True)
+        return (exseqs, True)
 
-     # Is exmotifs a CSV file or DataFrame?
+     # Is exseqs a CSV file or DataFrame?
     (df,
     df_valid) = get_parsed_data_info(
-        data=exmotifs,
-        data_field=exmotifs_field,
-        required_fields=('ID', 'Exmotifs',),
+        data=exseqs,
+        data_field=exseqs_field,
+        required_fields=('ID', df_field,),
         precheck=True,
         liner=liner)
 
-    # Is exmotifs df valid?
+    # Is exseqs df valid?
     if df_valid:
-        exmotifs = ut.get_uniques(
-            iterable=df.Exmotifs.to_list(),
-            typer=list)
+        exseqs = list(map(lambda x: x.upper(), ut.get_uniques(
+            iterable=df[df_field].to_list(),
+            typer=list)))
         liner.send(
-            '{}: {:,} Unique Motif(s)\n'.format(
-                exmotifs_field,
-                len(exmotifs)))
+            '{}: {:,} {}\n'.format(
+                exseqs_field,
+                len(exseqs),
+                exseqs_desc,))
     else:
-        exmotifs = None
+        exseqs = None
 
-    # Something crucial is missing
-    return (exmotifs, False)
+    # Return Results
+    return (exseqs, df_valid)
 
 def get_numeric_validity(
     numeric,
@@ -796,7 +906,7 @@ def get_numeric_validity(
     # numeric is real?
     numeric_valid = False
     if not isinstance(numeric, nu.Real):
-        liner.send('{}:{}{:,}{} [INPUT TYPE IS INVALID]\n'.format(
+        liner.send('{}:{}{}{} [INPUT TYPE IS INVALID]\n'.format(
             numeric_field, numeric_pre_desc, numeric, numeric_post_desc))
 
     # numeric less than lowerbound?
@@ -818,3 +928,29 @@ def get_numeric_validity(
 
     # Return numeric validity
     return numeric_valid
+
+def get_parsed_mode(
+    mode,
+    mode_field,
+    mode_dict,
+    liner):
+
+    # Validate mode
+    mode_valid = get_numeric_validity(
+        numeric=mode,
+        numeric_field=mode_field,
+        numeric_pre_desc=' Mode ',
+        numeric_post_desc='',
+        minval=min(mode_dict.keys()),
+        maxval=max(mode_dict.keys()),
+        precheck=True,
+        liner=liner)
+
+    # Show update
+    if mode_valid:
+        liner.send('{}: {}\n'.format(
+            mode_field,
+            mode_dict[mode]))
+
+    # Return mode validity
+    return mode_valid

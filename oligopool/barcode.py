@@ -320,12 +320,13 @@ def barcode(
        desc - filename to save updated DataFrame with barcodes
               (suffix='.barcode.csv')
     :: exmotifs
-       type - iterable / string / DataFrame / None
+       type - iterable / string / pd.DataFrame / None
        desc - iterable of DNA string motifs to be excluded
               within and at the edges of the barcodes when
               placed around context sequences; optionally,
               this can be a path to a CSV file containing
-              uniquely identified excluded motifs
+              uniquely identified excluded motifs or an
+              equivalent pandas DataFrame
               (default=None)
     :: leftcontext
        type - string / None
@@ -353,13 +354,13 @@ def barcode(
 
     Note 2. If <exmotifs> points to a  CSV file or DataFrame,
             it must contain both an 'ID' column and an 'Exmotifs'
-            column, where 'Exmotifs' contains excluded motifs.
+            column, with 'Exmotifs' containing excluded motifs.
 
     Note 3. All column names in <indata> must be unique, without
             <barcodename> as a pre-existing column name.
 
-    Note 4. All rows and columns must be non-empty, i.e. none of
-            the cells must be empty.
+    Note 4. All rows and columns in <indata> must be non-empty,
+            i.e. none of the cells must be empty.
 
     Note 5. The columns <leftcontext> and <rightcontext> must be
             adjacent to each other and in order.
@@ -437,9 +438,12 @@ def barcode(
 
     # Full exmotifs Parsing and Validation
     (exmotifs,
-    exmotifs_valid) = vp.get_parsed_exmotif_info(
-        exmotifs=exmotifs,
-        exmotifs_field=' Excluded   Motifs',
+    exmotifs_valid) = vp.get_parsed_exseqs_info(
+        exseqs=exmotifs,
+        exseqs_field=' Excluded   Motifs',
+        exseqs_desc='Unique Motif(s)',
+        df_field='Exmotifs,',
+        required=False,
         liner=liner)
 
     # Store Context Names
@@ -484,14 +488,9 @@ def barcode(
         raise RuntimeError(
             'Invalid Argument Input(s).')
 
-    # Schedule outfile deletion
-    ofdeletion = ae.register(
-        ut.remove_file,
-        outfile)
-
     # Adjust Numeric Paramters
-    barcodelength    = round(barcodelength)
-    minhdist         = round(minhdist)
+    barcodelength = round(barcodelength)
+    minhdist      = round(minhdist)
 
     # Define Edge Effect Length
     edgeeffectlength = None
@@ -603,6 +602,11 @@ def barcode(
             'distancedistro': None,          # Hamming     Distance Distribution
               'motifcounter': cx.Counter()}} #   Motif    Encounter Counter
 
+    # Schedule outfile deletion
+    ofdeletion = ae.register(
+        ut.remove_file,
+        outfile)
+
     # Start Timer
     t0 = tt.time()
 
@@ -668,9 +672,12 @@ def barcode(
         ' Barcoding       Status: {}\n'.format(
             barcodestatus))
     liner.send(
-        '  Barcodes     Designed: {:{},d} Barcode(s)\n'.format(
+        '  Barcodes     Designed: {:{},d} Barcode(s) ({:6.2f} %)\n'.format(
             stats['vars']['barcodecount'],
-            plen))
+            plen,
+            ut.safediv(
+                A=stats['vars']['barcodecount'] * 100.,
+                B=tspace)))
 
     # Success Relevant Stats
     if stats['status']:
@@ -692,18 +699,30 @@ def barcode(
 
     # Failure Relavant Stats
     else:
+        total_conflicts = stats['vars']['distancefail'] + \
+                          stats['vars']['motiffail'] + \
+                          stats['vars']['contextfail']
         liner.send(
-            '  Distance    Conflicts: {:{},d} Event(s)\n'.format(
+            '  Distance    Conflicts: {:{},d} Event(s) ({:6.2f} %)\n'.format(
                 stats['vars']['distancefail'],
-                plen))
+                plen,
+                ut.safediv(
+                    A=stats['vars']['distancefail'] * 100.,
+                    B=total_conflicts)))
         liner.send(
-            '     Motif    Conflicts: {:{},d} Event(s)\n'.format(
+            '     Motif    Conflicts: {:{},d} Event(s) ({:6.2f} %)\n'.format(
                 stats['vars']['motiffail'],
-                plen))
+                plen,
+                ut.safediv(
+                    A=stats['vars']['motiffail'] * 100.,
+                    B=total_conflicts)))
         liner.send(
-            '   Context    Conflicts: {:{},d} Event(s)\n'.format(
+            '   Context    Conflicts: {:{},d} Event(s) ({:6.2f} %)\n'.format(
                 stats['vars']['contextfail'],
-                plen))
+                plen,
+                ut.safediv(
+                    A=stats['vars']['contextfail'] * 100.,
+                    B=total_conflicts)))
 
         if stats['vars']['motifcounter']:
             vlen = ut.get_printlen(
@@ -719,7 +738,7 @@ def barcode(
     liner.send(' Time Elapsed: {:.2f} sec\n'.format(tt.time()-t0))
 
     # Unschedule outfile deletion
-    if barcodestatus[0]:
+    if barcodestatus:
         ae.unregister(ofdeletion)
 
     # Close Liner

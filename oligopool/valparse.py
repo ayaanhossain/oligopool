@@ -7,7 +7,8 @@ import math            as mt
 
 import pandas as pd
 
-import utils as ut
+import vectordb as db
+import utils    as ut
 
 
 def get_infile_validity(
@@ -82,6 +83,79 @@ def get_infile_validity(
 
     # infile valid
     return infile_status == 4
+
+def get_indir_validity(
+    indir,
+    indir_suffix,
+    indir_field,
+    liner):
+    '''
+    Determine if a given indir exists and
+    non-empty. Internal use only.
+
+    :: indir
+       type - string
+       desc - an input directory to check for
+              existence and emptiness
+    :: indir_suffix
+       type - string
+       desc - required indir suffix
+    :: indir_field
+       type - string
+       desc - indir fieldname used in
+              printing
+    :: liner
+       type - coroutine
+       desc - dynamic printing
+    '''
+
+    # indir exists and non-empty?
+    indir_status = ut.get_path_status(
+        path=indir,
+        suffix=indir_suffix,
+        readable=True,
+        writable=False,
+        creatable=False)
+
+    # indir is invalid
+    if   indir_status == 0:
+        liner.send(
+            '{}: {} [INPUT TYPE IS INVALID]\n'.format(
+                indir_field, indir))
+
+    else:
+
+        indir = ut.get_adjusted_path(
+            path=indir,
+            suffix=indir_suffix)
+
+        if   indir_status == 5:
+            liner.send(
+                '{}: {} [READ PERMISSION DENIED]\n'.format(
+                    indir_field, indir))
+
+        elif indir_status == 7:
+            liner.send(
+                '{}: {} [DIRECTORY IS EMPTY]\n'.format(
+                    indir_field, indir))
+
+        elif indir_status == 'X':
+            liner.send(
+                '{}: {} [DIRECTORY IS SPECIAL]\n'.format(
+                    indir_field, indir))
+
+        elif 1 <= indir_status <= 4:
+            liner.send(
+                '{}: {} [DIRECTORY IS FILE]\n'.format(
+                    indir_field, indir))
+
+        elif indir_status == 9:
+            liner.send(
+                '{}: {} [DIRECTORY DOES NOT EXIST]\n'.format(
+                    indir_field, indir))
+
+    # indir valid
+    return indir_status == 8
 
 def get_parsed_data_info(
     data,
@@ -359,7 +433,7 @@ def get_outfile_validity(
 
     :: outfile
        type - string
-       desc - output file storing
+       desc - an output file storing
               computed information
     :: outfile_suffix
        type - string
@@ -441,7 +515,7 @@ def get_outdir_validity(
 
     :: outdir
        type - string
-       desc - output directory storing
+       desc - an output directory storing
               computed information
     :: outdir_suffix
        type - string
@@ -929,28 +1003,425 @@ def get_numeric_validity(
     # Return numeric validity
     return numeric_valid
 
-def get_parsed_mode(
-    mode,
-    mode_field,
-    mode_dict,
+def get_categorical_validity(
+    category,
+    category_field,
+    category_pre_desc,
+    category_post_desc,
+    category_dict,
     liner):
+    '''
+    Determine if category is valid with
+    respect to category_dict.
+    Internal use only.
 
-    # Validate mode
-    mode_valid = get_numeric_validity(
-        numeric=mode,
-        numeric_field=mode_field,
-        numeric_pre_desc=' Mode ',
-        numeric_post_desc='',
-        minval=min(mode_dict.keys()),
-        maxval=max(mode_dict.keys()),
+    :: category
+       type - Real
+       desc - category to validate
+    :: category_field
+       type - string
+       desc - category fieldname used in
+              printing
+    :: category_pre_desc
+       type - string
+       desc - category pre-description
+              used in printing
+    :: category_post_desc
+       type - string
+       desc - category post-description
+              used in printing
+    :: category_dict
+       type - dict
+       desc - category description used
+              in printing
+    :: liner
+       type - coroutine
+       desc - dynamic printing
+    '''
+
+    # Is category numeric?
+    cat_is_numeric = get_numeric_validity(
+        numeric=category,
+        numeric_field=category_field,
+        numeric_pre_desc=category_pre_desc,
+        numeric_post_desc=category_post_desc,
+        minval=min(category_dict.keys()),
+        maxval=max(category_dict.keys()),
         precheck=True,
         liner=liner)
 
+    # Is category present?
+    cat_is_present = False
+    if cat_is_numeric:
+        if not category in category_dict:
+            liner.send('{}:{}{}{} [INPUT VALUE IS INVALID]\n'.format(
+                category_field,
+                category_pre_desc,
+                category,
+                category_post_desc))
+        else:
+            cat_is_present = True
+
+    # Compute validity
+    cat_valid = cat_is_numeric and cat_is_present
+
     # Show update
-    if mode_valid:
-        liner.send('{}: {}\n'.format(
-            mode_field,
-            mode_dict[mode]))
+    if cat_valid:
+        liner.send('{}:{}{}{}\n'.format(
+            category_field,
+            category_pre_desc,
+            category_dict[category],
+            category_post_desc))
 
     # Return mode validity
-    return mode_valid
+    return cat_valid
+
+def get_primerseq_validity(
+    primerseq,
+    primerseq_field,
+    liner):
+    '''
+    Determine if primerseq is a valid
+    primer sequence constraint.
+    Internal use only.
+
+    :: primerseq
+       type - string
+       desc - primer sequence constraint
+    :: primerseq_field
+       type - string
+       desc - primerseq fieldname used
+              in printing
+    :: liner
+       type - coroutine
+       desc - dynamic printing
+    '''
+
+    # Is primerseq string?
+    pseq_is_string = False
+    if not isinstance(primerseq, str):
+        liner.send(
+            '{}: {} [INPUT TYPE IS INVALID]\n'.format(
+                primerseq_field,
+                primerseq))
+    else:
+        pseq_is_string = True
+
+    # Is primerseq degenerate DNA string?
+    pseq_is_ddna = False
+    if pseq_is_string:
+        if not ut.is_DNA(
+            seq=primerseq,
+            dna_alpha=ut.ddna_alpha):
+            liner.send(
+                '{}: {} [NON-IUPAC VALUE]\n'.format(
+                    primerseq_field,
+                    primerseq))
+        else:
+            pseq_is_ddna = True
+
+    # Is primerseq long enough?
+    pseq_is_long = False
+    if pseq_is_ddna:
+        if len(primerseq) < 10:
+            liner.send(
+                '{}: A {:,} Base Pair IUPAC Constraint [PRIMER SHORTER THAN 10 BASE PAIRS]\n'.format(
+                    primerseq_field,
+                    len(primerseq)))
+        else:
+            pseq_is_long = True
+
+    # Compute final validity
+    pseq_valid = all([
+        pseq_is_string,
+        pseq_is_ddna,
+        pseq_is_long])
+
+    # Show update
+    if pseq_valid:
+        liner.send(
+            '{}: A {:,} Base Pair IUPAC Constraint\n'.format(
+                primerseq_field,
+                len(primerseq)))
+
+    # Return validity
+    return pseq_valid
+
+def get_constantcol_validity(
+    constantcol,
+    constantcol_field,
+    df,
+    liner):
+    '''
+    Determine if constantcol is valid.
+    Internal use only.
+
+    :: constantcol
+       type - string / None
+       desc - the name of column in df where
+              constantcol is stored
+    :: constantcol_field
+       type - string
+       desc - constantcol fieldname used
+              in printing
+    :: df
+       type - pd.DataFrame
+       desc - input DataFrame where constant
+              is present
+    :: liner
+       type - coroutine
+       desc - dynamic printing
+    '''
+
+    # Is constantcol None?
+    if constantcol is None:
+        liner.send(
+            '{}: None Specified\n'.format(
+                constantcol_field))
+        return None, True
+
+    # Is constantcol a string?
+    if isinstance(constantcol, str):
+
+        # Is constantcol a column in df?
+        if constantcol in df.columns:
+
+            # Extract unique candidates
+            uniques = ut.get_uniques(
+                iterable=df[constantcol],
+                typer=tuple)
+
+            # Too many constant primer candidates?
+            if len(uniques) > 1:
+                liner.send(
+                    '{}: Input from Column \'{}\' [NON-UNIQUE COLUMN=\'{}\']\n'.format(
+                        constantcol_field,
+                        constantcol,
+                        constantcol))
+                return None, False
+
+            # Unique constant primer
+            else:
+                liner.send(
+                    '{}: A {:,} Base Pair DNA Sequence\n'.format(
+                        constantcol_field,
+                        len(uniques[0])))
+                return uniques[0], True
+
+        # Nothing matches
+        else:
+            liner.send(
+                '{}: Input from Column \'{}\' [MISSING COLUMN=\'{}\']\n'.format(
+                    constantcol_field,
+                    constantcol,
+                    constantcol))
+            return None, False
+
+    # Non-string constantcol
+    else:
+        liner.send(
+            '{}: Input from Column \'{}\' [INPUT TYPE IS INVALID]\n'.format(
+                constantcol_field,
+                constantcol))
+        return None, False
+
+def get_parsed_range_info(
+    minval,
+    maxval,
+    range_field,
+    range_unit,
+    range_min,
+    range_max,
+    liner):
+    '''
+    Determine if range information
+    is valid. Internal use only.
+
+    :: minval
+       type - nu.Real
+       desc - minimum range value
+    :: maxval
+       type - nu.Real
+       desc - maximum range value
+    :: range_field
+       type - string
+       desc - range fieldname used in
+              printing
+    :: range_unit
+       type - string
+       desc - range value unit used in
+              printing
+    :: range_min
+       type - nu.Real
+       desc - allowed range lowerbound
+    :: range_max
+       type - nu.Real
+       desc - allowed range upperbound
+    :: liner
+       type - coroutine
+       desc - dynamic printing
+    '''
+
+    # Define value range
+    vrange = (minval, maxval)
+
+    # Is vrange numeric?
+    vrange_is_numeric = False
+    if  not isinstance(minval, nu.Real) or \
+        not isinstance(maxval, nu.Real):
+        liner.send(
+            '{}: {} to {} {} [INPUT TYPE IS INVALID]\n'.format(
+                range_field,
+                minval,
+                maxval,
+                range_unit))
+    else:
+        vrange_is_numeric = True
+
+    # Sort vrange
+    if vrange_is_numeric:
+        vrange = tuple([
+            min(minval, maxval),
+            max(minval, maxval)])
+
+    # Is vrange in practical range?
+    vrange_min_is_practical = False
+    if vrange_is_numeric:
+        if vrange[0] < range_min:
+            liner.send(
+                '{}: {} to {} {} [MINIMUM VALUE SMALLER THAN {} {}]\n'.format(
+                    range_field,
+                    vrange[0],
+                    vrange[1],
+                    range_unit,
+                    range_min,
+                    range_unit))
+        else:
+            vrange_min_is_practical = True
+
+    # Is maxtmelt in practical range?
+    vrange_max_is_practical = False
+    if vrange_min_is_practical:
+        if vrange[1] > range_max:
+            liner.send(
+                '{}: {} to {} {} [MAXIMUM VALUE LARGER THAN {} {}]\n'.format(
+                    range_field,
+                    vrange[0],
+                    vrange[1],
+                    range_unit,
+                    range_max,
+                    range_unit))
+        else:
+            vrange_max_is_practical = True
+
+    # Compute validity
+    vrange_valid = all([
+        vrange_is_numeric,
+        vrange_min_is_practical,
+        vrange_max_is_practical])
+
+    # Show update
+    if vrange_valid:
+        liner.send(
+            '{}: {} to {} {}\n'.format(
+                range_field,
+                vrange[0],
+                vrange[1],
+                range_unit))
+
+    # Return validity
+    return (
+        vrange[0],
+        vrange[1],
+        vrange_valid)
+
+def get_parsed_background(
+    background,
+    background_field,
+    liner):
+    '''
+    Determine if background is valid.
+    Internal use only.
+
+    :: background
+       type - string / db.vectorDB / None
+       desc - path to background storage,
+              or a vectorDB instance
+    :: background_field
+       type - string
+       desc - background fieldname used in
+              printing
+    :: liner
+       type - coroutine
+       desc - dynamic printing
+    '''
+
+    # Is background None?
+    if background is None:
+        liner.send(
+            '{}: None Specified\n'.format(
+                background_field))
+        return None, True
+
+    # Is background a vectorDB instance?
+    if isinstance(background, db.vectorDB):
+        liner.send(
+            '{}: Contains {:,} Unique {}-mers\n'.format(
+                background_field,
+                len(background),
+                background.K))
+        return background, True
+
+    # Is background a string?
+    if isinstance(background, str):
+
+        # Adjust background path
+        indir = ut.get_adjusted_path(
+            path=background,
+            suffix='.oligopool.background')
+
+        # Does background exist?
+        background_exists = get_indir_validity(
+            indir=indir,
+            indir_suffix=None,
+            indir_field=background_field,
+            liner=liner)
+
+        # Non-existent background
+        if not background_exists:
+            return None, False
+
+        # Is background a valid vectorDB storage?
+        else:
+
+            # Open path as vectorDB instance
+            try:
+                vDB = db.vectorDB(
+                    path=indir,
+                    maxreplen=None,
+                    mode=1)
+
+            # Invalid attempt
+            except Exception as E:
+                liner.send(
+                    '{}: {} [INVALID OR PRE-OPENED BACKGROUND OBJECT]\n'.format(
+                        background_field,
+                        indir))
+                return None, False
+
+            # Valid attempt
+            else:
+                liner.send(
+                    '{}: Contains {:,} Unique {}-mers\n'.format(
+                        background_field,
+                        len(vDB),
+                        vDB.K))
+                return vDB, True
+
+    # Invalid input type
+    else:
+        liner.send(
+            '{}: {} [INPUT TYPE IS INVALID]\n'.format(
+                background_field,
+                background))
+        return None, False

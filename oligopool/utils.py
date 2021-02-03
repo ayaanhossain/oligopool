@@ -21,7 +21,7 @@ complement_table = str.maketrans(
 dna_alpha = set(
     'ATGC')
 
-dna_space = {
+ddna_space = {
     'A': {'A'},
     'C': {'C'},
     'G': {'G'},
@@ -37,6 +37,8 @@ dna_space = {
     'D': {'A', 'G', 'T'},
     'H': {'A', 'C', 'T'},
     'N': {'A', 'T', 'G', 'C'}}
+
+ddna_alpha = set(ddna_space.keys())
 
 typeIIS_dict = {
     'acui'    : 'CTGAAG'  + 'N' * 16,
@@ -147,8 +149,27 @@ def get_printlen(value):
        desc - value to evaluate
     '''
 
-    return len(str(value)) + \
-        int(safelog10(value) / 3)
+    svalue = str(value)
+    if len(svalue) <= 3:
+        return len(svalue)
+    else:
+        return len(str(value)) + \
+            int(safelog10(value) / 3)
+
+def get_notelen(printlen):
+    '''
+    Return notation length.
+    Internal use only.
+
+    :: value
+       type - integer
+       desc - printlen to evaluate
+    '''
+
+    if printlen <= 15:
+        return 'd', printlen
+    else:
+        return 'e', 0
 
 # Numeric Functions
 
@@ -282,6 +303,19 @@ def get_col_exist_idx(
         return True, collist.index(col)
     else:
         return False, None
+
+def get_df_concat(df):
+    '''
+    Concatenate all columns in df.
+    Internal use only.
+
+    :: df
+       type - pd.DataFrame
+       desc - DataFrame to concatenate
+              columns from
+    '''
+
+    return tuple(df.values.sum(axis=1))
 
 def update_df(
     indf,
@@ -489,37 +523,28 @@ def get_parsed_exmotifs(
        desc - dynamic printing
     '''
 
-    # Sort motifs by length
-    liner.send(' Sorting Motifs ...')
-
+    # Time-keeping
     t0 = tt.time()
+
+    # Sort Enque all motifs by length
+    liner.send(' Sorting and Enqueing Motif(s) ...')
 
     exmotifs = sorted(
         exmotifs,
         key=len)
-
-    liner.send(' Sorted {:,} Motifs in {:.2f} sec\n'.format(
-        len(exmotifs), tt.time()-t0))
-
-    # Enque all motifs
-    liner.send(' Enqueing Motifs ...')
-
-    t0 = tt.time()
-
     dq = typer(exmotifs)
 
-    liner.send(' Enqued {:,} Motifs in {:.2f} sec\n'.format(
-        len(exmotifs), tt.time()-t0))
+    liner.send(' Sorted and Enqued: {:,} Unique Motif(s)\n'.format(
+        len(exmotifs)))
 
     # Check motif feasibility
     liner.send(' Computing Motif Length Distribution ...')
 
-    t0 = tt.time()
-
     # Compute length distribution
     cr = cx.Counter(len(m) for m in dq)
 
-    liner.send(' Motif Length Distribution:\n')
+    liner.send(' Motif Length Distribution\n')
+
     klen = get_printlen(
         value=max(cr.keys()))
     vlen = get_printlen(
@@ -534,12 +559,12 @@ def get_parsed_exmotifs(
         # Compute infeasibility
         parsemsg = ''
         if cr[mlen] == 4**(mlen):
-            parsemsg     = ' [INFEASIBLE] [ALL {}-mers EXCLUDED]'.format(mlen)
+            parsemsg    = ' [INFEASIBLE] (All {}-mers Excluded)'.format(mlen)
             parsestatus = False
             problens.append(mlen)
 
         # Show update
-        liner.send('   {:{},d} Motifs of Length {:{},d}{}\n'.format(
+        liner.send('   - {:{},d} Motif(s) of Length {:{},d}{}\n'.format(
             cr[mlen],
             vlen,
             mlen,
@@ -551,7 +576,7 @@ def get_parsed_exmotifs(
 
     # Show feasibility verdict
     liner.send(
-        '   Time Elapsed: {:.2f} sec\n'.format(
+        ' Time Elapsed: {:.2f} sec\n'.format(
             tt.time()-t0))
 
     if not parsestatus:
@@ -575,7 +600,7 @@ def get_motif_conflict(
     partial=False,
     checkall=False):
     '''
-    Determine if the barcode does not contain or is
+    Determine if the sequence does not contain or is
     contained in one of the exluded motifs (motif
     feasibility). Internal use only.
 
@@ -634,8 +659,11 @@ def get_motif_conflict(
                     pmotif = motif
                     break
 
-    # No Motif Conflct
-    return (status, pmotif)
+    # Return result
+    if status:
+        return (True, None)
+    else:
+        return (False, pmotif)
 
 def get_edgeeffectlength(exmotifs):
     '''
@@ -651,6 +679,22 @@ def get_edgeeffectlength(exmotifs):
     if not exmotifs is None:
         return len(exmotifs[-1])
     return 0
+
+def get_grouped_sequences(sequences):
+    '''
+    Group all selected strings by length.
+    Internal use only.
+
+    :: sequences
+       type - iterable
+       desc - set of all sequences / motifs
+              to group by length
+    '''
+
+    groupdict = cx.defaultdict(set)
+    for sequence in sorted(sequences, key=len):
+        groupdict[len(sequence)].add(sequence)
+    return groupdict
 
 def get_extracted_edge(
     contextseq,
@@ -724,7 +768,6 @@ def get_extracted_context(
     contexts         = ((leftcontext, 0),  (rightcontext, 1))
     uniquecount      = []
     extractedcontext = []
-    ignoredcounts    = []
 
     # Parse Context
     for context,position in contexts:
@@ -802,96 +845,125 @@ def get_extracted_context(
     return (extractedcontext[0],
         extractedcontext[1])
 
-def get_assignment_index(
-    seq,
-    exmotifs,
-    lcifn,
-    rcifn,
-    cntxlen,
-    carr):
+def get_parsed_oligo_repeats(
+    df,
+    maxreplen,
+    element,
+    liner):
     '''
-    Determine the context assignment index
-    for designed sequence. Internal use only.
+    Check if oligopool repeats are
+    feasible. Internal use only.
 
-    :: seq
+    :: df
+       type - pd.DataFrame
+       desc - DataFrame to extract
+              oligopool repeats from
+    :: maxreplen
+       type - integer
+       desc - maximum shared repeat
+              length with oligopool
+    :: element
        type - string
-       desc - designed sequence to be
-              assigned
-    :: exmotifs
-       type - list / None
-       desc - list of motifs to exclude
-              in designed barcodes,
-              None otherwise
-    :: lcifn
-       type - lambda
-       desc - selector for the left
-              sequence context
-    :: rcifn
-       type - lambda
-       desc - selector for the right
-              sequence context
-    :: cntxlen
-       type - lambda
-       desc - total length of context
-              to extract from either
-              left or right
-    :: carr
-       type - np.array
-       desc - context assignment array
+       desc - element being designed
+    :: liner
+       type - coroutine
+       desc - dyanamic printing
     '''
 
     # Book-keeping
-    i      = 0
-    cfails = cx.Counter()
+    oligorepeats = set()
+    t0           = tt.time()
+    kmerspace    = ((4**(maxreplen+1)) // 2)
+    fillcount    = None
+    leftcount    = None
 
-    # Loop through all contexts for assignment
-    while i < len(carr):
+    # Verbage Stuff
+    plen = get_printlen(
+        value=kmerspace)
+    if plen > 15:
+        sntn = 'e'
+        plen = len('{:e}'.format(kmerspace))
+    else:
+        sntn = 'd'
 
-        # Fetch Context
-        aidx = carr.popleft()
+    # Show Update
+    liner.send('  k-mer Space: {:{},{}} Unique {:,}-mers\n'.format(
+        kmerspace,
+        plen,
+        sntn,
+        maxreplen+1))
+    liner.send(' Extracting Repeats ...')
 
-        # Fetch left and right contexts
-        lcntx = lcifn(aidx)[-cntxlen:]
-        rcntx = rcifn(aidx)[:+cntxlen]
+    # Extract Repeats
+    for oligo in get_df_concat(df=df):
+        oligorepeats.update(
+            stream_canon_spectrum(
+                seq=oligo,
+                k=maxreplen+1))
 
-        # Build out in-context sequence
-        incntxseq = lcntx + seq + rcntx
+    # Compute Feasibility
+    fillcount   = min(kmerspace, len(oligorepeats))
+    leftcount   = kmerspace - fillcount
+    parsestatus = (leftcount * 1.) / kmerspace > .01
+    if parsestatus:
+        statusmsg = ''
+    else:
+        statusmsg = ' [INFEASIBLE]'
 
-        # Determine context feasibility
-        mcond, motif = get_motif_conflict(
-            seq=incntxseq,
-            seqlen=len(incntxseq),
-            exmotifs=exmotifs,
-            partial=False)
+    # Show Final Updates
+    liner.send('   Fill Count: {:{},{}} Unique {:,}-mers ({:6.2f} %)\n'.format(
+        fillcount,
+        plen,
+        sntn,
+        maxreplen+1,
+        safediv(
+            A=fillcount*100.,
+            B=kmerspace)))
+    liner.send('   Left Count: {:{},{}} Unique {:,}-mers ({:6.2f} %){}\n'.format(
+        leftcount,
+        plen,
+        sntn,
+        maxreplen+1,
+        safediv(
+            A=leftcount*100.,
+            B=kmerspace),
+        statusmsg))
 
-        # We have a winner folks!
-        if mcond:
-            return (True, aidx, None)
+    if not parsestatus:
+        liner.send(
+            ' Verdict: {} Design Infeasible due to Repeat Length Constraint\n'.format(
+                element))
+    else:
+        liner.send(
+            ' Verdict: {} Design Possibly Feasible\n'.format(
+                element))
 
-        # We lost an assignment, record cause
-        else:
-            cfails[motif] += 1
+    liner.send(
+        ' Time Elapsed: {:.2f} sec\n'.format(
+            tt.time()-t0))
 
-        # Update Iteration
-        i += 1
-
-        # We will try this context again
-        carr.append(aidx)
-
-    # Failed Assignment
-    return (False, None, cfails)
+    # Return Results
+    return (parsestatus,
+        kmerspace,
+        fillcount,
+        leftcount,
+        oligorepeats)
 
 # Sequence Analysis
 
-def is_DNA(seq):
+def is_DNA(seq, dna_alpha=dna_alpha):
     '''
     Determine if seq is a DNA string.
     Internal use only.
 
     :: seq
        type - string
-       desc - a string in alphabet
-              {A, T, G, C}
+       desc - a candidate sequence
+    :: dna_alpha
+       type - set
+       desc - alphabet set considered
+              valid for seq
+              (defaul={A, T, G, C})
     '''
 
     if isinstance(seq, str) and \

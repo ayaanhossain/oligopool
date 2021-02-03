@@ -45,7 +45,7 @@ def get_padding_lengths(
             minlen = len(frag)
         if len(frag) > maxlen:
             maxlen = len(frag)
-    
+
     liner.send(
         '    Shortest  Pre-Padding Length: {} bp\n'.format(
             minlen))
@@ -56,7 +56,7 @@ def get_padding_lengths(
     # Compute Spans
     fminspan  = finallength - maxlen
     fmaxspan  = finallength - minlen
-    
+
     lconsspan = fmaxspan // 2
     rconsspan = fmaxspan - lconsspan
 
@@ -73,25 +73,25 @@ def get_padding_lengths(
     liner.send(
         ' Reverse Pad Construction Length: {} bp\n'.format(
             rconsspan))
-    
+
     liner.send(
         ' Forward Pad   Evaluation Length: {} bp\n'.format(
             levalspan))
     liner.send(
         ' Reverse Pad   Evaluation Length: {} bp\n'.format(
             revalspan))
-    
+
     liner.send(
         '    Shortest Post-Padding Length: {} bp\n'.format(
             shpadspan))
     liner.send(
         '     Longest Post-Padding Length: {} bp\n'.format(
             lgpadspan))
-    
+
     liner.send(
         ' Time Elapsed: {:.2f} sec\n'.format(
             tt.time()-t0))
-    
+
     # Adjust Construction Based on TypeIIS Cutsite
     lconsspan -= cutlen
     rconsspan -= cutlen
@@ -121,7 +121,7 @@ def get_frag_background(
     fragments,
     Lmax,
     liner):
-    
+
     # Get Fragment Background
     fragbkg = get_background(Lmax=Lmax)
 
@@ -170,7 +170,7 @@ def is_pad_local_feasible(
         return False, cp.get_tmelt_traceback(
             primer=pad,
             failtype=tfail)
-    
+
 
     # Homodimer Feasibility
     hcond, htloc = cp.is_dimer_feasible(
@@ -239,7 +239,7 @@ def padding_engine(
         fragments=fragments,
         finallength=finallength,
         liner=liner)
-    
+
     # Build Forward and Reverse Padding Constraint
     fwdpadseq = ('N' * lconsspan) + typeIIS
     fwdstruct = 'x' * len(fwdpadseq)
@@ -255,13 +255,13 @@ def padding_engine(
          levalspan=levalspan,
          revalspan=revalspan,
          liner=liner)
-    
+
     if not typeIIS:
         liner.send(' Verdict: Pad Design Infeasible due to Type IIS Motif Constraint\n')
         return (False, None, None)
     else:
         liner.send(' Verdict: Pad Design Possibly Feasible\n')
-    
+
     # Determine Pad Tm Feasibility
     for locseq,loc in ((fwdpadseq, 'Forward'), (revpadseq, 'Reverse')):
 
@@ -293,13 +293,13 @@ def padding_engine(
     maker = nr.base.maker.NRPMaker(
         part_type='DNA',
         seed=None)
-    
+
     # Define Padding Background
     padbkg = get_background(Lmax=7)
 
     # Show Update
     liner.send('\n[Computing Forward Pad]\n')
-    
+
     # Forward Pad Local Objective
     fwd_local_model_fn = lambda pad: is_pad_local_feasible(
         pad=pad,
@@ -341,14 +341,14 @@ def padding_engine(
         liner.send('\* Forward Pad Constructed? Yes\n')
 
     # fwdpad = 'TATGTAGTTATTCATGGTCTCTTCCC'
-    
+
     # Compute Requirements for Reverse Primer
     fwdtmelt = ut.get_tmelt(seq=fwdpad)
     padbkg.add(fwdpad)
-    
+
     # Show Update
     liner.send('\n[Computing Reverse Pad]\n')
-    
+
     # Forward Pad Local Objective
     rev_local_model_fn = lambda pad: is_pad_local_feasible(
         pad=pad,
@@ -388,7 +388,7 @@ def padding_engine(
     else:
         revpad = revpad[0]
         liner.send('\* Reverse Pad Constructed? Yes\n')
-    
+
     # Drop Backgrounds
     fragbkg.drop()
     padbkg.drop()
@@ -400,8 +400,8 @@ import numpy as np
 def get_context():
     with open('promoters.txt') as infile:
         cntx = [x.strip() for x in infile.readlines()]
-    cntx = cntx[:-1]  
-    rng = np.random.default_rng(7)  
+    cntx = cntx[:-1]
+    rng = np.random.default_rng(7)
     fcntx = []
     for c in cntx:
         tl = rng.integers(0, 6)
@@ -433,7 +433,7 @@ def main():
         deltatmelt=0.2,
         Lmax=9,
         liner=liner)
-    
+
     if status:
         print()
         print(fwdpad)

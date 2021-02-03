@@ -376,7 +376,7 @@ def update_df(
 
         # Update Book-keeping
         if rcexists:
-            insidx    = max(0, rcidx-1)
+            insidx    = rcidx
             insstatus = True
 
     # Update indf

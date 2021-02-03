@@ -10,6 +10,7 @@ import utils as ut
 # Barcode Conversion Dictionary
 decoder = dict(zip((0., 1., 2., 3.), 'AGTC'))
 
+# Parser and Setup Functions
 
 def get_parsed_barcode_length(
     barcodelength,
@@ -35,11 +36,16 @@ def get_parsed_barcode_length(
     t0 = tt.time()
 
     # Compute barcodelength feasibility
-    dspace = 4 ** barcodelength
-    tspace = len(indf.index)
-    plen   =  ut.get_printlen(
-        value=max(dspace, tspace))
-    parsestatus = dspace >= tspace
+    designspace = 4 ** barcodelength
+    targetcount = len(indf.index)
+
+    lenspace = max(designspace, targetcount)
+    plen = ut.get_printlen(
+        value=lenspace)
+    sntn, plen = ut.get_notelen(
+        printlen=plen)
+
+    parsestatus = designspace >= targetcount
 
     if not parsestatus:
         parsemsg = ' [INFEASIBLE] [Design Space is Smaller than Target Space]'
@@ -51,16 +57,18 @@ def get_parsed_barcode_length(
         ' Required Length: {:,} Base Pair(s)\n'.format(
             barcodelength))
     liner.send(
-        '   Design  Space: {:{},} Barcode(s)\n'.format(
-            dspace,
-            plen))
-    liner.send(
-        '   Target  Space: {:{},} Barcode(s){}\n'.format(
-            tspace,
+        '   Design  Space: {:{},{}} Barcode(s)\n'.format(
+            designspace,
             plen,
+            sntn))
+    liner.send(
+        '   Target  Count: {:{},{}} Barcode(s){}\n'.format(
+            targetcount,
+            plen,
+            sntn,
             parsemsg))
     liner.send(
-        '    Time Elapsed: {:.2f} sec\n'.format(
+        ' Time Elapsed: {:.2f} sec\n'.format(
             tt.time() - t0))
 
     if parsestatus:
@@ -72,8 +80,8 @@ def get_parsed_barcode_length(
 
     # Return results
     return (parsestatus,
-        dspace,
-        tspace)
+        designspace,
+        targetcount)
 
 def get_context_type_selector(context):
     '''
@@ -178,6 +186,8 @@ def get_jumper(barcodelength):
         # Infinite Random Jumps
         return 2, get_infinite_jumper(upb=upb)
 
+# Engine Objective and Helper Functions
+
 def stream_barcodes(
     barcodelength,
     jumper):
@@ -262,7 +272,7 @@ def show_update(
         ['',
         ' due to Hamming Infeasibility',
         ' due to Motif Infeasibility',
-        ' due to Context Infeasibility'][optstate]))
+        ' due to Edge Infeasibility'][optstate]))
 
     if terminal:
         liner.send('\* Time Elapsed: {:.2f} sec\n'.format(
@@ -341,7 +351,7 @@ def is_motif_feasible(
         partial=True,
         checkall=False)
 
-def is_assignment_feasible(
+def is_edge_feasible(
     barcodeseq,
     exmotifs,
     leftselector,
@@ -352,7 +362,8 @@ def is_assignment_feasible(
     contextarray):
     '''
     Determine the context assignment index
-    for designed sequence.
+    for designed sequence, and see if the
+    assignment is devoid of edge effects.
     Internal use only.
 
     :: barcodeseq
@@ -420,7 +431,7 @@ def is_assignment_feasible(
             incntxseq = incntxseq + rcntx
 
         # Compute Feasibility
-        mcond = True
+        mcond, motif = True, None
         if (not lcntx is None) or \
            (not rcntx is None):
 
@@ -449,10 +460,6 @@ def is_assignment_feasible(
                        ((q <= start < r) and (r+1 <= end < s)):
                             mcond = False
                             break
-
-        # No Context, No Conflict!
-        else:
-            mcond, motif = True, None
 
         # We have a winner folks!
         if mcond:
@@ -548,24 +555,24 @@ def is_barcode_feasible(
               extract for edge-effect eval
     '''
 
-    # Hamming Condition
-    hcond = is_hamming_feasible(
+    # Objective 1: Hamming Distance
+    obj1 = is_hamming_feasible(
         store=store,
         count=count,
         minhdist=minhdist)
-    if not hcond:
+    if not obj1:
         return (False, 1, None, None)      # Hamming Failure
 
-    # Motif Embedding
-    mcond, motif = is_motif_feasible(
+    # Objective 2: Motif Embedding
+    obj2, motif = is_motif_feasible(
         barcodeseq=barcodeseq,
         barcodelength=barcodelength,
         exmotifs=exmotifs)
-    if not mcond:
+    if not obj2:
         return (False, 2, None, {motif: 1}) # Motif Failure
 
-    # Assignment Feasibility (Edge-Effects)
-    acond, aidx, afails = is_assignment_feasible(
+    # Objective 3: Edge Feasibility (Edge-Effects)
+    obj3, aidx, afails = is_edge_feasible(
         barcodeseq=barcodeseq,
         exmotifs=exmotifs,
         leftcontexttype=leftcontexttype,
@@ -574,7 +581,7 @@ def is_barcode_feasible(
         rightselector=rightselector,
         edgeeffectlength=edgeeffectlength,
         contextarray=contextarray)
-    if not acond:
+    if not obj3:
         return (False, 3, None, afails)     # Edge Failure
 
     # All conditions met!

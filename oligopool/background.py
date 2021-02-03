@@ -1,3 +1,4 @@
+from os import stat
 import sys
 import time     as tt
 import shutil   as sh
@@ -61,7 +62,9 @@ def background_engine(
             pbuf = ''
 
         # Insert sequence
-        vDB.add(seq)
+        vDB.add(
+            seq=seq,
+            rna=False)
 
         # Show updates
         liner.send(
@@ -86,12 +89,16 @@ def background_engine(
     stats['vars']['fillcount'] = fillcount
     stats['vars']['leftcount'] = leftcount
 
-    # Update and close DB
-    vDB.DB.Put(
-        b'LEN',
-        str(fillcount).encode())
+    # If Successful Update and Close DB
+    if stats['status']:
+        vDB.DB.Put(
+            b'LEN',
+            str(fillcount).encode())
+        vDB.close()
 
-    vDB.close()
+    # Otherwise Drop DB
+    else:
+        vDB.drop()
 
     # Return Stats
     return stats
@@ -121,7 +128,7 @@ def background(
     :: maxreplen
        type - integer
        desc - maximum shared repeat length between the primers and
-              the background sequences
+              the background sequences, must be between 6 to 20
     :: outdir
        type - string
        desc - path to store the generated k-mer database
@@ -182,9 +189,9 @@ def background(
     maxreplen_valid = vp.get_numeric_validity(
         numeric=maxreplen,
         numeric_field='    Maximum    Repeat',
-        numeric_pre_desc=' Allow up to ',
-        numeric_post_desc=' Base Pair(s) Repeats',
-        minval=1,
+        numeric_pre_desc=' Up to ',
+        numeric_post_desc=' Base Pair(s) Background Repeats',
+        minval=6,
         maxval=20,
         precheck=False,
         liner=liner)
@@ -257,7 +264,7 @@ def background(
             'fillcount',
             'leftcount')))
 
-    pfmt = 'e' if plen >= 15 else 'd'
+    sntn = 'e' if plen > 15 else 'd'
 
     liner.send(
         ' Background Status: {}\n'.format(
@@ -266,22 +273,22 @@ def background(
         '      k-mer  Space: {:{},{}} Unique {:,}-mers\n'.format(
             stats['vars']['kmerspace'],
             plen,
-            pfmt,
+            sntn,
             maxreplen+1))
     liner.send(
-        '     Filled  Space: {:{},{}} Unique {:,}-mers ({:6.2f} %)\n'.format(
+        '       Fill  Count: {:{},{}} Unique {:,}-mers ({:6.2f} %)\n'.format(
             stats['vars']['fillcount'],
             plen,
-            pfmt,
+            sntn,
             maxreplen+1,
             ut.safediv(
                 A=stats['vars']['fillcount'] * 100.,
                 B=stats['vars']['kmerspace'])))
     liner.send(
-        '  Remaining  Space: {:{},{}} Unique {:,}-mers ({:6.2f} %)\n'.format(
+        '       Left  Count: {:{},{}} Unique {:,}-mers ({:6.2f} %)\n'.format(
             stats['vars']['leftcount'],
             plen,
-            pfmt,
+            sntn,
             maxreplen+1,
             ut.safediv(
                 A=stats['vars']['leftcount'] * 100.,
@@ -298,9 +305,3 @@ def background(
 
     # Return Statistics
     return stats
-
-
-
-
-
-

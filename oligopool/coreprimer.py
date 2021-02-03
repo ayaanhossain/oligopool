@@ -1096,7 +1096,6 @@ def is_motif_feasible(
     # No Conflict
     return True, None
 
-
 def is_edge_feasible(
     primer,
     primerlen,

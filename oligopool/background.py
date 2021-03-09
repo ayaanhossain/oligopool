@@ -107,63 +107,53 @@ def background(
     indata,
     maxreplen,
     outdir,
-    mode=0,
     verbose=True):
     '''
-    The background function builds a database of k-mers from a list
-    or CSV file of background sequences. The background database is
-    then specified during primer design, to generate primers which
-    are non-repetitive to background thus minimizing any off-target
-    amplification. Non-repetitiveness is controlled via the maximum
-    shared repeat length (replength) parameter. Generated database
-    is stored in <outdir>.
+    The background function builds a database of k-mers from
+    a list or a CSV file of background sequences. This database
+    is then specified during primer design, to generate primers
+    which are non-repetitive to background thus minimizing any
+    off-target amplification. Non-repetitiveness is controlled
+    via the maximum shared repeat length (replength) parameter.
+    Generated database is stored in <outdir>.
 
     :: indata
        type - iterable / string / pd.DataFrame
-       desc - iterable of DNA strings to be against which designed
-              primers are ensured to be non-repetitive; optionally,
-              this can be a path to a CSV file containing uniquely
-              identified background sequences or an equivalent
-              pandas DataFrame
+       desc - iterable of DNA strings against which designed
+              primers are ensured to be non-repetitive;
+              optionally, this can be a path to a CSV file
+              containing uniquely identified background
+              sequences or an equivalent pandas DataFrame
     :: maxreplen
        type - integer
-       desc - maximum shared repeat length between the primers and
-              the background sequences, must be between 6 to 20
+       desc - maximum shared repeat length between the primers
+              and the background sequences, must be between
+              6 to 20
     :: outdir
        type - string
        desc - path to store the generated k-mer database
-    :: mode
-       type - integer
-       desc - background operation mode identifier
-              0 = write mode
-              1 = read  mode
-              (default=0)
     :: verbose
        type - boolean
        desc - if True will log updates to stdout
               (default=True)
 
-    Output: A directory <outdir> with '.oligoool.background' suffix.
+    Output: A directory <outdir> with '.oligoool.background'
+            suffix.
 
-    Note 1. If <indata> points to a  CSV file or a DataFrame, it must
-            contain both an 'ID' column and a 'Sequence' column, with
-            'Sequence' containing background sequences.
-
-    Note 2. The column 'ID', must uniquely identify each background
-            sequence.
-
-    Note 3. All rows and columns in <indata> must be non-empty,
+    Note 1. If <indata> points to a CSV file or a DataFrame,it
+            must contain a column named 'ID', that uniquely
+            identifies each background sequence. Values in
+            <indata> except 'ID' must be DNA strings. All
+            rows and columns in <indata> must be non-empty,
             i.e. none of the cells must be empty.
 
-    Note 4. The value of Lmax must be greater than or equal to 5 bp.
-
-    Note 5. The maxreplen parameter used here is specifically related
-            to background sequences, and may be different from the
-            maxreplen parameter used in primer design, related to the
-            oligopool sequences flanking the primers.
-
-    Note 6. All values in <indata> except those in 'ID' must be
-            DNA strings.
+    Note 2. The <maxreplen> parameter here controls the level
+            of non-repetitiveness in designed primers with
+            respect to a background sequences such as a genome
+            or a plasmid, and as such is independent of the
+            <maxreplen> used in primer design which controls
+            the non-repetitiveness of the primers against the
+            core oligopool variants.
     '''
 
     # Start Liner

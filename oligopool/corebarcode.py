@@ -13,15 +13,15 @@ decoder = dict(zip((0., 1., 2., 3.), 'AGTC'))
 # Parser and Setup Functions
 
 def get_parsed_barcode_length(
-    barcodelength,
+    barcodelen,
     indf,
     liner):
     '''
-    Check feasibility of barcodelength
+    Check feasibility of barcodelen
     for given indf, i.e. reachability.
     Internal use only.
 
-    :: barcodelength
+    :: barcodelen
        type - integer
        desc - required barcode length
     :: indf
@@ -35,8 +35,8 @@ def get_parsed_barcode_length(
     # Start Timer
     t0 = tt.time()
 
-    # Compute barcodelength feasibility
-    designspace = 4 ** barcodelength
+    # Compute barcodelen feasibility
+    designspace = 4 ** barcodelen
     targetcount = len(indf.index)
 
     lenspace = max(designspace, targetcount)
@@ -55,7 +55,7 @@ def get_parsed_barcode_length(
     # Show update
     liner.send(
         ' Required Length: {:,} Base Pair(s)\n'.format(
-            barcodelength))
+            barcodelen))
     liner.send(
         '   Design  Space: {:{},{}} Barcode(s)\n'.format(
             designspace,
@@ -82,42 +82,6 @@ def get_parsed_barcode_length(
     return (parsestatus,
         designspace,
         targetcount)
-
-def get_context_type_selector(context):
-    '''
-    Return selector functions for building
-    barcode context. Internal use only.
-
-    :: context
-       type - list / string / None
-       desc - list of context sequence,
-              or a single context sequence,
-              or None
-    '''
-
-    # All contexts unique
-    if isinstance(context, list):
-        return (
-            1,
-            lambda x: context[x])
-
-    # All contexts constant
-    elif isinstance(context, str):
-        return (
-            2,
-            lambda x: context)
-
-    # No context
-    elif context is None:
-        return (
-            3,
-            lambda x: None)
-
-    # Unknown packing
-    else:
-        raise TypeError(
-            'Invalid Context Type {}'.format(
-                type(context)))
 
 def get_finite_jumper(upb):
     '''
@@ -163,7 +127,7 @@ def get_infinite_jumper(upb):
     while True:
         yield rng.integers(0, upb)
 
-def get_jumper(barcodelength):
+def get_jumper(barcodelen):
     '''
     Return jumper based on jumper type.
     Internal use only.
@@ -176,10 +140,10 @@ def get_jumper(barcodelength):
     '''
 
     # Compute Upperbound
-    upb = 4**barcodelength
+    upb = 4**barcodelen
 
     # Return Jumper
-    if barcodelength <= 12:
+    if barcodelen <= 12:
         # Finite   Random Jumps
         return 1, get_finite_jumper(upb=upb)
     else:
@@ -189,13 +153,13 @@ def get_jumper(barcodelength):
 # Engine Objective and Helper Functions
 
 def stream_barcodes(
-    barcodelength,
+    barcodelen,
     jumper):
     '''
     Randomly jump through sequence space and
     stream barcodes. Internal use only.
 
-    :: barcodelength
+    :: barcodelen
        type - integer
        desc - required barcode length
     :: jumper
@@ -221,7 +185,7 @@ def stream_barcodes(
                 np.base_repr(
                     idx,
                     base=4).zfill(
-                        barcodelength))),
+                        barcodelen))),
             dtype=np.float64)
 
 def show_update(
@@ -244,8 +208,8 @@ def show_update(
        type - integer
        desc - barcode index width
     :: barcodeseq
-       type - np.array
-       desc - numeric vector encoding barcode
+       type - string
+       desc - decoded barcode sequence
     :: optstatus
        type - boolean
        desc - barcode feasibility status
@@ -253,7 +217,7 @@ def show_update(
        type - integer
        desc - feasibility failure state marker
     :: inittime
-       type - time.time
+       type - tt.time
        desc - initial time stamp
     :: terminal
        type - boolean
@@ -270,9 +234,9 @@ def show_update(
         barcodeseq,
         ['Rejected', 'Accepted'][optstatus],
         ['',
-        ' due to Hamming Infeasibility',
-        ' due to Motif Infeasibility',
-        ' due to Edge Infeasibility'][optstate]))
+        ' due to Hamming Distance Infeasibility',
+        ' due to Excluded Motif Infeasibility',
+        ' due to Edge Effect Infeasibility'][optstate]))
 
     if terminal:
         liner.send('\* Time Elapsed: {:.2f} sec\n'.format(
@@ -322,19 +286,18 @@ def is_hamming_feasible(
         idx=count,
         direction=0) >= minhdist
 
-def is_motif_feasible(
+def is_exmotif_feasible(
     barcodeseq,
-    barcodelength,
+    barcodelen,
     exmotifs):
     '''
-    Determine if the barcode does not contain or is
-    contained in one of the exluded motifs (motif
-    feasibility). Internal use only.
+    Determine if the barcode does not contain any
+    of the exluded motifs. Internal use only.
 
     :: barcodeseq
        type - string
        desc - decoded barcode sequence
-    :: barcodelength
+    :: barcodelen
        type - string
        desc - barcode length
     :: exmotifs
@@ -344,9 +307,9 @@ def is_motif_feasible(
               None otherwise
     '''
 
-    return ut.get_motif_conflict(
+    return ut.get_exmotif_conflict(
         seq=barcodeseq,
-        seqlen=barcodelength,
+        seqlen=barcodelen,
         exmotifs=exmotifs,
         partial=True,
         checkall=False)
@@ -358,7 +321,6 @@ def is_edge_feasible(
     leftcontexttype,
     rightselector,
     rightcontexttype,
-    edgeeffectlength,
     contextarray):
     '''
     Determine the context assignment index
@@ -394,12 +356,6 @@ def is_edge_feasible(
        type - lambda
        desc - selector for the right
               sequence context
-    :: edgeeffectlength
-       type - lambda
-       desc - total length of context
-              to extract from either
-              left or right to evaluate
-              edge-effects
     :: contextarray
        type - np.array
        desc - context assignment array
@@ -441,7 +397,7 @@ def is_edge_feasible(
             r = llen + len(barcodeseq)
             s = len(incntxseq)
 
-            # Loop though exmotifs
+            # Loop through exmotifs
             for motif in exmotifs:
 
                 # Locate motif start in in-context
@@ -484,23 +440,21 @@ def is_edge_feasible(
     # Failed Assignment
     return (False, None, cfails)
 
-def is_barcode_feasible(
+def barcode_objectives(
     store,
     count,
     barcodeseq,
-    barcodelength,
+    barcodelen,
     minhdist,
     exmotifs,
     leftcontexttype,
     leftselector,
     rightcontexttype,
     rightselector,
-    edgeeffectlength,
     contextarray):
     '''
-    Determine if the barcode is hamming,
-    motif and edge satisfiable.
-    Internal use only.
+    Determine if a barcode satisfies all
+    global objectives. Internal use only.
 
     :: store
        type - np.array
@@ -513,7 +467,7 @@ def is_barcode_feasible(
     :: barcodeseq
        type - string
        desc - decoded barcode sequence
-    :: barcodelength
+    :: barcodelen
        type - string
        desc - barcode length
     :: minhdist
@@ -549,10 +503,6 @@ def is_barcode_feasible(
     :: contextarray
        type - np.array
        desc - context assignment array
-    :: edgeeffectlength
-       type - integer
-       desc - length of context sequence to
-              extract for edge-effect eval
     '''
 
     # Objective 1: Hamming Distance
@@ -560,16 +510,20 @@ def is_barcode_feasible(
         store=store,
         count=count,
         minhdist=minhdist)
+
+    # Objective 1 Failed
     if not obj1:
         return (False, 1, None, None)      # Hamming Failure
 
     # Objective 2: Motif Embedding
-    obj2, motif = is_motif_feasible(
+    obj2, exmotif = is_exmotif_feasible(
         barcodeseq=barcodeseq,
-        barcodelength=barcodelength,
+        barcodelen=barcodelen,
         exmotifs=exmotifs)
+
+    # Objective 2 Failed
     if not obj2:
-        return (False, 2, None, {motif: 1}) # Motif Failure
+        return (False, 2, None, {exmotif: 1}) # Motif Failure
 
     # Objective 3: Edge Feasibility (Edge-Effects)
     obj3, aidx, afails = is_edge_feasible(
@@ -579,8 +533,9 @@ def is_barcode_feasible(
         leftselector=leftselector,
         rightcontexttype=rightcontexttype,
         rightselector=rightselector,
-        edgeeffectlength=edgeeffectlength,
         contextarray=contextarray)
+
+    # Objective 3 Failed
     if not obj3:
         return (False, 3, None, afails)     # Edge Failure
 

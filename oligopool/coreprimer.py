@@ -2,14 +2,13 @@ import time  as tt
 
 import collections as cx
 
-import numpy as np
-from numpy.core.fromnumeric import repeat
+import numpy       as np
 
-import nrpcalc    as nr
+import nrpcalc     as nr
 
-import background as bk
-import vectordb   as db
-import utils      as ut
+import background  as bk
+import vectordb    as db
+import utils       as ut
 
 
 # NRPCalc Fold Object
@@ -222,7 +221,7 @@ def get_parsed_sequence_constraint(
     if dspace == 1:
         dspace_ok = False
         liner.send(
-            ' Design Space: 1 Possible Primer [INFEASIBLE] (Degenerate Nucleotides Absent)\n')
+            ' Design Space: 1 Possible Primer(s) [INFEASIBLE] (Degenerate Nucleotides Absent)\n')
     else:
         dspace_ok = True
         liner.send(
@@ -234,7 +233,7 @@ def get_parsed_sequence_constraint(
     # Exmotifs Analysis
     liner.send(' Computing Motif Conflicts ...')
 
-    motif_ok, excludedmotifs = ut.get_motif_conflict(
+    motif_ok, excludedmotifs = ut.get_exmotif_conflict(
         seq=primerseq,
         seqlen=len(primerseq),
         exmotifs=exmotifs,
@@ -391,7 +390,7 @@ def get_primer_extreme(
             extbases.append(np.random.choice(space))
     return ''.join(extbases)
 
-def get_parsed_tmelt_constraint(
+def get_parsed_primer_tmelt_constraint(
     primerseq,
     pairedprimer,
     mintmelt,
@@ -552,59 +551,6 @@ def get_parsed_tmelt_constraint(
         minTm,
         maxTm)
 
-def stream_motif_splits(motif):
-    '''
-    Stream all prefix-suffix splits
-    for given motif. This is also
-    left partition of motif.
-    Internal use only.
-
-    :: motif
-       type - string
-       desc - motif to split
-    '''
-
-    return ((motif[:i], motif[i:]) \
-        for i in range(1, len(motif)))
-
-def get_exmotif_partition(exmotifs):
-    '''
-    Compute the left partition of
-    exmotifs. Internal use only.
-
-    :: exmotifs
-       type - cx.deque
-       desc - deque of all motifs
-              to be excluded
-    '''
-
-    partition = cx.defaultdict(list)
-    for motif in exmotifs:
-        for u,v in stream_motif_splits(
-            motif=motif):
-            partition[u].append(v)
-    return partition
-
-def get_inverted_exmotif_partition(partition):
-    '''
-    Compute the right partition of
-    left partitioned exmotifs by
-    inverting left partition.
-    Internal use only.
-
-    :: partition
-       type - dict
-       desc - dictionary of left
-              partitioned exmotifs,
-              prefix -> suffix
-    '''
-
-    inv_partition = cx.defaultdict(list)
-    for u,v in partition.items():
-        for vi in v:
-            inv_partition[vi].append(u)
-    return inv_partition
-
 def get_parsed_edgeeffects(
     primerseq,
     leftcontext,
@@ -656,14 +602,14 @@ def get_parsed_edgeeffects(
     liner.send(' Left Paritioning Excluded Motifs ...')
 
     # Left Partition exmotifs
-    leftpartition = get_exmotif_partition(
+    leftpartition = ut.get_exmotif_partition(
         exmotifs=exmotifs)
 
     # Show Update
     liner.send(' Right Paritioning Excluded Motifs ...')
 
     # Right Partition exmotifs
-    rightpartition = get_inverted_exmotif_partition(
+    rightpartition = ut.get_inverted_exmotif_partition(
         partition=leftpartition)
 
     # Assess Left Edge Effects
@@ -864,7 +810,373 @@ def get_parsed_edgeeffects(
         prefixforbidden,
         suffixforbidden)
 
+def get_parsed_splitcol(
+    indf,
+    splitcol,
+    oligolength,
+    liner):
+    '''
+    TBW
+    '''
+
+    # Book-keeping
+    t0 = tt.time()
+    parsestatus   = False
+    maxallowedlen = oligolength - 30 # Ensure minimum padding feasible
+
+    # Show Update
+    liner.send(' Analyzing Split Fragments ...')
+
+    # Compute Properties
+    fragments = set(indf[splitcol])
+    fraglens  = list(map(len, fragments))
+    minffragmentlen    = min(fraglens)
+    maxfragmentlen    = max(fraglens)
+
+    # Show Update
+    plen = ut.get_printlen(
+        value=max(len(fragments), maxfragmentlen, minffragmentlen))
+
+    liner.send('   Split Fragments: {:{},d} Unique Sequences(s)\n'.format(
+        len(fragments),
+        plen))
+
+    liner.send(' Minimum Length   : {:{},d} Base Pair(s)\n'.format(
+        minffragmentlen,
+        plen))
+
+    # Compute Feasibility
+    if maxfragmentlen <= maxallowedlen:
+        parsestatus = True
+        parsemsg    = ''
+    else:
+        parsemsg = ' [INFEASIBLE] (Fragment(s) Longer than Oligo Length - 30 = {} Base Pair(s))'.format(
+            maxallowedlen)
+
+    # Show Updates
+    liner.send(' Maximum Length   : {:{},d} Base Pair(s){}\n'.format(
+        maxfragmentlen,
+        plen,
+        parsemsg))
+
+    liner.send(' Time Elapsed: {:.2f} sec\n'.format(
+        tt.time()-t0))
+
+    # Show Verdict
+    if not parsestatus:
+        liner.send(
+            ' Verdict: Pad Design Infeasible due to Split Column Constraints\n')
+    else:
+        liner.send(
+            ' Verdict: Pad Design Possibly Feasible\n')
+
+    # Return Results
+    return (parsestatus,
+        minffragmentlen,
+        maxfragmentlen,
+        maxallowedlen)
+
+def get_parsed_typeIIS_constraint(
+    typeIIS,
+    typeIISname,
+    minfragmentlen,
+    maxfragmentlen,
+    oligolength,
+    liner):
+    '''
+    TBW
+    '''
+
+    # Book-keeping
+    t0 = tt.time()
+    parsestatus = True
+
+    # How much padding space available?
+    minpadlen = oligolength - maxfragmentlen
+    maxpadlen = oligolength - minfragmentlen
+
+    plen = ut.get_printlen(
+        value=max(
+            oligolength,
+            maxfragmentlen,
+            minfragmentlen))
+
+    liner.send(
+        ' Minimum Padding: {:{},d} bp due to {:{},d} bp Fragment(s)\n'.format(
+            minpadlen,
+            plen,
+            maxfragmentlen,
+            plen))
+
+    liner.send(
+        ' Maximum Padding: {:{},d} bp due to {:{},d} bp Fragment(s)\n'.format(
+            maxpadlen,
+            plen,
+            minfragmentlen,
+            plen))
+
+    # Compute TypeIIS Padding Lengths
+    typeIISlen         = (6 + len(typeIIS)) * 2          # 2x 6 Ns + TypeIIS Motif + Cut
+    typeIISfree1       = max(0, 30 - typeIISlen)         # 2x 5' Ns to pad upto 15 bp TypeIIS Core
+    typeIISrequiredlen = typeIISfree1 + typeIISlen       # Total Length of TypeIIS Core >= 30 bp
+    typeIISfree2       = minpadlen - typeIISrequiredlen  # 2x 5' Ns to pad upto minpadlen
+
+    # Compute feasibility
+    if typeIISfree2 < 0:
+        parsestatus = False
+        parsemsg = ' [INFEASIBLE] (Using \'{}\' Requires {} bp Longer Minimum Padding)'.format(
+            typeIISname,
+            np.abs(typeIISfree2))
+    else:
+        parsemsg = ''
+
+    liner.send(
+        ' TypeIIS System : Requires {:,} bp Minimum Padding{}\n'.format(
+            typeIISrequiredlen,
+            parsemsg))
+
+    print(typeIISlen)
+    print(typeIISfree1)
+    print(typeIISrequiredlen)
+    print(typeIISfree2)
+
+    # Finalize Padding Lengths
+    typeIIScore = 'N'*(typeIISfree1 // 2) + 'N'*6 + typeIIS
+
+    print(typeIIScore, len(typeIIScore))
+
+    for val in ut.typeIIS_dict.values():
+        print(val[0], len(val[1]) + val[-1])
+
+    # # How much space available
+    # forwardpadlen    = maxpadlen // 2
+    # forwardprimerlen = minpadlen // 2
+    # forwardfillerlen = forwardlen - forwardpadlen
+
+    # liner.send(
+    #     ' Forward Pad Constructed: {:{},d} to Base Pair(s)\n'.format(
+    #         forwardconsspan,
+    #         plen))
+
+    # liner.send(
+    #     ' Padding Required: {:,} to {:,} Base Pair(s)\n'.format(
+    #         minpadlen,
+    #         maxpadlen))
+
+
+    # reverseconsspan = maxpadlen - forwardconsspan
+    # reverseevalspan = minpadlen - forwardevalspan
+
+    # Figure out Max and Min Pad Spans (both)
+
+    # Check if after Motif, >= 6 bp left on 5' of Pad (both)
+
+    # Return parsestatus, available forward pad length, required fwd pad len, ... rev pad
+
+def get_padding_lengths(
+    typeIIS,
+    fragments,
+    finallength,
+    liner):
+    '''
+    TBW
+    '''
+
+    # Time-keeping
+    t0 = tt.time()
+
+    # Figure out Extreme Lengths
+    cutlen = len(typeIIS)
+    minlen = float('+inf')
+    maxlen = float('-inf')
+
+    for idx,frag in enumerate(fragments):
+        liner.send(' Analyzing Fragment: {}'.format(idx))
+        if len(frag) < minlen:
+            minlen = len(frag)
+        if len(frag) > maxlen:
+            maxlen = len(frag)
+
+    liner.send(
+        '    Shortest  Pre-Padding Length: {} bp\n'.format(
+            minlen))
+    liner.send(
+        '     Longest  Pre-Padding Length: {} bp\n'.format(
+            maxlen))
+
+    # Compute Spans
+    fminspan  = finallength - maxlen
+    fmaxspan  = finallength - minlen
+
+    lconsspan = fmaxspan // 2
+    rconsspan = fmaxspan - lconsspan
+
+    levalspan = fminspan // 2
+    revalspan = fminspan - levalspan
+
+    shpadspan = lconsspan + minlen + rconsspan
+    lgpadspan = levalspan + maxlen + revalspan
+
+    # Show Final Updates
+    liner.send(
+        ' Forward Pad Construction Length: {} bp\n'.format(
+            lconsspan))
+    liner.send(
+        ' Reverse Pad Construction Length: {} bp\n'.format(
+            rconsspan))
+
+    liner.send(
+        ' Forward Pad   Evaluation Length: {} bp\n'.format(
+            levalspan))
+    liner.send(
+        ' Reverse Pad   Evaluation Length: {} bp\n'.format(
+            revalspan))
+
+    liner.send(
+        '    Shortest Post-Padding Length: {} bp\n'.format(
+            shpadspan))
+    liner.send(
+        '     Longest Post-Padding Length: {} bp\n'.format(
+            lgpadspan))
+
+    liner.send(
+        ' Time Elapsed: {:.2f} sec\n'.format(
+            tt.time()-t0))
+
+    # Adjust Construction Based on TypeIIS Cutsite
+    lconsspan -= cutlen
+    rconsspan -= cutlen
+
+    # Return Results
+    return (lconsspan,
+        rconsspan,
+        levalspan,
+        revalspan,)
+
+def evaluate_typeIIS_constraint(
+    typeIIS,
+    levalspan,
+    revalspan,
+    liner):
+
+    t0 = tt.time()
+    typeIISlen = len(typeIIS)
+
+    liner.send(
+        ' Minimum Forward Padding Length: {} bp\n'.format(
+            levalspan))
+    liner.send(
+        ' Minimum Reverse Padding Length: {} bp\n'.format(
+            revalspan))
+    liner.send(
+        ' Required Type IIS Motif Length: {} bp\n'.format(
+            typeIISlen))
+
+    fwdavail      = levalspan - typeIISlen
+    revavail      = revalspan - typeIISlen
+    typeIISstatus = True
+
+    for locavail,loc in ((fwdavail, 'Forward'), (revavail, 'Reverse')):
+        liner.send(
+            '  {} Pad 5\' End Gap Length: {} bp\n'.format(
+                loc, locavail))
+        if locavail >= 6:
+            liner.send('   Gap Length ≥ 6 bp? Yes\n')
+        else:
+            liner.send('   Gap Length ≥ 6 bp? No\n')
+            typeIISstatus = typeIISstatus and False
+
+    liner.send(' Time Elapsed: {:.2f} sec\n'.format(
+        tt.time()-t0))
+
+    return typeIISstatus, fwdavail, revavail
+
+def get_parsed_pad_tmelt_constraint(
+    typeIIS,
+    mintmelt,
+    maxtmelt,
+    liner):
+    pass
+
+    # Same as Primer, but both pads evaluated
+
+    '''
+    for pad in [fwd, rev]:
+        for padlength in range(len(5' free size)):
+            primerseq = build contraint (based on pad type)
+
+            get extreme min and max
+
+            if min > required max:
+                break because infeasible further
+                previous min,max is the Tm window
+
+            elif max < required min:
+                try increasing padding length
+
+            elif min,max found is compatible:
+                break because solved
+
+        adjust min,max --> this is pad Tm range
+    '''
+
 # Engine Objective and Helper Functions
+
+def show_update(
+    element,
+    primer,
+    optstatus,
+    optstate,
+    inittime,
+    terminal,
+    liner):
+    '''
+    Display the current progress in primer
+    generation. Internal use only.
+
+    :: element
+       type - string
+       desc - primer element name, e.g.
+              'Primer' or 'Pad'
+    :: primer
+       type - string
+       desc - a partially explored primer
+              sequence path
+    :: optstatus
+       type - integer
+       desc - primer feasibility status
+    :: optstate
+       type - integer
+       desc - feasibility failure state marker
+    :: inittime
+       type - tt.time
+       desc - initial time stamp
+    :: terminal
+       type - boolean
+       desc - if True will terminate update to newline
+              otherwise, rewrite previous update
+    :: liner
+       type - coroutine
+       desc - dynamic printing
+    '''
+
+    liner.send(' Candidate: {} {} is {}{}'.format(
+        element,
+        primer,
+        ['Rejected', 'Provisionally Accepted', 'Accepted'][optstatus],
+        ['',
+        ' due to Background Repeat',
+        ' due to Oligopool Repeat',
+        ' due to Paired Repeat',
+        ' due to Melting Temperature Infeasibility',
+        ' due to Excluded Motif Infeasibility',
+        ' due to Edge Effect Infeasibility',
+        ' due to Homodimer Infeasibility',
+        ' due to Heterodimer Infeasibility'][optstate]))
+
+    if terminal:
+        liner.send('\* Time Elapsed: {:.2f} sec\n'.format(
+            tt.time() - inittime))
 
 def is_background_feasible(
     primer,
@@ -878,7 +1190,7 @@ def is_background_feasible(
        desc - a partially explored primer
               sequence path
     :: background
-       type - db.vectorDB
+       type - db.vectorDB / None
        desc - vectorDB instance storing
               background repeats
     '''
@@ -909,7 +1221,7 @@ def is_oligopool_feasible(
        desc - a partially explored primer
               sequence path
     :: oligorepeats
-       type - set
+       type - set / None
        desc - set storing oligopool repeats
     '''
 
@@ -940,7 +1252,7 @@ def is_paired_feasible(
        desc - a partially explored primer
               sequence path
     :: pairedrepeats
-       type - set
+       type - set / None
        desc - set storing paired primer
               repeats
     '''
@@ -980,10 +1292,12 @@ def is_tmelt_feasible(
        desc - full primer sequence length
     :: mintmelt
        type - float
-       desc - melting temperature lower bound
+       desc - primer melting temperature
+              lower bound
     :: maxtmelt
        type - float
-       desc - melting temperature upper bound
+       desc - primer melting temperature
+              upper bound
     '''
 
     # Too Short a Primer Candidate
@@ -1062,7 +1376,7 @@ def get_tmelt_traceback(
                 defaultidx,
                 laststrongidx)
 
-def is_motif_feasible(
+def is_exmotif_feasible(
     primer,
     exmotifs):
     '''
@@ -1074,27 +1388,14 @@ def is_motif_feasible(
        desc - a partially explored primer
               sequence path
     :: exmotifs
-       type - cx.deque
-       desc - deque of all motifs
-              to be excluded
+       type - set / None
+       desc - set of all excluded motifs
     '''
 
-    # Quick Lookup
-    for mlen in exmotifs:
-
-        # Path is Partial
-        if len(primer) < mlen:
-            # No Additional Checks Needed
-            break
-
-        # Check Trace
-        trace = primer[-mlen:]
-        if trace in exmotifs[mlen]:
-            # Found Conflict
-            return False, trace
-
-    # No Conflict
-    return True, None
+    return ut.is_local_exmotif_feasible(
+        seq=primer,
+        exmotifs=exmotifs,
+        exmotifindex=None)
 
 def is_edge_feasible(
     primer,
@@ -1113,31 +1414,22 @@ def is_edge_feasible(
        type - integer
        desc - full primer sequence length
     :: prefixforbidden
-       type - dict
+       type - dict / None
        desc - dictionary of forbidden primer
               prefix sequences
     :: suffixforbidden
-       type - dict
+       type - dict / None
        desc - dictionary of forbidden primer
               suffix sequences
     '''
 
-    # Primer Prefix Selected Forbidden?
-    if not prefixforbidden is None:
-        if len(primer) in prefixforbidden:
-            if primer in prefixforbidden[len(primer)]:
-                return False, len(primer) - 1
-
-    # Primer Prefix Selected Forbidden?
-    if not suffixforbidden is None:
-        if len(primer) == primerlen:
-            for mlen in suffixforbidden:
-                primersuffix = primer[-mlen:]
-                if primersuffix in suffixforbidden[mlen]:
-                    return False, len(primer) - 1
-
-    # Everything is OK
-    return True, None
+    return ut.is_local_edge_feasible(
+        seq=primer,
+        seqlen=primerlen,
+        lcseq=None,
+        rcseq=None,
+        prefixforbidden=prefixforbidden,
+        suffixforbidden=suffixforbidden)
 
 def is_structure_feasible(
     struct1,
@@ -1210,9 +1502,11 @@ def is_dimer_feasible(
        type - string
        desc - a paritally explored primer
               sequence path
-    :: primerlen
+    :: primertype
        type - integer
-       desc - full primer sequence length
+       desc - primer design type identifier
+              0 = forward primer design
+              1 = reverse primer design
     :: primerlen
        type - integer
        desc - full primer sequence length
@@ -1243,11 +1537,9 @@ def is_dimer_feasible(
        (pairedprimer is None):
         return True, None
 
-    # Update Primer Orientation
+    # Infer Primer Orientation
     revert = False
     if primertype == 1:
-        primer = ut.get_revcomp(
-            seq=primer)
         revert = True
 
     # Primer Span Extraction for Padding
@@ -1280,40 +1572,312 @@ def is_dimer_feasible(
     # Return Result
     return objective, traceloc
 
-def evaluate_typeIIS_constraint(
-    typeIIS,
-    levalspan,
-    revalspan,
+def primer_objectives(
+    primer,
+    primerlen,
+    primertype,
+    mintmelt,
+    maxtmelt,
+    maxreplen,
+    oligorepeats,
+    pairedprimer,
+    pairedrepeats,
+    prefixforbidden,
+    suffixforbidden,
+    exmotifs,
+    background,
+    inittime,
+    stats,
     liner):
+    '''
+    Determine if a primer satisfies all
+    local objectives. Internal use only.
 
-    t0 = tt.time()
-    typeIISlen = len(typeIIS)
+    :: primer
+       type - string
+       desc - a partially explored primer
+              sequence path
+    :: primerlen
+       type - integer
+       desc - length of the full primer
+              sequence being designed
+    :: primertype
+       type - integer
+       desc - primer design type identifier
+              0 = forward primer design
+              1 = reverse primer design
+    :: mintmelt
+       type - float
+       desc - primer melting temperature lower
+              bound
+    :: maxtmelt
+       type - float
+       desc - primer melting temperature upper
+              bound
+    :: oligorepeats
+       type - set
+       desc - set storing oligopool repeats
+    :: pairedprimer
+       type - string / None
+       desc - paired primer sequence
+    :: pairedrepeats
+       type - set / None
+       desc - set storing paired primer repeats
+    :: prefixforbidden
+       type - dict / None
+       desc - dictionary of forbidden primer
+              prefix sequences
+    :: suffixforbidden
+       type - dict / None
+       desc - dictionary of forbidden primer
+              suffix sequences
+    :: exmotifs
+       type - cx.deque / None
+       desc - deque of all excluded motifs
+    :: background
+       type - db.vectorDB / None
+       desc - vectorDB instance storing
+              background repeats
+    :: inittime
+       type - tt.time
+       desc - initial time stamp
+    :: stats
+       type - dict
+       desc - primer design stats storage
+    :: liner
+       type - coroutine
+       desc - dynamic printing
+    '''
 
-    liner.send(
-        ' Minimum Forward Padding Length: {} bp\n'.format(
-            levalspan))
-    liner.send(
-        ' Minimum Reverse Padding Length: {} bp\n'.format(
-            revalspan))
-    liner.send(
-        ' Required Type IIS Motif Length: {} bp\n'.format(
-            typeIISlen))
+    # Objective 1: Background Non-Repetitiveness
+    obj1, traceloc = is_background_feasible(
+        primer=primer,
+        background=background)
 
-    fwdavail      = levalspan - typeIISlen
-    revavail      = revalspan - typeIISlen
-    typeIISstatus = True
+    # Objective 1 Failed
+    if not obj1:
 
-    for locavail,loc in ((fwdavail, 'Forward'), (revavail, 'Reverse')):
-        liner.send(
-            '  {} Pad 5\' End Gap Length: {} bp\n'.format(
-                loc, locavail))
-        if locavail >= 6:
-            liner.send('   Gap Length ≥ 6 bp? Yes\n')
-        else:
-            liner.send('   Gap Length ≥ 6 bp? No\n')
-            typeIISstatus = typeIISstatus and False
+        # Show Update
+        show_update(
+            element='Primer',
+            primer=primer,
+            optstatus=0,
+            optstate=1,
+            inittime=inittime,
+            terminal=False,
+            liner=liner)
 
-    liner.send(' Time Elapsed: {:.2f} sec\n'.format(
-        tt.time()-t0))
+        # Update Stats
+        stats['vars']['repeatfail'] += 1
 
-    return typeIISstatus, fwdavail, revavail
+        # Return Traceback
+        return False, traceloc
+
+    # Objective 2: Oligopool Non-Repetitiveness
+    obj2, traceloc = is_oligopool_feasible(
+        primer=primer,
+        maxreplen=maxreplen,
+        oligorepeats=oligorepeats)
+
+    # Objective 2 Failed
+    if not obj2:
+
+        # Show Update
+        show_update(
+            element='Primer',
+            primer=primer,
+            optstatus=0,
+            optstate=2,
+            inittime=inittime,
+            terminal=False,
+            liner=liner)
+
+        # Update Stats
+        stats['vars']['repeatfail'] += 1
+
+        # Return Traceback
+        return False, traceloc
+
+    # Objective 3: Paired Primer Non-Repetitiveness
+    obj3, traceloc = is_paired_feasible(
+        primer=primer,
+        pairedrepeats=pairedrepeats)
+
+    # Objective 3 Failed
+    if not obj3:
+
+        # Show Update
+        show_update(
+            element='Primer',
+            primer=primer,
+            optstatus=0,
+            optstate=3,
+            inittime=inittime,
+            terminal=False,
+            liner=liner)
+
+        # Update Stats
+        stats['vars']['repeatfail'] += 1
+
+        # Return Traceback
+        return False, traceloc
+
+    # Objective 4: Melting Temeperature Bounded
+    obj4, failtype = is_tmelt_feasible(
+        primer=primer,
+        primerlen=primerlen,
+        mintmelt=mintmelt,
+        maxtmelt=maxtmelt)
+
+    # Objective 4 Failed
+    if not obj4:
+
+        # Show Update
+        show_update(
+            element='Primer',
+            primer=primer,
+            optstatus=0,
+            optstate=4,
+            inittime=inittime,
+            terminal=False,
+            liner=liner)
+
+        # Compute Traceback
+        traceloc = get_tmelt_traceback(
+            primer=primer,
+            failtype=failtype)
+
+        # Update Stats
+        stats['vars']['Tmfail'] += 1
+
+        # Return Traceback
+        return False, traceloc
+
+    # Objective 5: Motif Embedding
+    obj5, exmotif = is_exmotif_feasible(
+        primer=primer,
+        exmotifs=exmotifs)
+
+    # Objective 5 Failed
+    if not obj5:
+
+        # Show Update
+        show_update(
+            element='Primer',
+            primer=primer,
+            optstatus=0,
+            optstate=5,
+            inittime=inittime,
+            terminal=False,
+            liner=liner)
+
+        # Update Stats
+        stats['vars']['exmotiffail'] += 1
+        stats['vars']['exmotifcounter'][exmotif] += 1
+
+        # Return Traceback
+        return False, max(
+            0,
+            len(primer)-1)
+
+    # Objective 6: Edge Feasibility (Edge-Effects)
+    obj6, traceloc = is_edge_feasible(
+        primer=primer,
+        primerlen=primerlen,
+        prefixforbidden=prefixforbidden,
+        suffixforbidden=suffixforbidden)
+
+    # Objective 6 Failed
+    if not obj6:
+
+        # Show Update
+        show_update(
+            element='Primer',
+            primer=primer,
+            optstatus=0,
+            optstate=6,
+            inittime=inittime,
+            terminal=False,
+            liner=liner)
+
+        # Update Stats
+        stats['vars']['edgefail'] += 1
+
+        # Return Traceback
+        return False, traceloc
+
+    # Update Primer Orientation
+    cprimer = ut.get_revcomp(
+        seq=primer) if primertype == 1 else primer
+
+    # Objective 7: Homodimer Feasibility
+    obj7, traceloc = is_dimer_feasible(
+        primer=cprimer,
+        primertype=primertype,
+        primerlen=primerlen,
+        primerspan=None,
+        pairedprimer=None,
+        pairedspan=None,
+        dimertype=0)
+
+    # Objective 7 Failed
+    if not obj7:
+
+        # Show Update
+        show_update(
+            element='Primer',
+            primer=primer,
+            optstatus=0,
+            optstate=7,
+            inittime=inittime,
+            terminal=False,
+            liner=liner)
+
+        # Update Stats
+        stats['vars']['homodimerfail'] += 1
+
+        # Return Traceback
+        return False, traceloc
+
+    # Objective 8: Heterodimer Feasibility
+    obj8, traceloc = is_dimer_feasible(
+        primer=cprimer,
+        primertype=primertype,
+        primerlen=primerlen,
+        primerspan=None,
+        pairedprimer=pairedprimer,
+        pairedspan=None,
+        dimertype=1)
+
+    # Objective 8 Failed
+    if not obj8:
+
+        # Show Update
+        show_update(
+            element='Primer',
+            primer=primer,
+            optstatus=0,
+            optstate=8,
+            inittime=inittime,
+            terminal=False,
+            liner=liner)
+
+        # Update Stats
+        stats['vars']['heterodimerfail'] += 1
+
+        # Return Traceback
+        return False, traceloc
+
+    # Show Update
+    show_update(
+        primer=primer,
+        element='Primer',
+        optstatus=1,
+        optstate=0,
+        inittime=inittime,
+        terminal=False,
+        liner=liner)
+
+    # All Objectives OK!
+    return True
+

@@ -10,20 +10,20 @@ import corebarcode as cb
 
 
 def barcode_engine(
-    barcodelength,
+    barcodelen,
     minhdist,
-    exmotifs,
     leftcontext,
     rightcontext,
     edgeeffectlength,
+    exmotifs,
     targetcount,
     stats,
     liner):
     '''
-    Return barcodes fulfilling constraints.
+    Return barcodes fulfilling all constraints.
     Internal use only.
 
-    :: barcodelength
+    :: barcodelen
        type - integer
        desc - required barcode length
     :: minhdist
@@ -31,11 +31,6 @@ def barcode_engine(
        desc - minimum pairwise hamming
               distance between a pair
               of barcodes
-    :: exmotifs
-       type - list / None
-       desc - list of motifs to exclude
-              in designed barcodes,
-              None otherwise
     :: leftcontext
        type - list / None
        desc - list of sequence to the
@@ -50,6 +45,11 @@ def barcode_engine(
        type - integer
        desc - length of context sequence to
               extract for edge-effect eval
+    :: exmotifs
+       type - list / None
+       desc - list of motifs to exclude
+              in designed barcodes,
+              None otherwise
     :: targetcount
        type - integer
        desc - required number of barcodes
@@ -65,26 +65,26 @@ def barcode_engine(
     # Book-keeping
     t0 = tt.time()              # Start Timer
     store = np.zeros(           # Store Encoded Barcodes
-        (targetcount, barcodelength),
+        (targetcount, barcodelen),
         dtype=np.float64)
     codes = []                  # Store Decoded Barcodes
     assignmentarray = []        # Assignment Array
 
     # Context Setup
-    contextarray  = cx.deque(range(targetcount))   # Context Array
+    contextarray   = cx.deque(range(targetcount))  # Context Array
     (leftcontexttype,
-    leftselector)  = cb.get_context_type_selector( # Left  Context Selector
+    leftselector)  = ut.get_context_type_selector( # Left  Context Selector
         context=leftcontext)
     (rightcontexttype,
-    rightselector) = cb.get_context_type_selector( # Right Context Selector
+    rightselector) = ut.get_context_type_selector( # Right Context Selector
         context=rightcontext)
 
     # Setup Jumper and Generator
     (jtp,
     jumper)  = cb.get_jumper(
-        barcodelength=barcodelength)
+        barcodelen=barcodelen)
     barcodes = cb.stream_barcodes(
-        barcodelength=barcodelength,
+        barcodelen=barcodelen,
         jumper=jumper)
     barcode    = None # Current Barcode
     acccodeseq = None # Last Successful Barcode Sequence
@@ -92,8 +92,9 @@ def barcode_engine(
     # Infinite Jumper Failure
     prob  = ut.get_prob(    # Probability of Success
         success=1,
-        trials=4 ** (
-            barcodelength - minhdist))
+        trials=max(4 ** (
+            min(barcodelen - minhdist, 8)),
+            1000))
     trial = ut.get_trials(  # Trials Required
         prob=prob)
     sscnt = 1     # Success Count
@@ -119,15 +120,9 @@ def barcode_engine(
         if barcode is None:
 
             # Final Update
-            cb.show_update(
-                count=stats['vars']['barcodecount'],
-                plen=plen,
-                barcodeseq=acccodeseq,
-                optstatus=True,
-                optstate=0,
-                inittime=t0,
-                terminal=True,
-                liner=liner)
+            liner.send(
+                '\* Time Elapsed: {:.2f} sec\n'.format(
+                    tt.time() - t0))
 
             # No Solution
             return (None,
@@ -141,22 +136,21 @@ def barcode_engine(
         barcodeseq = cb.get_barcodeseq(
             barcode=barcode)
 
-        # Check Feasibility
+        # Check Objectives
         (optstatus,
         optstate,
         aidx,
-        failcount) = cb.is_barcode_feasible(
+        emcounter) = cb.barcode_objectives(
             store=store,
             count=stats['vars']['barcodecount'],
             barcodeseq=barcodeseq,
-            barcodelength=barcodelength,
+            barcodelen=barcodelen,
             minhdist=minhdist,
             exmotifs=exmotifs,
             leftcontexttype=leftcontexttype,
             leftselector=leftselector,
             rightcontexttype=rightcontexttype,
             rightselector=rightselector,
-            edgeeffectlength=edgeeffectlength,
             contextarray=contextarray)
 
         # Inifinite Jumper Book-keeping Update
@@ -206,17 +200,18 @@ def barcode_engine(
             if optstate == 1:
                 stats['vars']['distancefail'] += 1
             if optstate == 2:
-                stats['vars']['motiffail']    += 1
+                stats['vars']['exmotiffail']  += 1
             if optstate == 3:
-                stats['vars']['edgefail']     += 1
+                stats['vars']['edgefail']     += sum(
+                    emcounter.values())
 
             # Inifinite Jumper Book-keeping Update
             if jtp == 2:
                 flcnt += 1
 
             # Record Context Failure Motifs
-            if not failcount is None:
-                stats['vars']['motifcounter'] += failcount
+            if not emcounter is None:
+                stats['vars']['exmotifcounter'] += emcounter
 
         # Verbage Book-keeping
         if verbage_reach >= verbage_target:
@@ -264,15 +259,9 @@ def barcode_engine(
             if flcnt == trial:
 
                 # Final Update
-                cb.show_update(
-                    count=stats['vars']['barcodecount'],
-                    plen=plen,
-                    barcodeseq=acccodeseq,
-                    optstatus=True,
-                    optstate=0,
-                    inittime=t0,
-                    terminal=True,
-                    liner=liner)
+                liner.send(
+                    '\* Time Elapsed: {:.2f} sec\n'.format(
+                        tt.time() - t0))
 
                 # No Solution
                 return (None,
@@ -281,21 +270,21 @@ def barcode_engine(
 
 def barcode(
     indata,
-    barcodelength,
+    barcodelen,
     minhdist,
     barcodecol,
     outfile=None,
-    exmotifs=None,
     leftcontext=None,
     rightcontext=None,
+    exmotifs=None,
     verbose=True):
     '''
     The barcode function designs constrained barcodes, such that
     the minimum hamming distance between every pair of barcodes
     in the set is guaranteed to be greater than or equal to the
     specified minimum hamming distance. Additionally, the set of
-    barcodes are free of all specified motifs, even when placed
-    between the left and right context sequences. The generated
+    barcodes are free of all excluded motifs, even when placed
+    between a left and a right context sequence. The generated
     DataFrame containing designed barcodes is returned to user
     and optionally written out to <outfile> (CSV) if specified.
 
@@ -303,7 +292,7 @@ def barcode(
        type - string / pd.DataFrame
        desc - path to CSV file or a pandas DataFrame storing
               annotated oligopool variants and their parts
-    :: barcodelength
+    :: barcodelen
        type - integer
        desc - the length of the barcodes to be designed,
               must be 4 or greater
@@ -314,31 +303,30 @@ def barcode(
               or greater
     :: barcodecol
        type - string
-       desc - the name of the column to store designed barcodes
+       desc - name of the column to store designed barcodes
     :: outfile
        type - string
        desc - filename to save updated DataFrame with barcodes
               (suffix='.oligopool.barcode.csv')
+              (default=None)
+    :: leftcontext
+       type - string / None
+       desc - name of the column containing DNA sequences
+              to the left of the barcode sequence
+              (default=None)
+    :: rightcontext
+       type - string / None
+       desc - name of the column containing DNA sequences
+              placed right of the barcode sequence
+              (default=None)
     :: exmotifs
        type - iterable / string / pd.DataFrame / None
        desc - iterable of DNA string motifs to be excluded
               within and at the edges of the barcodes when
-              placed around context sequences; optionally,
+              placed between context sequences; optionally,
               this can be a path to a CSV file containing
               uniquely identified excluded motifs or an
               equivalent pandas DataFrame
-              (default=None)
-    :: leftcontext
-       type - string / None
-       desc - column name containing the DNA sequences placed
-              left of the barcode sequence in 5' to 3' direction
-              of the forward strand
-              (default=None)
-    :: rightcontext
-       type - string / None
-       desc - column name containing the DNA sequences placed
-              right of the barcode sequence in 5' to 3' direction
-              of the forward strand
               (default=None)
     :: verbose
        type - boolean
@@ -350,23 +338,21 @@ def barcode(
             returned.
 
     Note 1. Specified <indata> must contain a column named 'ID',
-            that uniquely identifies variants in the pool.
-
-    Note 2. If <exmotifs> points to a  CSV file or DataFrame,
-            it must contain both an 'ID' column and an 'Exmotifs'
-            column, with 'Exmotifs' containing excluded motifs.
-
-    Note 3. All column names in <indata> must be unique, without
-            <barcodename> as a pre-existing column name.
-
-    Note 4. All rows and columns in <indata> must be non-empty,
+            that uniquely identifies variants in a pool. Values
+            in <indata> except 'ID' must be DNA strings. All
+            rows and columns in <indata> must be non-empty,
             i.e. none of the cells must be empty.
 
-    Note 5. The columns <leftcontext> and <rightcontext> must be
-            adjacent to each other and in order.
+    Note 2. Column names in <indata> must be unique, without
+            <barcodecol> as a pre-existing column name.
 
-    Note 6. All values in <indata> except those in 'ID' must be
-            DNA strings.
+    Note 3. The columns <leftcontext> and <rightcontext> must
+            be adjacent to each other and in order.
+
+    Note 4. If <exmotifs> points to a CSV file or DataFrame,
+            it must contain both an 'ID' and an 'Exmotifs'
+            column, with 'Exmotifs' containing all of the
+            excluded motif sequences.
     '''
 
     # Start Liner
@@ -387,9 +373,9 @@ def barcode(
         precheck=False,
         liner=liner)
 
-    # Full barcodelength Validation
-    barcodelength_valid = vp.get_numeric_validity(
-        numeric=barcodelength,
+    # Full barcodelen Validation
+    barcodelen_valid = vp.get_numeric_validity(
+        numeric=barcodelen,
         numeric_field='  Barcode Length  ',
         numeric_pre_desc=' ',
         numeric_post_desc=' Base Pair(s)',
@@ -405,7 +391,7 @@ def barcode(
         numeric_pre_desc=' At least ',
         numeric_post_desc=' Mismatch(es) per Barcode Pair',
         minval=1,
-        maxval=barcodelength if barcodelength_valid else float('inf'),
+        maxval=barcodelen if barcodelen_valid else float('inf'),
         precheck=False,
         liner=liner)
 
@@ -418,6 +404,8 @@ def barcode(
         col_type=1,
         adjcol=None,
         adjval=None,
+        iscontext=False,
+        typecontext=None,
         liner=liner)
 
     # Full outfile Validation
@@ -436,16 +424,6 @@ def barcode(
     # Optional Argument Parsing
     liner.send('\n Optional Arguments\n')
 
-    # Full exmotifs Parsing and Validation
-    (exmotifs,
-    exmotifs_valid) = vp.get_parsed_exseqs_info(
-        exseqs=exmotifs,
-        exseqs_field=' Excluded Motifs  ',
-        exseqs_desc='Unique Motif(s)',
-        df_field='Exmotifs,',
-        required=False,
-        liner=liner)
-
     # Store Context Names
     leftcontextname  = leftcontext
     rightcontextname = rightcontext
@@ -460,6 +438,8 @@ def barcode(
         col_type=0,
         adjcol=rightcontextname,
         adjval=+1,
+        iscontext=True,
+        typecontext=0,
         liner=liner)
 
     # Full leftcontext Parsing and Validation
@@ -472,18 +452,30 @@ def barcode(
         col_type=0,
         adjcol=leftcontextname,
         adjval=-1,
+        iscontext=True,
+        typecontext=1,
+        liner=liner)
+
+    # Full exmotifs Parsing and Validation
+    (exmotifs,
+    exmotifs_valid) = vp.get_parsed_exseqs_info(
+        exseqs=exmotifs,
+        exseqs_field=' Excluded Motifs  ',
+        exseqs_desc='Unique Motif(s)',
+        df_field='Exmotifs,',
+        required=False,
         liner=liner)
 
     # First Pass Validation
     if not all([
         indata_valid,
-        barcodelength_valid,
+        barcodelen_valid,
         minhdist_valid,
         barcodecol_valid,
         outfile_valid,
-        exmotifs_valid,
         leftcontext_valid,
-        rightcontext_valid]):
+        rightcontext_valid,
+        exmotifs_valid,]):
         liner.send('\n')
         raise RuntimeError(
             'Invalid Argument Input(s).')
@@ -492,28 +484,29 @@ def barcode(
     t0 = tt.time()
 
     # Adjust Numeric Paramters
-    barcodelength = round(barcodelength)
+    barcodelen = round(barcodelen)
     minhdist      = round(minhdist)
 
     # Define Edge Effect Length
     edgeeffectlength = None
 
     # Barcode Design Book-keeping
+    has_context = False
     outdf = None
     stats = None
 
     # Parse Barcode Length Feasibility
     liner.send('\n[Parsing Barcode Length]\n')
 
-    # Parse barcodelength
+    # Parse barcodelen
     (parsestatus,
     designspace,
     targetcount) = cb.get_parsed_barcode_length(
-        barcodelength=barcodelength,
+        barcodelen=barcodelen,
         indf=indf,
         liner=liner)
 
-    # barcodelength infeasible
+    # barcodelen infeasible
     if not parsestatus:
 
         # Prepare stats
@@ -522,9 +515,9 @@ def barcode(
             'basis' : 'infeasible',
             'step'  : 1,
             'vars'  : {
-                'barcodelength': barcodelength,
-                        'designspace': designspace,
-                        'targetcount': targetcount}}
+                 'barcodelen': barcodelen,
+                'designspace': designspace,
+                'targetcount': targetcount}}
 
         # Return results
         liner.close()
@@ -566,25 +559,29 @@ def barcode(
         edgeeffectlength = ut.get_edgeeffectlength(
             exmotifs=exmotifs)
 
-    # Extract Left and Right Context
-    if not exmotifs is None and \
-       ((not leftcontext  is None) or \
-        (not rightcontext is None)):
+        # Extract Left and Right Context
+        if (not leftcontext  is None) or \
+           (not rightcontext is None):
 
-        # Show update
-        liner.send('\n[Extracting Context Sequences]\n')
+           # Set Context Flag
+            has_context = True
 
-        # Extract Both Contexts
+            # Show update
+            liner.send('\n[Extracting Context Sequences]\n')
+
+            # Extract Both Contexts
+            (leftcontext,
+            rightcontext) = ut.get_extracted_context(
+                leftcontext=leftcontext,
+                rightcontext=rightcontext,
+                edgeeffectlength=edgeeffectlength,
+                reduce=False,
+                liner=liner)
+
+    # Finalize Context
+    if not has_context:
         (leftcontext,
-        rightcontext) = ut.get_extracted_context(
-            leftcontext=leftcontext,
-            rightcontext=rightcontext,
-            edgeeffectlength=edgeeffectlength,
-            reduce=False,
-            liner=liner)
-    else:
-        (leftcontext,
-        rightcontext) = None, None
+         rightcontext) = None, None
 
     # Launching Barcode Design
     liner.send('\n[Computing Barcodes]\n')
@@ -598,10 +595,10 @@ def barcode(
                'targetcount': targetcount,   # Required Number of Barcodes
               'barcodecount': 0,             # Barcode Design Count
               'distancefail': 0,             # Hamming Distance Fail Count
-                 'motiffail': 0,             # Motif Elimination Fail Count
+               'exmotiffail': 0,             # Exmotif Elimination Fail Count
                   'edgefail': 0,             # Edge Effect Fail Count
             'distancedistro': None,          # Hamming Distance Distribution
-              'motifcounter': cx.Counter()}} # Motif Encounter Counter
+            'exmotifcounter': cx.Counter()}} # Exmotif Encounter Counter
 
     # Schedule outfile deletion
     ofdeletion = ae.register(
@@ -612,12 +609,12 @@ def barcode(
     (codes,
     store,
     stats) = barcode_engine(
-        barcodelength=barcodelength,
+        barcodelen=barcodelen,
         minhdist=minhdist,
-        exmotifs=exmotifs,
         leftcontext=leftcontext,
         rightcontext=rightcontext,
         edgeeffectlength=edgeeffectlength,
+        exmotifs=exmotifs,
         targetcount=targetcount,
         stats=stats,
         liner=liner)
@@ -672,7 +669,7 @@ def barcode(
             stats['vars']['targetcount'],
             plen))
     liner.send(
-        ' Barcodes Count    : {:{},d} Barcode(s) ({:6.2f} %)\n'.format(
+        '  Barcode Count    : {:{},d} Barcode(s) ({:6.2f} %)\n'.format(
             stats['vars']['barcodecount'],
             plen,
             ut.safediv(
@@ -703,7 +700,7 @@ def barcode(
     else:
         maxval = max(stats['vars'][field] for field in (
             'distancefail',
-            'motiffail',
+            'exmotiffail',
             'edgefail'))
 
         sntn, plen = ut.get_notelen(
@@ -711,8 +708,8 @@ def barcode(
                 value=maxval))
 
         total_conflicts = stats['vars']['distancefail'] + \
-                            stats['vars']['motiffail']    + \
-                            stats['vars']['edgefail']
+                          stats['vars']['exmotiffail']  + \
+                          stats['vars']['edgefail']
         liner.send(
             ' Distance Conflicts: {:{},{}} Event(s) ({:6.2f} %)\n'.format(
                 stats['vars']['distancefail'],
@@ -722,12 +719,12 @@ def barcode(
                     A=stats['vars']['distancefail'] * 100.,
                     B=total_conflicts)))
         liner.send(
-            '    Motif Conflicts: {:{},{}} Event(s) ({:6.2f} %)\n'.format(
-                stats['vars']['motiffail'],
+            '  Exmotif Conflicts: {:{},{}} Event(s) ({:6.2f} %)\n'.format(
+                stats['vars']['exmotiffail'],
                 plen,
                 sntn,
                 ut.safediv(
-                    A=stats['vars']['motiffail'] * 100.,
+                    A=stats['vars']['exmotiffail'] * 100.,
                     B=total_conflicts)))
         liner.send(
             '     Edge Conflicts: {:{},{}} Event(s) ({:6.2f} %)\n'.format(
@@ -739,27 +736,28 @@ def barcode(
                     B=total_conflicts)))
 
         # Enumerate Motif-wise Fail Counts
-        if stats['vars']['motifcounter']:
+        if stats['vars']['exmotifcounter']:
 
             qlen = max(len(motif) \
-                for motif in stats['vars']['motifcounter'].keys()) + 2
+                for motif in stats['vars']['exmotifcounter'].keys()) + 2
 
             sntn, vlen = ut.get_notelen(
                 printlen=ut.get_printlen(
                     value=max(
-                        stats['vars']['motifcounter'].values())))
+                        stats['vars']['exmotifcounter'].values())))
 
-            liner.send('   Motif-wise Conflict Distribution\n')
+            liner.send('   Exmotif-wise Conflict Distribution\n')
 
-            for motif,count in stats['vars']['motifcounter'].most_common():
-                motif = '\'{}\''.format(motif)
+            for exmotif,count in stats['vars']['exmotifcounter'].most_common():
+                exmotif = '\'{}\''.format(exmotif)
                 liner.send(
                     '     - Motif {:>{}} Triggered {:{},{}} Event(s)\n'.format(
-                        motif, qlen, count, vlen, sntn))
+                        exmotif, qlen, count, vlen, sntn))
 
     # Show Time Elapsed
-    liner.send(' Time Elapsed: {:.2f} sec\n'.format(
-        tt.time()-t0))
+    liner.send(
+        ' Time Elapsed: {:.2f} sec\n'.format(
+            tt.time()-t0))
 
     # Unschedule outfile deletion
     if barcodestatus:

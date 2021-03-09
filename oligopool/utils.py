@@ -15,13 +15,14 @@ import primer3 as p3
 
 # Global Lookups
 complement_table = str.maketrans(
-    'ACGTURYSWKMBVDHN',
-    'TGCATKYWSRMBDHVN')
+    '-ACGTURYSWKMBVDHN',
+    '-TGCATKYWSRMBDHVN')
 
 dna_alpha = set(
-    'ATGC')
+    '-ATGC')
 
 ddna_space = {
+    '-': {'-'},
     'A': {'A'},
     'C': {'C'},
     'G': {'G'},
@@ -41,40 +42,40 @@ ddna_space = {
 ddna_alpha = set(ddna_space.keys())
 
 typeIIS_dict = {
-    'acui'    : 'CTGAAG'  + 'N' * 16,
-    'alwi'    : 'GGATC'   + 'N' *  5,
-    'bbsi'    : 'GAAGAC'  + 'N' *  6,
-    'bcci'    : 'CCATC'   + 'N' *  5,
-    'bceai'   : 'ACGGC'   + 'N' * 14,
-    'bcivi'   : 'GTATCC'  + 'N' *  6,
-    'bcodi'   : 'GTCTC'   + 'N' *  5,
-    'bmri'    : 'ACTGGG'  + 'N' *  5,
-    'bpuei'   : 'CTTGAG'  + 'N' * 16,
-    'bsai'    : 'GGTCTC'  + 'N' *  5,
-    'bseri'   : 'GAGGAG'  + 'N' * 10,
-    'bsmai'   : 'GTCTC'   + 'N' *  5,
-    'bsmbi'   : 'CGTCTC'  + 'N' *  5,
-    'bsmfi'   : 'GGGAC'   + 'N' * 14,
-    'bsmi'    : 'GAATGC'  + 'N' *  1,
-    'bspcni'  : 'CTCAG'   + 'N' *  9,
-    'bspqi'   : 'GCTCTTC' + 'N' *  4,
-    'bsrdi'   : 'GCAATG'  + 'N' *  2,
-    'bsri'    : 'ACTGG'   + 'N' *  1,
-    'btgzi'   : 'GCGATG'  + 'N' * 14,
-    'btsci'   : 'GGATG'   + 'N' *  2,
-    'btsi'    : 'GCAGTG'  + 'N' *  2,
-    'btsimuti': 'CAGTG'   + 'N' *  2,
-    'eari'    : 'CTCTTC'  + 'N' *  4,
-    'ecii'    : 'GGCGGA'  + 'N' * 11,
-    'esp3i'   : 'CGTCTC'  + 'N' *  5,
-    'faui'    : 'CCCGC'   + 'N' *  6,
-    'hgai'    : 'GACGC'   + 'N' * 10,
-    'hphi'    : 'GGTGA'   + 'N' *  8,
-    'hpyav'   : 'CCTTC'   + 'N' *  6,
-    'mlyi'    : 'GAGTC'   + 'N' *  5,
-    'mnli'    : 'CCTC'    + 'N' *  7,
-    'sapi'    : 'GCTCTTC' + 'N' *  4,
-    'sfani'   : 'GCATC'   + 'N' *  9}
+    'acui'    : ('AcuI',     'CTGAAG', 16),
+    'alwi'    : ('AlwI',     'GGATC',   5),
+    'bbsi'    : ('BbsI',     'GAAGAC',  6),
+    'bcci'    : ('BccI',     'CCATC',   5),
+    'bceai'   : ('BceAI',    'ACGGC',  14),
+    'bcivi'   : ('BciVI',    'GTATCC',  6),
+    'bcodi'   : ('BcoDI',    'GTCTC',   5),
+    'bmri'    : ('BmrI',     'ACTGGG',  5),
+    'bpuei'   : ('BpuEI',    'CTTGAG', 16),
+    'bsai'    : ('BsaI',     'GGTCTC',  5),
+    'bseri'   : ('BseRI',    'GAGGAG', 10),
+    'bsmai'   : ('BsmAI',    'GTCTC',   5),
+    'bsmbi'   : ('BsmBI',    'CGTCTC',  5),
+    'bsmfi'   : ('BsmFI',    'GGGAC',  14),
+    'bsmi'    : ('BsmI',     'GAATGC',  1),
+    'bspcni'  : ('BspCNI',   'CTCAG',   9),
+    'bspqi'   : ('BspQI',    'GCTCTTC', 4),
+    'bsrdi'   : ('BsrDI',    'GCAATG',  2),
+    'bsri'    : ('BsrI',     'ACTGG',   1),
+    'btgzi'   : ('BtgZI',    'GCGATG', 14),
+    'btsci'   : ('BtsCI',    'GGATG',   2),
+    'btsi'    : ('BtsI',     'GCAGTG',  2),
+    'btsimuti': ('BtsIMutI', 'CAGTG',   2),
+    'eari'    : ('EarI',     'CTCTTC',  4),
+    'ecii'    : ('EciI',     'GGCGGA', 11),
+    'esp3i'   : ('Esp3I',    'CGTCTC',  5),
+    'faui'    : ('FauI',     'CCCGC',   6),
+    'hgai'    : ('HgaI',     'GACGC',  10),
+    'hphi'    : ('HphI',     'GGTGA',   8),
+    'hpyav'   : ('HpyAV',    'CCTTC',   6),
+    'mlyi'    : ('MlyI',     'GAGTC',   5),
+    'mnli'    : ('MnlI',     'CCTC',    7),
+    'sapi'    : ('SapI',     'GCTCTTC', 4),
+    'sfani'   : ('SfaNI',    'GCATC',   9)}
 
 # Decorators
 
@@ -122,7 +123,7 @@ def liner_engine(online=True):
             printstr = (yield)
 
             # Line Preservation
-            if printstr.startswith('\*'):
+            if online and printstr.startswith('\*'):
                 sys.stdout.write('\n')
                 clrlen   = 0
                 printstr = printstr.lstrip('\*')
@@ -296,9 +297,9 @@ def get_col_exist_idx(
        desc - DataFrame to check existence in
     '''
 
-    col = col.lower()
-    collist = tuple(c.lower() for c in df.columns)
-    if col == df.index.name.lower() or \
+    col = col
+    collist = tuple(df.columns)
+    if col == df.index.name or \
        col in collist:
         return True, collist.index(col)
     else:
@@ -315,7 +316,9 @@ def get_df_concat(df):
               columns from
     '''
 
-    return tuple(df.values.sum(axis=1))
+    return tuple(df.sum(
+        axis=1).str.replace(
+            '-', '').values)
 
 def update_df(
     indf,
@@ -495,7 +498,7 @@ def get_tmelt(
         dntp_conc=ntc,
         dna_conc=olc)
 
-# Motif and Context Functions
+# Exmotif Functions
 
 def get_parsed_exmotifs(
     exmotifs,
@@ -593,7 +596,7 @@ def get_parsed_exmotifs(
         dq,
         problens)
 
-def get_motif_conflict(
+def get_exmotif_conflict(
     seq,
     seqlen,
     exmotifs,
@@ -601,7 +604,7 @@ def get_motif_conflict(
     checkall=False):
     '''
     Determine if the sequence does not contain or is
-    contained in one of the exluded motifs (motif
+    contained in one of the excluded motifs (motif
     feasibility). Internal use only.
 
     :: seq
@@ -665,10 +668,150 @@ def get_motif_conflict(
     else:
         return (False, pmotif)
 
+def get_exmotif_conflict_index(
+    seq,
+    conflicts):
+    '''
+    Compute the location of all
+    motif conflicts in seq.
+    Internal use only.
+
+    :: seq
+       type - string
+       desc - sequence for conflict
+              checking
+    :: conflicts
+       type - iterable
+       desc - iterable of
+    '''
+
+    # Book-keeping
+    index = cx.defaultdict(set)
+
+    # Search Loop
+    for motif in conflicts:
+        start = 0 # Initial Start Index
+        while True:
+
+            # Locate Motif
+            idx = seq.find(motif, start)
+
+            # None Found
+            if idx == -1:
+                break
+
+            # Found Instance
+            else:
+                index[motif].add(idx)
+                start = idx+1
+
+    # Return Results
+    return index
+
+def stream_exmotif_splits(exmotif):
+    '''
+    Stream all prefix-suffix splits
+    for given motif. This is also
+    left partition of motif.
+    Internal use only.
+
+    :: motif
+       type - string
+       desc - motif to split
+    '''
+
+    return ((exmotif[:i], exmotif[i:]) \
+        for i in range(1, len(exmotif)))
+
+def get_exmotif_partition(exmotifs):
+    '''
+    Compute the left partition of
+    exmotifs. Internal use only.
+
+    :: exmotifs
+       type - cx.deque
+       desc - deque of all motifs
+              to be excluded
+    '''
+
+    partition = cx.defaultdict(list)
+    for exmotif in exmotifs:
+        for u,v in stream_exmotif_splits(
+            exmotif=exmotif):
+            partition[u].append(v)
+    return partition
+
+def get_inverted_exmotif_partition(partition):
+    '''
+    Compute the right partition of
+    left partitioned exmotifs by
+    inverting left partition.
+    Internal use only.
+
+    :: partition
+       type - dict
+       desc - dictionary of left
+              partitioned exmotifs,
+              prefix -> suffix
+    '''
+
+    inv_partition = cx.defaultdict(list)
+    for u,v in partition.items():
+        for vi in v:
+            inv_partition[vi].append(u)
+    return inv_partition
+
+def is_local_exmotif_feasible(
+    seq,
+    exmotifs,
+    exmotifindex):
+    '''
+    Determine if sequence devoid of exmotifs.
+    Internal use only.
+
+    :: seq
+       type - string
+       desc - a partially explored sequence path
+    :: exmotifs
+       type - set / None
+       desc - set of all excluded motifs
+    :: exmotifindex
+       type - set / None
+       desc - set of constraint embedded
+              exmotif ending indices
+    '''
+
+    # Ignore Current Path?
+    if not exmotifindex is None:
+        if len(seq) in exmotifindex:
+            return True, None
+
+    # Exmotifs to Prevent
+    if not exmotifs is None:
+
+        # Verify Absence
+        for mlen in exmotifs:
+
+            # Path is Partial
+            if len(seq) < mlen:
+                # No Additional Checks Needed
+                break
+
+            # Check Trace
+            trace = seq[-mlen:]
+            if trace in exmotifs[mlen]:
+                # Found Conflict
+                return False, trace
+
+    # No Conflict
+    return True, None
+
+# Context Functions
+
 def get_edgeeffectlength(exmotifs):
     '''
     Get the context length to search in for exmotif
-    edge-effects. Internal use only.
+    edge effects. Internal use only.
 
     :: exmotifs
        type - iterable / None
@@ -691,8 +834,10 @@ def get_grouped_sequences(sequences):
               to group by length
     '''
 
-    groupdict = cx.defaultdict(set)
+    groupdict = cx.OrderedDict()
     for sequence in sorted(sequences, key=len):
+        if not len(sequence) in groupdict:
+            groupdict[len(sequence)] = set()
         groupdict[len(sequence)].add(sequence)
     return groupdict
 
@@ -779,52 +924,47 @@ def get_extracted_context(
 
         # Context Present
         else:
-            # Extract Uniques
-            uniques = list(context.unique())
-            uniquecount.append(
-                len(uniques))
 
-            # Context is Constant
-            if uniquecount[-1] == 1:
+            # Book-keeping
+            uniques  = set()
+            extracts = list()
+
+            # Analyze Context
+            for idx,seq in enumerate(context):
 
                 # Extract Edge Sequence
                 edgeseq = get_extracted_edge(
-                    contextseq=uniques[-1],
+                    contextseq=seq,
                     position=position,
                     edgeeffectlength=edgeeffectlength)
 
+                # Show Update
+                liner.send(
+                    ' Extracting {} Context: Processed {:,} Sequences'.format(
+                        ['Left', 'Right'][position],
+                        idx+1))
+
                 # Store Edge Sequence
+                uniques.add(edgeseq)
+                extracts.append(edgeseq)
+
+            # Update uniquecount
+            uniquecount.append(len(uniques))
+
+            # Context is Constant
+            if len(uniques) == 1:
                 extractedcontext.append(
-                    edgeseq)
+                    [extracts[-1]])
 
             # Context is Variable
             else:
-
-                # Reduce and Extract Context
+                # Only Uniques
                 if reduce:
                     extractedcontext.append(
-                        uniques)
+                        list(uniques))
                 else:
                     extractedcontext.append(
-                        context.to_list())
-
-                # Compute Ignored Indices
-                for idx,seq in enumerate(extractedcontext[-1]):
-
-                    # Extract Edge Sequence
-                    edgeseq = get_extracted_edge(
-                        contextseq=seq,
-                        position=position,
-                        edgeeffectlength=edgeeffectlength)
-
-                    # Show Update
-                    liner.send(
-                        ' Extracting {} Context: Processed {:,} Sequences'.format(
-                            ['Left', 'Right'][position],
-                            idx+1))
-
-                    # Update Edge Sequence
-                    extractedcontext[-1][idx] = edgeseq
+                        extracts)
 
     # Compute plen
     plen = get_printlen(
@@ -844,6 +984,41 @@ def get_extracted_context(
     # Return Parsed Context
     return (extractedcontext[0],
         extractedcontext[1])
+
+def get_context_type_selector(context):
+    '''
+    Return selector functions for building
+    element context. Internal use only.
+
+    :: context
+       type - list / None
+       desc - list of context sequence,
+              or None
+    '''
+
+    # Multiple contexts
+    if isinstance(context, list):
+
+        # Compute uniquecount
+        uniquecount = len(set(context))
+
+        # Variable context
+        if uniquecount > 1:
+            return (1, lambda x: context[x])
+
+        # Constant context
+        else:
+            return (2, lambda x: context[0])
+
+    # No context
+    elif context is None:
+        return (3, lambda x: None)
+
+    # Unknown packing
+    else:
+        raise TypeError(
+            'Invalid Context Type {}'.format(
+                type(context)))
 
 def get_parsed_oligo_repeats(
     df,
@@ -949,7 +1124,378 @@ def get_parsed_oligo_repeats(
         leftcount,
         oligorepeats)
 
-# Sequence Analysis
+def get_parsed_edgeeffects(
+    sequence,
+    element,
+    leftcontext,
+    rightcontext,
+    exmotifs,
+    liner):
+    '''
+    Cluster left and right context sequences
+    and record forbidden prefix and suffixes.
+    Internal use only.
+
+    :: sequence
+       type - string
+       desc - element sequence constraint
+    :: element
+       type - string
+       desc - designed element name
+    :: leftcontext
+       type - tuple
+       desc - tuple of all left context
+              sequences
+    :: rightcontext
+       type - tuple
+       desc - tuple of all right context
+              sequences
+    :: exmotifs
+       type - cx.deque
+       desc - deque of all motifs
+              to be excluded
+    :: liner
+       type - coroutine
+       desc - dynamic printing
+    '''
+
+    # Book-keeping
+    prefixdict  = None
+    suffixdict  = None
+    lcwarncount = set()
+    rcwarncount = set()
+
+    # Time-keeping
+    t0 = tt.time()
+
+    # Show Update
+    liner.send(' Left Paritioning Excluded Motifs ...')
+
+    # Left Partition exmotifs
+    leftpartition = get_exmotif_partition(
+        exmotifs=exmotifs)
+
+    # Show Update
+    liner.send(' Right Paritioning Excluded Motifs ...')
+
+    # Right Partition exmotifs
+    rightpartition = get_inverted_exmotif_partition(
+        partition=leftpartition)
+
+    # Define plen and qlen
+    plen = get_printlen(
+        value=max(
+            len(leftcontext)  if not  leftcontext is None else 0,
+            len(rightcontext) if not rightcontext is None else 0))
+    qlen = len(exmotifs[-1]) + 3
+
+    # Assess Left Edge Effects
+    if leftcontext:
+
+        # Show Updates
+        liner.send(' Parsing Left Context ...')
+
+        # Define Prefix Dict
+        prefixdict = cx.defaultdict(lambda: cx.defaultdict(set))
+
+        # Compute Prefix Conficts
+        for lcseq in leftcontext:
+
+            # Have we seen this prefix already?
+            if lcseq in prefixdict:
+                continue
+
+            # Crunch Constraints
+            for prefix in leftpartition:
+
+                # Does lcseq impose constraint?
+                if lcseq.endswith(prefix):
+
+                    # print((lcseq, prefix, leftpartition[prefix]))
+
+                    # Identify Forbidden Motif Prefixes
+                    prefixforbidden = set(leftpartition[prefix])
+
+                    # Compute Tolerated Prefixes due to Motif Sequence
+                    toleratedprefix = set()
+                    for fp in prefixforbidden:
+                        # RIP .. Have to Tolerate
+                        if sequence.startswith(fp):
+                            toleratedprefix.add(fp)
+                    if toleratedprefix:
+                        lcwarncount.add(lcseq)
+
+                    # Update Forbidden Motif Prefixes
+                    prefixforbidden -= toleratedprefix
+                    # prefixdict[lcseq].update(prefixforbidden)
+                    for fp in prefixforbidden:
+                        prefixdict[lcseq][fp].add(prefix+fp)
+
+            # Reduce Forbidden Prefixes
+            fpx = sorted(prefixdict[lcseq].keys(), key=len)
+            # idxo = index outer/shorter prefix
+            # idxi = index inner/longer  prefix
+            for idxo in range(len(fpx)-1):
+                for idxi in range(idxo+1, len(fpx)):
+                    if  fpx[idxi] in prefixdict[lcseq] and \
+                        fpx[idxi].startswith(fpx[idxo]): # fpo is a prefix for fpx[idxi]
+                        prefixdict[lcseq].pop(fpx[idxi])
+
+            # Freeze Forbidden Prefixes
+            for fp in prefixdict[lcseq]:
+                prefixdict[lcseq][fp] = tuple(prefixdict[lcseq][fp])
+
+            # Group Forbidden Prefixes
+            prefixdict[lcseq]['keys'] = get_grouped_sequences(
+                sequences=prefixdict[lcseq])
+
+            # Show Update
+            liner.send(
+                '  Left Context {:{},d}: {:.>{}} Prevents {:,} Prefix(es)'.format(
+                    len(prefixdict),
+                    plen,
+                    lcseq,
+                    qlen,
+                    len(prefixdict[lcseq])))
+
+        # Retain Last Update
+        liner.send('\*')
+
+    # Assess Right Edge Effects
+    if rightcontext:
+
+        # Show Updates
+        liner.send(' Parsing Right Context ...')
+
+        # Define Suffix Dict
+        suffixdict = cx.defaultdict(lambda: cx.defaultdict(set))
+
+        # Compute Suffix Conficts
+        for rcseq in rightcontext:
+
+            # Have we seen this Suffix already?
+            if rcseq in suffixdict:
+                continue
+
+            # Crunch Constraints
+            for suffix in rightpartition:
+
+                # Does rcseq impose constraint?
+                if rcseq.startswith(suffix):
+
+                    # print((rcseq, suffix, rightpartition[suffix]))
+
+                    # Identify Forbidden Motif Suffixes
+                    suffixforbidden = set(rightpartition[suffix])
+
+                    # Compute Tolerated Suffixes due to Motif Sequence
+                    toleratedsuffix = set()
+                    for fs in suffixforbidden:
+                        # RIP .. Have to Tolerate
+                        if sequence.endswith(fs):
+                            toleratedsuffix.add(fs)
+                    if toleratedsuffix:
+                        rcwarncount.add(rcseq)
+
+                    # Update Forbidden Motif Suffixes
+                    suffixforbidden -= toleratedsuffix
+                    # suffixdict[rcseq].update(suffixforbidden)
+                    for fs in suffixforbidden:
+                        suffixdict[rcseq][fs].add(fs+suffix)
+
+            # Reduce Forbidden Suffixes
+            fsx = sorted(suffixdict[rcseq].keys(), key=len)
+            # idxo = index outer/shorter suffix
+            # idxi = index inner/longer  suffix
+            for idxo in range(len(fsx)-1):
+                for idxi in range(idxo+1, len(fsx)):
+                    if  fsx[idxi] in suffixdict[rcseq] and \
+                        fsx[idxi].endswith(fsx[idxo]): # fso is a suffix for fsx[idxi]
+                        suffixdict[rcseq].pop(fsx[idxi])
+
+            # Freeze Forbidden Suffixes
+            for fs in suffixdict[rcseq]:
+                suffixdict[rcseq][fs] = tuple(suffixdict[rcseq][fs])
+
+            # Group Forbidden Suffixes
+            suffixdict[rcseq]['keys'] = get_grouped_sequences(
+                sequences=suffixdict[rcseq])
+
+            # Show Update
+            liner.send(
+                ' Right Context {:{},d}: {:.<{}} Prevents {:,} Suffix(es)'.format(
+                    len(suffixdict),
+                    plen,
+                    rcseq,
+                    qlen,
+                    len(suffixdict[rcseq])))
+
+        # Retain Last Update
+        liner.send('\*')
+
+    # Show Final Updates
+    if len(lcwarncount) or len(rcwarncount):
+
+        # Optimization Status
+        suboptimal = True
+
+        # Compute plen
+        plen = get_printlen(
+            value=max(
+                len(lcwarncount),
+                len(rcwarncount)))
+
+        # Show Major Category
+        liner.send(
+            ' Found {:,} Inexorable Edge-Effects\n'.format(
+                len(lcwarncount) + len(rcwarncount)))
+
+        # Left Context
+        if len(lcwarncount):
+            liner.send(
+                '   - {:{},d} Unique  Left Context(s) Impacted [WARNING]\n'.format(
+                    len(lcwarncount),
+                    plen))
+
+        # Right Context
+        if len(rcwarncount):
+            liner.send(
+                '   - {:{},d} Unique Right Context(s) Impacted [WARNING]\n'.format(
+                    len(rcwarncount),
+                    plen))
+
+    else:
+        # Optimization Status
+        suboptimal = False
+
+    # Show Time Elapsed
+    liner.send(
+        ' Time Elapsed: {:.2f} sec\n'.format(
+            tt.time()-t0))
+
+    # Show Verdict
+    if suboptimal:
+        liner.send(
+            ' Verdict: {} Design Potentially With Edge Effects\n'.format(
+                element))
+    else:
+        liner.send(
+            ' Verdict: {} Design Possibly Feasible\n'.format(
+                element))
+
+    # Return Results
+    return (prefixdict, suffixdict)
+
+def is_local_edge_feasible(
+    seq,
+    seqlen,
+    lcseq,
+    rcseq,
+    edgeeffectlength,
+    prefixforbidden,
+    suffixforbidden):
+    '''
+    Determine if sequence prefix and suffix
+    is forbidden. Internal use only.
+
+    :: seq
+       type - string
+       desc - a paritally explored sequence path
+    :: lcseq
+       type - string / None
+       desc - left context sequence
+    :: rcseq
+       type - string / None
+       desc - right context sequence
+    :: seqlen
+       type - integer
+       desc - full sequence length
+    :: edgeeffectlength
+       type - integer
+       desc - context length for edge effects
+    :: prefixforbidden
+       type - dict / None
+       desc - dictionary of forbidden primer
+              prefix sequences
+    :: suffixforbidden
+       type - dict / None
+       desc - dictionary of forbidden primer
+              suffix sequences
+    '''
+
+    # Sequence Prefix Selected Forbidden?
+    if not prefixforbidden is None:
+
+        # In Exploration
+        if len(seq) in prefixforbidden:
+
+            # Prefix Conflict Found
+            if seq in prefixforbidden['keys'][len(seq)]:
+
+                # Detect Implicated Exmotifs
+                dxmotifs = prefixforbidden[seq]
+
+                # Return Results
+                return False, dxmotifs, len(seq) - 1
+
+        # Post Exploration
+        if len(seq) == seqlen:
+
+            # Build In Context Sequence
+            if (not rcseq is None) and \
+               (edgeeffectlength > seqlen):
+                incontext = seq + rcseq
+            else:
+                incontext = seq
+
+            # Check for Conflicts
+            for mlen in prefixforbidden['keys']:
+
+                # Extract Prefix
+                seqprefix = incontext[:mlen]
+
+                # Prefix Conflict Found
+                if seqprefix in prefixforbidden['keys'][mlen]:
+
+                    # Detect Implicated Exmotifs
+                    dxmotifs = prefixforbidden[seqprefix]
+
+                    # Return Results
+                    return False, dxmotifs, min(len(seq)-1, mlen-1)
+
+    # Sequence Prefix Selected Forbidden?
+    if not suffixforbidden is None:
+
+        # Post Exploration
+        if len(seq) == seqlen:
+
+            # Build In Context Sequence
+            if (not lcseq is None) and \
+               (edgeeffectlength > seqlen):
+                incontext = lcseq + seq
+            else:
+                incontext = seq
+
+            # Check for Conflicts
+            for mlen in suffixforbidden['keys']:
+
+                # Extract Suffix
+                seqsuffix = incontext[-mlen:]
+                # mlen = len(seq)
+
+                # Suffix Conflict Found
+                if seqsuffix in suffixforbidden['keys'][mlen]:
+
+                    # Detect Implicated Exmotifs
+                    dxmotifs = suffixforbidden[seqsuffix]
+
+                    # Return Results
+                    return False, dxmotifs, len(seq) - 1
+
+    # Everything is OK
+    return True, None, None
+
+# Sequence Analysis Functions
 
 def is_DNA(seq, dna_alpha=dna_alpha):
     '''

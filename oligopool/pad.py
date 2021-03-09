@@ -1,12 +1,13 @@
 import time  as tt
 
 import collections as cx
+import atexit      as ae
 
-import nrpcalc    as nr
+import nrpcalc     as nr
 
-import background as bk
-import coreprimer as cp
-import utils      as ut
+import utils       as ut
+import valparse    as vp
+import coreprimer  as cp
 
 
 # Gamplan
@@ -24,83 +25,6 @@ import utils      as ut
 6. Run Maker to Build Forward Pad
 7. Run Maker to Build Reverse Pad
 '''
-
-def get_padding_lengths(
-    typeIIS,
-    fragments,
-    finallength,
-    liner):
-
-    # Time-keeping
-    t0 = tt.time()
-
-    # Figure out Extreme Lengths
-    cutlen = len(typeIIS)
-    minlen = float('+inf')
-    maxlen = float('-inf')
-
-    for idx,frag in enumerate(fragments):
-        liner.send(' Analyzing Fragment: {}'.format(idx))
-        if len(frag) < minlen:
-            minlen = len(frag)
-        if len(frag) > maxlen:
-            maxlen = len(frag)
-
-    liner.send(
-        '    Shortest  Pre-Padding Length: {} bp\n'.format(
-            minlen))
-    liner.send(
-        '     Longest  Pre-Padding Length: {} bp\n'.format(
-            maxlen))
-
-    # Compute Spans
-    fminspan  = finallength - maxlen
-    fmaxspan  = finallength - minlen
-
-    lconsspan = fmaxspan // 2
-    rconsspan = fmaxspan - lconsspan
-
-    levalspan = fminspan // 2
-    revalspan = fminspan - levalspan
-
-    shpadspan = lconsspan + minlen + rconsspan
-    lgpadspan = levalspan + maxlen + revalspan
-
-    # Show Final Updates
-    liner.send(
-        ' Forward Pad Construction Length: {} bp\n'.format(
-            lconsspan))
-    liner.send(
-        ' Reverse Pad Construction Length: {} bp\n'.format(
-            rconsspan))
-
-    liner.send(
-        ' Forward Pad   Evaluation Length: {} bp\n'.format(
-            levalspan))
-    liner.send(
-        ' Reverse Pad   Evaluation Length: {} bp\n'.format(
-            revalspan))
-
-    liner.send(
-        '    Shortest Post-Padding Length: {} bp\n'.format(
-            shpadspan))
-    liner.send(
-        '     Longest Post-Padding Length: {} bp\n'.format(
-            lgpadspan))
-
-    liner.send(
-        ' Time Elapsed: {:.2f} sec\n'.format(
-            tt.time()-t0))
-
-    # Adjust Construction Based on TypeIIS Cutsite
-    lconsspan -= cutlen
-    rconsspan -= cutlen
-
-    # Return Results
-    return (lconsspan,
-        rconsspan,
-        levalspan,
-        revalspan,)
 
 def get_background(Lmax):
 
@@ -395,52 +319,188 @@ def padding_engine(
 
     return (True, fwdpad, revpad)
 
-import numpy as np
+def pad(
+    indata,
+    splitcol,
+    typeIIS,
+    oligolength,
+    mintmelt,
+    maxtmelt,
+    maxreplen,
+    outfile=None,
+    verbose=True):
+    '''
 
-def get_context():
-    with open('promoters.txt') as infile:
-        cntx = [x.strip() for x in infile.readlines()]
-    cntx = cntx[:-1]
-    rng = np.random.default_rng(7)
-    fcntx = []
-    for c in cntx:
-        tl = rng.integers(0, 6)
-        tr = rng.integers(0, 6)
-        c = c[tl:len(c)-tr]
-        fcntx.append(c)
-    return fcntx
+    Note 2. 34 unique TypeIIS systems available for padding
+            AcuI,  AlwI,  BbsI,  BccI,   BceAI,    BciVI,
+            BcoDI, BmrI,  BpuEI, BsaI,   BseRI,    BsmAI,
+            BsmBI, BsmFI, BsmI,  BspCNI, BspQI,    BsrDI,
+            BsrI,  BtgZI, BtsCI, BtsI,   BtsIMutI, EarI,
+            EciI,  Esp3I, FauI,  HgaI,   HphI,     HpyAV,
+            MlyI,  MnlI,  SapI,  SfaNI
+    '''
 
-def main():
+    # Start Liner
+    liner = ut.liner_engine(verbose)
 
-    liner = ut.liner_engine()
+    # Barcoding Verbage Print
+    liner.send('\n[Oligopool Calculator: Design Mode - Pad]\n')
 
-    t0 = tt.time()
+    # Required Argument Parsing
+    liner.send('\n Required Arguments\n')
 
-    context = get_context()
-
-    fragments = context
-
-    finallength = 120
-
-    (status,
-     fwdpad,
-     revpad) = padding_engine(
-        typeIIS='bsai',
-        fragments=fragments,
-        finallength=finallength,
-        mintmelt=52,
-        maxtmelt=54,
-        deltatmelt=0.2,
-        Lmax=9,
+    # First Pass indata Parsing and Validation
+    (indf,
+    indata_valid) = vp.get_parsed_data_info(
+        data=indata,
+        data_field='   Input Data       ',
+        required_fields=('ID',),
+        precheck=False,
         liner=liner)
 
-    if status:
-        print()
-        print(fwdpad)
-        print(revpad)
+    # Full splitcol Validation
+    splitcol_valid = vp.get_parsed_column_info(
+        col=splitcol,
+        df=indf,
+        col_field='   Split Column     ',
+        col_desc='Input from Column',
+        col_type=0,
+        adjcol=None,
+        adjval=None,
+        liner=liner)
 
-    print()
-    print('Time Elapsed = {:.2f} sec'.format(tt.time()-t0))
+    # Full typeIIS Validation
+    (typeIIS,
+    typeIISname,
+    typeIIS_valid) = vp.get_parsed_typeIIS_info(
+        typeIIS=typeIIS,
+        typeIIS_field=' TypeIIS System     ',
+        liner=liner)
 
-if __name__ == '__main__':
-    main()
+    # Full maxreplen Validation
+    oligolength_valid = vp.get_numeric_validity(
+        numeric=oligolength,
+        numeric_field='   Oligo Length     ',
+        numeric_pre_desc=' Design ',
+        numeric_post_desc=' Base Pair(s) Padded Oligos',
+        minval=60,
+        maxval=float('+inf'),
+        precheck=False,
+        liner=liner)
+
+    # Full mintmelt and maxtmelt Validation
+    (mintmelt,
+    maxtmelt,
+    tmelt_valid) = vp.get_parsed_range_info(
+        minval=mintmelt,
+        maxval=maxtmelt,
+        range_field=' Melting Temperature',
+        range_unit='°C',
+        range_min=25,
+        range_max=95,
+        liner=liner)
+
+    # Full maxreplen Validation
+    maxreplen_valid = vp.get_numeric_validity(
+        numeric=maxreplen,
+        numeric_field='  Repeat Length     ',
+        numeric_pre_desc=' Up to ',
+        numeric_post_desc=' Base Pair(s) Oligopool Repeats',
+        minval=6,
+        maxval=20,
+        precheck=False,
+        liner=liner)
+
+    # Full outfile Validation
+    outfile_valid = vp.get_outdf_validity(
+        outdf=outfile,
+        outdf_suffix='.oligopool.pad.csv',
+        outdf_field='  Output File       ',
+        liner=liner)
+
+    # Adjust outfile Suffix
+    if not outfile is None:
+        outfile = ut.get_adjusted_path(
+            path=outfile,
+            suffix='.oligopool.pad.csv')
+
+    # First Pass Validation
+    if not all([
+        indata_valid,
+        splitcol_valid,
+        typeIIS_valid,
+        oligolength_valid,
+        tmelt_valid,
+        maxreplen_valid,
+        outfile_valid]):
+        liner.send('\n')
+        raise RuntimeError(
+            'Invalid Argument Input(s).')
+
+    # Start Timer
+    t0 = tt.time()
+
+    # Adjust Numeric Paramters
+    oligolength = round(oligolength)
+    maxreplen   = round(maxreplen)
+
+    # Primer Design Book-keeping
+    outdf = None
+    stats = None
+
+    # Parse Split Column
+    liner.send('\n[Parsing Split Column]\n')
+
+    # Parse splitcol
+    (parsestatus,
+    minfragmentlen,
+    maxfragmentlen,
+    maxallowedlen) = cp.get_parsed_splitcol(
+        indf=indf,
+        splitcol=splitcol,
+        oligolength=oligolength,
+        liner=liner)
+
+    # splitcol infeasible
+    if not parsestatus:
+
+        # Prepare stats
+        stats = {
+            'status': False,
+            'basis' : 'infeasible',
+            'step'  : 1,
+            'vars'  : {
+                'maxfragmentlen': maxfragmentlen,
+                 'maxallowedlen': maxallowedlen}}
+
+        # Return results
+        liner.close()
+        return (outdf, stats)
+
+    # Parse TypeIIS Constraint
+    liner.send('\n[Parsing TypeIIS System]\n')
+
+    # Parse typeIIS
+    # (parsestatus,
+    # forwardpadlen,
+    # reversepadlen,
+    # forwardfillerlen,
+    # reversefillerlen) =
+
+    cp.get_parsed_typeIIS_constraint(
+        typeIIS=typeIIS,
+        typeIISname=typeIISname,
+        minfragmentlen=minfragmentlen,
+        maxfragmentlen=maxfragmentlen,
+        oligolength=oligolength,
+        liner=liner)
+
+    '''
+    --1. Parse Split Column--
+    2. Parse Oligo Length
+    3. Extract Sequence Constraint (both)
+    3. Parse TypeIIS Feasibility
+    4. Parse Melting Temperature
+    5. Call Engine
+    6. Parse Output
+    '''

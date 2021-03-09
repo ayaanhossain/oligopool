@@ -5,7 +5,7 @@ import multiprocessing as mp
 import zipfile         as zf
 import math            as mt
 
-import pandas as pd
+import pandas   as pd
 
 import vectordb as db
 import utils    as ut
@@ -191,6 +191,7 @@ def get_parsed_data_info(
     '''
 
     # data flags
+    data_type   = None
     data_is_df  = False
     data_is_csv = False
 
@@ -200,7 +201,7 @@ def get_parsed_data_info(
 
     # data is a DataFrame?
     if isinstance(data, pd.DataFrame):
-        df = data.copy()
+        df = data.copy().reset_index()
         data_is_df = True
 
     # data is a valid CSV file?
@@ -218,21 +219,6 @@ def get_parsed_data_info(
 
             # CSV file read attempt
             try:
-                # Book-keeping
-                row_cardinality = None
-
-                # Try reading CSV
-                with open(data) as infile:
-                    for line in infile:
-                        row = line.strip().split(',')
-                        assert len(row) > 0
-                        assert '' not in row
-
-                        if row_cardinality is None:
-                            row_cardinality = len(row)
-                        else:
-                            assert len(row) == row_cardinality
-
                 # Parse full df
                 df = pd.read_csv(
                     filepath_or_buffer=data,
@@ -242,9 +228,9 @@ def get_parsed_data_info(
 
             # Read and/or Indexing Unsuccesful
             except:
-                liner.send(
-                    '{}: {} [INVALID CSV FILE]\n'.format(
-                        data_field, data))
+                liner.send('{}: {} [INVALID CSV FILE]\n'.format(
+                    data_field,
+                    data))
 
             # Read succesful
             else:
@@ -276,15 +262,36 @@ def get_parsed_data_info(
                     len(df.index),
                     data_type))
 
+    # df columns have missing values?
+    df_no_missing_vals = False
+
+    if df_nonempty:
+
+        # Check column-wise emptiness
+        for col in df.columns:
+            if df[col].isnull().values.any():
+                liner.send(
+                    '{}: {} w/ {:,} Record(s) [MISSING VALUES IN COLUMN=\'{}\']\n'.format(
+                        data_field,
+                        data,
+                        len(df.index),
+                        col))
+                break
+
+        # No missing values
+        else:
+            df_no_missing_vals = True
+
     # df indexible?
     df_indexible = False
 
-    if df_nonempty:
+    if df_no_missing_vals:
 
         # Try indexing on unique ID
         try:
 
-            # Index by ID
+            # Reset and (Re-)Index by ID
+            # print(df.index.is_unique)
             df.set_index(
                 keys='ID',
                 inplace=True)
@@ -395,6 +402,7 @@ def get_parsed_data_info(
     df_valid = all([
         df_extracted,
         df_nonempty,
+        df_no_missing_vals,
         df_indexible,
         df_contains_required_cols,
         df_contains_DNA_only])
@@ -632,6 +640,8 @@ def get_parsed_column_info(
     col_type,
     adjcol,
     adjval,
+    iscontext,
+    typecontext,
     liner):
     '''
     Determine if col is a valid column in/for df
@@ -661,6 +671,14 @@ def get_parsed_column_info(
     :: adjval
        type - integer / None
        desc - ensure adjcol adjacent by adjval
+    :: iscontext
+       type - boolean
+       desc - if True treat column as context,
+              otherwise column is singular
+    :: typecontext
+       type - integer / None
+       desc - if 0, treat context as left,
+              otherwse, treat as right
     :: liner
        type - coroutine
        desc - dynamic printing
@@ -797,7 +815,25 @@ def get_parsed_column_info(
                 col_field,
                 col_desc,
                 col))
-        parsedcol = df[col].str.upper() if col_type == 0 else None
+
+        # Output Column
+        if col_type == 1:
+            parsedcol = None
+
+        # Input Column
+        else:
+            # Non-Context Extraction
+            if not iscontext:
+                parsedcol = df[col].str.upper()
+            # Context Extraction
+            else:
+                if typecontext == 0: #  Left Context
+                    parsedcol = df.loc[:, :col]
+                else:                # Right Context
+                    parsedcol = df.loc[:, col:]
+                parsedcol = parsedcol.sum(
+                    axis=1).str.upper().str.replace(
+                        '-', '')
     else:
         parsedcol = None
 
@@ -1073,79 +1109,150 @@ def get_categorical_validity(
             category_dict[category],
             category_post_desc))
 
-    # Return mode validity
+    # Return catgory validity
     return cat_valid
 
-def get_primerseq_validity(
-    primerseq,
-    primerseq_field,
+def get_parsed_typeIIS_info(
+    typeIIS,
+    typeIIS_field,
     liner):
     '''
-    Determine if primerseq is a valid
-    primer sequence constraint.
-    Internal use only.
+    Determine if typeIIS system selected
+    is valid. Internal use only.
 
-    :: primerseq
+    :: typeIIS
        type - string
-       desc - primer sequence constraint
-    :: primerseq_field
+       desc - name of the TypeIIS enzyme
+              selected for excision
+    :: typeIIS_field
        type - string
-       desc - primerseq fieldname used
-              in printing
+       desc - typeIIS fieldname used in
+              printing
     :: liner
        type - coroutine
        desc - dynamic printing
     '''
 
-    # Is primerseq string?
-    pseq_is_string = False
-    if not isinstance(primerseq, str):
+    # Is typeIIs string?
+    typeIIS_is_string = False
+    if not isinstance(typeIIS, str):
+        liner.send('{}: Enzyme \'{}\' [INPUT TYPE IS INVALID]\n'.format(
+                typeIIS_field,
+                typeIIS))
+    else:
+        typeIIS_is_string = True
+
+    # Is typeIIS known?
+    typeIIS_is_known = False
+    if typeIIS_is_string:
+        typeIIS_ = typeIIS.lower()
+        if not typeIIS_ in ut.typeIIS_dict:
+            liner.send('{}: Enzyme \'{}\' [UNSUPPORTED ENZYME]\n'.format(
+                    typeIIS_field,
+                    typeIIS))
+        else:
+            typeIIS_is_known = True
+
+    # Compute validity
+    typeIIS_valid = typeIIS_is_string and typeIIS_is_known
+
+    # Show update
+    if typeIIS_valid:
+        liner.send('{}: Enzyme \'{}\' Recognizing Motif \'{}\'\n'.format(
+            typeIIS_field,
+            ut.typeIIS_dict[typeIIS_][0],
+            ut.typeIIS_dict[typeIIS_][1]))
+
+    # Return typeIIS validity
+    if typeIIS_valid:
+        typeIISname = ut.typeIIS_dict[typeIIS_][0]
+        typeIIS = ut.typeIIS_dict[typeIIS_][1] + \
+                 ('N' * ut.typeIIS_dict[typeIIS_][2])
+        return typeIIS, typeIISname, typeIIS_valid
+    else:
+        return None, None, typeIIS_valid
+
+def get_seqconstr_validity(
+    seqconstr,
+    seqconstr_field,
+    minlenval,
+    element,
+    liner):
+    '''
+    Determine if seqconstr is a valid
+    degenerate sequence constraint.
+    Internal use only.
+
+    :: seqconstr
+       type - string
+       desc - primer sequence constraint
+    :: seqconstr_field
+       type - string
+       desc - seqconstr fieldname used
+              in printing
+    :: minlenval
+       type - integer
+       desc - minimum length allowed for
+              sequence constraint
+    :: element
+       type - string
+       desc - element being designed
+    :: liner
+       type - coroutine
+       desc - dynamic printing
+    '''
+
+    # Is seqconstr string?
+    seqconstr_is_string = False
+    if not isinstance(seqconstr, str):
         liner.send(
             '{}: {} [INPUT TYPE IS INVALID]\n'.format(
-                primerseq_field,
-                primerseq))
+                seqconstr_field,
+                seqconstr))
     else:
-        pseq_is_string = True
+        seqconstr_is_string = True
 
-    # Is primerseq degenerate DNA string?
-    pseq_is_ddna = False
-    if pseq_is_string:
+    # Is seqconstr degenerate DNA string?
+    seqconstr_is_ddna = False
+    if seqconstr_is_string:
         if not ut.is_DNA(
-            seq=primerseq,
+            seq=seqconstr,
             dna_alpha=ut.ddna_alpha):
             liner.send(
                 '{}: {} [NON-IUPAC VALUE]\n'.format(
-                    primerseq_field,
-                    primerseq))
+                    seqconstr_field,
+                    seqconstr))
         else:
-            pseq_is_ddna = True
+            seqconstr_is_ddna = True
 
-    # Is primerseq long enough?
-    pseq_is_long = False
-    if pseq_is_ddna:
-        if len(primerseq) < 10:
+    # Is seqconstr long enough?
+    seqconstr_is_long = False
+    if seqconstr_is_ddna:
+        if len(seqconstr) < minlenval:
             liner.send(
-                '{}: A {:,} Base Pair IUPAC Constraint [PRIMER SHORTER THAN 10 BASE PAIRS]\n'.format(
-                    primerseq_field,
-                    len(primerseq)))
+                '{}: A {:,} Base Pair IUPAC Constraint [{} SHORTER THAN {:,} BASE PAIRS]\n'.format(
+                    seqconstr_field,
+                    len(seqconstr),
+                    element,
+                    minlenval))
         else:
-            pseq_is_long = True
+            seqconstr_is_long = True
 
     # Compute final validity
-    pseq_valid = all([
-        pseq_is_string,
-        pseq_is_ddna,
-        pseq_is_long])
+    seqconstr_valid = all([
+        seqconstr_is_string,
+        seqconstr_is_ddna,
+        seqconstr_is_long])
 
     # Show update
-    if pseq_valid:
+    if seqconstr_valid:
         liner.send(
             '{}: A {:,} Base Pair IUPAC Constraint\n'.format(
-                primerseq_field,
-                len(primerseq)))
+                seqconstr_field,
+                len(seqconstr)))
 
     # Return validity
-    return pseq_valid
+    return seqconstr_valid
 
 def get_constantcol_validity(
     constantcol,

@@ -13,9 +13,38 @@ codemeta
       keys: values
     } // empty when successful
 ~~* Column Requirement specification for parsing~~
-* introduce search order, an integer paramter
-  which is 10^exponent of failure count / retry attempts
+~~* introduce search order, an integer paramter
+  which is 10^exponent of failure count / retry attempts~~
+~~* exmotifs come after context~~
+~~* Add everything before and after context as part of elongated context
+  -- e.g. if LeftContext is ColA, then everything before and including
+     ColA is left context; this builds full left context~~
+~~* Introduce '-' as a valid DNA base signifying a gap base, which
+  is used to denote zero length spacers, and removed once oligopool
+  finalized~~
 
+motif -- in progress
+barcode -- done
+background -- done
+primer -- needs update
+spacer -- not started
+finalize -- not started
+split -- needs finalization
+pad -- needs finalization
+
+motif.py
+add a fixed length motif or constant sequence
+between two columns or at the 3' end by default
+default 3' end
+
+spacer.py
+add variable length spacer between two cols of
+choice or at the ends of the oligos, preventing
+edge effects and upto a fixed length oligo
+
+finalize.py
+concatenate all cols, and run length checks
+for oligopool length bounds
 
 barcode.py
 ~~* Revise barcode.py~~
@@ -76,6 +105,8 @@ primer.py
   for a FASTA file, or a single DNA string for vector~~
 ~~* Primers non-repetitive to everything before and after Left and Right Context~~
 ~~* Report Time Elapsed at Construction End
+* ignore palindromic hexamers, and alter optimization criteria
+  if cutsites are part of primer sequence constraint
 
 primer - padding common
 ~~* Refactor all core primer functions into coreprime.py~~

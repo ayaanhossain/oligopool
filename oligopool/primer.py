@@ -3,220 +3,12 @@ import time  as tt
 import collections as cx
 import atexit      as ae
 
-import nrpcalc    as nr
+import nrpcalc     as nr
 
-import utils      as ut
-import valparse   as vp
-import coreprimer as cp
+import utils       as ut
+import valparse    as vp
+import coreprimer  as cp
 
-
-def primer_objectives(
-    primer,
-    primerlen,
-    primertype,
-    mintmelt,
-    maxtmelt,
-    maxreplen,
-    oligorepeats,
-    pairedprimer,
-    pairedrepeats,
-    exmotifs,
-    prefixforbidden,
-    suffixforbidden,
-    background,
-    stats,
-    liner):
-    '''
-    TBW
-    '''
-
-    # Objective 1: Background Non-Repetitiveness
-    obj1, traceloc = cp.is_background_feasible(
-        primer=primer,
-        background=background)
-
-    # Objective 1 Failed
-    if not obj1:
-
-        # Show Update
-        liner.send(
-            ' Candidate: Primer {} Rejected due to Background Repeat'.format(
-                primer))
-
-        # Update Stats
-        stats['vars']['repeatfail'] += 1
-
-        # Return Traceback
-        return False, traceloc
-
-    # Objective 2: Oligopool Non-Repetitiveness
-    obj2, traceloc = cp.is_oligopool_feasible(
-        primer=primer,
-        maxreplen=maxreplen,
-        oligorepeats=oligorepeats)
-
-    # Objective 2 Failed
-    if not obj2:
-
-        # Show Update
-        liner.send(
-            ' Candidate: Primer {} Rejected due to Oligopool Repeat'.format(
-                primer))
-
-        # Update Stats
-        stats['vars']['repeatfail'] += 1
-
-        # Return Traceback
-        return False, traceloc
-
-    # Objective 3: Paired Primer Non-Repetitiveness
-    obj3, traceloc = cp.is_paired_feasible(
-        primer=primer,
-        pairedrepeats=pairedrepeats)
-
-    # Objective 3 Failed
-    if not obj3:
-
-        # Show Update
-        liner.send(
-            ' Candidate: Primer {} Rejected due to Paired Repeat'.format(
-                primer))
-
-        # Update Stats
-        stats['vars']['repeatfail'] += 1
-
-        # Return Traceback
-        return False, traceloc
-
-    # Objective 4: Melting Temeperature Bounded
-    obj4, failtype = cp.is_tmelt_feasible(
-        primer=primer,
-        primerlen=primerlen,
-        mintmelt=mintmelt,
-        maxtmelt=maxtmelt)
-
-    # Objective 4 Failed
-    if not obj4:
-
-        # Show Update
-        liner.send(
-            ' Candidate: Primer {} Rejected due to Tm Infeasibility'.format(
-                primer))
-
-        # Compute Traceback
-        traceloc = cp.get_tmelt_traceback(
-            primer=primer,
-            failtype=failtype)
-
-        # Update Stats
-        stats['vars']['Tmfail'] += 1
-
-        # Return Traceback
-        return False, traceloc
-
-    # Objective 5: Motif Embedding
-    obj5, motif = cp.is_motif_feasible(
-        primer=primer,
-        exmotifs=exmotifs)
-
-    # Objective 5 Failed
-    if not obj5:
-
-        # Show Update
-        liner.send(
-            ' Candidate: Primer {} Rejected due to Motif Infeasibility'.format(
-                primer))
-
-        # Update Stats
-        stats['vars']['motiffail'] += 1
-        stats['vars']['motifcounter'][motif] += 1
-
-        # Return Traceback
-        return False, max(
-            0,
-            len(primer)-1)
-
-    # Objective 6: Edge Feasibility (Edge-Effects)
-    obj6, traceloc = cp.is_edge_feasible(
-        primer=primer,
-        primerlen=primerlen,
-        prefixforbidden=prefixforbidden,
-        suffixforbidden=suffixforbidden)
-
-    # Objective 6 Failed
-    if not obj6:
-
-        # Show Update
-        liner.send(
-            ' Candidate: Primer {} Rejected due to Edge Infeasibility'.format(
-                primer))
-
-        # Update Stats
-        stats['vars']['edgefail'] += 1
-
-        # Return Traceback
-        return False, traceloc
-
-    # Objective 7: Homodimer Feasibility
-    obj7, traceloc = cp.is_dimer_feasible(
-        primer=primer,
-        primertype=primertype,
-        primerlen=primerlen,
-        primerspan=None,
-        pairedprimer=None,
-        pairedspan=None,
-        dimertype=0)
-
-    # Objective 7 Failed
-    if not obj7:
-
-        # Show Update
-        liner.send(
-            ' Candidate: Primer {} Rejected due to Homodimer Infeasibility'.format(
-                primer))
-
-        # Update Stats
-        stats['vars']['homodimerfail'] += 1
-
-        # Return Traceback
-        return False, traceloc
-
-    # Objective 8: Heterodimer Feasibility
-    obj8, traceloc = cp.is_dimer_feasible(
-        primer=primer,
-        primertype=primertype,
-        primerlen=primerlen,
-        primerspan=None,
-        pairedprimer=pairedprimer,
-        pairedspan=None,
-        dimertype=1)
-
-    # Objective 8 Failed
-    if not obj8:
-
-        # Show Update
-        liner.send(
-            ' Candidate: {} Rejected due to Heterodimer Infeasibility'.format(
-                primer))
-
-        # Update Stats
-        stats['vars']['heterodimerfail'] += 1
-
-        # Return Traceback
-        return False, traceloc
-
-    # Show Update
-    if len(primer) < primerlen:
-        liner.send(
-            ' Candidate: Primer {} is Partially Accepted'.format(
-                primer))
-    else:
-        liner.send(
-            ' Candidate: Primer {} is Accepted'.format(
-                primer))
-
-    # All Objectives OK!
-    return True
 
 def primer_engine(
     primerseq,
@@ -227,23 +19,72 @@ def primer_engine(
     oligorepeats,
     pairedprimer,
     pairedrepeats,
-    exmotifs,
     prefixforbidden,
     suffixforbidden,
+    exmotifs,
     background,
     stats,
     liner):
     '''
-    TBW
+    Return a primer fulfilling all constraints.
+    Internal use only.
+
+    :: primerseq
+       type - string
+       desc - degenerate primer design sequence
+              constraint
+    :: primertype
+       type - integer
+       desc - primer design type identifier
+              0 = forward primer design
+              1 = reverse primer design
+    :: mintmelt
+       type - float
+       desc - primer melting temperature lower
+              bound
+    :: maxtmelt
+       type - float
+       desc - primer melting temperature upper
+              bound
+    :: oligorepeats
+       type - set
+       desc - set storing oligopool repeats
+    :: pairedprimer
+       type - string / None
+       desc - paired primer sequence
+    :: pairedrepeats
+       type - set / None
+       desc - set storing paired primer repeats
+    :: prefixforbidden
+       type - dict / None
+       desc - dictionary of forbidden primer
+              prefix sequences
+    :: suffixforbidden
+       type - dict / None
+       desc - dictionary of forbidden primer
+              suffix sequences
+    :: exmotifs
+       type - cx.deque / None
+       desc - deque of all excluded motifs
+    :: background
+       type - db.vectorDB / None
+       desc - vectorDB instance storing
+              background repeats
+    :: stats
+       type - dict
+       desc - primer design stats storage
+    :: liner
+       type - coroutine
+       desc - dynamic printing
     '''
 
     # Book-keeping
-    primerstruct = 'x'*len(primerseq)    # Primer Structure Constraint
-    t0 = tt.time()
+    t0 = tt.time()                    # Start Timer
+    primerstruct = 'x'*len(primerseq) # No Structure
 
-    # Update Orientation
+    # Update Paired Primer Orientation
     # Since Forward Primer Design,
-    # interprest Paired Primer as
+    # interpret Paired Primer as
     # Reverse Primer specified in
     # terns of Forward Strand
     if primertype == 0:
@@ -252,11 +93,12 @@ def primer_engine(
                 seq=pairedprimer)
 
     # Optimize exmotifs
-    exmotifs = ut.get_grouped_sequences(
-        sequences=exmotifs)
+    if not exmotifs is None:
+        exmotifs = ut.get_grouped_sequences(
+            sequences=exmotifs)
 
     # Define Objective Function
-    objectivefunction = lambda primer: primer_objectives(
+    objectivefunction = lambda primer: cp.primer_objectives(
         primer=primer,
         primerlen=len(primerseq),
         primertype=primertype,
@@ -266,10 +108,11 @@ def primer_engine(
         oligorepeats=oligorepeats,
         pairedprimer=pairedprimer,
         pairedrepeats=pairedrepeats,
-        exmotifs=exmotifs,
         prefixforbidden=prefixforbidden,
         suffixforbidden=suffixforbidden,
+        exmotifs=exmotifs,
         background=background,
+        inittime=t0,
         stats=stats,
         liner=liner)
 
@@ -286,7 +129,7 @@ def primer_engine(
         target_size=1,
         background=None,
         struct_type='both',
-        synth_opt=True,
+        synth_opt=False,
         local_model_fn=objectivefunction,
         jump_count=1000,
         fail_count=100000,
@@ -296,12 +139,18 @@ def primer_engine(
         allow_internal_repeat=False,
         check_constraints=False)
 
-    # Show Time Elapsed
-    liner.send('\* Time Elapsed: {:.2f} sec\n'.format(
-        tt.time() - t0))
-
     # Check Status and Return Solution
     if len(primer) > 0:
+
+        # Final Update
+        cp.show_update(
+            primer=primer[0],
+            element='Primer',
+            optstatus=2,
+            optstate=0,
+            inittime=t0,
+            terminal=True,
+            liner=liner)
 
         # Extract Primer
         primer = primer[0]
@@ -324,15 +173,19 @@ def primer_engine(
             seq=primer,
             dg=True)[-1]
 
+        # Correct Primer Orientation
+        cprimer = ut.get_revcomp(
+            seq=primer) if primertype == 1 else primer
+
         # Update Heterodimer Free Energy
         stats['vars']['homodimerMFE'] = cp.folder.evaluate_mfe_dimer(
-            seq1=primer,
-            seq2=primer)[-1]
+            seq1=cprimer,
+            seq2=cprimer)[-1]
 
         # Update Homodimer Free Energy
         if not pairedprimer is None:
             stats['vars']['heterodimerMFE'] = cp.folder.evaluate_mfe_dimer(
-                seq1=primer,
+                seq1=cprimer,
                 seq2=pairedprimer)[-1]
 
         # Return Results
@@ -340,6 +193,12 @@ def primer_engine(
 
     # Design Unsuccessful
     else:
+
+        # Final Update
+        liner.send('\* Time Elapsed: {:.2f} sec\n'.format(
+            tt.time() - t0))
+
+        # Return Results
         return (None, stats)
 
 def primer(
@@ -352,9 +211,9 @@ def primer(
     primercol,
     outfile=None,
     pairedcol=None,
-    exmotifs=None,
     leftcontext=None,
     rightcontext=None,
+    exmotifs=None,
     background=None,
     verbose=True):
     '''
@@ -382,29 +241,105 @@ def primer(
     :: mintmelt
        type - float
        desc - minimum allowed primer melting temperature in
-              degree celsium, must be 25 or greater
+              degree celsius, must be 25 or greater
     :: maxtmelt
        type - float
        desc - maximum allowed primer melting temperature in
-              degree celsium, must be 95 or lesser
+              degree celsius, must be 95 or lesser
     :: maxreplen
        type - integer
-       desc - maximum shared repeat length between the primers
-              and flanking regions, must be between 6 and 20
+       desc - maximum shared repeat length between the
+              primers and flanking regions, must be between
+              6 and 20
     :: primercol
        type - string
-       desc - the name of the column to store designed primer
+       desc - name of the column to store designed primer
     :: outfile
        type - string
-       desc - filename to save updated DataFrame with primers
+       desc - filename to save ouput DataFrame with primers
               (suffix='.oligopool.primer.csv')
-    ::
+              (default=None)
+    :: pairedcol
+       type - string / None
+              name of the column containing the full primer
+              sequence to be paired with the designed primer
+              (default=None)
+    :: leftcontext
+       type - string / None
+       desc - name of the column containing DNA sequences
+              to the left of the primer sequence
+              (default=None)
+    :: rightcontext
+       type - string / None
+       desc - name of the column containing DNA sequences
+              placed right of the primer sequence
+              (default=None)
+    :: exmotifs
+       type - iterable / string / pd.DataFrame / None
+       desc - iterable of DNA string motifs to be excluded
+              within and at the edges of the primer when
+              placed between context sequences; optionally,
+              this can be a path to a CSV file containing
+              uniquely identified excluded motifs or an
+              equivalent pandas DataFrame
+              (default=None)
+    :: background
+       type - string / None
+       desc - path to directory storing the background
+              sequence k-mers, against which the designed
+              primer is to be non-repetitive
+              (suffix='.oligopool.background')
+              (default=None)
+    :: verbose
+       type - boolean
+       desc - if True will log updates to stdout
+              (default=True)
+
+    Output: A file named <outfile> with '.oligoool.primer.csv'
+            suffix if specified; otherwise a pandas DataFrame
+            is returned.
+
+    Note 1. Specified <indata> must contain a column named 'ID',
+            that uniquely identifies variants in a pool. Values
+            in <indata> except 'ID' must be DNA strings. All
+            rows and columns in <indata> must be non-empty,
+            i.e. none of the cells must be empty.
+
+    Note 2. Column names in <indata> must be unique, without
+            <primercol> as a pre-existing column name.
+
+    Note 3. The columns <leftcontext> and <rightcontext> must
+            be adjacent to each other and in order.
+
+    Note 4. The paired primer type is automatically inferred
+            based on current primer type, i.e. if a forward
+            primer is being designed, the paired primer is
+            assumed to be a reverse primer, and optimization
+            parameters are adjusted accordingly.
+
+    Note 5. If a paired primer is specified, then the melting
+            temperature of the designed primer is considered
+            within 1 °C of the paired primer Tm. E.g. If input
+            Tm range is 53 to 57 °C, and the paired primer has
+            a Tm of 59 °C, the designed primer is optimized
+            to have a Tm between 58 to 60 °C.
+
+    Note 6. The <maxreplen> parameter here controls the level
+            of non-repetitiveness in designed primers with
+            respect to sequences in <indata> and as such is
+            independent of the <maxreplen> used to specify
+            the background.
+
+    Note 7. If <exmotifs> points to a CSV file or DataFrame,
+            it must contain both an 'ID' and an 'Exmotifs'
+            column, with 'Exmotifs' containing all of the
+            excluded motif sequences.
     '''
 
     # Start Liner
     liner = ut.liner_engine(verbose)
 
-    # Barcoding Verbage Print
+    # Primer Verbage Print
     liner.send('\n[Oligopool Calculator: Design Mode - Primer]\n')
 
     # Required Argument Parsing
@@ -420,9 +355,11 @@ def primer(
         liner=liner)
 
     # First Pass primerseq Validation
-    primerseq_valid = vp.get_primerseq_validity(
-        primerseq=primerseq,
-        primerseq_field='     Primer Sequence   ',
+    primerseq_valid = vp.get_seqconstr_validity(
+        seqconstr=primerseq,
+        seqconstr_field='     Primer Sequence   ',
+        minlenval=15,
+        element='PRIMER',
         liner=liner)
 
     # Full primertype Validation
@@ -468,6 +405,8 @@ def primer(
         col_type=1,
         adjcol=None,
         adjval=None,
+        iscontext=False,
+        typecontext=None,
         liner=liner)
 
     # Full outfile Validation
@@ -483,7 +422,7 @@ def primer(
             path=outfile,
             suffix='.oligopool.primer.csv')
 
-    # # Optional Argument Parsing
+    # Optional Argument Parsing
     liner.send('\n Optional Arguments\n')
 
     # Full pairedprimer Validation
@@ -492,16 +431,6 @@ def primer(
         constantcol=pairedcol,
         constantcol_field='     Paired Primer     ',
         df=indf,
-        liner=liner)
-
-    # Full exmotifs Parsing and Validation
-    (exmotifs,
-    exmotifs_valid) = vp.get_parsed_exseqs_info(
-        exseqs=exmotifs,
-        exseqs_field='   Excluded Motifs     ',
-        exseqs_desc='Unique Motif(s)',
-        df_field='Exmotifs,',
-        required=False,
         liner=liner)
 
     # Store Context Names
@@ -518,6 +447,8 @@ def primer(
         col_type=0,
         adjcol=rightcontextname,
         adjval=+1,
+        iscontext=True,
+        typecontext=0,
         liner=liner)
 
     # Full leftcontext Parsing and Validation
@@ -530,6 +461,18 @@ def primer(
         col_type=0,
         adjcol=leftcontextname,
         adjval=-1,
+        iscontext=True,
+        typecontext=1,
+        liner=liner)
+
+    # Full exmotifs Parsing and Validation
+    (exmotifs,
+    exmotifs_valid) = vp.get_parsed_exseqs_info(
+        exseqs=exmotifs,
+        exseqs_field='   Excluded Motifs     ',
+        exseqs_desc='Unique Motif(s)',
+        df_field='Exmotifs,',
+        required=False,
         liner=liner)
 
     # Full background Parsing and Validation
@@ -549,9 +492,9 @@ def primer(
         primercol_valid,
         outfile_valid,
         pairedprimer_valid,
-        exmotifs_valid,
         leftcontext_valid,
         rightcontext_valid,
+        exmotifs_valid,
         background_valid]):
         liner.send('\n')
         raise RuntimeError(
@@ -566,7 +509,7 @@ def primer(
     # Define Edge Effect Length
     edgeeffectlength = None
 
-    # Barcode Design Book-keeping
+    # Primer Design Book-keeping
     outdf = None
     stats = None
 
@@ -609,7 +552,7 @@ def primer(
     # Parsing Sequence Constraint Feasibility
     liner.send('\n[Parsing Primer Sequence]\n')
 
-    # Full primerseq Validation
+    # Parse primerseq
     (parsestatus,
     designspace,
     excludedmotifs,
@@ -652,21 +595,21 @@ def primer(
     # Parse Melting Temperature
     liner.send('\n[Parsing Melting Temperature]\n')
 
-    # Full mintmelt and maxtmelt Validation
+    # Parse mintmelt and maxtmelt
     (parsestatus,
     estimatedminTm,
     estimatedmaxTm,
     higherminTm,
     lowermaxTm,
     mintmelt,
-    maxtmelt) = cp.get_parsed_tmelt_constraint(
+    maxtmelt) = cp.get_parsed_primer_tmelt_constraint(
         primerseq=primerseq,
         pairedprimer=pairedprimer,
         mintmelt=mintmelt,
         maxtmelt=maxtmelt,
         liner=liner)
 
-    # primerseq infeasible
+    # mintmelt and maxtmelt infeasible
     if not parsestatus:
 
         # Prepare stats
@@ -698,14 +641,13 @@ def primer(
             leftcontext=leftcontext,
             rightcontext=rightcontext,
             edgeeffectlength=edgeeffectlength,
-            reduce=False,
+            reduce=True,
             liner=liner)
 
         # Show update
         liner.send('\n[Parsing Edge Effects]\n')
 
-        # Parse primerseq, exmotifs,
-        # leftcontext and rightcontext
+        # Parse Edge Effect Constraints
         (parsestatus,
         probseqprefixes,
         probprefixlens,
@@ -790,9 +732,9 @@ def primer(
                  'repeatfail': 0,             # Repeat Fail Count
               'homodimerfail': 0,             # Homodimer Fail Count
             'heterodimerfail': 0,             # Heterodimer Fail Count
-                  'motiffail': 0,             # Motif Elimination Fail Count
+                'exmotiffail': 0,             # Exmotif Elimination Fail Count
                    'edgefail': 0,             # Edge Effect Fail Count
-               'motifcounter': cx.Counter()}} # Motif Encounter Counter
+             'exmotifcounter': cx.Counter()}} # Exmotif Encounter Counter
 
     # Schedule outfile deletion
     ofdeletion = ae.register(
@@ -810,9 +752,9 @@ def primer(
         oligorepeats=oligorepeats,
         pairedprimer=pairedprimer,
         pairedrepeats=pairedrepeats,
-        exmotifs=exmotifs,
         prefixforbidden=prefixforbidden,
         suffixforbidden=suffixforbidden,
+        exmotifs=exmotifs,
         background=background,
         stats=stats,
         liner=liner)
@@ -843,7 +785,7 @@ def primer(
                 path_or_buf=outfile,
                 sep=',')
 
-    # Barcoding Statistics
+    # Primer Design Statistics
     liner.send('\n[Primer Design Statistics]\n')
 
     liner.send(
@@ -878,7 +820,7 @@ def primer(
             'repeatfail',
             'homodimerfail',
             'heterodimerfail',
-            'motiffail',
+            'exmotiffail',
             'edgefail'))
 
         sntn, plen = ut.get_notelen(
@@ -889,7 +831,7 @@ def primer(
                           stats['vars']['repeatfail']      + \
                           stats['vars']['homodimerfail']   + \
                           stats['vars']['heterodimerfail'] + \
-                          stats['vars']['motiffail']       + \
+                          stats['vars']['exmotiffail']     + \
                           stats['vars']['edgefail']
 
         liner.send(
@@ -925,12 +867,12 @@ def primer(
                     A=stats['vars']['heterodimerfail'] * 100.,
                     B=total_conflicts)))
         liner.send(
-            '       Motif Conflicts  : {:{},{}} Event(s) ({:6.2f} %)\n'.format(
-                stats['vars']['motiffail'],
+            '     Exmotif Conflicts  : {:{},{}} Event(s) ({:6.2f} %)\n'.format(
+                stats['vars']['exmotiffail'],
                 plen,
                 sntn,
                 ut.safediv(
-                    A=stats['vars']['motiffail'] * 100.,
+                    A=stats['vars']['exmotiffail'] * 100.,
                     B=total_conflicts)))
         liner.send(
             '        Edge Conflicts  : {:{},{}} Event(s) ({:6.2f} %)\n'.format(
@@ -942,27 +884,28 @@ def primer(
                     B=total_conflicts)))
 
         # Enumerate Motif-wise Fail Counts
-        if stats['vars']['motifcounter']:
+        if stats['vars']['exmotifcounter']:
 
             qlen = max(len(motif) \
-                for motif in stats['vars']['motifcounter'].keys()) + 2
+                for motif in stats['vars']['exmotifcounter'].keys()) + 2
 
             sntn, vlen = ut.get_notelen(
                 printlen=ut.get_printlen(
                     value=max(
-                        stats['vars']['motifcounter'].values())))
+                        stats['vars']['exmotifcounter'].values())))
 
-            liner.send('   Motif-wise Conflict Distribution\n')
+            liner.send('   Exmotif-wise Conflict Distribution\n')
 
-            for motif,count in stats['vars']['motifcounter'].most_common():
-                motif = '\'{}\''.format(motif)
+            for exmotif,count in stats['vars']['exmotifcounter'].most_common():
+                exmotif = '\'{}\''.format(exmotif)
                 liner.send(
-                    '     - Motif {:>{}} Triggered {:{},{}} Event(s)\n'.format(
-                        motif, qlen, count, vlen, sntn))
+                    '     - Exmotif {:>{}} Triggered {:{},{}} Event(s)\n'.format(
+                        exmotif, qlen, count, vlen, sntn))
 
     # Show Time Elapsed
     liner.send(
-        ' Time Elapsed: {:.2f} sec\n'.format(tt.time()-t0))
+        ' Time Elapsed: {:.2f} sec\n'.format(
+            tt.time()-t0))
 
     # Unschedule outfile deletion
     if primerstatus:

@@ -498,6 +498,161 @@ def get_tmelt(
         dntp_conc=ntc,
         dna_conc=olc)
 
+# Oligopool Functions
+
+def get_parsed_oligolen(
+    indf,
+    variantlens,
+    oligolen,
+    minelementlen,
+    maxelementlen,
+    element,
+    liner):
+    '''
+    Check if enough space available
+    for all variants in pool for the
+    designed element.
+
+    :: indf
+       type - pd.DataFrame
+       desc - input DataFrame containing
+              all designed variants
+    :: variantlens
+       type - np.array / None
+       desc - length of all variants stored
+              in input DataFrame, if None
+              then compute it explicitly
+    :: oligolen
+       type - integer
+       desc - maximum allowed oligo length
+    :: maxelementlen
+       type - integer
+       desc - maximum allowed designed element
+              length
+    :: minelementlen
+       type - integer
+       desc - maximum allowed designed element
+              length
+    :: element
+       type - string
+       desc - element being designed
+    :: liner
+       type - coroutine
+       desc - dynamic printing
+    '''
+
+    # Book-keeping
+    parsestatus   = True
+    minvariantlen = None
+    maxvariantlen = None
+    minspaceavail = None
+    maxspaceavail = None
+    t0 = tt.time()
+
+    # Compute Variant Lengths
+    liner.send(' Parsing Variant Lengths ...')
+
+    if variantlens is None:
+        variantlens = np.array(list(
+            map(len, get_df_concat(df=indf))))
+
+    minvariantlen = np.min(variantlens)
+    maxvariantlen = np.max(variantlens)
+    minspaceavail = oligolen - maxvariantlen
+    maxspaceavail = oligolen - minvariantlen
+
+    parsestatus = (0 <= minelementlen <= minspaceavail) and \
+                  (0 <= maxelementlen <= maxspaceavail)
+
+    # Show Updates
+    plen = get_printlen(
+        value=max(np.abs([
+            oligolen,
+            minvariantlen,
+            maxvariantlen,
+            minelementlen,
+            maxelementlen,
+            minspaceavail,
+            maxspaceavail]))) + 1
+
+    liner.send(
+        ' Maximum Oligo Length: {:{},d} Base Pair(s)\n'.format(
+            oligolen,
+            plen))
+
+    # How much space occupied by variants?
+    if minvariantlen == maxvariantlen:
+        liner.send(
+            ' Input Variant Length: {:{},d} Base Pair(s)\n'.format(
+                minvariantlen,
+                plen))
+    else:
+        liner.send(
+            ' Input Variant Length: {:{},d} to {:,} Base Pair(s)\n'.format(
+                minvariantlen,
+                plen,
+                maxvariantlen))
+
+    # How much space required by elements?
+    if minelementlen == maxelementlen:
+        liner.send(
+            ' {:>13} Length: {:{},d} Base Pair(s)\n'.format(
+                'Reqd. ' + element,
+                minelementlen,
+                plen))
+    else:
+        liner.send(
+            ' {:>13} Length: {:{},d} to {:,} Base Pair(s)\n'.format(
+                'Reqd. ' + element,
+                minelementlen,
+                plen,
+                maxelementlen))
+
+    # How much space available?
+    if not parsestatus:
+        msg = ' [INFEASIBLE] (Insufficient Oligo Space Available)'
+    else:
+        msg = ''
+
+    if minspaceavail == maxspaceavail:
+        liner.send(
+            ' Free Space Available: {:{},d} Base Pair(s){}\n'.format(
+                minspaceavail,
+                plen,
+                msg))
+    else:
+        liner.send(
+            ' Free Space Available: {:{},d} to {:,} Base Pair(s){}\n'.format(
+                minspaceavail,
+                plen,
+                maxspaceavail,
+                msg))
+
+    # Show Time Elapsed
+    liner.send(
+        ' Time Elapsed: {:.2f} sec\n'.format(
+            tt.time()-t0))
+
+    # Show Verdict
+    if not parsestatus:
+        liner.send(
+            ' Verdict: {} Design Infeasible due to Oligo Length Constraints\n'.format(
+                element))
+    else:
+        liner.send(
+            ' Verdict: {} Design Possibly Feasible\n'.format(
+                element))
+
+    # Return Results
+    return (parsestatus,
+        oligolen,
+        minvariantlen,
+        maxvariantlen,
+        minelementlen,
+        maxelementlen,
+        minspaceavail,
+        maxspaceavail)
+
 # Exmotif Functions
 
 def get_parsed_exmotifs(

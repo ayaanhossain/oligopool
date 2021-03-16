@@ -1400,6 +1400,7 @@ def is_exmotif_feasible(
 def is_edge_feasible(
     primer,
     primerlen,
+    edgeeffectlength,
     prefixforbidden,
     suffixforbidden):
     '''
@@ -1413,6 +1414,9 @@ def is_edge_feasible(
     :: primerlen
        type - integer
        desc - full primer sequence length
+    :: edgeeffectlength
+       type - integer
+       desc - context length for edge effects
     :: prefixforbidden
        type - dict / None
        desc - dictionary of forbidden primer
@@ -1428,6 +1432,7 @@ def is_edge_feasible(
         seqlen=primerlen,
         lcseq=None,
         rcseq=None,
+        edgeeffectlength=edgeeffectlength,
         prefixforbidden=prefixforbidden,
         suffixforbidden=suffixforbidden)
 
@@ -1582,6 +1587,7 @@ def primer_objectives(
     oligorepeats,
     pairedprimer,
     pairedrepeats,
+    edgeeffectlength,
     prefixforbidden,
     suffixforbidden,
     exmotifs,
@@ -1623,6 +1629,9 @@ def primer_objectives(
     :: pairedrepeats
        type - set / None
        desc - set storing paired primer repeats
+    :: edgeeffectlength
+       type - integer
+       desc - context length for edge effects
     :: prefixforbidden
        type - dict / None
        desc - dictionary of forbidden primer
@@ -1781,9 +1790,10 @@ def primer_objectives(
             len(primer)-1)
 
     # Objective 6: Edge Feasibility (Edge-Effects)
-    obj6, traceloc = is_edge_feasible(
+    obj6, dxmotifs, traceloc = is_edge_feasible(
         primer=primer,
         primerlen=primerlen,
+        edgeeffectlength=edgeeffectlength,
         prefixforbidden=prefixforbidden,
         suffixforbidden=suffixforbidden)
 
@@ -1801,7 +1811,8 @@ def primer_objectives(
             liner=liner)
 
         # Update Stats
-        stats['vars']['edgefail'] += 1
+        stats['vars']['edgefail'] += len(dxmotifs)
+        stats['vars']['exmotifcounter'].update(dxmotifs)
 
         # Return Traceback
         return False, traceloc

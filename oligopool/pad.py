@@ -351,9 +351,9 @@ def pad(
 
     # First Pass indata Parsing and Validation
     (indf,
-    indata_valid) = vp.get_parsed_data_info(
-        data=indata,
-        data_field='   Input Data       ',
+    indata_valid) = vp.get_parsed_indata_info(
+        indata=indata,
+        indata_field='   Input Data       ',
         required_fields=('ID',),
         precheck=False,
         liner=liner)

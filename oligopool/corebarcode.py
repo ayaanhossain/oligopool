@@ -317,11 +317,11 @@ def is_exmotif_feasible(
 def is_edge_feasible(
     barcodeseq,
     exmotifs,
+    contextarray,
     leftselector,
     leftcontexttype,
     rightselector,
-    rightcontexttype,
-    contextarray):
+    rightcontexttype):
     '''
     Determine the context assignment index
     for designed sequence, and see if the
@@ -336,6 +336,9 @@ def is_edge_feasible(
        desc - list of motifs to exclude
               in designed barcodes,
               None otherwise
+    :: contextarray
+       type - np.array
+       desc - context assignment array
     :: leftcontexttype
        type - integer
        desc - inferred left context type
@@ -356,17 +359,15 @@ def is_edge_feasible(
        type - lambda
        desc - selector for the right
               sequence context
-    :: contextarray
-       type - np.array
-       desc - context assignment array
     '''
 
     # Book-keeping
-    i      = 0
+    i = 0
+    t = len(contextarray)
     cfails = cx.Counter()
 
     # Loop through contexts for assignment
-    while i < len(contextarray):
+    while i < t:
 
         # Fetch Context
         aidx = contextarray.popleft()
@@ -447,11 +448,11 @@ def barcode_objectives(
     barcodelen,
     minhdist,
     exmotifs,
+    contextarray,
     leftcontexttype,
     leftselector,
     rightcontexttype,
-    rightselector,
-    contextarray):
+    rightselector):
     '''
     Determine if a barcode satisfies all
     global objectives. Internal use only.
@@ -480,6 +481,9 @@ def barcode_objectives(
        desc - list of motifs to exclude
               in designed barcodes,
               None otherwise
+    :: contextarray
+       type - np.array
+       desc - context assignment array
     :: leftcontexttype
        type - integer
        desc - inferred left context type
@@ -500,9 +504,6 @@ def barcode_objectives(
        type - lambda
        desc - selector for the right
               sequence context
-    :: contextarray
-       type - np.array
-       desc - context assignment array
     '''
 
     # Objective 1: Hamming Distance
@@ -529,11 +530,11 @@ def barcode_objectives(
     obj3, aidx, afails = is_edge_feasible(
         barcodeseq=barcodeseq,
         exmotifs=exmotifs,
+        contextarray=contextarray,
         leftcontexttype=leftcontexttype,
         leftselector=leftselector,
         rightcontexttype=rightcontexttype,
-        rightselector=rightselector,
-        contextarray=contextarray)
+        rightselector=rightselector)
 
     # Objective 3 Failed
     if not obj3:

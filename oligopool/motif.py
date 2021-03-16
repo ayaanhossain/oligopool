@@ -85,11 +85,12 @@ def motif_engine(
                 stats=stats,
                 idx=idx+1,
                 plen=plen,
+                element='Motif',
                 liner=liner)
 
             # Design Motif via Maker
             motif = maker.nrp_maker(
-                homology=len(motifseq),
+                homology=min(len(motifseq), 6),
                 seq_constr=motifseq,
                 struct_constr='.'*len(motifseq),
                 target_size=1,
@@ -98,7 +99,7 @@ def motif_engine(
                 synth_opt=False,
                 local_model_fn=objectivefunction,
                 jump_count=100,
-                fail_count=10000,
+                fail_count=100,
                 output_file=None,
                 verbose=False,
                 abortion=True,
@@ -144,6 +145,8 @@ def motif_engine(
                     storage=motifs,
                     stats=stats,
                     plen=plen,
+                    element='Motif',
+                    element_key='motifcount',
                     liner=liner)
 
     # Constant Motif
@@ -163,7 +166,7 @@ def motif_engine(
 
         # Determine Last Known Motif
         if optrequired:
-            lastmotif = motifs[-10]
+            lastmotif = motifs[-1]
         else:
             lastmotif = motifseq
 
@@ -198,6 +201,7 @@ def motif_engine(
 
 def motif(
     indata,
+    oligolen,
     motifseq,
     motifcol,
     outfile,
@@ -212,7 +216,7 @@ def motif(
     # Start Liner
     liner = ut.liner_engine(verbose)
 
-    # Primer Verbage Print
+    # Spacer Verbage Print
     liner.send('\n[Oligopool Calculator: Design Mode - Motif]\n')
 
     # Required Argument Parsing
@@ -220,10 +224,21 @@ def motif(
 
     # First Pass indata Parsing and Validation
     (indf,
-    indata_valid) = vp.get_parsed_data_info(
-        data=indata,
-        data_field='    Input Data    ',
+    indata_valid) = vp.get_parsed_indata_info(
+        indata=indata,
+        indata_field='    Input Data    ',
         required_fields=('ID',),
+        precheck=False,
+        liner=liner)
+
+    # Full oligolen Validation
+    oligolen_valid = vp.get_numeric_validity(
+        numeric=oligolen,
+        numeric_field='    Oligo Length  ',
+        numeric_pre_desc=' At most ',
+        numeric_post_desc=' Base Pair(s)',
+        minval=4,
+        maxval=float('inf'),
         precheck=False,
         liner=liner)
 
@@ -302,13 +317,14 @@ def motif(
         exseqs=exmotifs,
         exseqs_field=' Excluded Motifs  ',
         exseqs_desc='Unique Motif(s)',
-        df_field='Exmotifs,',
+        df_field='Exmotif,',
         required=False,
         liner=liner)
 
     # First Pass Validation
     if not all([
         indata_valid,
+        oligolen_valid,
         motifseq_valid,
         motifcol_valid,
         outfile_valid,
@@ -322,6 +338,9 @@ def motif(
     # Start Timer
     t0 = tt.time()
 
+    # Adjust Numeric Paramters
+    oligolen = round(oligolen)
+
     # Define Edge Effect Length
     edgeeffectlength = None
 
@@ -330,6 +349,47 @@ def motif(
     has_context = False
     outdf = None
     stats = None
+
+    # Parse Oligopool Length Feasibility
+    liner.send('\n[Parsing Oligo Length]\n')
+
+    # Parse oligolen
+    (parsestatus,
+    oligolen,
+    minvariantlen,
+    maxvariantlen,
+    minelementlen,
+    maxelementlen,
+    minspaceavail,
+    maxspaceavail) = ut.get_parsed_oligolen(
+        indf=indf,
+        variantlens=None,
+        oligolen=oligolen,
+        minelementlen=len(motifseq),
+        maxelementlen=len(motifseq),
+        element='Motif',
+        liner=liner)
+
+    # oligolen infeasible
+    if not parsestatus:
+
+        # Prepare stats
+        stats = {
+            'status': False,
+            'basis' : 'infeasible',
+            'step'  : 1,
+            'vars'  : {
+                     'oligolen': oligolen,
+                'minvariantlen': minvariantlen,
+                'maxvariantlen': maxvariantlen,
+                'minelementlen': minelementlen,
+                'maxelementlen': maxelementlen,
+                'minspaceavail': minspaceavail,
+                'maxspaceavail': maxspaceavail}}
+
+        # Return results
+        liner.close()
+        return (outdf, stats)
 
     # Parse Excluded Motifs
     if not exmotifs is None:
@@ -353,7 +413,7 @@ def motif(
             stats = {
                 'status': False,
                 'basis' : 'infeasible',
-                'step'  : 1,
+                'step'  : 2,
                 'vars'  : {
                      'problens': problens,
                     'probcount': tuple(list(
@@ -378,8 +438,8 @@ def motif(
         liner=liner)
 
     # Parse Edge Effects
-    if not optrequired is False and \
-       not exmotifs    is None  and \
+    if ((not optrequired is False) and \
+        (not exmotifs    is None)) and \
        ((not leftcontext  is None) or \
         (not rightcontext is None)):
 
@@ -424,13 +484,13 @@ def motif(
     stats = {
         'status': False,
          'basis': 'unsolved',
-          'step': 5,
+          'step': 6,
           'vars': {
                'targetcount': targetcount,   # Required Number of Motifs
                 'motifcount': 0,             # Motif Design Count
                'exmotiffail': 0,             # Exmotif Elimination Fail Count
                   'edgefail': 0,             # Edge Effect Fail Count
-            'exmotifcounter': cx.Counter()}} # Motif Encounter Counter
+            'exmotifcounter': cx.Counter()}} # Exmotif Encounter Counter
 
     # Schedule outfile deletion
     ofdeletion = ae.register(

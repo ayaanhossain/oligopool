@@ -5,6 +5,7 @@ import multiprocessing as mp
 import zipfile         as zf
 import math            as mt
 
+import numpy    as np
 import pandas   as pd
 
 import vectordb as db
@@ -161,10 +162,9 @@ def get_parsed_data_info(
     data,
     data_field,
     required_fields,
-    precheck,
     liner):
     '''
-    Determine if a given data is a valid,
+    Determine if given data is a valid,
     non-empty CSV file or a DataFrame.
     Internal use only.
 
@@ -180,11 +180,6 @@ def get_parsed_data_info(
        type - list / None
        desc - list of column names which
               must be present in data
-    :: precheck
-       type - boolean
-       desc - if True prints content description
-              when validation successful too,
-              otherwise this is a pre-check
     :: liner
        type - coroutine
        desc - dynamic printing
@@ -357,10 +352,61 @@ def get_parsed_data_info(
         else:
             df_contains_required_cols = True
 
+    # Compute final validity
+    df_valid = all([
+        df_extracted,
+        df_nonempty,
+        df_no_missing_vals,
+        df_indexible,
+        df_contains_required_cols])
+
+    # Return Results
+    return (df, df_valid)
+
+def get_parsed_indata_info(
+    indata,
+    indata_field,
+    required_fields,
+    precheck,
+    liner):
+    '''
+    Determine if indata consisting of DNA columns
+    only is valid. Internal use only.
+
+    :: indata
+       type - string / pd.DataFrame
+       desc - path to CSV file or a pandas
+              DataFrame storing information
+    :: indata_field
+       type - string
+       desc - indata fieldname used in
+              printing
+    :: required_fields
+       type - list / None
+       desc - list of column names which
+              must be present in data
+    :: precheck
+       type - boolean
+       desc - if True prints content description
+              when validation successful too,
+              otherwise this is a pre-check
+    :: liner
+       type - coroutine
+       desc - dynamic printing
+    '''
+
+    # Is indata valid CSV or DataFrame?
+    (df,
+    df_valid) = get_parsed_data_info(
+        data=indata,
+        data_field=indata_field,
+        required_fields=required_fields,
+        liner=liner)
+
     # df columns contain DNA strings only?
     df_contains_DNA_only = False
 
-    if df_contains_required_cols:
+    if df_valid:
 
         # Are all entries DNA strings?
 
@@ -392,19 +438,15 @@ def get_parsed_data_info(
         if not df_contains_DNA_only:
             liner.send(
                 '{}: {} w/ {:,} Record(s) [NON-DNA VALUE=\'{}\' IN COLUMN=\'{}\']\n'.format(
-                    data_field,
-                    data,
+                    indata_field,
+                    indata,
                     len(df.index),
                     value,
                     column))
 
     # Compute final validity
     df_valid = all([
-        df_extracted,
-        df_nonempty,
-        df_no_missing_vals,
-        df_indexible,
-        df_contains_required_cols,
+        df_valid,
         df_contains_DNA_only])
 
     # Is df valid?
@@ -418,8 +460,8 @@ def get_parsed_data_info(
         if not precheck:
             liner.send(
                 '{}: {} w/ {:,} Record(s)\n'.format(
-                    data_field,
-                    data,
+                    indata_field,
+                    indata,
                     len(df.index)))
 
     else:
@@ -946,9 +988,9 @@ def get_parsed_exseqs_info(
 
      # Is exseqs a CSV file or DataFrame?
     (df,
-    df_valid) = get_parsed_data_info(
-        data=exseqs,
-        data_field=exseqs_field,
+    df_valid) = get_parsed_indata_info(
+        indata=exseqs,
+        indata_field=exseqs_field,
         required_fields=('ID', df_field,),
         precheck=True,
         liner=liner)
@@ -1021,12 +1063,12 @@ def get_numeric_validity(
 
     # numeric less than lowerbound?
     elif numeric < minval:
-        liner.send('{}:{}{:,}{} [INPUT VALUE SMALLER THAN {}]\n'.format(
+        liner.send('{}:{}{:,}{} [INPUT VALUE SMALLER THAN {:,}]\n'.format(
             numeric_field, numeric_pre_desc, numeric, numeric_post_desc, minval))
 
     # numeric greater than upperbound?
     elif numeric > maxval:
-        liner.send('{}:{}{:,}{} [INPUT VALUE LARGER THAN {}]\n'.format(
+        liner.send('{}:{}{:,}{} [INPUT VALUE LARGER THAN {:,}]\n'.format(
             numeric_field, numeric_pre_desc, numeric, numeric_post_desc, maxval))
 
     # All conditions met!
@@ -1038,6 +1080,256 @@ def get_numeric_validity(
 
     # Return numeric validity
     return numeric_valid
+
+def get_parsed_spacerlen_info(
+    spacerlen,
+    spacerlen_field,
+    df_field,
+    oligolen,
+    oligolen_valid,
+    indf,
+    indata_valid,
+    liner):
+    '''
+    Determine if given spacer length(s) input are valid.
+    Internal use only.
+
+    :: spacerlen
+       type - iterable / integer / pd.DataFrame / None
+       desc - iterable of integers denoting the length
+              of spacers; optionally a DataFrame or a
+              path to a CSV file with such lengths
+    :: spacerlen_field
+       type - string
+       desc - spacerlen fieldname used in printing
+    :: df_field
+       type - string
+       desc - name of the column in DataFrame storing
+              spacer lengths
+    :: oligolen
+       type - integer
+       desc - maximum oligo length after inserting
+              designed spacers
+    :: oligolen_valid
+       type - boolean
+       desc - oligolen parsing status
+    :: indf
+       type - pd.DataFrame / None
+       desc - Associated input DataFrame
+    :: indata_valid
+       type - boolean
+       desc - Associated input DataFrame validity
+    :: liner
+       type - coroutine
+       desc - dynamic printing
+    '''
+
+    # Is spacerlen None?
+    if spacerlen is None:
+        liner.send(
+            '{}: Computed from Oligo Length (Auto-Inferred)\n'.format(
+                spacerlen_field))
+        return (None, True)
+
+    # Quick compute indexlen
+    if indata_valid:
+        lenindex = len(indf.index)
+    else:
+        lenindex = 1
+
+    # Correct oligolen
+    if not oligolen_valid:
+        oligolen = float('+inf')
+    else:
+        oligolen = round(oligolen)
+
+    # Is spacerlen numeric?
+    if isinstance(spacerlen, nu.Real):
+
+        # Ensure spacerlen valid
+        spacerlen_valid = get_numeric_validity(
+            numeric=spacerlen,
+            numeric_field=spacerlen_field,
+            numeric_pre_desc=' Exact1y ',
+            numeric_post_desc=' Base Pair(s)',
+            minval=1,
+            maxval=oligolen,
+            precheck=False,
+            liner=liner)
+
+        # Build spacerlen
+        if spacerlen_valid:
+            spacerlen = np.zeros(
+                lenindex, dtype=np.int64) + round(spacerlen)
+        else:
+            spacerlen = None
+
+        # Return Results
+        return (spacerlen, spacerlen_valid)
+
+    # Is spacerlen extracted?
+    spacerlen_extracted = False
+
+    # Is spacerlen iterable?
+    if not isinstance(spacerlen, pd.DataFrame) and \
+       not isinstance(spacerlen, str) and \
+       not isinstance(spacerlen, nu.Real):
+
+        # Try extracting spacerlen
+        try:
+            spacerlen = list(n for n in spacerlen)
+
+        # Error during extraction
+        except:
+            # Handled in sink below:
+            # 'if not spacerlen_extracted: ...'
+            spacerlen_extracted = False
+
+        # Iteration successful
+        else:
+            spacerlen_extracted = True
+
+        # Do we have enough spacers?
+        if indata_valid:
+            if len(spacerlen) != len(indf.index):
+
+                # Compute category of mismatch
+                catm = ['FEWER', 'MORE'][len(spacerlen) > len(indf.index)]
+
+                # Show Update
+                liner.send(
+                    '{}: Iterable of {:,} Record(s) [{} THAN {:,} SPACERS SPECIFIED]\n'.format(
+                        spacerlen_field,
+                        len(spacerlen),
+                        catm,
+                        len(indf.index)))
+
+                # Return Results
+                return (None, False)
+
+    # Is spacerlen a CSV file or DataFrame?
+    else:
+
+        # Compute spacerlen data validity
+        (df,
+        df_valid) = get_parsed_data_info(
+            data=spacerlen,
+            data_field=spacerlen_field,
+            required_fields=('ID', df_field,),
+            liner=liner)
+
+        # Is spacerlen df valid?
+        if df_valid:
+
+            # Are the indexes matching?
+            idx_match = False
+            if indata_valid:
+
+                # Matching IDs?
+                idx_match = len(df.index)    == len(indf.index) and \
+                            sorted(df.index) == sorted(indf.index)
+
+                # Everything OK!
+                if idx_match:
+                    df = df.reindex(indf.index)
+                    spacerlen = list(n for n in df[df_field])
+                    spacerlen_extracted = True
+
+            # No basis for matching, so show indifference
+            # here, return and fail later on
+            else:
+                liner.send(
+                    '{}: {} w/ {:,} Record(s)\n'.format(
+                        spacerlen_field,
+                        spacerlen,
+                        len(df.index)))
+                return (None, False)
+
+            # Indexes don't match
+            if not idx_match:
+                liner.send(
+                    '{}: {} w/ {:,} Record(s) [COLUMN=\'ID\' DOES NOT MATCH INPUT DATA]\n'.format(
+                        spacerlen_field,
+                        spacerlen,
+                        len(df.index)))
+                return (None, False)
+
+        else:
+            # Note: We've already shown how
+            # invalidity impacts spacerlen,
+            # so we're directly returning
+            return (None, False)
+
+    # spacerlen not extracted?
+    if not spacerlen_extracted:
+        # Note: if spacerlen is neither numeric, pd.DataFrame
+        # iterable, nor a string path, then it should sink here
+        liner.send(
+            '{}: {} [INPUT TYPE IS INVALID]\n'.format(
+                spacerlen_field,
+                spacerlen))
+        return (None, False)
+
+    # Finalize spacerlen
+    minimum = float('+inf')
+    maximum = float('-inf')
+    finalspacerlen = []
+
+    for sl in spacerlen:
+
+        # Ensure sl valid
+        sl_valid = get_numeric_validity(
+            numeric=sl,
+            numeric_field=spacerlen_field,
+            numeric_pre_desc=' Found an Entry for ',
+            numeric_post_desc=' Base Pair(s)',
+            minval=0,
+            maxval=oligolen,
+            precheck=True,
+            liner=liner)
+
+        # Invalid sl
+        if not sl_valid:
+            return (None, False)
+        # So far valid
+        else:
+            sl = round(sl)
+            finalspacerlen.append(sl)
+            minimum = min(minimum, sl)
+            maximum = max(maximum, sl)
+
+    # No errors whatsoever
+    spacerlen = finalspacerlen
+    spacerlen_valid = True
+
+    if minimum == maximum:
+
+        # We don't tolerate all zeros
+        if minimum == 0:
+            liner.send(
+                '{}: Exactly 0 Base Pair(s) [ALL SPACERS HAVE ZERO LENGTH]\n'.format(
+                    spacerlen_field,
+                    minimum))
+            return (None, False)
+
+        # At least some entries require spacers
+        else:
+            liner.send(
+                '{}: Exactly {:,} Base Pair(s)\n'.format(
+                    spacerlen_field,
+                    minimum))
+    else:
+        liner.send(
+            '{}: {:,} to {:,} Base Pair(s)\n'.format(
+                spacerlen_field,
+                minimum,
+                maximum))
+
+    # Pack spacerlen
+    spacerlen = np.array(spacerlen)
+
+    # Return Results
+    return (spacerlen, True)
 
 def get_categorical_validity(
     category,

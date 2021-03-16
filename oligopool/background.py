@@ -142,10 +142,11 @@ def background(
 
     Note 1. If <indata> points to a CSV file or a DataFrame,it
             must contain a column named 'ID', that uniquely
-            identifies each background sequence. Values in
-            <indata> except 'ID' must be DNA strings. All
-            rows and columns in <indata> must be non-empty,
-            i.e. none of the cells must be empty.
+            identifies each background sequence, listed in a
+            'Sequence' column. Values in <indata> except 'ID'
+            must be DNA strings. All rows and columns in the
+            <indata> must be non-empty, i.e. none of the cells
+            must be empty.
 
     Note 2. The <maxreplen> parameter here controls the level
             of non-repetitiveness in designed primers with

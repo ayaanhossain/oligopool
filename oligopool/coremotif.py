@@ -3,6 +3,7 @@ import time  as tt
 import collections as cx
 
 import numpy as np
+from numpy.core.fromnumeric import var
 
 import utils as ut
 
@@ -160,6 +161,107 @@ def get_parsed_edgeeffects(
         exmotifs=exmotifs,
         liner=liner)
 
+def get_extracted_spacerlen(
+    indf,
+    oligolen,
+    liner):
+    '''
+    Extract spacer lengths based on existing
+    variant length and maximum oligo length.
+    Internal use only.
+
+    :: indf
+       type - pd.DataFrame
+       desc - input DataFrame containing
+              all designed variants
+    :: oligolen
+       type - integer
+       desc - maximum allowed oligo length
+    :: liner
+       type - coroutine
+       desc - dynamic printing
+    '''
+
+    # Time-keeping
+    t0 = tt.time()
+
+    # Compute Variant Lengths
+    liner.send(' Parsing Variant Lengths ...')
+
+    variantlens = np.array(list(
+        map(len, ut.get_df_concat(df=indf))))
+
+    plen = ut.get_printlen(
+        value=len(variantlens))
+
+    # Spacer Storage
+    spacerlen = np.zeros(
+        len(variantlens),
+        dtype=np.int64)
+
+    # Computation Loop
+    for idx,vl in enumerate(variantlens):
+
+        # Compute Spacer Length
+        spacerlen[idx] += oligolen - round(vl)
+
+        # Show Update
+        liner.send(
+            ' Variant {:{},d}: Allows {:,} Base Pair Spacer'.format(
+                idx+1,
+                plen,
+                spacerlen[-1]))
+
+    # Show Time Elapsed
+    liner.send('\* Time Elapsed: {:.2f} sec\n'.format(
+        tt.time()-t0))
+
+    # Return Results
+    return (spacerlen,
+        variantlens)
+
+def get_grouped_spacerlen(
+    spacerlen,
+    liner):
+    '''
+    Group all spacer lengths by their index
+    of occurence. Internal use only.
+
+    :: spacerlen
+       type - np.array
+       desc - an ordered array of all spacer
+              lengths for each variant
+    :: liner
+       type - coroutine
+       desc - dynamic printing
+    '''
+
+    # Book-keeping
+    t0   = tt.time()
+    plen = ut.get_printlen(
+        value=len(spacerlen))
+    spacergroup = cx.defaultdict(cx.deque)
+
+    # Computation Loop
+    for idx,sl in enumerate(spacerlen):
+
+        # Group Spacer
+        spacergroup[sl].append(idx)
+
+        # Show Update
+        liner.send(
+            ' Spacer {:{},d}: Grouped w/ {:,} Other Spacers'.format(
+                idx+1,
+                plen,
+                len(spacergroup[sl])))
+
+    # Show Time Elapsed
+    liner.send('\* Time Elapsed: {:.2f} sec\n'.format(
+        tt.time()-t0))
+
+    # Return Result
+    return spacergroup
+
 # Engine Objective and Helper Functions
 
 def show_update(
@@ -304,9 +406,64 @@ def motif_objectives(
     stats,
     idx,
     plen,
+    element,
     liner):
     '''
-    TBW
+    Determine if a motif satisfies all
+    local objectives. Internal use only.
+
+    :: motif
+       type - string
+       desc - a paritally explored motif
+              sequence path
+    :: motiflen
+       type - integer
+       desc - full motif sequence length
+    :: exmotifs
+       type - set / None
+       desc - set of all excluded motifs
+    :: exmotifindex
+       type - set
+       desc - set of constraint embedded
+              exmotif ending indices
+    :: lcseq
+       type - string / None
+       desc - left context sequence
+    :: rcseq
+       type - string / None
+       desc - right context sequence
+    :: edgeeffectlength
+       type - integer
+       desc - length of context sequence to
+              extract for edge-effect eval
+    :: prefixforbidden
+       type - dict / None
+       desc - dictionary of forbidden primer
+              prefix sequences
+    :: suffixforbidden
+       type - dict / None
+       desc - dictionary of forbidden primer
+              suffix sequences
+    :: inittime
+       type - tt.time
+       desc - initial time stamp
+    :: stats
+       type - dict
+       desc - primer design stats storage
+    :: idx
+       type - integer
+       desc - context assignment index for
+              motif being designed
+    :: plen
+       type - integer
+       plen - target index printing length
+    :: element
+       type - string
+       desc - motif element name, e.g.
+              'Motif' or 'Spacer'
+    :: liner
+       type - coroutine
+       desc - dynamic printing
     '''
 
     # Objective 1: Motif Embedding
@@ -322,7 +479,7 @@ def motif_objectives(
         show_update(
             idx=idx,
             plen=plen,
-            element='Motif',
+            element=element,
             motif=motif,
             optstatus=0,
             optstate=1,
@@ -356,7 +513,7 @@ def motif_objectives(
         show_update(
             idx=idx,
             plen=plen,
-            element='Motif',
+            element=element,
             motif=motif,
             optstatus=0,
             optstate=2,
@@ -375,7 +532,7 @@ def motif_objectives(
     show_update(
         idx=idx,
         plen=plen,
-        element='Motif',
+        element=element,
         motif=motif,
         optstatus=1,
         optstate=0,
@@ -397,24 +554,85 @@ def extra_assign_motif(
     storage,
     stats,
     plen,
+    element,
+    element_key,
     liner):
     '''
-    TBW
+    Reassign motifs to additional contexts where
+    edge effects are absent. Internal use only.
+
+    :: motif
+       type - string
+       desc - a fully explored motif
+              sequence path
+    :: contextarray
+       type - np.array
+       desc - context assignment array
+    :: leftselector
+       type - lambda
+       desc - selector for the left
+              sequence context
+    :: rightselector
+       type - lambda
+       desc - selector for the right
+              sequence context
+    :: edgeeffectlength
+       type - integer
+       desc - length of context sequence to
+              extract for edge-effect eval
+    :: prefixdict
+       type - dict
+       desc - dictionary of all forbidden
+              motif prefixes for left
+              context sequences
+    :: suffixdict
+       type - dict
+       desc - dictionary of all forbidden
+              motif suffixes for right
+              context sequences
+    :: storage
+       type - list
+       desc - list of designed motifs for
+              each indexed context
+    :: stats
+       type - dict
+       desc - primer design stats storage
+    :: idx
+       type - integer
+       desc - context assignment index for
+              motif being designed
+    :: element
+       type - string
+       desc - motif element name, e.g.
+              'Motif' or 'Spacer'
+    :: element_key
+       type - string
+       desc - stats key for element storage
+              count
+    :: liner
+       type - coroutine
+       desc - dynamic printing
     '''
 
+    # Book-keeping
     i = 0
     t = len(contextarray)
 
+    # Loop through contexts for assignment
     while i < t:
 
+        # Fetch Context
         aidx = contextarray.popleft()
 
+        # Fetch Context Sequences
         lcseq =  leftselector(aidx)
         rcseq = rightselector(aidx)
 
+        # Define Forbidden Prefix and Suffix
         prefixforbidden = prefixdict[lcseq] if not lcseq is None else None
         suffixforbidden = suffixdict[rcseq] if not rcseq is None else None
 
+        # Compute Edge Feasibility
         obj, dxmotifs, _ = ut.is_local_edge_feasible(
             seq=motif,
             seqlen=len(motif),
@@ -424,27 +642,34 @@ def extra_assign_motif(
             prefixforbidden=prefixforbidden,
             suffixforbidden=suffixforbidden)
 
+        # Objective Met
         if obj:
-            # Record Storage
+
+            # Record Designed Motif
             storage[aidx] = motif
-            stats['vars']['motifcount'] += 1
+            stats['vars'][element_key] += 1
 
             # Show Update
             show_update(
                 idx=aidx+1,
                 plen=plen,
-                element='Motif',
+                element=element,
                 motif=motif,
                 optstatus=2,
                 optstate=0,
                 inittime=None,
                 terminal=False,
                 liner=liner)
+
+        # Objective Failed
         else:
+
+            # Record Failure Stats
             stats['vars']['edgefail'] += len(dxmotifs)
             stats['vars']['exmotifcounter'].update(dxmotifs)
 
             # Try Again Later
             contextarray.append(aidx)
 
+        # Update Iteration
         i += 1

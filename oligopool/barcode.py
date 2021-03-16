@@ -14,7 +14,6 @@ def barcode_engine(
     minhdist,
     leftcontext,
     rightcontext,
-    edgeeffectlength,
     exmotifs,
     targetcount,
     stats,
@@ -41,10 +40,6 @@ def barcode_engine(
        desc - list of sequences to the
               right of barcodes,
               None otherwise
-    :: edgeeffectlength
-       type - integer
-       desc - length of context sequence to
-              extract for edge-effect eval
     :: exmotifs
        type - list / None
        desc - list of motifs to exclude
@@ -147,11 +142,11 @@ def barcode_engine(
             barcodelen=barcodelen,
             minhdist=minhdist,
             exmotifs=exmotifs,
+            contextarray=contextarray,
             leftcontexttype=leftcontexttype,
             leftselector=leftselector,
             rightcontexttype=rightcontexttype,
-            rightselector=rightselector,
-            contextarray=contextarray)
+            rightselector=rightselector)
 
         # Inifinite Jumper Book-keeping Update
         if jtp == 2:
@@ -270,6 +265,7 @@ def barcode_engine(
 
 def barcode(
     indata,
+    oligolen,
     barcodelen,
     minhdist,
     barcodecol,
@@ -292,6 +288,9 @@ def barcode(
        type - string / pd.DataFrame
        desc - path to CSV file or a pandas DataFrame storing
               annotated oligopool variants and their parts
+    :: oligolen
+       type - integer
+       desc - maximum oligo length allowed in the oligopool
     :: barcodelen
        type - integer
        desc - the length of the barcodes to be designed,
@@ -350,8 +349,8 @@ def barcode(
             be adjacent to each other and in order.
 
     Note 4. If <exmotifs> points to a CSV file or DataFrame,
-            it must contain both an 'ID' and an 'Exmotifs'
-            column, with 'Exmotifs' containing all of the
+            it must contain both an 'ID' and an 'Exmotif'
+            column, with 'Exmotif' containing all of the
             excluded motif sequences.
     '''
 
@@ -366,10 +365,21 @@ def barcode(
 
     # First Pass indata Parsing and Validation
     (indf,
-    indata_valid) = vp.get_parsed_data_info(
-        data=indata,
-        data_field='    Input Data    ',
+    indata_valid) = vp.get_parsed_indata_info(
+        indata=indata,
+        indata_field='    Input Data    ',
         required_fields=('ID',),
+        precheck=False,
+        liner=liner)
+
+    # Full oligolen Validation
+    oligolen_valid = vp.get_numeric_validity(
+        numeric=oligolen,
+        numeric_field='    Oligo Length  ',
+        numeric_pre_desc=' At most ',
+        numeric_post_desc=' Base Pair(s)',
+        minval=4,
+        maxval=float('inf'),
         precheck=False,
         liner=liner)
 
@@ -377,10 +387,10 @@ def barcode(
     barcodelen_valid = vp.get_numeric_validity(
         numeric=barcodelen,
         numeric_field='  Barcode Length  ',
-        numeric_pre_desc=' ',
+        numeric_pre_desc=' Exactly ',
         numeric_post_desc=' Base Pair(s)',
         minval=4,
-        maxval=float('inf'),
+        maxval=float('inf') if not oligolen_valid else oligolen,
         precheck=False,
         liner=liner)
 
@@ -462,13 +472,14 @@ def barcode(
         exseqs=exmotifs,
         exseqs_field=' Excluded Motifs  ',
         exseqs_desc='Unique Motif(s)',
-        df_field='Exmotifs,',
+        df_field='Exmotif',
         required=False,
         liner=liner)
 
     # First Pass Validation
     if not all([
         indata_valid,
+        oligolen_valid,
         barcodelen_valid,
         minhdist_valid,
         barcodecol_valid,
@@ -484,8 +495,9 @@ def barcode(
     t0 = tt.time()
 
     # Adjust Numeric Paramters
+    oligolen   = round(oligolen)
     barcodelen = round(barcodelen)
-    minhdist      = round(minhdist)
+    minhdist   = round(minhdist)
 
     # Define Edge Effect Length
     edgeeffectlength = None
@@ -494,6 +506,47 @@ def barcode(
     has_context = False
     outdf = None
     stats = None
+
+    # Parse Oligopool Length Feasibility
+    liner.send('\n[Parsing Oligo Length]\n')
+
+    # Parse oligolen
+    (parsestatus,
+    oligolen,
+    minvariantlen,
+    maxvariantlen,
+    minelementlen,
+    maxelementlen,
+    minspaceavail,
+    maxspaceavail) = ut.get_parsed_oligolen(
+        indf=indf,
+        variantlens=None,
+        oligolen=oligolen,
+        minelementlen=barcodelen,
+        maxelementlen=barcodelen,
+        element='Barcode',
+        liner=liner)
+
+    # oligolen infeasible
+    if not parsestatus:
+
+        # Prepare stats
+        stats = {
+            'status': False,
+            'basis' : 'infeasible',
+            'step'  : 1,
+            'vars'  : {
+                     'oligolen': oligolen,
+                'minvariantlen': minvariantlen,
+                'maxvariantlen': maxvariantlen,
+                'minelementlen': minelementlen,
+                'maxelementlen': maxelementlen,
+                'minspaceavail': minspaceavail,
+                'maxspaceavail': maxspaceavail}}
+
+        # Return results
+        liner.close()
+        return (outdf, stats)
 
     # Parse Barcode Length Feasibility
     liner.send('\n[Parsing Barcode Length]\n')
@@ -513,7 +566,7 @@ def barcode(
         stats = {
             'status': False,
             'basis' : 'infeasible',
-            'step'  : 1,
+            'step'  : 2,
             'vars'  : {
                  'barcodelen': barcodelen,
                 'designspace': designspace,
@@ -545,7 +598,7 @@ def barcode(
             stats = {
                 'status': False,
                 'basis' : 'infeasible',
-                'step'  : 2,
+                'step'  : 3,
                 'vars'  : {
                      'problens': problens,
                     'probcount': tuple(list(
@@ -590,7 +643,7 @@ def barcode(
     stats = {
         'status': False,
          'basis': 'unsolved',
-          'step': 4,
+          'step': 5,
           'vars': {
                'targetcount': targetcount,   # Required Number of Barcodes
               'barcodecount': 0,             # Barcode Design Count
@@ -613,7 +666,6 @@ def barcode(
         minhdist=minhdist,
         leftcontext=leftcontext,
         rightcontext=rightcontext,
-        edgeeffectlength=edgeeffectlength,
         exmotifs=exmotifs,
         targetcount=targetcount,
         stats=stats,

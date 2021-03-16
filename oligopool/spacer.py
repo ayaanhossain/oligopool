@@ -11,13 +11,11 @@ import valparse    as vp
 import coremotif   as cm
 
 
-def motif_engine(
-    motifseq,
-    optrequired,
+def spacer_engine(
+    spacergroup,
     leftcontext,
     rightcontext,
     exmotifs,
-    exmotifindex,
     edgeeffectlength,
     prefixdict,
     suffixdict,
@@ -29,10 +27,11 @@ def motif_engine(
     '''
 
     # Book-keeping
-    t0     = tt.time()          # Start Timer
-    motifs = [None]*targetcount # Store Motifs
-    plen   = ut.get_printlen(   # Target Print Length
+    t0      = tt.time()          # Start Timer
+    spacers = [None]*targetcount # Store Spacers
+    plen    = ut.get_printlen(   # Target Print Length
         value=targetcount)
+    abort   = False              # Abortion Flag
 
     # Context Setup
     contextarray   = cx.deque(range(targetcount))  # Context Array
@@ -48,15 +47,19 @@ def motif_engine(
         exmotifs = ut.get_grouped_sequences(
             sequences=exmotifs)
 
-    # Motif Design Required
-    if optrequired:
+    # Define Maker Instance
+    maker = nr.base.maker.NRPMaker(
+        part_type='DNA',
+        seed=None)
 
-        # Define Maker Instance
-        maker = nr.base.maker.NRPMaker(
-            part_type='DNA',
-            seed=None)
+    # Core Design Outer Loop
+    while spacergroup:
 
-        # Core Design Loop
+        # Fetch Context Array
+        (spacerlen,
+        contextarray) = spacergroup.popitem()
+
+        # Core Design Inner Loop
         while contextarray:
 
             # Fetch Context Index
@@ -71,11 +74,11 @@ def motif_engine(
             suffixforbidden = suffixdict[rcseq] if not rcseq is None else None
 
             # Define Objective Function
-            objectivefunction = lambda motif: cm.motif_objectives(
-                motif=motif,
-                motiflen=len(motifseq),
+            objectivefunction = lambda spacer: cm.motif_objectives(
+                motif=spacer,
+                motiflen=spacerlen,
                 exmotifs=exmotifs,
-                exmotifindex=exmotifindex,
+                exmotifindex=None,
                 lcseq=lcseq,
                 rcseq=rcseq,
                 edgeeffectlength=edgeeffectlength,
@@ -85,14 +88,14 @@ def motif_engine(
                 stats=stats,
                 idx=idx+1,
                 plen=plen,
-                element='Motif',
+                element='Spacer',
                 liner=liner)
 
-            # Design Motif via Maker
-            motif = maker.nrp_maker(
-                homology=min(len(motifseq), 6),
-                seq_constr=motifseq,
-                struct_constr='.'*len(motifseq),
+            # Design Spacer via Maker
+            spacer = maker.nrp_maker(
+                homology=min(spacerlen, 6),
+                seq_constr='N'*spacerlen,
+                struct_constr='.'*spacerlen,
                 target_size=1,
                 background=None,
                 struct_type=None,
@@ -107,27 +110,28 @@ def motif_engine(
                 check_constraints=False)
 
             # Did we succeed? No ..
-            if len(motif) == 0:
+            if len(spacer) == 0:
 
                 # Terminate Design Loop
+                abort = True
                 break # RIP .. We failed!
 
-            # A motif was designed!
+            # A spacer was designed!
             else:
 
-                # Extract Motif
-                motif = motif[0]
+                # Extract Spacer
+                spacer = spacer[0]
 
                 # Record Designed Motif
-                motifs[idx] = motif
-                stats['vars']['motifcount'] += 1
+                spacers[idx] = spacer
+                stats['vars']['spacercount'] += 1
 
                 # Show Update
                 cm.show_update(
                     idx=idx+1,
                     plen=plen,
-                    element='Motif',
-                    motif=motifs[idx],
+                    element='Spacer',
+                    motif=spacers[idx],
                     optstatus=2,
                     optstate=0,
                     inittime=None,
@@ -135,47 +139,38 @@ def motif_engine(
                     liner=liner)
 
                 cm.extra_assign_motif(
-                    motif=motif,
+                    motif=spacer,
                     contextarray=contextarray,
                     leftselector=leftselector,
                     rightselector=rightselector,
                     edgeeffectlength=edgeeffectlength,
                     prefixdict=prefixdict,
                     suffixdict=suffixdict,
-                    storage=motifs,
+                    storage=spacers,
                     stats=stats,
                     plen=plen,
-                    element='Motif',
-                    element_key='motifcount',
+                    element='Spacer',
+                    element_key='spacercount',
                     liner=liner)
 
-    # Constant Motif
-    else:
-
-        # Constant Solution
-        motifs = motifseq
-        stats['vars']['motifcount'] = targetcount
+        # Continue Outer Loop?
+        if abort:
+            break
 
     # Check Status and Return Solution
-    if not optrequired or \
-       stats['vars']['motifcount'] == targetcount:
+    if not abort and \
+       stats['vars']['spacercount'] == targetcount:
 
         # We solved this!
         stats['status'] = True
         stats['basis']  = 'solved'
 
-        # Determine Last Known Motif
-        if optrequired:
-            lastmotif = motifs[-1]
-        else:
-            lastmotif = motifseq
-
         # Final Update
         cm.show_update(
             idx=targetcount,
             plen=plen,
-            element='Motif',
-            motif=lastmotif,
+            element='Spacer',
+            motif=spacers[-1],
             optstatus=2,
             optstate=0,
             inittime=t0,
@@ -183,7 +178,7 @@ def motif_engine(
             liner=liner)
 
         # Return Results
-        return (motifs, stats)
+        return (spacers, stats)
 
     # Design Unsuccessful
     else:
@@ -199,12 +194,12 @@ def motif_engine(
         # Return Results
         return (None, stats)
 
-def motif(
+def spacer(
     indata,
     oligolen,
-    motifseq,
-    motifcol,
+    spacercol,
     outfile,
+    spacerlen=None,
     leftcontext=None,
     rightcontext=None,
     exmotifs=None,
@@ -217,7 +212,7 @@ def motif(
     liner = ut.liner_engine(verbose)
 
     # Spacer Verbage Print
-    liner.send('\n[Oligopool Calculator: Design Mode - Motif]\n')
+    liner.send('\n[Oligopool Calculator: Design Mode - Spacer]\n')
 
     # Required Argument Parsing
     liner.send('\n Required Arguments\n')
@@ -226,7 +221,7 @@ def motif(
     (indf,
     indata_valid) = vp.get_parsed_indata_info(
         indata=indata,
-        indata_field='    Input Data    ',
+        indata_field='    Input Data   ',
         required_fields=('ID',),
         precheck=False,
         liner=liner)
@@ -234,7 +229,7 @@ def motif(
     # Full oligolen Validation
     oligolen_valid = vp.get_numeric_validity(
         numeric=oligolen,
-        numeric_field='    Oligo Length  ',
+        numeric_field='    Oligo Length ',
         numeric_pre_desc=' At most ',
         numeric_post_desc=' Base Pair(s)',
         minval=4,
@@ -242,19 +237,11 @@ def motif(
         precheck=False,
         liner=liner)
 
-    # First Pass motifseq Validation
-    motifseq_valid = vp.get_seqconstr_validity(
-        seqconstr=motifseq,
-        seqconstr_field='    Motif Sequence',
-        minlenval=1,
-        element='MOTIF',
-        liner=liner)
-
-    # Full motifcol Validation
-    motifcol_valid = vp.get_parsed_column_info(
-        col=motifcol,
+    # Full spacercol Validation
+    spacercol_valid = vp.get_parsed_column_info(
+        col=spacercol,
         df=indf,
-        col_field='    Motif Column  ',
+        col_field='   Spacer Column ',
         col_desc='Output in Column',
         col_type=1,
         adjcol=None,
@@ -266,18 +253,30 @@ def motif(
     # Full outfile Validation
     outfile_valid = vp.get_outdf_validity(
         outdf=outfile,
-        outdf_suffix='.oligopool.motif.csv',
-        outdf_field='   Output File    ',
+        outdf_suffix='.oligopool.spacer.csv',
+        outdf_field='   Output File   ',
         liner=liner)
 
     # Adjust outfile Suffix
     if not outfile is None:
         outfile = ut.get_adjusted_path(
             path=outfile,
-            suffix='.oligopool.motif.csv')
+            suffix='.oligopool.spacer.csv')
 
     # Optional Argument Parsing
     liner.send('\n Optional Arguments\n')
+
+    # Full spacerlen Validation
+    (spacerlen,
+    spacerlen_valid) = vp.get_parsed_spacerlen_info(
+        spacerlen=spacerlen,
+        spacerlen_field='   Spacer Length ',
+        df_field='Length',
+        oligolen=oligolen,
+        oligolen_valid=oligolen_valid,
+        indf=indf,
+        indata_valid=indata_valid,
+        liner=liner)
 
     # Store Context Names
     leftcontextname  = leftcontext
@@ -288,7 +287,7 @@ def motif(
     leftcontext_valid) = vp.get_parsed_column_info(
         col=leftcontext,
         df=indf,
-        col_field='     Left Context ',
+        col_field='     Left Context',
         col_desc='Input from Column',
         col_type=0,
         adjcol=rightcontextname,
@@ -302,7 +301,7 @@ def motif(
     rightcontext_valid) = vp.get_parsed_column_info(
         col=rightcontext,
         df=indf,
-        col_field='    Right Context ',
+        col_field='    Right Context',
         col_desc='Input from Column',
         col_type=0,
         adjcol=leftcontextname,
@@ -315,7 +314,7 @@ def motif(
     (exmotifs,
     exmotifs_valid) = vp.get_parsed_exseqs_info(
         exseqs=exmotifs,
-        exseqs_field=' Excluded Motifs  ',
+        exseqs_field=' Excluded Motifs ',
         exseqs_desc='Unique Motif(s)',
         df_field='Exmotif,',
         required=False,
@@ -325,9 +324,9 @@ def motif(
     if not all([
         indata_valid,
         oligolen_valid,
-        motifseq_valid,
-        motifcol_valid,
+        spacercol_valid,
         outfile_valid,
+        spacerlen_valid,
         leftcontext_valid,
         rightcontext_valid,
         exmotifs_valid]):
@@ -344,11 +343,21 @@ def motif(
     # Define Edge Effect Length
     edgeeffectlength = None
 
-    # Motif Design Book-keeping
+    # Spacer Design Book-keeping
     targetcount = len(indf.index)
     has_context = False
+    variantlens = None
     outdf = None
     stats = None
+
+    # Extract spacerlen (Auto-Inference)
+    if spacerlen is None:
+        liner.send('\n[Extracting Spacer Length]\n')
+        (spacerlen,
+        variantlens) = cm.get_extracted_spacerlen(
+            indf=indf,
+            oligolen=oligolen,
+            liner=liner)
 
     # Parse Oligopool Length Feasibility
     liner.send('\n[Parsing Oligo Length]\n')
@@ -363,11 +372,11 @@ def motif(
     minspaceavail,
     maxspaceavail) = ut.get_parsed_oligolen(
         indf=indf,
-        variantlens=None,
+        variantlens=variantlens,
         oligolen=oligolen,
-        minelementlen=len(motifseq),
-        maxelementlen=len(motifseq),
-        element='Motif',
+        minelementlen=np.min(spacerlen),
+        maxelementlen=np.max(spacerlen),
+        element='Spacer',
         liner=liner)
 
     # oligolen infeasible
@@ -377,7 +386,7 @@ def motif(
         stats = {
             'status': False,
             'basis' : 'infeasible',
-            'step'  : 1,
+            'step'  : 2,
             'vars'  : {
                      'oligolen': oligolen,
                 'minvariantlen': minvariantlen,
@@ -390,6 +399,14 @@ def motif(
         # Return results
         liner.close()
         return (outdf, stats)
+
+    # Extract Spacer Length Groups
+    liner.send('\n[Extracting Spacer Groups]\n')
+
+    # Group spacerlen
+    spacergroup = cm.get_grouped_spacerlen(
+        spacerlen=spacerlen,
+        liner=liner)
 
     # Parse Excluded Motifs
     if not exmotifs is None:
@@ -413,7 +430,7 @@ def motif(
             stats = {
                 'status': False,
                 'basis' : 'infeasible',
-                'step'  : 2,
+                'step'  : 3,
                 'vars'  : {
                      'problens': problens,
                     'probcount': tuple(list(
@@ -427,48 +444,36 @@ def motif(
         edgeeffectlength = ut.get_edgeeffectlength(
             exmotifs=exmotifs)
 
-    # Parsing Sequence Constraint Feasibility
-    liner.send('\n[Parsing Motif Sequence]\n')
+        # Parse Edge Effects
+        if ((not leftcontext  is None) or \
+            (not rightcontext is None)):
 
-    # Parse primerseq
-    (optrequired,
-    exmotifindex) = cm.get_parsed_sequence_constraint(
-        motifseq=motifseq,
-        exmotifs=exmotifs,
-        liner=liner)
+            # Set Context Flag
+            has_context = True
 
-    # Parse Edge Effects
-    if ((not optrequired is False) and \
-        (not exmotifs    is None)) and \
-       ((not leftcontext  is None) or \
-        (not rightcontext is None)):
+            # Show Update
+            liner.send('\n[Extracting Context Sequences]\n')
 
-        # Set Context Flag
-        has_context = True
+            # Extract Both Contexts
+            (leftcontext,
+            rightcontext) = ut.get_extracted_context(
+                leftcontext=leftcontext,
+                rightcontext=rightcontext,
+                edgeeffectlength=edgeeffectlength,
+                reduce=False,
+                liner=liner)
 
-        # Show Update
-        liner.send('\n[Extracting Context Sequences]\n')
+            # Show update
+            liner.send('\n[Parsing Edge Effects]\n')
 
-        # Extract Both Contexts
-        (leftcontext,
-        rightcontext) = ut.get_extracted_context(
-            leftcontext=leftcontext,
-            rightcontext=rightcontext,
-            edgeeffectlength=edgeeffectlength,
-            reduce=False,
-            liner=liner)
-
-        # Show update
-        liner.send('\n[Parsing Edge Effects]\n')
-
-        # Compute Forbidden Prefixes and Suffixes
-        (prefixdict,
-        suffixdict) = cm.get_parsed_edgeeffects(
-            motifseq=motifseq,
-            leftcontext=leftcontext,
-            rightcontext=rightcontext,
-            exmotifs=exmotifs,
-            liner=liner)
+            # Compute Forbidden Prefixes and Suffixes
+            (prefixdict,
+            suffixdict) = cm.get_parsed_edgeeffects(
+                motifseq='NNNN',
+                leftcontext=leftcontext,
+                rightcontext=rightcontext,
+                exmotifs=exmotifs,
+                liner=liner)
 
     # Finalize Context
     if not has_context:
@@ -478,7 +483,7 @@ def motif(
         suffixdict) = (None, None, None, None)
 
     # Launching Motif Design
-    liner.send('\n[Computing Motifs]\n')
+    liner.send('\n[Computing Spacers]\n')
 
     # Define Motif Design Stats
     stats = {
@@ -486,8 +491,8 @@ def motif(
          'basis': 'unsolved',
           'step': 6,
           'vars': {
-               'targetcount': targetcount,   # Required Number of Motifs
-                'motifcount': 0,             # Motif Design Count
+               'targetcount': targetcount,   # Required Number of Spacers
+               'spacercount': 0,             # Spacer Design Count
                'exmotiffail': 0,             # Exmotif Elimination Fail Count
                   'edgefail': 0,             # Edge Effect Fail Count
             'exmotifcounter': cx.Counter()}} # Exmotif Encounter Counter
@@ -497,15 +502,13 @@ def motif(
         ut.remove_file,
         outfile)
 
-    # Design Motifs
-    (motifs,
-    stats) = motif_engine(
-        motifseq=motifseq,
-        optrequired=optrequired,
+    # Design Spacers
+    (spacers,
+    stats) = spacer_engine(
+        spacergroup=spacergroup,
         leftcontext=leftcontext,
         rightcontext=rightcontext,
         exmotifs=exmotifs,
-        exmotifindex=exmotifindex,
         edgeeffectlength=edgeeffectlength,
         prefixdict=prefixdict,
         suffixdict=suffixdict,
@@ -513,13 +516,13 @@ def motif(
         stats=stats,
         liner=liner)
 
-    # Motif Status
+    # Spacer Status
     if stats['status']:
-        motifstatus = 'Successful'
+        spacerstatus = 'Successful'
     else:
-        motifstatus = 'Failed'
+        spacerstatus = 'Failed'
 
-    # Insert motif into indf
+    # Insert spacer into indf
     if stats['status']:
 
         # Update indf
@@ -527,8 +530,8 @@ def motif(
             indf=indf,
             lcname=leftcontextname,
             rcname=rightcontextname,
-            out=motifs,
-            outcol=motifcol)
+            out=spacers,
+            outcol=spacercol)
 
         # Prepare outdf
         outdf = indf
@@ -539,27 +542,27 @@ def motif(
                 path_or_buf=outfile,
                 sep=',')
 
-    # Motif Design Statistics
-    liner.send('\n[Motif Design Statistics]\n')
+    # Spacer Design Statistics
+    liner.send('\n[Spacer Design Statistics]\n')
 
     plen = ut.get_printlen(
         value=max(stats['vars'][field] for field in (
             'targetcount',
-            'motifcount')))
+            'spacercount')))
 
     liner.send(
         '  Design Status   : {}\n'.format(
-            motifstatus))
+            spacerstatus))
     liner.send(
-        '  Target Count    : {:{},d} Motif(s)\n'.format(
+        '  Target Count    : {:{},d} Spacer(s)\n'.format(
             stats['vars']['targetcount'],
             plen))
     liner.send(
-        '   Motif Count    : {:{},d} Motif(s) ({:6.2f} %)\n'.format(
-            stats['vars']['motifcount'],
+        '  Spacer Count    : {:{},d} Spacer(s) ({:6.2f} %)\n'.format(
+            stats['vars']['spacercount'],
             plen,
             ut.safediv(
-                A=stats['vars']['motifcount'] * 100.,
+                A=stats['vars']['spacercount'] * 100.,
                 B=targetcount)))
 
     # Failure Relavant Stats
@@ -616,7 +619,7 @@ def motif(
             tt.time()-t0))
 
     # Unschedule outfile deletion
-    if motifstatus:
+    if spacerstatus:
         ae.unregister(ofdeletion)
 
     # Close Liner

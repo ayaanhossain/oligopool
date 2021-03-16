@@ -19,6 +19,7 @@ def primer_engine(
     oligorepeats,
     pairedprimer,
     pairedrepeats,
+    edgeeffectlength,
     prefixforbidden,
     suffixforbidden,
     exmotifs,
@@ -55,6 +56,9 @@ def primer_engine(
     :: pairedrepeats
        type - set / None
        desc - set storing paired primer repeats
+    :: edgeeffectlength
+       type - integer
+       desc - context length for edge effects
     :: prefixforbidden
        type - dict / None
        desc - dictionary of forbidden primer
@@ -108,6 +112,7 @@ def primer_engine(
         oligorepeats=oligorepeats,
         pairedprimer=pairedprimer,
         pairedrepeats=pairedrepeats,
+        edgeeffectlength=edgeeffectlength,
         prefixforbidden=prefixforbidden,
         suffixforbidden=suffixforbidden,
         exmotifs=exmotifs,
@@ -203,6 +208,7 @@ def primer_engine(
 
 def primer(
     indata,
+    oligolen,
     primerseq,
     primertype,
     mintmelt,
@@ -230,6 +236,9 @@ def primer(
        type - string / pd.DataFrame
        desc - path to CSV file or a pandas DataFrame storing
               annotated oligopool variants and their parts
+    :: oligolen
+       type - integer
+       desc - maximum oligo length allowed in the oligopool
     :: primerseq
        type - integer
        desc - an IUPAC degenerate primer sequence constraint
@@ -331,8 +340,8 @@ def primer(
             the background.
 
     Note 7. If <exmotifs> points to a CSV file or DataFrame,
-            it must contain both an 'ID' and an 'Exmotifs'
-            column, with 'Exmotifs' containing all of the
+            it must contain both an 'ID' and an 'Exmotif'
+            column, with 'Exmotif' containing all of the
             excluded motif sequences.
     '''
 
@@ -347,10 +356,21 @@ def primer(
 
     # First Pass indata Parsing and Validation
     (indf,
-    indata_valid) = vp.get_parsed_data_info(
-        data=indata,
-        data_field='      Input Data       ',
+    indata_valid) = vp.get_parsed_indata_info(
+        indata=indata,
+        indata_field='      Input Data       ',
         required_fields=('ID',),
+        precheck=False,
+        liner=liner)
+
+    # Full oligolen Validation
+    oligolen_valid = vp.get_numeric_validity(
+        numeric=oligolen,
+        numeric_field='      Oligo Length     ',
+        numeric_pre_desc=' At most ',
+        numeric_post_desc=' Base Pair(s)',
+        minval=4,
+        maxval=float('inf'),
         precheck=False,
         liner=liner)
 
@@ -471,7 +491,7 @@ def primer(
         exseqs=exmotifs,
         exseqs_field='   Excluded Motifs     ',
         exseqs_desc='Unique Motif(s)',
-        df_field='Exmotifs,',
+        df_field='Exmotif',
         required=False,
         liner=liner)
 
@@ -485,6 +505,7 @@ def primer(
     # First Pass Validation
     if not all([
         indata_valid,
+        oligolen_valid,
         primerseq_valid,
         primertype_valid,
         tmelt_valid,
@@ -503,7 +524,8 @@ def primer(
     # Start Timer
     t0 = tt.time()
 
-    # Adjust maxreplen
+    # Adjust Numeric Paramters
+    oligolen  = round(oligolen)
     maxreplen = round(maxreplen)
 
     # Define Edge Effect Length
@@ -512,6 +534,47 @@ def primer(
     # Primer Design Book-keeping
     outdf = None
     stats = None
+
+    # Parse Oligopool Length Feasibility
+    liner.send('\n[Parsing Oligo Length]\n')
+
+    # Parse oligolen
+    (parsestatus,
+    oligolen,
+    minvariantlen,
+    maxvariantlen,
+    minelementlen,
+    maxelementlen,
+    minspaceavail,
+    maxspaceavail) = ut.get_parsed_oligolen(
+        indf=indf,
+        variantlens=None,
+        oligolen=oligolen,
+        minelementlen=len(primerseq),
+        maxelementlen=len(primerseq),
+        element='Primer',
+        liner=liner)
+
+    # oligolen infeasible
+    if not parsestatus:
+
+        # Prepare stats
+        stats = {
+            'status': False,
+            'basis' : 'infeasible',
+            'step'  : 1,
+            'vars'  : {
+                     'oligolen': oligolen,
+                'minvariantlen': minvariantlen,
+                'maxvariantlen': maxvariantlen,
+                'minelementlen': minelementlen,
+                'maxelementlen': maxelementlen,
+                'minspaceavail': minspaceavail,
+                'maxspaceavail': maxspaceavail}}
+
+        # Return results
+        liner.close()
+        return (outdf, stats)
 
     # Parse Excluded Motifs
     if not exmotifs is None:
@@ -535,7 +598,7 @@ def primer(
             stats = {
                 'status': False,
                 'basis' : 'infeasible',
-                'step'  : 1,
+                'step'  : 2,
                 'vars'  : {
                      'problens': problens,
                     'probcount': tuple(list(
@@ -572,7 +635,7 @@ def primer(
         stats = {
             'status': False,
             'basis' : 'infeasible',
-            'step'  : 2,
+            'step'  : 3,
             'vars'  : {
                     'designspace': designspace,
                  'excludedmotifs': excludedmotifs,
@@ -616,7 +679,7 @@ def primer(
         stats = {
             'status': False,
             'basis' : 'infeasible',
-            'step'  : 3,
+            'step'  : 4,
             'vars'  : {
                 'estimatedminTm': estimatedminTm,
                 'estimatedmaxTm': estimatedmaxTm,
@@ -668,7 +731,7 @@ def primer(
             stats = {
                 'status': False,
                 'basis' : 'infeasible',
-                'step'  : 5,
+                'step'  : 6,
                 'vars'  : {
                     'probseqprefixes': probseqprefixes,
                      'probprefixlens': probprefixlens,
@@ -704,7 +767,7 @@ def primer(
         stats = {
             'status': False,
             'basis' : 'infeasible',
-            'step'  : 6,
+            'step'  : 7,
             'vars'  : {
                 'kmerspace': kmerspace,
                 'fillcount': fillcount,
@@ -721,7 +784,7 @@ def primer(
     stats = {
         'status': False,
          'basis': 'unsolved',
-          'step': 7,
+          'step': 8,
           'vars': {
                    'primerTm': None,          # Primer Melting Temperature
                    'primerGC': None,          # Primer GC Content
@@ -752,6 +815,7 @@ def primer(
         oligorepeats=oligorepeats,
         pairedprimer=pairedprimer,
         pairedrepeats=pairedrepeats,
+        edgeeffectlength=edgeeffectlength,
         prefixforbidden=prefixforbidden,
         suffixforbidden=suffixforbidden,
         exmotifs=exmotifs,

@@ -208,7 +208,7 @@ def primer_engine(
 
 def primer(
     indata,
-    oligolen,
+    oligolimit,
     primerseq,
     primertype,
     mintmelt,
@@ -236,7 +236,7 @@ def primer(
        type - string / pd.DataFrame
        desc - path to CSV file or a pandas DataFrame storing
               annotated oligopool variants and their parts
-    :: oligolen
+    :: oligolimit
        type - integer
        desc - maximum oligo length allowed in the oligopool
     :: primerseq
@@ -363,9 +363,9 @@ def primer(
         precheck=False,
         liner=liner)
 
-    # Full oligolen Validation
-    oligolen_valid = vp.get_numeric_validity(
-        numeric=oligolen,
+    # Full oligolimit Validation
+    oligolimit_valid = vp.get_numeric_validity(
+        numeric=oligolimit,
         numeric_field='      Oligo Length     ',
         numeric_pre_desc=' At most ',
         numeric_post_desc=' Base Pair(s)',
@@ -505,7 +505,7 @@ def primer(
     # First Pass Validation
     if not all([
         indata_valid,
-        oligolen_valid,
+        oligolimit_valid,
         primerseq_valid,
         primertype_valid,
         tmelt_valid,
@@ -525,7 +525,7 @@ def primer(
     t0 = tt.time()
 
     # Adjust Numeric Paramters
-    oligolen  = round(oligolen)
+    oligolimit  = round(oligolimit)
     maxreplen = round(maxreplen)
 
     # Define Edge Effect Length
@@ -535,27 +535,27 @@ def primer(
     outdf = None
     stats = None
 
-    # Parse Oligopool Length Feasibility
-    liner.send('\n[Parsing Oligo Length]\n')
+    # Parse Oligopool Limit Feasibility
+    liner.send('\n[Parsing Oligo Limit]\n')
 
-    # Parse oligolen
+    # Parse oligolimit
     (parsestatus,
-    oligolen,
+    oligolimit,
     minvariantlen,
     maxvariantlen,
     minelementlen,
     maxelementlen,
     minspaceavail,
-    maxspaceavail) = ut.get_parsed_oligolen(
+    maxspaceavail) = ut.get_parsed_oligolimit(
         indf=indf,
         variantlens=None,
-        oligolen=oligolen,
+        oligolimit=oligolimit,
         minelementlen=len(primerseq),
         maxelementlen=len(primerseq),
         element='Primer',
         liner=liner)
 
-    # oligolen infeasible
+    # oligolimit infeasible
     if not parsestatus:
 
         # Prepare stats
@@ -564,7 +564,8 @@ def primer(
             'basis' : 'infeasible',
             'step'  : 1,
             'vars'  : {
-                     'oligolen': oligolen,
+                   'oligolimit': oligolimit,
+                'limitoverflow': True,
                 'minvariantlen': minvariantlen,
                 'maxvariantlen': maxvariantlen,
                 'minelementlen': minelementlen,
@@ -843,7 +844,7 @@ def primer(
         # Prepare outdf
         outdf = indf
 
-        # Write indf to file
+        # Write outdf to file
         if not outfile is None:
             outdf.to_csv(
                 path_or_buf=outfile,

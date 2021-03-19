@@ -419,7 +419,7 @@ def get_parsed_indata_info(
             for value in df[column]:
 
                 # A Non-DNA entry?
-                if not ut.is_DNA(seq=value):
+                if not ut.is_DNA(seq=value.upper()):
 
                     # Set flag
                     non_DNA_found = True
@@ -1085,8 +1085,8 @@ def get_parsed_spacerlen_info(
     spacerlen,
     spacerlen_field,
     df_field,
-    oligolen,
-    oligolen_valid,
+    oligolimit,
+    oligolimit_valid,
     indf,
     indata_valid,
     liner):
@@ -1106,13 +1106,13 @@ def get_parsed_spacerlen_info(
        type - string
        desc - name of the column in DataFrame storing
               spacer lengths
-    :: oligolen
+    :: oligolimit
        type - integer
        desc - maximum oligo length after inserting
               designed spacers
-    :: oligolen_valid
+    :: oligolimit_valid
        type - boolean
-       desc - oligolen parsing status
+       desc - oligolimit parsing status
     :: indf
        type - pd.DataFrame / None
        desc - Associated input DataFrame
@@ -1137,11 +1137,11 @@ def get_parsed_spacerlen_info(
     else:
         lenindex = 1
 
-    # Correct oligolen
-    if not oligolen_valid:
-        oligolen = float('+inf')
+    # Correct oligolimit
+    if not oligolimit_valid:
+        oligolimit = float('+inf')
     else:
-        oligolen = round(oligolen)
+        oligolimit = round(oligolimit)
 
     # Is spacerlen numeric?
     if isinstance(spacerlen, nu.Real):
@@ -1153,7 +1153,7 @@ def get_parsed_spacerlen_info(
             numeric_pre_desc=' Exact1y ',
             numeric_post_desc=' Base Pair(s)',
             minval=1,
-            maxval=oligolen,
+            maxval=oligolimit,
             precheck=False,
             liner=liner)
 
@@ -1284,7 +1284,7 @@ def get_parsed_spacerlen_info(
             numeric_pre_desc=' Found an Entry for ',
             numeric_post_desc=' Base Pair(s)',
             minval=0,
-            maxval=oligolen,
+            maxval=oligolimit,
             precheck=True,
             liner=liner)
 

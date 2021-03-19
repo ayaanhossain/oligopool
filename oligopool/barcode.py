@@ -265,7 +265,7 @@ def barcode_engine(
 
 def barcode(
     indata,
-    oligolen,
+    oligolimit,
     barcodelen,
     minhdist,
     barcodecol,
@@ -288,7 +288,7 @@ def barcode(
        type - string / pd.DataFrame
        desc - path to CSV file or a pandas DataFrame storing
               annotated oligopool variants and their parts
-    :: oligolen
+    :: oligolimit
        type - integer
        desc - maximum oligo length allowed in the oligopool
     :: barcodelen
@@ -372,9 +372,9 @@ def barcode(
         precheck=False,
         liner=liner)
 
-    # Full oligolen Validation
-    oligolen_valid = vp.get_numeric_validity(
-        numeric=oligolen,
+    # Full oligolimit Validation
+    oligolimit_valid = vp.get_numeric_validity(
+        numeric=oligolimit,
         numeric_field='    Oligo Length  ',
         numeric_pre_desc=' At most ',
         numeric_post_desc=' Base Pair(s)',
@@ -390,7 +390,7 @@ def barcode(
         numeric_pre_desc=' Exactly ',
         numeric_post_desc=' Base Pair(s)',
         minval=4,
-        maxval=float('inf') if not oligolen_valid else oligolen,
+        maxval=float('inf') if not oligolimit_valid else oligolimit,
         precheck=False,
         liner=liner)
 
@@ -479,7 +479,7 @@ def barcode(
     # First Pass Validation
     if not all([
         indata_valid,
-        oligolen_valid,
+        oligolimit_valid,
         barcodelen_valid,
         minhdist_valid,
         barcodecol_valid,
@@ -495,7 +495,7 @@ def barcode(
     t0 = tt.time()
 
     # Adjust Numeric Paramters
-    oligolen   = round(oligolen)
+    oligolimit   = round(oligolimit)
     barcodelen = round(barcodelen)
     minhdist   = round(minhdist)
 
@@ -507,27 +507,27 @@ def barcode(
     outdf = None
     stats = None
 
-    # Parse Oligopool Length Feasibility
-    liner.send('\n[Parsing Oligo Length]\n')
+    # Parse Oligopool Limit Feasibility
+    liner.send('\n[Parsing Oligo Limit]\n')
 
-    # Parse oligolen
+    # Parse oligolimit
     (parsestatus,
-    oligolen,
+    oligolimit,
     minvariantlen,
     maxvariantlen,
     minelementlen,
     maxelementlen,
     minspaceavail,
-    maxspaceavail) = ut.get_parsed_oligolen(
+    maxspaceavail) = ut.get_parsed_oligolimit(
         indf=indf,
         variantlens=None,
-        oligolen=oligolen,
+        oligolimit=oligolimit,
         minelementlen=barcodelen,
         maxelementlen=barcodelen,
         element='Barcode',
         liner=liner)
 
-    # oligolen infeasible
+    # oligolimit infeasible
     if not parsestatus:
 
         # Prepare stats
@@ -536,7 +536,8 @@ def barcode(
             'basis' : 'infeasible',
             'step'  : 1,
             'vars'  : {
-                     'oligolen': oligolen,
+                   'oligolimit': oligolimit,
+                'limitoverflow': True,
                 'minvariantlen': minvariantlen,
                 'maxvariantlen': maxvariantlen,
                 'minelementlen': minelementlen,
@@ -699,7 +700,7 @@ def barcode(
         # Prepare outdf
         outdf = indf
 
-        # Write indf to file
+        # Write outdf to file
         if not outfile is None:
             outdf.to_csv(
                 path_or_buf=outfile,

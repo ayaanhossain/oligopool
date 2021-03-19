@@ -23,15 +23,15 @@ codemeta
   is used to denote zero length spacers, and removed once oligopool
   finalized~~
 
-motif -- done
-barcode -- done
+motif      -- done
+barcode    -- done
 background -- done
-primer -- needs update
-spacer -- done
-split -- needs finalization
-pad -- needs finalization
-lenstat  -- in progress
-finalize -- in progress
+primer     -- needs update
+spacer     -- done
+split      -- needs finalization
+pad        -- needs finalization
+lenstat    -- done
+finalize   -- done
 
 motif.py
 add a fixed length motif or constant sequence

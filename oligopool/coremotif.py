@@ -163,7 +163,7 @@ def get_parsed_edgeeffects(
 
 def get_extracted_spacerlen(
     indf,
-    oligolen,
+    oligolimit,
     liner):
     '''
     Extract spacer lengths based on existing
@@ -174,7 +174,7 @@ def get_extracted_spacerlen(
        type - pd.DataFrame
        desc - input DataFrame containing
               all designed variants
-    :: oligolen
+    :: oligolimit
        type - integer
        desc - maximum allowed oligo length
     :: liner
@@ -188,11 +188,10 @@ def get_extracted_spacerlen(
     # Compute Variant Lengths
     liner.send(' Parsing Variant Lengths ...')
 
-    variantlens = np.array(list(
-        map(len, ut.get_df_concat(df=indf))))
+    variantlens = ut.get_variantlens(indf)
 
     plen = ut.get_printlen(
-        value=len(variantlens))
+        value=max(len(str(index)) for index in indf.index))
 
     # Spacer Storage
     spacerlen = np.zeros(
@@ -203,14 +202,14 @@ def get_extracted_spacerlen(
     for idx,vl in enumerate(variantlens):
 
         # Compute Spacer Length
-        spacerlen[idx] += oligolen - round(vl)
+        spacerlen[idx] += oligolimit - round(vl)
 
         # Show Update
         liner.send(
-            ' Variant {:{},d}: Allows {:,} Base Pair Spacer'.format(
-                idx+1,
+            ' Variant {:>{}}: Allows {:,} Base Pair Spacer'.format(
+                str(indf.index[idx]),
                 plen,
-                spacerlen[-1]))
+                spacerlen[idx]))
 
     # Show Time Elapsed
     liner.send('\* Time Elapsed: {:.2f} sec\n'.format(

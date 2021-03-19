@@ -500,10 +500,25 @@ def get_tmelt(
 
 # Oligopool Functions
 
-def get_parsed_oligolen(
+def get_variantlens(indf):
+    '''
+    Return the length of all variants
+    in the input DataFrame. Internal
+    use only.
+
+    :: indf
+       type - pd.DataFrame
+       desc - input DataFrame containing
+              all designed variants
+    '''
+
+    return np.array(list(map(
+        len, get_df_concat(df=indf))))
+
+def get_parsed_oligolimit(
     indf,
     variantlens,
-    oligolen,
+    oligolimit,
     minelementlen,
     maxelementlen,
     element,
@@ -522,7 +537,7 @@ def get_parsed_oligolen(
        desc - length of all variants stored
               in input DataFrame, if None
               then compute it explicitly
-    :: oligolen
+    :: oligolimit
        type - integer
        desc - maximum allowed oligo length
     :: maxelementlen
@@ -553,13 +568,12 @@ def get_parsed_oligolen(
     liner.send(' Parsing Variant Lengths ...')
 
     if variantlens is None:
-        variantlens = np.array(list(
-            map(len, get_df_concat(df=indf))))
+        variantlens = get_variantlens(indf=indf)
 
     minvariantlen = np.min(variantlens)
     maxvariantlen = np.max(variantlens)
-    minspaceavail = oligolen - maxvariantlen
-    maxspaceavail = oligolen - minvariantlen
+    minspaceavail = oligolimit - maxvariantlen
+    maxspaceavail = oligolimit - minvariantlen
 
     parsestatus = (0 <= minelementlen <= minspaceavail) and \
                   (0 <= maxelementlen <= maxspaceavail)
@@ -567,7 +581,7 @@ def get_parsed_oligolen(
     # Show Updates
     plen = get_printlen(
         value=max(np.abs([
-            oligolen,
+            oligolimit,
             minvariantlen,
             maxvariantlen,
             minelementlen,
@@ -577,7 +591,7 @@ def get_parsed_oligolen(
 
     liner.send(
         ' Maximum Oligo Length: {:{},d} Base Pair(s)\n'.format(
-            oligolen,
+            oligolimit,
             plen))
 
     # How much space occupied by variants?
@@ -636,7 +650,7 @@ def get_parsed_oligolen(
     # Show Verdict
     if not parsestatus:
         liner.send(
-            ' Verdict: {} Design Infeasible due to Oligo Length Constraints\n'.format(
+            ' Verdict: {} Design Infeasible due to Oligo Limit Constraints\n'.format(
                 element))
     else:
         liner.send(
@@ -645,7 +659,7 @@ def get_parsed_oligolen(
 
     # Return Results
     return (parsestatus,
-        oligolen,
+        oligolimit,
         minvariantlen,
         maxvariantlen,
         minelementlen,

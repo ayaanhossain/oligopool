@@ -201,7 +201,7 @@ def motif_engine(
 
 def motif(
     indata,
-    oligolen,
+    oligolimit,
     motifseq,
     motifcol,
     outfile,
@@ -216,7 +216,7 @@ def motif(
     # Start Liner
     liner = ut.liner_engine(verbose)
 
-    # Spacer Verbage Print
+    # Motif Verbage Print
     liner.send('\n[Oligopool Calculator: Design Mode - Motif]\n')
 
     # Required Argument Parsing
@@ -231,9 +231,9 @@ def motif(
         precheck=False,
         liner=liner)
 
-    # Full oligolen Validation
-    oligolen_valid = vp.get_numeric_validity(
-        numeric=oligolen,
+    # Full oligolimit Validation
+    oligolimit_valid = vp.get_numeric_validity(
+        numeric=oligolimit,
         numeric_field='    Oligo Length  ',
         numeric_pre_desc=' At most ',
         numeric_post_desc=' Base Pair(s)',
@@ -324,7 +324,7 @@ def motif(
     # First Pass Validation
     if not all([
         indata_valid,
-        oligolen_valid,
+        oligolimit_valid,
         motifseq_valid,
         motifcol_valid,
         outfile_valid,
@@ -339,7 +339,7 @@ def motif(
     t0 = tt.time()
 
     # Adjust Numeric Paramters
-    oligolen = round(oligolen)
+    oligolimit = round(oligolimit)
 
     # Define Edge Effect Length
     edgeeffectlength = None
@@ -350,27 +350,27 @@ def motif(
     outdf = None
     stats = None
 
-    # Parse Oligopool Length Feasibility
-    liner.send('\n[Parsing Oligo Length]\n')
+    # Parse Oligopool Limit Feasibility
+    liner.send('\n[Parsing Oligo Limit]\n')
 
-    # Parse oligolen
+    # Parse oligolimit
     (parsestatus,
-    oligolen,
+    oligolimit,
     minvariantlen,
     maxvariantlen,
     minelementlen,
     maxelementlen,
     minspaceavail,
-    maxspaceavail) = ut.get_parsed_oligolen(
+    maxspaceavail) = ut.get_parsed_oligolimit(
         indf=indf,
         variantlens=None,
-        oligolen=oligolen,
+        oligolimit=oligolimit,
         minelementlen=len(motifseq),
         maxelementlen=len(motifseq),
         element='Motif',
         liner=liner)
 
-    # oligolen infeasible
+    # oligolimit infeasible
     if not parsestatus:
 
         # Prepare stats
@@ -379,7 +379,8 @@ def motif(
             'basis' : 'infeasible',
             'step'  : 1,
             'vars'  : {
-                     'oligolen': oligolen,
+                   'oligolimit': oligolimit,
+                'limitoverflow': True,
                 'minvariantlen': minvariantlen,
                 'maxvariantlen': maxvariantlen,
                 'minelementlen': minelementlen,
@@ -533,7 +534,7 @@ def motif(
         # Prepare outdf
         outdf = indf
 
-        # Write indf to file
+        # Write outdf to file
         if not outfile is None:
             outdf.to_csv(
                 path_or_buf=outfile,

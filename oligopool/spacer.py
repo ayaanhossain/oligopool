@@ -62,96 +62,128 @@ def spacer_engine(
         # Core Design Inner Loop
         while contextarray:
 
-            # Fetch Context Index
-            idx = contextarray.popleft()
+            # Case 1: Zero Length Spacer
+            if spacerlen == 0:
 
-            # Fetch Context Sequences
-            lcseq =  leftselector(idx)
-            rcseq = rightselector(idx)
+                # Assign Gap to Entire Group
+                while contextarray:
 
-            # Define Forbidden Prefix and Suffix
-            prefixforbidden = prefixdict[lcseq] if not lcseq is None else None
-            suffixforbidden = suffixdict[rcseq] if not rcseq is None else None
+                    # Fetch Context Index
+                    idx = contextarray.popleft()
 
-            # Define Objective Function
-            objectivefunction = lambda spacer: cm.motif_objectives(
-                motif=spacer,
-                motiflen=spacerlen,
-                exmotifs=exmotifs,
-                exmotifindex=None,
-                lcseq=lcseq,
-                rcseq=rcseq,
-                edgeeffectlength=edgeeffectlength,
-                prefixforbidden=prefixforbidden,
-                suffixforbidden=suffixforbidden,
-                inittime=t0,
-                stats=stats,
-                idx=idx+1,
-                plen=plen,
-                element='Spacer',
-                liner=liner)
+                    # Assign Gap
+                    spacers[idx] = '-'
+                    stats['vars']['spacercount'] += 1
 
-            # Design Spacer via Maker
-            spacer = maker.nrp_maker(
-                homology=min(spacerlen, 6),
-                seq_constr='N'*spacerlen,
-                struct_constr='.'*spacerlen,
-                target_size=1,
-                background=None,
-                struct_type=None,
-                synth_opt=False,
-                local_model_fn=objectivefunction,
-                jump_count=100,
-                fail_count=100,
-                output_file=None,
-                verbose=False,
-                abortion=True,
-                allow_internal_repeat=True,
-                check_constraints=False)
+                    # Show Update
+                    cm.show_update(
+                        idx=idx+1,
+                        plen=plen,
+                        element='Spacer',
+                        motif='*GAP*',
+                        optstatus=2,
+                        optstate=0,
+                        inittime=None,
+                        terminal=False,
+                        liner=liner)
 
-            # Did we succeed? No ..
-            if len(spacer) == 0:
+                # Zero Spacers Completed
+                break # Jump to Next Group
 
-                # Terminate Design Loop
-                abort = True
-                break # RIP .. We failed!
-
-            # A spacer was designed!
+            # Case 2: Non-Zero Length Spacer
+            #         (this requires computation)
             else:
 
-                # Extract Spacer
-                spacer = spacer[0]
+                # Fetch Context Index
+                idx = contextarray.popleft()
 
-                # Record Designed Motif
-                spacers[idx] = spacer
-                stats['vars']['spacercount'] += 1
+                # Fetch Context Sequences
+                lcseq =  leftselector(idx)
+                rcseq = rightselector(idx)
 
-                # Show Update
-                cm.show_update(
+                # Define Forbidden Prefix and Suffix
+                prefixforbidden = prefixdict[lcseq] if not lcseq is None else None
+                suffixforbidden = suffixdict[rcseq] if not rcseq is None else None
+
+                # Define Objective Function
+                objectivefunction = lambda spacer: cm.motif_objectives(
+                    motif=spacer,
+                    motiflen=spacerlen,
+                    exmotifs=exmotifs,
+                    exmotifindex=None,
+                    lcseq=lcseq,
+                    rcseq=rcseq,
+                    edgeeffectlength=edgeeffectlength,
+                    prefixforbidden=prefixforbidden,
+                    suffixforbidden=suffixforbidden,
+                    inittime=t0,
+                    stats=stats,
                     idx=idx+1,
                     plen=plen,
                     element='Spacer',
-                    motif=spacers[idx],
-                    optstatus=2,
-                    optstate=0,
-                    inittime=None,
-                    terminal=False,
                     liner=liner)
 
-                cm.extra_assign_motif(
-                    motif=spacer,
-                    contextarray=contextarray,
-                    leftselector=leftselector,
-                    rightselector=rightselector,
-                    edgeeffectlength=edgeeffectlength,
-                    prefixdict=prefixdict,
-                    suffixdict=suffixdict,
-                    storage=spacers,
-                    stats=stats,
-                    plen=plen,
-                    element='Spacer',
-                    element_key='spacercount',
-                    liner=liner)
+                # Design Spacer via Maker
+                spacer = maker.nrp_maker(
+                    homology=min(spacerlen, 6),
+                    seq_constr='N'*spacerlen,
+                    struct_constr='.'*spacerlen,
+                    target_size=1,
+                    background=None,
+                    struct_type=None,
+                    synth_opt=False,
+                    local_model_fn=objectivefunction,
+                    jump_count=100,
+                    fail_count=100,
+                    output_file=None,
+                    verbose=False,
+                    abortion=True,
+                    allow_internal_repeat=True,
+                    check_constraints=False)
+
+                # Did we succeed? No ..
+                if len(spacer) == 0:
+
+                    # Terminate Design Loop
+                    abort = True
+                    break # RIP .. We failed!
+
+                # A spacer was designed!
+                else:
+
+                    # Extract Spacer
+                    spacer = spacer[0]
+
+                    # Record Designed Motif
+                    spacers[idx] = spacer
+                    stats['vars']['spacercount'] += 1
+
+                    # Show Update
+                    cm.show_update(
+                        idx=idx+1,
+                        plen=plen,
+                        element='Spacer',
+                        motif=spacers[idx],
+                        optstatus=2,
+                        optstate=0,
+                        inittime=None,
+                        terminal=False,
+                        liner=liner)
+
+                    cm.extra_assign_motif(
+                        motif=spacer,
+                        contextarray=contextarray,
+                        leftselector=leftselector,
+                        rightselector=rightselector,
+                        edgeeffectlength=edgeeffectlength,
+                        prefixdict=prefixdict,
+                        suffixdict=suffixdict,
+                        storage=spacers,
+                        stats=stats,
+                        plen=plen,
+                        element='Spacer',
+                        element_key='spacercount',
+                        liner=liner)
 
         # Continue Outer Loop?
         if abort:
@@ -165,12 +197,18 @@ def spacer_engine(
         stats['status'] = True
         stats['basis']  = 'solved'
 
+         # Determine Last Known Motif
+        if spacers[-1] != '-':
+            lastmotif = spacers[-1]
+        else:
+            lastmotif = '*GAP*'
+
         # Final Update
         cm.show_update(
             idx=targetcount,
             plen=plen,
             element='Spacer',
-            motif=spacers[-1],
+            motif=lastmotif,
             optstatus=2,
             optstate=0,
             inittime=t0,
@@ -196,7 +234,7 @@ def spacer_engine(
 
 def spacer(
     indata,
-    oligolen,
+    oligolimit,
     spacercol,
     outfile,
     spacerlen=None,
@@ -226,10 +264,10 @@ def spacer(
         precheck=False,
         liner=liner)
 
-    # Full oligolen Validation
-    oligolen_valid = vp.get_numeric_validity(
-        numeric=oligolen,
-        numeric_field='    Oligo Length ',
+    # Full oligolimit Validation
+    oligolimit_valid = vp.get_numeric_validity(
+        numeric=oligolimit,
+        numeric_field='    Oligo Limit  ',
         numeric_pre_desc=' At most ',
         numeric_post_desc=' Base Pair(s)',
         minval=4,
@@ -272,8 +310,8 @@ def spacer(
         spacerlen=spacerlen,
         spacerlen_field='   Spacer Length ',
         df_field='Length',
-        oligolen=oligolen,
-        oligolen_valid=oligolen_valid,
+        oligolimit=oligolimit,
+        oligolimit_valid=oligolimit_valid,
         indf=indf,
         indata_valid=indata_valid,
         liner=liner)
@@ -323,7 +361,7 @@ def spacer(
     # First Pass Validation
     if not all([
         indata_valid,
-        oligolen_valid,
+        oligolimit_valid,
         spacercol_valid,
         outfile_valid,
         spacerlen_valid,
@@ -338,7 +376,7 @@ def spacer(
     t0 = tt.time()
 
     # Adjust Numeric Paramters
-    oligolen = round(oligolen)
+    oligolimit = round(oligolimit)
 
     # Define Edge Effect Length
     edgeeffectlength = None
@@ -356,30 +394,30 @@ def spacer(
         (spacerlen,
         variantlens) = cm.get_extracted_spacerlen(
             indf=indf,
-            oligolen=oligolen,
+            oligolimit=oligolimit,
             liner=liner)
 
-    # Parse Oligopool Length Feasibility
-    liner.send('\n[Parsing Oligo Length]\n')
+    # Parse Oligopool Limit Feasibility
+    liner.send('\n[Parsing Oligo Limit]\n')
 
-    # Parse oligolen
+    # Parse oligolimit
     (parsestatus,
-    oligolen,
+    oligolimit,
     minvariantlen,
     maxvariantlen,
     minelementlen,
     maxelementlen,
     minspaceavail,
-    maxspaceavail) = ut.get_parsed_oligolen(
+    maxspaceavail) = ut.get_parsed_oligolimit(
         indf=indf,
         variantlens=variantlens,
-        oligolen=oligolen,
+        oligolimit=oligolimit,
         minelementlen=np.min(spacerlen),
         maxelementlen=np.max(spacerlen),
         element='Spacer',
         liner=liner)
 
-    # oligolen infeasible
+    # oligolimit infeasible
     if not parsestatus:
 
         # Prepare stats
@@ -388,7 +426,8 @@ def spacer(
             'basis' : 'infeasible',
             'step'  : 2,
             'vars'  : {
-                     'oligolen': oligolen,
+                   'oligolimit': oligolimit,
+                'limitoverflow': True,
                 'minvariantlen': minvariantlen,
                 'maxvariantlen': maxvariantlen,
                 'minelementlen': minelementlen,
@@ -536,7 +575,7 @@ def spacer(
         # Prepare outdf
         outdf = indf
 
-        # Write indf to file
+        # Write outdf to file
         if not outfile is None:
             outdf.to_csv(
                 path_or_buf=outfile,

@@ -26,7 +26,7 @@ codemeta
 motif      -- done
 barcode    -- done
 background -- done
-primer     -- needs update
+primer     -- in progress
 spacer     -- done
 split      -- needs finalization
 pad        -- needs finalization

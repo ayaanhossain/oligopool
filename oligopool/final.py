@@ -20,7 +20,7 @@ def final(
     liner = ut.liner_engine(verbose)
 
     # Finalization Verbage Print
-    liner.send('\n[Oligopool Calculator: Design Mode - Finalization]\n')
+    liner.send('\n[Oligopool Calculator: Design Mode - Final]\n')
 
     # Required Argument Parsing
     liner.send('\n Required Arguments\n')
@@ -64,12 +64,18 @@ def final(
         outfile)
 
     # Show Update
-    liner.send(' Compiling Final Oligopool ...')
+    liner.send('\n[Step 1: Finalizing Oligopool]\n')
 
     # Compute Final DataFrame
     outdf = pd.DataFrame(index=indf.index)
     outdf['CompleteOligo'] = ut.get_df_concat(df=indf)
     outdf['OligoLength']   = list(map(len, outdf['CompleteOligo']))
+
+    # Show Update
+    liner.send(' Finalization Completed\n')
+    liner.send(
+        ' Time Elapsed: {:.2f} sec\n'.format(
+            tt.time()-t0))
 
     # Write outdf to file
     if not outfile is None:
@@ -83,12 +89,14 @@ def final(
 
     # Build Stats Dictionary
     stats = {
-        'status': True,
-        'basis' : 'solved',
-        'step'  : 2,
-        'vars'  : {
+        'status'  : True,
+        'basis'   : 'solved',
+        'step'    : 1,
+        'stepname': 'finalizing-oligopool',
+        'vars'    : {
             'minoligolen': minoligolen,
-            'maxoligolen': maxoligolen}}
+            'maxoligolen': maxoligolen},
+        'warns'   : {}}
 
     # Finalization Statistics
     liner.send('\n[Finalization Statistics]\n')

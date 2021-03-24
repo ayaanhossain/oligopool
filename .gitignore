@@ -129,4 +129,4 @@ dmypy.json
 .pyre/
 
 # VS Code Workspace
-*.code-workspace
+oligopool/*.code-workspace

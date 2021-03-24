@@ -138,9 +138,10 @@ def lenstat(
     # Length Stats Book-keeping
     outdf = None
     stats = None
+    warns = {}
 
     # Launching Length Stats Computation
-    liner.send('\n[Computing Length Statistics]\n')
+    liner.send('\n[Step 1: Computing Length Statistics]\n')
 
     # Compute Length Stats
     (intstats,
@@ -171,10 +172,11 @@ def lenstat(
 
     # Restructure Length Stats Dictionary
     stats = {
-        'status': True,
-        'basis' : 'solved',
-        'step'  : 2,
-        'vars'  : {
+        'status'  : True,
+        'basis'   : 'solved',
+        'step'    : 1,
+        'stepname': 'computing-length-statistics',
+        'vars'    : {
             'lenstat'     : cx.OrderedDict({v[0]: { # Store Element-wise Length Stats
                 'minelementlen': v[1],
                 'maxelementlen': v[2],
@@ -183,7 +185,8 @@ def lenstat(
                 'limitoverflow': v[5] == 'Yes'} for k,v in intstats.items()}),
             'oligolimit'   : oligolimit,            # Specified Oligo Limit
             'minspaceavail': minspaceavail,         # Minimum Space Available
-            'maxspaceavail': maxspaceavail}}        # Maximum Space Available
+            'maxspaceavail': maxspaceavail},        # Maximum Space Available
+        'warns'   : warns}
 
     # Show Free Space Available
     if minspaceavail == maxspaceavail:

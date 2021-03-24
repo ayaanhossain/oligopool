@@ -33,6 +33,26 @@ pad        -- needs finalization
 lenstat    -- done
 finalize   -- done
 
+Refactoring
+~~* Build exmotif partition and inverse partition into
+  parsing of exmotifs itself, based on left and right
+  context inputs (treated as binary presence)~~
+~~* Parsing exmotifs then take the partitions as input
+  instead of building them in parsing edgeeffects~~
+~~* introduce a merge boolean flag to merge all prefix
+  and suffix dict entries into prefix and suffixsets
+  which will be used in primer design objectives~~
+
+WARNINGS
+~~* Introduce stepname with every stats dictionary~~
+~~* Explicitly add step number to pipeline sections~~
+~~* if any left paritions are right blocked or any right
+  partitions are left blocked then warn from parsing
+  of exmotifs~~
+~~* show impact of edgeeffects count (already done), but
+  also report the 5' and 3' constants from sequence
+  constraints that create those edgeeffects~~
+
 motif.py
 add a fixed length motif or constant sequence
 between two columns or at the 3' end by default

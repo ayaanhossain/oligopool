@@ -387,10 +387,11 @@ def spacer(
     variantlens = None
     outdf = None
     stats = None
+    warns = {}
 
     # Extract spacerlen (Auto-Inference)
     if spacerlen is None:
-        liner.send('\n[Extracting Spacer Length]\n')
+        liner.send('\n[Step 1: Extracting Spacer Length]\n')
         (spacerlen,
         variantlens) = cm.get_extracted_spacerlen(
             indf=indf,
@@ -398,7 +399,7 @@ def spacer(
             liner=liner)
 
     # Parse Oligopool Limit Feasibility
-    liner.send('\n[Parsing Oligo Limit]\n')
+    liner.send('\n[Step 2: Parsing Oligo Limit]\n')
 
     # Parse oligolimit
     (parsestatus,
@@ -422,10 +423,11 @@ def spacer(
 
         # Prepare stats
         stats = {
-            'status': False,
-            'basis' : 'infeasible',
-            'step'  : 2,
-            'vars'  : {
+            'status'  : False,
+            'basis'   : 'infeasible',
+            'step'    : 2,
+            'stepname': 'parsing-oligo-limit',
+            'vars'    : {
                    'oligolimit': oligolimit,
                 'limitoverflow': True,
                 'minvariantlen': minvariantlen,
@@ -433,14 +435,15 @@ def spacer(
                 'minelementlen': minelementlen,
                 'maxelementlen': maxelementlen,
                 'minspaceavail': minspaceavail,
-                'maxspaceavail': maxspaceavail}}
+                'maxspaceavail': maxspaceavail},
+            'warns'   : warns}
 
         # Return results
         liner.close()
         return (outdf, stats)
 
     # Extract Spacer Length Groups
-    liner.send('\n[Extracting Spacer Groups]\n')
+    liner.send('\n[Step 3: Extracting Spacer Groups]\n')
 
     # Group spacerlen
     spacergroup = cm.get_grouped_spacerlen(
@@ -451,29 +454,46 @@ def spacer(
     if not exmotifs is None:
 
         # Show update
-        liner.send('\n[Parsing Excluded Motifs]\n')
+        liner.send('\n[Step 4: Parsing Excluded Motifs]\n')
+
+        # Update Step 4 Warning
+        warns[4] = {
+            'warncount': 0,
+            'stepname' : 'parsing-excluded-motifs',
+            'vars': None}
 
         # Parse exmotifs
         (parsestatus,
         exmotifs,
-        problens) = ut.get_parsed_exmotifs(
+        problens,
+        leftpartition,
+        rightpartition) = ut.get_parsed_exmotifs(
             exmotifs=exmotifs,
             typer=tuple,
-            element='Motif',
+            element='Spacer',
+            leftcontext=leftcontext,
+            rightcontext=rightcontext,
+            warn=warns[4],
             liner=liner)
+
+        # Remove Step 4 Warning
+        if not warns[4]['warncount']:
+            warns.pop(4)
 
         # exmotifs infeasible
         if not parsestatus:
 
             # Prepare stats
             stats = {
-                'status': False,
-                'basis' : 'infeasible',
-                'step'  : 3,
-                'vars'  : {
+                'status'  : False,
+                'basis'   : 'infeasible',
+                'step'    : 4,
+                'stepname': 'parsing-excluded-motifs',
+                'vars'    : {
                      'problens': problens,
                     'probcount': tuple(list(
-                        4**pl for pl in problens))}}
+                        4**pl for pl in problens))},
+                'warns'   : warns}
 
             # Return results
             liner.close()
@@ -491,7 +511,7 @@ def spacer(
             has_context = True
 
             # Show Update
-            liner.send('\n[Extracting Context Sequences]\n')
+            liner.send('\n[Step 5: Extracting Context Sequences]\n')
 
             # Extract Both Contexts
             (leftcontext,
@@ -503,7 +523,13 @@ def spacer(
                 liner=liner)
 
             # Show update
-            liner.send('\n[Parsing Edge Effects]\n')
+            liner.send('\n[Step 6: Parsing Edge Effects]\n')
+
+            # Update Step 6 Warning
+            warns[6] = {
+                'warncount': 0,
+                'stepname' : 'parsing-edge-effects',
+                'vars': None}
 
             # Compute Forbidden Prefixes and Suffixes
             (prefixdict,
@@ -511,8 +537,15 @@ def spacer(
                 motifseq='NNNN',
                 leftcontext=leftcontext,
                 rightcontext=rightcontext,
+                leftpartition=leftpartition,
+                rightpartition=rightpartition,
                 exmotifs=exmotifs,
+                warn=warns[6],
                 liner=liner)
+
+            # Remove Step 6 Warning
+            if not warns[6]['warncount']:
+                warns.pop(6)
 
     # Finalize Context
     if not has_context:
@@ -522,19 +555,21 @@ def spacer(
         suffixdict) = (None, None, None, None)
 
     # Launching Motif Design
-    liner.send('\n[Computing Spacers]\n')
+    liner.send('\n[Step 7: Computing Spacers]\n')
 
     # Define Motif Design Stats
     stats = {
-        'status': False,
-         'basis': 'unsolved',
-          'step': 6,
-          'vars': {
+        'status'  : False,
+        'basis'   : 'unsolved',
+        'step'    : 7,
+        'stepname': 'computing-spacers',
+        'vars'    : {
                'targetcount': targetcount,   # Required Number of Spacers
                'spacercount': 0,             # Spacer Design Count
                'exmotiffail': 0,             # Exmotif Elimination Fail Count
                   'edgefail': 0,             # Edge Effect Fail Count
-            'exmotifcounter': cx.Counter()}} # Exmotif Encounter Counter
+            'exmotifcounter': cx.Counter()}, # Exmotif Encounter Counter
+        'warns'   : warns}
 
     # Schedule outfile deletion
     ofdeletion = ae.register(

@@ -349,9 +349,10 @@ def motif(
     has_context = False
     outdf = None
     stats = None
+    warns = {}
 
     # Parse Oligopool Limit Feasibility
-    liner.send('\n[Parsing Oligo Limit]\n')
+    liner.send('\n[Step 1: Parsing Oligo Limit]\n')
 
     # Parse oligolimit
     (parsestatus,
@@ -375,10 +376,11 @@ def motif(
 
         # Prepare stats
         stats = {
-            'status': False,
-            'basis' : 'infeasible',
-            'step'  : 1,
-            'vars'  : {
+            'status'  : False,
+            'basis'   : 'infeasible',
+            'step'    : 1,
+            'stepname': 'parsing-oligo-limit',
+            'vars'    : {
                    'oligolimit': oligolimit,
                 'limitoverflow': True,
                 'minvariantlen': minvariantlen,
@@ -386,7 +388,8 @@ def motif(
                 'minelementlen': minelementlen,
                 'maxelementlen': maxelementlen,
                 'minspaceavail': minspaceavail,
-                'maxspaceavail': maxspaceavail}}
+                'maxspaceavail': maxspaceavail},
+            'warns'   : warns}
 
         # Return results
         liner.close()
@@ -396,29 +399,46 @@ def motif(
     if not exmotifs is None:
 
         # Show update
-        liner.send('\n[Parsing Excluded Motifs]\n')
+        liner.send('\n[Step 2: Parsing Excluded Motifs]\n')
+
+        # Update Step 2 Warning
+        warns[2] = {
+            'warncount': 0,
+            'stepname' : 'parsing-excluded-motifs',
+            'vars': None}
 
         # Parse exmotifs
         (parsestatus,
         exmotifs,
-        problens) = ut.get_parsed_exmotifs(
+        problens,
+        leftpartition,
+        rightpartition) = ut.get_parsed_exmotifs(
             exmotifs=exmotifs,
             typer=tuple,
             element='Motif',
+            leftcontext=leftcontext,
+            rightcontext=rightcontext,
+            warn=warns[2],
             liner=liner)
+
+        # Remove Step 2 Warning
+        if not warns[2]['warncount']:
+            warns.pop(2)
 
         # exmotifs infeasible
         if not parsestatus:
 
             # Prepare stats
             stats = {
-                'status': False,
-                'basis' : 'infeasible',
-                'step'  : 2,
-                'vars'  : {
+                'status'  : False,
+                'basis'   : 'infeasible',
+                'step'    : 2,
+                'stepname': 'parsing-excluded-motifs',
+                'vars'    : {
                      'problens': problens,
                     'probcount': tuple(list(
-                        4**pl for pl in problens))}}
+                        4**pl for pl in problens))},
+                'warns'   : warns}
 
             # Return results
             liner.close()
@@ -429,14 +449,25 @@ def motif(
             exmotifs=exmotifs)
 
     # Parsing Sequence Constraint Feasibility
-    liner.send('\n[Parsing Motif Sequence]\n')
+    liner.send('\n[Step 3: Parsing Motif Sequence]\n')
+
+    # Update Step 2 Warning
+    warns[3] = {
+        'warncount': 0,
+        'stepname' : 'parsing-motif-sequence',
+        'vars': None}
 
     # Parse primerseq
     (optrequired,
     exmotifindex) = cm.get_parsed_sequence_constraint(
         motifseq=motifseq,
         exmotifs=exmotifs,
+        warn=warns[3],
         liner=liner)
+
+    # Remove Step 3 Warning
+    if not warns[3]['warncount']:
+        warns.pop(3)
 
     # Parse Edge Effects
     if ((not optrequired is False) and \
@@ -448,7 +479,7 @@ def motif(
         has_context = True
 
         # Show Update
-        liner.send('\n[Extracting Context Sequences]\n')
+        liner.send('\n[Step 4: Extracting Context Sequences]\n')
 
         # Extract Both Contexts
         (leftcontext,
@@ -460,7 +491,13 @@ def motif(
             liner=liner)
 
         # Show update
-        liner.send('\n[Parsing Edge Effects]\n')
+        liner.send('\n[Step 5: Parsing Edge Effects]\n')
+
+        # Update Step 5 Warning
+        warns[5] = {
+            'warncount': 0,
+            'stepname' : 'parsing-edge-effects',
+            'vars': None}
 
         # Compute Forbidden Prefixes and Suffixes
         (prefixdict,
@@ -468,8 +505,15 @@ def motif(
             motifseq=motifseq,
             leftcontext=leftcontext,
             rightcontext=rightcontext,
+            leftpartition=leftpartition,
+            rightpartition=rightpartition,
             exmotifs=exmotifs,
+            warn=warns[5],
             liner=liner)
+
+        # Remove Step 5 Warning
+        if not warns[5]['warncount']:
+            warns.pop(5)
 
     # Finalize Context
     if not has_context:
@@ -479,19 +523,21 @@ def motif(
         suffixdict) = (None, None, None, None)
 
     # Launching Motif Design
-    liner.send('\n[Computing Motifs]\n')
+    liner.send('\n[Step 6: Computing Motifs]\n')
 
     # Define Motif Design Stats
     stats = {
-        'status': False,
-         'basis': 'unsolved',
-          'step': 6,
-          'vars': {
+        'status'  : False,
+        'basis'   : 'unsolved',
+        'step'    : 6,
+        'stepname': 'computing-motifs',
+        'vars'    : {
                'targetcount': targetcount,   # Required Number of Motifs
                 'motifcount': 0,             # Motif Design Count
                'exmotiffail': 0,             # Exmotif Elimination Fail Count
                   'edgefail': 0,             # Edge Effect Fail Count
-            'exmotifcounter': cx.Counter()}} # Exmotif Encounter Counter
+            'exmotifcounter': cx.Counter()}, # Exmotif Encounter Counter
+        'warns'   : warns}
 
     # Schedule outfile deletion
     ofdeletion = ae.register(

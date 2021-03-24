@@ -506,9 +506,10 @@ def barcode(
     has_context = False
     outdf = None
     stats = None
+    warns = {}
 
     # Parse Oligopool Limit Feasibility
-    liner.send('\n[Parsing Oligo Limit]\n')
+    liner.send('\n[Step 1: Parsing Oligo Limit]\n')
 
     # Parse oligolimit
     (parsestatus,
@@ -532,10 +533,11 @@ def barcode(
 
         # Prepare stats
         stats = {
-            'status': False,
-            'basis' : 'infeasible',
-            'step'  : 1,
-            'vars'  : {
+            'status'  : False,
+            'basis'   : 'infeasible',
+            'step'    : 1,
+            'stepname': 'parsing-oligo-limit',
+            'vars'    : {
                    'oligolimit': oligolimit,
                 'limitoverflow': True,
                 'minvariantlen': minvariantlen,
@@ -543,14 +545,15 @@ def barcode(
                 'minelementlen': minelementlen,
                 'maxelementlen': maxelementlen,
                 'minspaceavail': minspaceavail,
-                'maxspaceavail': maxspaceavail}}
+                'maxspaceavail': maxspaceavail},
+            'warns'   : warns}
 
         # Return results
         liner.close()
         return (outdf, stats)
 
     # Parse Barcode Length Feasibility
-    liner.send('\n[Parsing Barcode Length]\n')
+    liner.send('\n[Step 2: Parsing Barcode Length]\n')
 
     # Parse barcodelen
     (parsestatus,
@@ -565,13 +568,15 @@ def barcode(
 
         # Prepare stats
         stats = {
-            'status': False,
-            'basis' : 'infeasible',
-            'step'  : 2,
-            'vars'  : {
+            'status'  : False,
+            'basis'   : 'infeasible',
+            'step'    : 2,
+            'stepname': 'parsing-barcode-length',
+            'vars'    : {
                  'barcodelen': barcodelen,
                 'designspace': designspace,
-                'targetcount': targetcount}}
+                'targetcount': targetcount},
+            'warns'   : warns}
 
         # Return results
         liner.close()
@@ -581,29 +586,46 @@ def barcode(
     if not exmotifs is None:
 
         # Show update
-        liner.send('\n[Parsing Excluded Motifs]\n')
+        liner.send('\n[Step 3: Parsing Excluded Motifs]\n')
+
+        # Update Step 3 Warning
+        warns[3] = {
+            'warncount': 0,
+            'stepname' : 'parsing-excluded-motifs',
+            'vars': None}
 
         # Parse exmotifs
         (parsestatus,
         exmotifs,
-        problens) = ut.get_parsed_exmotifs(
+        problens,
+        _,
+        __) = ut.get_parsed_exmotifs(
             exmotifs=exmotifs,
             typer=tuple,
             element='Barcode',
+            leftcontext=leftcontext,
+            rightcontext=rightcontext,
+            warn=warns[3],
             liner=liner)
+
+        # Remove Step 3 Warning
+        if not warns[3]['warncount']:
+            warns.pop(3)
 
         # exmotifs infeasible
         if not parsestatus:
 
             # Prepare stats
             stats = {
-                'status': False,
-                'basis' : 'infeasible',
-                'step'  : 3,
-                'vars'  : {
+                'status'  : False,
+                'basis'   : 'infeasible',
+                'step'    : 3,
+                'stepname': 'parsing-excluded-motifs',
+                'vars'    : {
                      'problens': problens,
                     'probcount': tuple(list(
-                        4**pl for pl in problens))}}
+                        4**pl for pl in problens))},
+                'warns'   : warns}
 
             # Return results
             liner.close()
@@ -621,7 +643,7 @@ def barcode(
             has_context = True
 
             # Show update
-            liner.send('\n[Extracting Context Sequences]\n')
+            liner.send('\n[Step 4: Extracting Context Sequences]\n')
 
             # Extract Both Contexts
             (leftcontext,
@@ -638,21 +660,23 @@ def barcode(
          rightcontext) = None, None
 
     # Launching Barcode Design
-    liner.send('\n[Computing Barcodes]\n')
+    liner.send('\n[Step 5: Computing Barcodes]\n')
 
     # Define Barcode Design Stats
     stats = {
-        'status': False,
-         'basis': 'unsolved',
-          'step': 5,
-          'vars': {
+        'status'  : False,
+        'basis'   : 'unsolved',
+        'step'    : 5,
+        'stepname': 'computing-barcodes',
+        'vars'    : {
                'targetcount': targetcount,   # Required Number of Barcodes
               'barcodecount': 0,             # Barcode Design Count
               'distancefail': 0,             # Hamming Distance Fail Count
                'exmotiffail': 0,             # Exmotif Elimination Fail Count
                   'edgefail': 0,             # Edge Effect Fail Count
             'distancedistro': None,          # Hamming Distance Distribution
-            'exmotifcounter': cx.Counter()}} # Exmotif Encounter Counter
+            'exmotifcounter': cx.Counter()}, # Exmotif Encounter Counter
+        'warns'   : warns}
 
     # Schedule outfile deletion
     ofdeletion = ae.register(
@@ -674,7 +698,7 @@ def barcode(
 
     # Compute Hamming Distribution
     if not store is None:
-        liner.send('\n[Computing Distance Distribution]\n')
+        liner.send('\n[Step 6: Computing Distance Distribution]\n')
         stats['vars']['distancedistro'] = cb.get_distro(
             store=store,
             codes=codes,

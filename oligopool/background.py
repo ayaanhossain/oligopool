@@ -221,13 +221,15 @@ def background(
 
     # Define Background Stats
     stats = {
-        'status': False,
-        'basis': 'infeasible',
-        'step': 1,
-        'vars': {
+        'status'  : False,
+        'basis'   : 'infeasible',
+        'step'    : 1,
+        'stepname': 'computing-background',
+        'vars'    : {
             'kmerspace': 0,  # kmer Space
             'fillcount': 0,  # kmer Fill Count
-            'leftcount': 0}} # kmer Left Count
+            'leftcount': 0}, # kmer Left Count
+        'warns'   : {}}
 
     # Start Timer
     t0 = tt.time()

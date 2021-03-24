@@ -513,7 +513,8 @@ def get_variantlens(indf):
     '''
 
     return np.array(list(map(
-        len, get_df_concat(df=indf))))
+        len, get_df_concat(
+            df=indf))))
 
 def get_parsed_oligolimit(
     indf,
@@ -669,10 +670,94 @@ def get_parsed_oligolimit(
 
 # Exmotif Functions
 
+def stream_exmotif_splits(exmotif):
+    '''
+    Stream all prefix-suffix splits
+    for given motif. This is also
+    left partition of motif.
+    Internal use only.
+
+    :: motif
+       type - string
+       desc - motif to split
+    '''
+
+    return ((exmotif[:i], exmotif[i:]) \
+        for i in range(1, len(exmotif)))
+
+def get_exmotif_partition(exmotifs):
+    '''
+    Compute the left partition of
+    exmotifs. Internal use only.
+
+    :: exmotifs
+       type - cx.deque
+       desc - deque of all motifs
+              to be excluded
+    '''
+
+    partition = cx.defaultdict(list)
+    for exmotif in exmotifs:
+        for u,v in stream_exmotif_splits(
+            exmotif=exmotif):
+            partition[u].append(v)
+    return partition
+
+def get_inverted_exmotif_partition(partition):
+    '''
+    Compute the right partition of
+    left partitioned exmotifs by
+    inverting left partition.
+    Internal use only.
+
+    :: partition
+       type - dict
+       desc - dictionary of left
+              partitioned exmotifs,
+              prefix -> suffix
+    '''
+
+    inv_partition = cx.defaultdict(list)
+    for u,v in partition.items():
+        for vi in v:
+            inv_partition[vi].append(u)
+    return inv_partition
+
+def is_right_blocked(suffixes):
+    '''
+    Determine if all suffixes are blocked
+    for a given left partition.
+    Internal use only.
+
+    :: suffixes
+       type - list
+       desc - left partition motif suffixes
+              that share a common prefix
+    '''
+
+    return len(set(vi[0] for vi in suffixes)) == 4
+
+def is_left_blocked(prefixes):
+    '''
+    Determine if all suffixes are blocked
+    for a given left partition.
+    Internal use only.
+
+    :: prefixes
+       type - list
+       desc - right partition motif prefixes
+              that share a common suffix
+    '''
+
+    return len(set(vi[-1] for vi in prefixes)) == 4
+
 def get_parsed_exmotifs(
     exmotifs,
     typer,
     element,
+    leftcontext,
+    rightcontext,
+    warn,
     liner):
     '''
     Check feasibility and return all
@@ -690,6 +775,17 @@ def get_parsed_exmotifs(
     :: element
        type - string
        desc - element being designed
+    :: leftcontext
+       type - tuple
+       desc - tuple of all left context
+              sequences
+    :: rightcontext
+       type - tuple
+       desc - tuple of all right context
+              sequences
+    :: warn
+       type - dict
+       desc - warning dictionary entry
     :: liner
        type - coroutine
        desc - dynamic printing
@@ -699,23 +795,23 @@ def get_parsed_exmotifs(
     t0 = tt.time()
 
     # Sort Enque all motifs by length
-    liner.send(' Sorting and Enqueing Motif(s) ...')
+    liner.send(' Sorting and Enqueing Excluded Motif(s) ...')
 
     exmotifs = sorted(
         exmotifs,
         key=len)
     dq = typer(exmotifs)
 
-    liner.send(' Sorted and Enqued: {:,} Unique Motif(s)\n'.format(
+    liner.send(' Sorted and Enqued: {:,} Unique Excluded Motif(s)\n'.format(
         len(exmotifs)))
 
     # Check motif feasibility
-    liner.send(' Computing Motif Length Distribution ...')
+    liner.send(' Computing Excluded Motif Length Distribution ...')
 
     # Compute length distribution
     cr = cx.Counter(len(m) for m in dq)
 
-    liner.send(' Motif Length Distribution\n')
+    liner.send(' Excluded Motif Length Distribution\n')
 
     klen = get_printlen(
         value=max(cr.keys()))
@@ -746,6 +842,86 @@ def get_parsed_exmotifs(
     # Finalize problens
     problens = None if len(problens) == 0 else problens
 
+    # Partition Exmotifs
+    if (not  leftcontext is None) or \
+       (not rightcontext is None):
+
+        # Show Update
+        liner.send(' Left Partitioning Excluded Motif(s) ...')
+
+        # Right Partition exmotifs
+        leftpartition = get_exmotif_partition(
+            exmotifs=exmotifs)
+
+        # Show Update
+        liner.send(' Right Partitioning Excluded Motif(s) ...')
+
+        # Right Partition exmotifs
+        rightpartition = get_inverted_exmotif_partition(
+            partition=leftpartition)
+
+        # Setup Warning Variables
+        warn['vars'] = {
+            'exmotifprefixgroup': set(),
+            'exmotifsuffixgroup': set()}
+
+        # Detect Potentially Blocked Left Exmotifs
+        if not leftcontext is None:
+            liner.send(' Detecting Blocked Excluded Motif Prefix(es) ...')
+            for prefix,suffixes in leftpartition.items():
+                if is_right_blocked(suffixes=suffixes):
+                    warn['vars']['exmotifprefixgroup'].add(prefix)
+
+        # Detect Potentially Blocked Right Exmotifs
+        if not rightcontext is None:
+            liner.send(' Detecting Blocked Excluded Motif Suffix(es) ...')
+            for suffix,prefixes in rightpartition.items():
+                if is_left_blocked(prefixes=prefixes):
+                    warn['vars']['exmotifsuffixgroup'].add(suffix)
+
+        # Update Warning Counts
+        warn['warncount'] += len(warn['vars']['exmotifprefixgroup'])
+        warn['warncount'] += len(warn['vars']['exmotifsuffixgroup'])
+
+        # Show Blocked Motifs
+        if warn['warncount']:
+            liner.send(
+                ' Found {:,} Problematic Excluded Motif Groups\n'.format(
+                    warn['warncount']))
+            plen = max(map(
+                len,
+                warn['vars']['exmotifprefixgroup'] | \
+                warn['vars']['exmotifsuffixgroup'])) + 2 + 1
+
+            # Show Prefix Updates
+            for prefix in sorted(warn['vars']['exmotifprefixgroup'], key=len):
+                prefix = '\'' + prefix + '.'*(plen-len(prefix)-2) + '\''
+                liner.send(
+                    '   - Motif(s) starting with {:<{}} [WARNING]\n'.format(
+                        prefix,
+                        plen))
+
+            # Show Suffix Updates
+            for suffix in sorted(warn['vars']['exmotifsuffixgroup'], key=len):
+                suffix = '\'' + '.'*(plen-len(suffix)-2) + suffix + '\''
+                liner.send(
+                    '   - Motif(s)   ending with {:>{}} [WARNING]\n'.format(
+                        suffix,
+                        plen))
+
+            # Finalize Left Partition Warning
+            if not warn['vars']['exmotifprefixgroup']:
+                warn['vars']['exmotifprefixgroup'] = None
+
+            # Finalize Left Partition Warning
+            if not warn['vars']['exmotifsuffixgroup']:
+                warn['vars']['exmotifsuffixgroup'] = None
+
+    # No Partition Required
+    else:
+        leftpartition  = None
+        rightpartition = None
+
     # Show feasibility verdict
     liner.send(
         ' Time Elapsed: {:.2f} sec\n'.format(
@@ -756,14 +932,25 @@ def get_parsed_exmotifs(
             ' Verdict: {} Design Infeasible due to Excluded Motif Constraints\n'.format(
                 element))
     else:
-        liner.send(
-            ' Verdict: {} Design Possibly Feasible\n'.format(
-                element))
+
+        # Warnings Incurred
+        if warn['warncount']:
+            liner.send(
+                ' Verdict: {} Design Potentially Infeasible\n'.format(
+                    element))
+
+        # No Warnings
+        else:
+            liner.send(
+                ' Verdict: {} Design Possibly Feasible\n'.format(
+                    element))
 
     # Return Results
     return (parsestatus,
         dq,
-        problens)
+        problens,
+        leftpartition,
+        rightpartition)
 
 def get_exmotif_conflict(
     seq,
@@ -876,59 +1063,6 @@ def get_exmotif_conflict_index(
 
     # Return Results
     return index
-
-def stream_exmotif_splits(exmotif):
-    '''
-    Stream all prefix-suffix splits
-    for given motif. This is also
-    left partition of motif.
-    Internal use only.
-
-    :: motif
-       type - string
-       desc - motif to split
-    '''
-
-    return ((exmotif[:i], exmotif[i:]) \
-        for i in range(1, len(exmotif)))
-
-def get_exmotif_partition(exmotifs):
-    '''
-    Compute the left partition of
-    exmotifs. Internal use only.
-
-    :: exmotifs
-       type - cx.deque
-       desc - deque of all motifs
-              to be excluded
-    '''
-
-    partition = cx.defaultdict(list)
-    for exmotif in exmotifs:
-        for u,v in stream_exmotif_splits(
-            exmotif=exmotif):
-            partition[u].append(v)
-    return partition
-
-def get_inverted_exmotif_partition(partition):
-    '''
-    Compute the right partition of
-    left partitioned exmotifs by
-    inverting left partition.
-    Internal use only.
-
-    :: partition
-       type - dict
-       desc - dictionary of left
-              partitioned exmotifs,
-              prefix -> suffix
-    '''
-
-    inv_partition = cx.defaultdict(list)
-    for u,v in partition.items():
-        for vi in v:
-            inv_partition[vi].append(u)
-    return inv_partition
 
 def is_local_exmotif_feasible(
     seq,
@@ -1298,7 +1432,11 @@ def get_parsed_edgeeffects(
     element,
     leftcontext,
     rightcontext,
+    leftpartition,
+    rightpartition,
     exmotifs,
+    merge,
+    warn,
     liner):
     '''
     Cluster left and right context sequences
@@ -1319,10 +1457,25 @@ def get_parsed_edgeeffects(
        type - tuple
        desc - tuple of all right context
               sequences
+    :: leftpartition
+       type - dict / None
+       desc - left partition of excluded
+              motifs if leftcontext present
+    :: rightpartition
+       type - dict / None
+       desc - right partition of excluded
+              motifs if rightcontext present
     :: exmotifs
        type - cx.deque
        desc - deque of all motifs
               to be excluded
+    :: merge
+       type - boolean
+       desc - if True, merge all entries in
+              prefixdict and suffixdict
+    :: warn
+       type - dict
+       desc - warning dictionary entry
     :: liner
        type - coroutine
        desc - dynamic printing
@@ -1333,23 +1486,11 @@ def get_parsed_edgeeffects(
     suffixdict  = None
     lcwarncount = set()
     rcwarncount = set()
+    constantprefix = None
+    constantsuffix = None
 
     # Time-keeping
     t0 = tt.time()
-
-    # Show Update
-    liner.send(' Left Paritioning Excluded Motifs ...')
-
-    # Left Partition exmotifs
-    leftpartition = get_exmotif_partition(
-        exmotifs=exmotifs)
-
-    # Show Update
-    liner.send(' Right Paritioning Excluded Motifs ...')
-
-    # Right Partition exmotifs
-    rightpartition = get_inverted_exmotif_partition(
-        partition=leftpartition)
 
     # Define plen and qlen
     plen = get_printlen(
@@ -1391,6 +1532,12 @@ def get_parsed_edgeeffects(
                         # RIP .. Have to Tolerate
                         if sequence.startswith(fp):
                             toleratedprefix.add(fp)
+                            # Record Longest Constant Prefix
+                            if constantprefix is None:
+                                constantprefix = fp
+                            else:
+                                if len(constantprefix) < len(fp):
+                                    constantprefix = fp
                     if toleratedprefix:
                         lcwarncount.add(lcseq)
 
@@ -1463,6 +1610,12 @@ def get_parsed_edgeeffects(
                         # RIP .. Have to Tolerate
                         if sequence.endswith(fs):
                             toleratedsuffix.add(fs)
+                            # Record Longest Constant Suffix
+                            if constantsuffix is None:
+                                constantsuffix = fs
+                            else:
+                                if len(constantsuffix) < len(fs):
+                                    constantsuffix = fs
                     if toleratedsuffix:
                         rcwarncount.add(rcseq)
 
@@ -1502,8 +1655,121 @@ def get_parsed_edgeeffects(
         # Retain Last Update
         liner.send('\*')
 
+    # Merge Dictionaries
+    if merge:
+
+        # Show Update
+        liner.send(' Merging Forbidden Prefixes ...')
+
+        # Merge prefixdict
+        if not prefixdict is None:
+
+            # Define Merged Dictionary
+            _prefixdict = {}
+
+            # Merging Loop
+            for d in prefixdict.values():
+                for k in d:
+                    if not k in _prefixdict:
+
+                        # Special Keys Arrangement
+                        if k == 'keys':
+                            _prefixdict[k] = {}
+                        # Regular Arrangement
+                        else:
+                            _prefixdict[k] = set()
+
+                    # Special Keys Arrangement
+                    if k == 'keys':
+                        for l in d[k]:
+                            if not l in _prefixdict[k]:
+                                _prefixdict[k][l] = set()
+                            else:
+                                _prefixdict[k][l].update(d[k][l])
+                    # Regular Arrangement
+                    else:
+                        _prefixdict[k].update(d[k])
+
+            # Restore Order
+            prefixdict = {}
+            for k in _prefixdict:
+                if k == 'keys':
+                    prefixdict[k] = cx.OrderedDict()
+                    for l in sorted(_prefixdict[k]):
+                        prefixdict[k][l] = set(_prefixdict[k][l])
+                else:
+                    prefixdict[k] = tuple(
+                        sorted(_prefixdict[k], key=len))
+
+        # Show Update
+        liner.send(' Merging Forbidden Suffixes ...')
+
+        # Merge suffixdict
+        if not suffixdict is None:
+
+            # Define Merged Dictionary
+            _suffixdict = {}
+
+            # Merging Loop
+            for d in suffixdict.values():
+                for k in d:
+                    if not k in _suffixdict:
+
+                        # Special Keys Arrangement
+                        if k == 'keys':
+                            _suffixdict[k] = {}
+                        # Regular Arrangement
+                        else:
+                            _suffixdict[k] = set()
+
+                    # Special Keys Arrangement
+                    if k == 'keys':
+                        for l in d[k]:
+                            if not l in _suffixdict[k]:
+                                _suffixdict[k][l] = set()
+                            else:
+                                _suffixdict[k][l].update(d[k][l])
+                    # Regular Arrangement
+                    else:
+                        _suffixdict[k].update(d[k])
+
+            # Restore Order
+            suffixdict = {}
+            for k in _suffixdict:
+                if k == 'keys':
+                    suffixdict[k] = cx.OrderedDict()
+                    for l in sorted(_suffixdict[k]):
+                        suffixdict[k][l] = set(_suffixdict[k][l])
+                else:
+                    suffixdict[k] = tuple(
+                        sorted(_suffixdict[k], key=len))
+
     # Show Final Updates
     if len(lcwarncount) or len(rcwarncount):
+
+        # Compute plen
+        maxlen = 0
+        if lcwarncount:
+            maxlen = max(maxlen, len(constantprefix))
+        if rcwarncount:
+            maxlen = max(maxlen, len(constantsuffix))
+        plen = get_printlen(value=maxlen) + 2 + 3
+
+        # Show Major Category
+        liner.send(' Found Terminal Constant Base(s) in Sequence Constraint\n')
+
+        # Show Responsible Constants
+        if constantprefix:
+            cp = '\'' + constantprefix + '.'*(plen-len(constantprefix)-2) + '\''
+            liner.send(
+                '   - {} Design starts with {:<{}} [WARNING] (Constant Prefix)\n'.format(
+                    element, cp, maxlen))
+
+        if constantsuffix:
+            cs = '\'' + '.'*(plen-len(constantsuffix)-2) + constantsuffix + '\''
+            liner.send(
+                '   - {} Design   ends with {:>{}} [WARNING] (Constant Suffix)\n'.format(
+                    element, cs, maxlen))
 
         # Optimization Status
         suboptimal = True
@@ -1516,7 +1782,7 @@ def get_parsed_edgeeffects(
 
         # Show Major Category
         liner.send(
-            ' Found {:,} Inexorable Edge-Effects\n'.format(
+            ' Found {:,} Resulting Inexorable Edge-Effects\n'.format(
                 len(lcwarncount) + len(rcwarncount)))
 
         # Left Context
@@ -1551,6 +1817,17 @@ def get_parsed_edgeeffects(
         liner.send(
             ' Verdict: {} Design Possibly Feasible\n'.format(
                 element))
+
+    # Update Warning
+    warn['warncount'] = len(lcwarncount) + \
+                        len(rcwarncount) + \
+                        (1 if not constantprefix is None else 0) + \
+                        (1 if not constantsuffix is None else 0)
+    warn['vars'] = {
+        'constantprefix'    : constantprefix,
+        'constantsuffix'    : constantsuffix,
+        'leftcontextimpact' : len(lcwarncount),
+        'rightcontextimpact': len(rcwarncount)}
 
     # Return Results
     return (prefixdict, suffixdict)
@@ -1596,7 +1873,7 @@ def is_local_edge_feasible(
     if not prefixforbidden is None:
 
         # In Exploration
-        if len(seq) in prefixforbidden:
+        if len(seq) in prefixforbidden['keys']:
 
             # Prefix Conflict Found
             if seq in prefixforbidden['keys'][len(seq)]:
@@ -1613,12 +1890,17 @@ def is_local_edge_feasible(
             # Build In Context Sequence
             if (not rcseq is None) and \
                (edgeeffectlength > seqlen):
-                incontext = seq + rcseq
+                diff = edgeeffectlength - seqlen
+                incontext = seq + rcseq[:diff]
             else:
                 incontext = seq
 
             # Check for Conflicts
             for mlen in prefixforbidden['keys']:
+
+                # Too Small within Context?
+                if mlen > len(incontext):
+                    break
 
                 # Extract Prefix
                 seqprefix = incontext[:mlen]
@@ -1641,12 +1923,17 @@ def is_local_edge_feasible(
             # Build In Context Sequence
             if (not lcseq is None) and \
                (edgeeffectlength > seqlen):
-                incontext = lcseq + seq
+                diff = edgeeffectlength - seqlen
+                incontext = lcseq[-diff:] + seq
             else:
                 incontext = seq
 
             # Check for Conflicts
             for mlen in suffixforbidden['keys']:
+
+                # Too Small within Context?
+                if mlen > len(incontext):
+                    break
 
                 # Extract Suffix
                 seqsuffix = incontext[-mlen:]

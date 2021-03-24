@@ -13,6 +13,7 @@ import utils as ut
 def get_parsed_sequence_constraint(
     motifseq,
     exmotifs,
+    warn,
     liner):
     '''
     Check motif sequence feasibility.
@@ -25,6 +26,9 @@ def get_parsed_sequence_constraint(
        type - deque / None
        desc - deque of all motifs
               to be excluded
+    :: warn
+       type - dict
+       desc - warning dictionary entry
     :: liner
        type - coroutine
        desc - dynamic printing
@@ -72,6 +76,9 @@ def get_parsed_sequence_constraint(
         if not motif_ok:
             optrequired = True # Partial Motif Conflict Optimization
 
+            # Update Warning Entry
+            warn['vars'] = {'exmotifembedded': set()}
+
             # Compute Embedded Motif Indices
             # to be Ignored Downstream
             exmotlocdict = ut.get_exmotif_conflict_index(
@@ -85,6 +92,9 @@ def get_parsed_sequence_constraint(
             liner.send(
                 ' Found {:,} Excluded Motif(s)\n'.format(
                     len(excludedmotifs)))
+
+            warn['warncount'] = len(excludedmotifs)
+            warn['vars']['exmotifembedded'].update(excludedmotifs)
 
             plen = max(map(len, excludedmotifs)) + 2
 
@@ -126,7 +136,10 @@ def get_parsed_edgeeffects(
     motifseq,
     leftcontext,
     rightcontext,
+    leftpartition,
+    rightpartition,
     exmotifs,
+    warn,
     liner):
     '''
     Cluster left and right context sequences
@@ -158,7 +171,11 @@ def get_parsed_edgeeffects(
         element='Motif',
         leftcontext=leftcontext,
         rightcontext=rightcontext,
+        leftpartition=leftpartition,
+        rightpartition=rightpartition,
         exmotifs=exmotifs,
+        merge=False,
+        warn=warn,
         liner=liner)
 
 def get_extracted_spacerlen(

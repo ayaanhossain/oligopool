@@ -361,7 +361,8 @@ def get_parsed_data_info(
         df_contains_required_cols])
 
     # Return Results
-    return (df, df_valid)
+    data_name = data
+    return (df, data_name, df_valid)
 
 def get_parsed_indata_info(
     indata,
@@ -397,6 +398,7 @@ def get_parsed_indata_info(
 
     # Is indata valid CSV or DataFrame?
     (df,
+    data_name,
     df_valid) = get_parsed_data_info(
         data=indata,
         data_field=indata_field,
@@ -439,7 +441,7 @@ def get_parsed_indata_info(
             liner.send(
                 '{}: {} w/ {:,} Record(s) [NON-DNA VALUE=\'{}\' IN COLUMN=\'{}\']\n'.format(
                     indata_field,
-                    indata,
+                    data_name,
                     len(df.index),
                     value,
                     column))
@@ -461,7 +463,7 @@ def get_parsed_indata_info(
             liner.send(
                 '{}: {} w/ {:,} Record(s)\n'.format(
                     indata_field,
-                    indata,
+                    data_name,
                     len(df.index)))
 
     else:
@@ -1212,6 +1214,7 @@ def get_parsed_spacerlen_info(
 
         # Compute spacerlen data validity
         (df,
+        data_name,
         df_valid) = get_parsed_data_info(
             data=spacerlen,
             data_field=spacerlen_field,
@@ -1241,7 +1244,7 @@ def get_parsed_spacerlen_info(
                 liner.send(
                     '{}: {} w/ {:,} Record(s)\n'.format(
                         spacerlen_field,
-                        spacerlen,
+                        data_name,
                         len(df.index)))
                 return (None, False)
 
@@ -1250,7 +1253,7 @@ def get_parsed_spacerlen_info(
                 liner.send(
                     '{}: {} w/ {:,} Record(s) [COLUMN=\'ID\' DOES NOT MATCH INPUT DATA]\n'.format(
                         spacerlen_field,
-                        spacerlen,
+                        data_name,
                         len(df.index)))
                 return (None, False)
 

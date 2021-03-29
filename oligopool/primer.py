@@ -12,17 +12,20 @@ import coreprimer  as cp
 
 def primer_engine(
     primerseq,
+    homology,
     primertype,
+    fixedbaseindex,
     mintmelt,
     maxtmelt,
     maxreplen,
     oligorepeats,
     pairedprimer,
     pairedrepeats,
-    edgeeffectlength,
-    prefixforbidden,
-    suffixforbidden,
     exmotifs,
+    exmotifindex,
+    edgeeffectlength,
+    prefixdict,
+    suffixdict,
     background,
     stats,
     liner):
@@ -34,11 +37,19 @@ def primer_engine(
        type - string
        desc - degenerate primer design sequence
               constraint
+    :: homology
+       type - integer
+       desc - maximum allowed internal repeat
+              length for default traceback
     :: primertype
        type - integer
        desc - primer design type identifier
               0 = forward primer design
               1 = reverse primer design
+    :: fixedbaseindex
+       type - set
+       desc - base indices lacking more than one
+              nucleotide choices
     :: mintmelt
        type - float
        desc - primer melting temperature lower
@@ -56,20 +67,24 @@ def primer_engine(
     :: pairedrepeats
        type - set / None
        desc - set storing paired primer repeats
-    :: edgeeffectlength
-       type - integer
-       desc - context length for edge effects
-    :: prefixforbidden
-       type - dict / None
-       desc - dictionary of forbidden primer
-              prefix sequences
-    :: suffixforbidden
-       type - dict / None
-       desc - dictionary of forbidden primer
-              suffix sequences
     :: exmotifs
        type - cx.deque / None
        desc - deque of all excluded motifs
+    :: exmotifindex
+       type - set
+       desc - ending index locations of all
+              embedded excluded motifs
+    :: edgeeffectlength
+       type - integer
+       desc - context length for edge effects
+    :: prefixdict
+       type - dict / None
+       desc - dictionary of forbidden primer
+              prefix sequences
+    :: suffixdict
+       type - dict / None
+       desc - dictionary of forbidden primer
+              suffix sequences
     :: background
        type - db.vectorDB / None
        desc - vectorDB instance storing
@@ -83,18 +98,24 @@ def primer_engine(
     '''
 
     # Book-keeping
-    t0 = tt.time()                    # Start Timer
-    primerstruct = 'x'*len(primerseq) # No Structure
+    t0 = tt.time() # Start Timer
+    # Flexible Structure Constraint
+    primerstruct = ''.join('x.'[idx in fixedbaseindex] \
+        for idx in fixedbaseindex)
 
     # Update Paired Primer Orientation
     # Since Forward Primer Design,
     # interpret Paired Primer as
     # Reverse Primer specified in
-    # terns of Forward Strand
+    # terms of Forward Strand
     if primertype == 0:
         if not pairedprimer is None:
             pairedprimer = ut.get_revcomp(
                 seq=pairedprimer)
+    # Correct Free Base Index
+    else:
+        fixedbaseindex = set(len(primerseq)-1-idx \
+            for idx in fixedbaseindex)
 
     # Optimize exmotifs
     if not exmotifs is None:
@@ -106,16 +127,18 @@ def primer_engine(
         primer=primer,
         primerlen=len(primerseq),
         primertype=primertype,
+        fixedbaseindex=fixedbaseindex,
         mintmelt=mintmelt,
         maxtmelt=maxtmelt,
         maxreplen=maxreplen,
         oligorepeats=oligorepeats,
         pairedprimer=pairedprimer,
         pairedrepeats=pairedrepeats,
-        edgeeffectlength=edgeeffectlength,
-        prefixforbidden=prefixforbidden,
-        suffixforbidden=suffixforbidden,
         exmotifs=exmotifs,
+        exmotifindex=exmotifindex,
+        edgeeffectlength=edgeeffectlength,
+        prefixforbidden=prefixdict,
+        suffixforbidden=suffixdict,
         background=background,
         inittime=t0,
         stats=stats,
@@ -128,7 +151,7 @@ def primer_engine(
 
     # Design Primer via Maker
     primer = maker.nrp_maker(
-        homology=6,
+        homology=min(len(primerseq), homology),
         seq_constr=primerseq,
         struct_constr=primerstruct,
         target_size=1,
@@ -534,9 +557,10 @@ def primer(
     # Primer Design Book-keeping
     outdf = None
     stats = None
+    warns = {}
 
     # Parse Oligopool Limit Feasibility
-    liner.send('\n[Parsing Oligo Limit]\n')
+    liner.send('\n[Step 1: Parsing Oligo Limit]\n')
 
     # Parse oligolimit
     (parsestatus,
@@ -571,7 +595,8 @@ def primer(
                 'minelementlen': minelementlen,
                 'maxelementlen': maxelementlen,
                 'minspaceavail': minspaceavail,
-                'maxspaceavail': maxspaceavail}}
+                'maxspaceavail': maxspaceavail},
+            'warns'  : warns}
 
         # Return results
         liner.close()
@@ -581,16 +606,31 @@ def primer(
     if not exmotifs is None:
 
         # Show update
-        liner.send('\n[Parsing Excluded Motifs]\n')
+        liner.send('\n[Step 2: Parsing Excluded Motifs]\n')
+
+        # Update Step 2 Warning
+        warns[2] = {
+            'warncount': 0,
+            'stepname' : 'parsing-excluded-motifs',
+            'vars': None}
 
         # Parse exmotifs
         (parsestatus,
         exmotifs,
-        problens) = ut.get_parsed_exmotifs(
+        problens,
+        leftpartition,
+        rightpartition) = ut.get_parsed_exmotifs(
             exmotifs=exmotifs,
             typer=tuple,
             element='Primer',
+            leftcontext=leftcontext,
+            rightcontext=rightcontext,
+            warn=warns[2],
             liner=liner)
+
+        # Remove Step 2 Warning
+        if not warns[2]['warncount']:
+            warns.pop(2)
 
         # exmotifs infeasible
         if not parsestatus:
@@ -603,7 +643,8 @@ def primer(
                 'vars'  : {
                      'problens': problens,
                     'probcount': tuple(list(
-                        4**pl for pl in problens))}}
+                        4**pl for pl in problens))},
+                'warns' : warns}
 
             # Return results
             liner.close()
@@ -614,20 +655,32 @@ def primer(
             exmotifs=exmotifs)
 
     # Parsing Sequence Constraint Feasibility
-    liner.send('\n[Parsing Primer Sequence]\n')
+    liner.send('\n[Step 3: Parsing Primer Sequence]\n')
+
+    # Update Step 3 Warning
+    warns[3] = {
+        'warncount': 0,
+        'stepname' : 'parsing-primer-sequence',
+        'vars': None}
 
     # Parse primerseq
     (parsestatus,
+    homology,
+    fixedbaseindex,
+    exmotifindex,
     designspace,
-    excludedmotifs,
     internalrepeats,
-    palindromes,
     pairedrepeats) = cp.get_parsed_sequence_constraint(
         primerseq=primerseq,
         primertype=primertype,
         exmotifs=exmotifs,
         pairedprimer=pairedprimer,
+        warn=warns[3],
         liner=liner)
+
+    # Remove Step 3 Warning
+    if not warns[3]['warncount']:
+        warns.pop(3)
 
     # primerseq infeasible
     if not parsestatus:
@@ -639,10 +692,9 @@ def primer(
             'step'  : 3,
             'vars'  : {
                     'designspace': designspace,
-                 'excludedmotifs': excludedmotifs,
                 'internalrepeats': internalrepeats,
-                    'palindromes': palindromes,
-                  'pairedrepeats': pairedrepeats}}
+                  'pairedrepeats': pairedrepeats},
+            'warns' : warns}
 
         # Return results
         liner.close()
@@ -657,7 +709,7 @@ def primer(
         pairedrepeats = None
 
     # Parse Melting Temperature
-    liner.send('\n[Parsing Melting Temperature]\n')
+    liner.send('\n[Step 4: Parsing Melting Temperature]\n')
 
     # Parse mintmelt and maxtmelt
     (parsestatus,
@@ -685,7 +737,8 @@ def primer(
                 'estimatedminTm': estimatedminTm,
                 'estimatedmaxTm': estimatedmaxTm,
                    'higherminTm': higherminTm,
-                    'lowermaxTm': lowermaxTm}}
+                    'lowermaxTm': lowermaxTm},
+            'warns' : warns}
 
         # Return results
         liner.close()
@@ -697,7 +750,7 @@ def primer(
         (not rightcontext is None)):
 
         # Show update
-        liner.send('\n[Extracting Context Sequences]\n')
+        liner.send('\n[Step 5: Extracting Context Sequences]\n')
 
         # Extract Primer Contexts
         (leftcontext,
@@ -709,46 +762,36 @@ def primer(
             liner=liner)
 
         # Show update
-        liner.send('\n[Parsing Edge Effects]\n')
+        liner.send('\n[Step 6: Parsing Edge Effects]\n')
 
-        # Parse Edge Effect Constraints
-        (parsestatus,
-        probseqprefixes,
-        probprefixlens,
-        probseqsuffixes,
-        probsuffixlens,
-        prefixforbidden,
-        suffixforbidden) = cp.get_parsed_edgeeffects(
+        # Update Step 6 Warning
+        warns[6] = {
+            'warncount': 0,
+            'stepname' : 'parsing-edge-effects',
+            'vars': None}
+
+        # Compute Forbidden Prefixes and Suffixes
+        (prefixdict,
+        suffixdict) = cp.get_parsed_edgeeffects(
             primerseq=primerseq,
             leftcontext=leftcontext,
             rightcontext=rightcontext,
+            leftpartition=leftpartition,
+            rightpartition=rightpartition,
             exmotifs=exmotifs,
+            warn=warns[6],
             liner=liner)
 
-        # Edge Effect infeasible
-        if not parsestatus:
-
-            # Prepare stats
-            stats = {
-                'status': False,
-                'basis' : 'infeasible',
-                'step'  : 6,
-                'vars'  : {
-                    'probseqprefixes': probseqprefixes,
-                     'probprefixlens': probprefixlens,
-                    'probseqsuffixes': probseqsuffixes,
-                     'probsuffixlens': probsuffixlens}}
-
-            # Return results
-            liner.close()
-            return (outdf, stats)
+        # Remove Step 6 Warning
+        if not warns[6]['warncount']:
+            warns.pop(6)
 
     else:
-        (prefixforbidden,
-        suffixforbidden) = None, None
+        (prefixdict,
+        suffixdict) = None, None
 
     # Extract Oligopool Repeats
-    liner.send('\n[Extractng Oligopool Repeats]\n')
+    liner.send('\n[Step 7: Extractng Oligopool Repeats]\n')
 
     # Extract Repeats from indf
     (parsestatus,
@@ -772,21 +815,22 @@ def primer(
             'vars'  : {
                 'kmerspace': kmerspace,
                 'fillcount': fillcount,
-                'leftcount': leftcount}}
+                'leftcount': leftcount},
+            'warns' : warns}
 
         # Return results
         liner.close()
         return (outdf, stats)
 
     # Launching Barcode Design
-    liner.send('\n[Computing Primer]\n')
+    liner.send('\n[Step 8: Computing Primer]\n')
 
     # Define Barcode Design Stats
     stats = {
         'status': False,
-         'basis': 'unsolved',
-          'step': 8,
-          'vars': {
+        'basis' : 'unsolved',
+        'step'  : 8,
+        'vars'  : {
                    'primerTm': None,          # Primer Melting Temperature
                    'primerGC': None,          # Primer GC Content
                  'hairpinMFE': None,          # Primer Hairpin Free Energy
@@ -798,7 +842,8 @@ def primer(
             'heterodimerfail': 0,             # Heterodimer Fail Count
                 'exmotiffail': 0,             # Exmotif Elimination Fail Count
                    'edgefail': 0,             # Edge Effect Fail Count
-             'exmotifcounter': cx.Counter()}} # Exmotif Encounter Counter
+             'exmotifcounter': cx.Counter()}, # Exmotif Encounter Counter
+        'warns' : warns}
 
     # Schedule outfile deletion
     ofdeletion = ae.register(
@@ -809,17 +854,20 @@ def primer(
     (primer,
     stats) = primer_engine(
         primerseq=primerseq,
+        homology=homology,
         primertype=primertype,
+        fixedbaseindex=fixedbaseindex,
         mintmelt=mintmelt,
         maxtmelt=maxtmelt,
         maxreplen=maxreplen,
         oligorepeats=oligorepeats,
         pairedprimer=pairedprimer,
         pairedrepeats=pairedrepeats,
-        edgeeffectlength=edgeeffectlength,
-        prefixforbidden=prefixforbidden,
-        suffixforbidden=suffixforbidden,
         exmotifs=exmotifs,
+        exmotifindex=exmotifindex,
+        edgeeffectlength=edgeeffectlength,
+        prefixdict=prefixdict,
+        suffixdict=suffixdict,
         background=background,
         stats=stats,
         liner=liner)

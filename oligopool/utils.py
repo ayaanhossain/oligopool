@@ -498,6 +498,32 @@ def get_tmelt(
         dntp_conc=ntc,
         dna_conc=olc)
 
+def get_constant_regions(seqconstr):
+    '''
+    Extract all constant, non-degenerate
+    regions embedded in seqconstr.
+    Internal use only.
+
+    :: seqconstr
+       type - string
+       desc - element sequence constraint
+    '''
+
+    # Make a local copy
+    cseqconstr = str(seqconstr)
+
+    # Remove dgenerate nucleotides
+    for nt in set(seqconstr) - set('ATGC'):
+        cseqconstr = cseqconstr.replace(nt, '-')
+
+    # Split and extract defined regions
+    regions = set(cseqconstr.split('-'))
+    if '' in regions:
+        regions.remove('')
+
+    # Return results
+    return regions
+
 # Oligopool Functions
 
 def get_variantlens(indf):
@@ -886,7 +912,7 @@ def get_parsed_exmotifs(
         # Show Blocked Motifs
         if warn['warncount']:
             liner.send(
-                ' Found {:,} Problematic Excluded Motif Groups\n'.format(
+                ' Found {:,} Problematic Excluded Motif Group(s)\n'.format(
                     warn['warncount']))
             plen = max(map(
                 len,
@@ -897,7 +923,7 @@ def get_parsed_exmotifs(
             for prefix in sorted(warn['vars']['exmotifprefixgroup'], key=len):
                 prefix = '\'' + prefix + '.'*(plen-len(prefix)-2) + '\''
                 liner.send(
-                    '   - Motif(s) starting with {:<{}} [WARNING]\n'.format(
+                    '   - Motif(s) starting with {:<{}} [WARNING] (Prefix Prevents All 4 Bases After It)\n'.format(
                         prefix,
                         plen))
 
@@ -905,7 +931,7 @@ def get_parsed_exmotifs(
             for suffix in sorted(warn['vars']['exmotifsuffixgroup'], key=len):
                 suffix = '\'' + '.'*(plen-len(suffix)-2) + suffix + '\''
                 liner.send(
-                    '   - Motif(s)   ending with {:>{}} [WARNING]\n'.format(
+                    '   - Motif(s)   ending with {:>{}} [WARNING] (Suffix Prevents All 4 Bases After It)\n'.format(
                         suffix,
                         plen))
 

@@ -36,8 +36,9 @@ def get_parsed_sequence_constraint(
 
     # Book-keeping
     t0 = tt.time()
-    optrequired  = True  # Optimization Required
-    exmotifindex = set() # No Conflicts
+    optrequired  = True # Optimization Required
+    exmotifindex = None # No Conflicts
+    homology     = 6    # Initially, for Maker
 
     # Design Space Analysis
     liner.send(' Computing Design Space ...')
@@ -84,6 +85,7 @@ def get_parsed_sequence_constraint(
             exmotlocdict = ut.get_exmotif_conflict_index(
                 seq=motifseq,
                 conflicts=excludedmotifs)
+            exmotifindex = set()
             for exmotif in exmotlocdict:
                 for loc in exmotlocdict[exmotif]:
                     exmotifindex.add(loc+len(exmotif))
@@ -93,15 +95,18 @@ def get_parsed_sequence_constraint(
                 ' Found {:,} Excluded Motif(s)\n'.format(
                     len(excludedmotifs)))
 
+            # Record Warnings
             warn['warncount'] = len(excludedmotifs)
             warn['vars']['exmotifembedded'].update(excludedmotifs)
+            homology = max(homology,
+                           max(map(len, excludedmotifs)) + 1)
 
+            # Show Excluded Motifs
             plen = max(map(len, excludedmotifs)) + 2
-
             for motif in excludedmotifs:
                 motif = '\'{}\''.format(motif)
                 liner.send(
-                    '   - Excluded Motif {:>{}} Present [WARNING]\n'.format(
+                    '   - Excluded Motif {:>{}} Present [WARNING] (Excluded Motif Embedded)\n'.format(
                         motif,
                         plen))
         else:
@@ -111,6 +116,17 @@ def get_parsed_sequence_constraint(
     # No Exmotifs Exist
     else:
         optrequired = False # No Optimization .. No Exmotifs
+
+    # Region Analysis
+    liner.send(' Computing Constant Regions ...')
+
+    # Compute Constant Regions
+    regions = ut.get_constant_regions(
+        seqconstr=motifseq)
+
+    # Finalize homology
+    homology = max(homology,
+                   max(map(len, regions)) + 1)
 
     # Show Time Elapsed
     liner.send(' Time Elapsed: {:.2f} sec\n'.format(
@@ -130,7 +146,7 @@ def get_parsed_sequence_constraint(
                 ' Verdict: Motif Design Possibly Feasible\n')
 
     # Return Results
-    return (optrequired, exmotifindex)
+    return (optrequired, homology, exmotifindex)
 
 def get_parsed_edgeeffects(
     motifseq,
@@ -161,6 +177,9 @@ def get_parsed_edgeeffects(
        type - cx.deque
        desc - deque of all motifs
               to be excluded
+    :: warn
+       type - dict
+       desc - warning dictionary entry
     :: liner
        type - coroutine
        desc - dynamic printing
@@ -439,7 +458,7 @@ def motif_objectives(
        type - set / None
        desc - set of all excluded motifs
     :: exmotifindex
-       type - set
+       type - set / None
        desc - set of constraint embedded
               exmotif ending indices
     :: lcseq

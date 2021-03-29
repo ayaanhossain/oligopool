@@ -354,7 +354,7 @@ def spacer(
         exseqs=exmotifs,
         exseqs_field=' Excluded Motifs ',
         exseqs_desc='Unique Motif(s)',
-        df_field='Exmotif,',
+        df_field='Exmotif',
         required=False,
         liner=liner)
 

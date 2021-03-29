@@ -26,7 +26,7 @@ codemeta
 motif      -- done
 barcode    -- done
 background -- done
-primer     -- in progress
+primer     -- done
 spacer     -- done
 split      -- needs finalization
 pad        -- needs finalization
@@ -54,18 +54,18 @@ WARNINGS
   constraints that create those edgeeffects~~
 
 motif.py
-add a fixed length motif or constant sequence
+~~add a fixed length motif or constant sequence
 between two columns or at the 3' end by default
-default 3' end
+default 3' end~~
 
 spacer.py
-add variable length spacer between two cols of
+~~add variable length spacer between two cols of
 choice or at the ends of the oligos, preventing
-edge effects and upto a fixed length oligo
+edge effects and upto a fixed length oligo~~
 
 finalize.py
-concatenate all cols, and run length checks
-for oligopool length bounds
+~~concatenate all cols, and run length checks
+for oligopool length bounds~~
 
 barcode.py
 ~~* Revise barcode.py~~
@@ -126,12 +126,12 @@ primer.py
   for a FASTA file, or a single DNA string for vector~~
 ~~* Primers non-repetitive to everything before and after Left and Right Context~~
 ~~* Report Time Elapsed at Construction End
-* ignore palindromic hexamers, and alter optimization criteria
-  if cutsites are part of primer sequence constraint
+~~* ignore palindromic hexamers, and alter optimization criteria
+  if cutsites are part of primer sequence constraint~~
 
 primer - padding common
 ~~* Refactor all core primer functions into coreprime.py~~
-* Return not just the primer/pad sequence, but the insert
+~~* Return not just the primer/pad sequence, but the insert~~
 
 padding.py
 ~~* Start developing padding.py~~

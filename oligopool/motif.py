@@ -13,6 +13,7 @@ import coremotif   as cm
 
 def motif_engine(
     motifseq,
+    homology,
     optrequired,
     leftcontext,
     rightcontext,
@@ -90,7 +91,7 @@ def motif_engine(
 
             # Design Motif via Maker
             motif = maker.nrp_maker(
-                homology=min(len(motifseq), 6),
+                homology=min(len(motifseq), homology),
                 seq_constr=motifseq,
                 struct_constr='.'*len(motifseq),
                 target_size=1,
@@ -317,7 +318,7 @@ def motif(
         exseqs=exmotifs,
         exseqs_field=' Excluded Motifs  ',
         exseqs_desc='Unique Motif(s)',
-        df_field='Exmotif,',
+        df_field='Exmotif',
         required=False,
         liner=liner)
 
@@ -459,6 +460,7 @@ def motif(
 
     # Parse primerseq
     (optrequired,
+    homology,
     exmotifindex) = cm.get_parsed_sequence_constraint(
         motifseq=motifseq,
         exmotifs=exmotifs,
@@ -548,6 +550,7 @@ def motif(
     (motifs,
     stats) = motif_engine(
         motifseq=motifseq,
+        homology=homology,
         optrequired=optrequired,
         leftcontext=leftcontext,
         rightcontext=rightcontext,

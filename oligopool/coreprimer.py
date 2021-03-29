@@ -19,33 +19,6 @@ folder = nr.base.utils.Fold(
 
 # Parser and Setup Functions
 
-def get_constant_regions(primerseq):
-    '''
-    Extract all constant, non-degenerate
-    regions degined in primerseq.
-    Internal use only.
-
-    :: primerseq
-       type - string
-       desc - primer sequence constraint
-    '''
-
-    # Make a local copy
-    cprimerseq = str(primerseq)
-
-    # Remove dgenerate nucleotides
-    for nt in set(ut.ddna_space.keys()) - set('ATGC'):
-        if nt in cprimerseq:
-            cprimerseq = cprimerseq.replace(nt, '-')
-
-    # Split and extract defined regions
-    regions = set(cprimerseq.split('-'))
-    if '' in regions:
-        regions.remove('')
-
-    # Return results
-    return regions
-
 def get_palindromes(seq):
     '''
     Return all palindromic hexamers
@@ -178,6 +151,7 @@ def get_parsed_sequence_constraint(
     primertype,
     exmotifs,
     pairedprimer,
+    warn,
     liner):
     '''
     Check primer sequence feasibility.
@@ -199,13 +173,25 @@ def get_parsed_sequence_constraint(
        type - string / None
        desc - primer sequence paired with
               current primer design job
+    :: warn
+       type - dict
+       desc - warning dictionary entry
     :: liner
        type - coroutine
        desc - dynamic printing
     '''
 
-    # Time-keeping
+    # Book-keeping
     t0 = tt.time()
+    exmotifindex = None  # No Conflicts
+    suboptimal   = False # Suboptimality Tracker
+    homology     = 6     # Initially, for Maker
+
+    # Compute Fixed Base Index
+    fixedbaseindex = set()
+    for idx in range(len(primerseq)):
+        if len(ut.ddna_space[primerseq[idx]]) == 1:
+            fixedbaseindex.add(idx)
 
     # Design Space Analysis
     liner.send(' Computing Design Space ...')
@@ -242,44 +228,78 @@ def get_parsed_sequence_constraint(
 
     # Show Update
     if not motif_ok:
+
+        # Update Warning Entry
+        warn['vars'] = {'exmotifembedded': set()}
+
+        # Compute Embedded Motif Indices
+        # to be Ignored Downstream
+        exmotlocdict = ut.get_exmotif_conflict_index(
+            seq=primerseq,
+            conflicts=excludedmotifs)
+        exmotifindex = set()
+        for exmotif in exmotlocdict:
+            for loc in exmotlocdict[exmotif]:
+                exmotifindex.add(loc+len(exmotif))
+
+        # Make exmotifs immutable
         excludedmotifs = tuple(excludedmotifs)
+
+        # Show Updates
         liner.send(
             ' Found {:,} Excluded Motif(s)\n'.format(
                 len(excludedmotifs)))
+
+        # Record Warnings
+        warn['warncount'] += len(excludedmotifs)
+        warn['vars']['exmotifembedded'].update(excludedmotifs)
+        suboptimal = True
+
+        # Show Excluded Motifs
         plen = max(map(len, excludedmotifs)) + 2
         for motif in excludedmotifs:
             motif = '\'{}\''.format(motif)
             liner.send(
-                '   - Excluded Motif {:>{}} Present [INFEASIBLE]\n'.format(
+                '   - Excluded Motif {:>{}} Present [WARNING] (Excluded Motif Embedded)\n'.format(
                     motif,
                     plen))
     else:
         liner.send(
             ' Found 0 Excluded Motif(s)\n')
 
-     # Region Analysis
+    # Region Analysis
     liner.send(' Computing Constant Regions ...')
 
-    regions = get_constant_regions(
-        primerseq=primerseq)
+    # Compute Constant Regions
+    regions = ut.get_constant_regions(
+        seqconstr=primerseq)
+
+    # Finalize homology
+    homology = max(homology,
+                   max(map(len, regions)) + 1)
 
     # Internal Repeat Analysis
     liner.send(' Computing Internal Repeat Conflicts ...')
 
+    # Compute Internal Repeats
     (repeat_ok,
     internalrepeats) = get_internal_repeat_conflicts(
         regions=regions)
 
     # Show Update
     if not repeat_ok:
+
+        # Show Updates
         liner.send(
             ' Found {:,} Internal Repeat(s)\n'.format(
                 len(internalrepeats)))
+
+        # Show Internal Repeats
         plen = max(map(len, internalrepeats)) + 2
         for repeat in internalrepeats:
             repeat = '\'{}\''.format(repeat)
             liner.send(
-                '   - Internal Repeat {:>{}} Present [INFEASIBLE] (Strong Homodimer Motif)\n'.format(
+                '   - Internal Repeat {:>{}} Present [INFEASIBLE] (Strong Hairpin Motif)\n'.format(
                     repeat,
                     plen))
     else:
@@ -289,19 +309,32 @@ def get_parsed_sequence_constraint(
     # Palindrome Analysis
     liner.send(' Computing Palindrome Conflicts ...')
 
-    palindrome_ok, palindromes = get_palindrome_conflicts(
+    # Update Warning Entry
+    warn['vars'] = {'palindromeembedded': set()}
+
+    # Compute Panlindrome
+    palindrome_ok, palindromeembedded = get_palindrome_conflicts(
         regions=regions)
 
     # Show Update
     if not palindrome_ok:
+
+        # Show Updates
         liner.send(
             ' Found {:,} Palindrome(s)\n'.format(
-                len(palindromes)))
-        plen = max(map(len, palindromes)) + 2
-        for palindrome in palindromes:
+                len(palindromeembedded)))
+
+        # Record Warnings
+        warn['warncount'] += len(palindromeembedded)
+        warn['vars']['palindromeembedded'].update(palindromeembedded)
+        suboptimal = True
+
+        # Show Palindromes
+        plen = max(map(len, palindromeembedded)) + 2
+        for palindrome in palindromeembedded:
             palindrome = '\'{}\''.format(palindrome)
             liner.send(
-                '   - Palindrome {:>{}} Present [INFEASIBLE] (Strong Homodimer Motif)\n'.format(
+                '   - Palindrome {:>{}} Present [WARNING] (Strong Homodimer Motif)\n'.format(
                     palindrome,
                     plen))
     else:
@@ -323,9 +356,13 @@ def get_parsed_sequence_constraint(
 
     # Show Update
     if not repeat_ok:
+
+        # Show Updates
         liner.send(
             ' Found {:,} Paired Repeat(s)\n'.format(
                 len(pairedrepeats)))
+
+        # Show Paired Repeats
         plen = max(map(len, pairedrepeats)) + 2
         for repeat in pairedrepeats:
             repeat = '\'{}\''.format(repeat)
@@ -344,23 +381,25 @@ def get_parsed_sequence_constraint(
     # Compute primerseq Feasibility
     parsestatus = all([
         dspace_ok,
-        motif_ok,
-        repeat_ok,
-        palindrome_ok])
+        repeat_ok])
 
     if not parsestatus:
         liner.send(
             ' Verdict: Primer Design Infeasible due to Sequence Constraint\n')
+    elif suboptimal:
+        liner.send(
+            ' Verdict: Primer Design Potentially Suboptimal\n')
     else:
         liner.send(
             ' Verdict: Primer Design Possibly Feasible\n')
 
     # Return Results
     return (parsestatus,
+        homology,
+        fixedbaseindex,
+        exmotifindex,
         dspace,
-        excludedmotifs,
         internalrepeats,
-        palindromes,
         pairedrepeats)
 
 def get_primer_extreme(
@@ -555,260 +594,50 @@ def get_parsed_edgeeffects(
     primerseq,
     leftcontext,
     rightcontext,
+    leftpartition,
+    rightpartition,
     exmotifs,
+    warn,
     liner):
     '''
-    Check edge effect feasibility.
+    Cluster left and right context sequences
+    and record forbidden prefix and suffixes.
     Internal use only.
 
     :: primerseq
        type - string
-       desc - primer sequence constraint
+       desc - motif sequence constraint
     :: leftcontext
        type - tuple
-       desc - tuple of all unique left
-              context sequences
+       desc - tuple of all left context
+              sequences
     :: rightcontext
        type - tuple
-       desc - tuple of all unique right
-              context sequences
+       desc - tuple of all right context
+              sequences
     :: exmotifs
        type - cx.deque
        desc - deque of all motifs
               to be excluded
+    :: warn
+       type - dict
+       desc - warning dictionary entry
     :: liner
        type - coroutine
        desc - dynamic printing
     '''
 
-    # Book-keeping
-    prefixforbidden = None # Prefixes to avoid
-    suffixforbidden = None # Suffixes to avoid
-    leftpartition   = None # Left  Context Partition
-    rightpartition  = None # Right Context Parition
-    prefixstatus    = True # No Prefixes Forbidden
-    suffixstatus    = True # No Suffixes Forbidden
-
-    probseqprefixes = None # Problematic Sequence Prefixes
-    probprefixlens  = None # Problematic Sequence Prefix Lengths
-
-    probseqsuffixes = None # Problematic Sequence suffixes
-    probsuffixlens  = None # Problematic Sequence suffix Lengths
-
-    # Time-keeping
-    t0 = tt.time()
-
-    # Show Update
-    liner.send(' Left Paritioning Excluded Motifs ...')
-
-    # Left Partition exmotifs
-    leftpartition = ut.get_exmotif_partition(
-        exmotifs=exmotifs)
-
-    # Show Update
-    liner.send(' Right Paritioning Excluded Motifs ...')
-
-    # Right Partition exmotifs
-    rightpartition = ut.get_inverted_exmotif_partition(
-        partition=leftpartition)
-
-    # Assess Left Edge Effects
-    if leftcontext:
-
-        # Show Updates
-        liner.send(' Parsing Left Context ...')
-
-        # Compute Prefix Conficts
-        prefixforbidden = set()
-        for lcseq in leftcontext:
-            for prefix in leftpartition:
-                if lcseq.endswith(prefix):
-                    # print((lcseq, prefix, leftpartition[prefix]))
-                    prefixforbidden.update(leftpartition[prefix])
-
-        # Show Updates
-        liner.send(' Forbidden Prefix: {:,} Excluded Motif Prefix(es)\n'.format(
-            len(prefixforbidden)))
-
-        # Show Updates
-        liner.send(' Computng Primer Sequence Prefix Conflict ...')
-
-        # Compute Sequence Conflicts
-        probseqprefixes = []
-        for prefix in prefixforbidden:
-            if primerseq.startswith(prefix):
-                probseqprefixes.append(prefix)
-
-        # Show Updates
-        if probseqprefixes:
-            probseqprefixes = tuple(probseqprefixes)
-            prefixstatus    = False
-
-            liner.send(
-                ' Found {:,} Primer Sequence Prefix Conflict(s)\n'.format(
-                    len(probseqprefixes)))
-
-            plen = max(map(len, probseqprefixes)) + 2
-
-            for prefix in probseqprefixes:
-                prefix = '\'{}\''.format(prefix)
-                liner.send(
-                    '   - Primer Starts with {:>{}} [INFEASIBLE] (Forbidden Prefix)\n'.format(
-                        prefix,
-                        plen))
-        else:
-            probseqprefixes = None
-            liner.send(' Found 0 Primer Sequence Prefix Conflict(s)\n')
-
-        # Show Updates
-        liner.send(' Computing Primer Sequence Prefix Length Distribution ...')
-
-        # Group Forbidden Prefixes
-        prefixforbidden = ut.get_grouped_sequences(
-            sequences=prefixforbidden)
-
-        # Compute Length Feasibility
-        liner.send(' Primer Sequence Forbidden Prefix Length Distribution\n')
-
-        probprefixlens = []
-
-        plen = ut.get_printlen(
-            value=max(prefixforbidden.keys()))
-        qlen = ut.get_printlen(
-            value=max(map(
-                len, prefixforbidden.values())))
-
-        for prefixlen in prefixforbidden:
-
-            # Compute infeasibility
-            parsemsg = ''
-            if len(prefixforbidden[prefixlen]) == 4**prefixlen:
-                parsemsg     = ' [INFEASIBLE] (All {}-mers Forbidden)'.format(prefixlen)
-                prefixstatus = False
-                probprefixlens.append(prefixlen)
-
-            # Show update
-            liner.send('   - {:{},d} Prefix(es) of Length {:{},d}{}\n'.format(
-                len(prefixforbidden[prefixlen]),
-                plen,
-                prefixlen,
-                qlen,
-                parsemsg))
-
-        # Finalize probprefixlens
-        probprefixlens = None if len(probprefixlens) == 0 else probprefixlens
-
-    # Assess Right Edge Effects
-    if rightcontext:
-
-        # Show Updates
-        liner.send(' Parsing Right Context ...')
-
-        # Compute Suffix Conficts
-        suffixforbidden = set()
-        for rcseq in rightcontext:
-            for suffix in rightpartition:
-                if rcseq.startswith(suffix):
-                    # print((rcseq, suffix, rightpartition[suffix]))
-                    suffixforbidden.update(rightpartition[suffix])
-
-        # Show Updates
-        liner.send(' Forbidden Suffix: {:,} Excluded Motif Suffix(es)\n'.format(
-            len(suffixforbidden)))
-
-
-        # Show Updates
-        liner.send(' Computng Primer Sequence Suffix Conflict ...')
-
-        # Compute Sequence Conflicts
-        probseqsuffixes = []
-        for suffix in suffixforbidden:
-            if primerseq.endswith(suffix):
-                probseqsuffixes.append(suffix)
-
-        # Show Updates
-        if probseqsuffixes:
-            probseqsuffixes = tuple(probseqsuffixes)
-            suffixstatus    = False
-
-            liner.send(
-                ' Found {:,} Primer Sequence Suffix Conflict(s)\n'.format(
-                    len(probseqsuffixes)))
-
-            plen = max(map(len, probseqsuffixes)) + 2
-
-            for suffix in probseqsuffixes:
-                suffix = '\'{}\''.format(suffix)
-                liner.send(
-                    '   - Primer Ends with {:>{}} [INFEASIBLE] (Forbidden Suffix)\n'.format(
-                        suffix,
-                        plen))
-        else:
-            probseqsuffixes = None
-            liner.send(' Found 0 Primer Sequence Suffix Conflict(s)\n')
-
-        # Show Updates
-        liner.send(' Computing Primer Sequence Suffix Length Distribution ...')
-
-        # Group Forbidden Suffixes
-        suffixforbidden = ut.get_grouped_sequences(
-            sequences=suffixforbidden)
-
-        # Compute Length Feasibility
-        liner.send(' Primer Sequence Forbidden Suffix Length Distribution\n')
-
-        probsuffixlens = []
-
-        plen = ut.get_printlen(
-            value=max(suffixforbidden.keys()))
-        qlen = ut.get_printlen(
-            value=max(map(
-                len, suffixforbidden.values())))
-
-        for suffixlen in suffixforbidden:
-
-            # Compute infeasibility
-            parsemsg = ''
-            if len(suffixforbidden[suffixlen]) == 4**suffixlen:
-                parsemsg     = ' [INFEASIBLE] (All {}-mers Forbidden)'.format(suffixlen)
-                suffixstatus = False
-                probsuffixlens.append(suffixlen)
-
-            # Show update
-            liner.send('   - {:{},d} Suffix(es) of Length {:{},d}{}\n'.format(
-                len(suffixforbidden[suffixlen]),
-                plen,
-                suffixlen,
-                qlen,
-                parsemsg))
-
-        # Finalize probsuffixlens
-        probsuffixlens = None if len(probsuffixlens) == 0 else probsuffixlens
-
-    # Compute Final Results
-    parsestatus = prefixstatus and suffixstatus
-
-    # Show Time Elapsed
-    liner.send(
-        ' Time Elapsed: {:.2f} sec\n'.format(
-            tt.time()-t0))
-
-    # Show Final Update
-    if parsestatus:
-        liner.send(
-            ' Verdict: Primer Design Possibly Feasible\n')
-    else:
-        liner.send(
-            ' Verdict: Primer Design Infeasible due to Edge Effect(s)\n')
-
-    # Return Results
-    return (parsestatus,
-        probseqprefixes,
-        probprefixlens,
-        probseqsuffixes,
-        probsuffixlens,
-        prefixforbidden,
-        suffixforbidden)
+    return ut.get_parsed_edgeeffects(
+        sequence=primerseq,
+        element='Primer',
+        leftcontext=leftcontext,
+        rightcontext=rightcontext,
+        leftpartition=leftpartition,
+        rightpartition=rightpartition,
+        exmotifs=exmotifs,
+        merge=True,
+        warn=warn,
+        liner=liner)
 
 def get_parsed_splitcol(
     indf,
@@ -1168,9 +997,9 @@ def show_update(
         ' due to Background Repeat',
         ' due to Oligopool Repeat',
         ' due to Paired Repeat',
-        ' due to Melting Temperature Infeasibility',
         ' due to Excluded Motif Infeasibility',
         ' due to Edge Effect Infeasibility',
+        ' due to Melting Temperature Infeasibility',
         ' due to Homodimer Infeasibility',
         ' due to Heterodimer Infeasibility'][optstate]))
 
@@ -1378,7 +1207,8 @@ def get_tmelt_traceback(
 
 def is_exmotif_feasible(
     primer,
-    exmotifs):
+    exmotifs,
+    exmotifindex):
     '''
     Determine if primer devoid of exmotifs.
     Internal use only.
@@ -1390,12 +1220,16 @@ def is_exmotif_feasible(
     :: exmotifs
        type - set / None
        desc - set of all excluded motifs
+    :: exmotifindex
+       type - set
+       desc - set of constraint embedded
+              exmotif ending indices
     '''
 
     return ut.is_local_exmotif_feasible(
         seq=primer,
         exmotifs=exmotifs,
-        exmotifindex=None)
+        exmotifindex=exmotifindex)
 
 def is_edge_feasible(
     primer,
@@ -1439,7 +1273,8 @@ def is_edge_feasible(
 def is_structure_feasible(
     struct1,
     struct2,
-    energy):
+    energy,
+    fixedbaseindex):
     '''
     Determine if structure is feasible.
     Internal use only.
@@ -1455,19 +1290,33 @@ def is_structure_feasible(
        type - float
        desc - minimum free energy of dimer
               complex
+    :: fixedbaseindex
+       type - set
+       desc - set of all fixed base indices
     '''
 
+    # Compute Mutable Paired Base Index
+    pairedindex = set()
+    for idx in range(len(struct1)):
+        if struct1[idx] == '(':
+            pairedindex.add(idx)
+    pairedindex -= fixedbaseindex
+
     # Book-keeping
-    minMFE    = -7   # kcal/mol
+    minHFE    = -7   # kcal/mol
     free3ends = +4   # Free Bases
     objective = True # No Conflict
 
-    # MFE Very Favorable
-    if energy <= minMFE:
-        objective = False # Conflict in Energy
+    # HFE Very Favorable
+    if (energy <= minHFE) and \
+       len(pairedindex) > 0:
+        objective = False # Conflict in Energy, but Mutable
 
     # Locate First Paired Base
-    traceloc = struct1.find('(')
+    if pairedindex:
+        traceloc = min(pairedindex)
+    else:
+        traceloc = -1
 
     # No Structure Found: No Conflict in Structure
     if traceloc == -1:
@@ -1498,6 +1347,7 @@ def is_dimer_feasible(
     primerspan,
     pairedprimer,
     pairedspan,
+    fixedbaseindex,
     dimertype):
     '''
     Determine if primer is devoid of dimers.
@@ -1526,6 +1376,9 @@ def is_dimer_feasible(
        type - integer / None
        desc - paired primer length span to
               evaluate for padding
+    :: fixedbaseindex
+       type - set
+       desc - set of all fixed base indices
     :: dimertype
        type - integer
        desc - dimer type computation identifier
@@ -1568,7 +1421,8 @@ def is_dimer_feasible(
     objective, traceloc = is_structure_feasible(
         struct1=x,
         struct2=y,
-        energy=z)
+        energy=z,
+        fixedbaseindex=fixedbaseindex)
 
     # Update Traceback Orientation
     if revert:
@@ -1581,16 +1435,18 @@ def primer_objectives(
     primer,
     primerlen,
     primertype,
+    fixedbaseindex,
     mintmelt,
     maxtmelt,
     maxreplen,
     oligorepeats,
     pairedprimer,
     pairedrepeats,
+    exmotifs,
+    exmotifindex,
     edgeeffectlength,
     prefixforbidden,
     suffixforbidden,
-    exmotifs,
     background,
     inittime,
     stats,
@@ -1612,6 +1468,9 @@ def primer_objectives(
        desc - primer design type identifier
               0 = forward primer design
               1 = reverse primer design
+    :: fixedbaseindex
+       type - set
+       desc - set of all fixed base indices
     :: mintmelt
        type - float
        desc - primer melting temperature lower
@@ -1629,6 +1488,13 @@ def primer_objectives(
     :: pairedrepeats
        type - set / None
        desc - set storing paired primer repeats
+    :: exmotifs
+       type - cx.deque / None
+       desc - deque of all excluded motifs
+    :: exmotifindex
+       type - set / None
+       desc - set of constraint embedded
+              exmotif ending indices
     :: edgeeffectlength
        type - integer
        desc - context length for edge effects
@@ -1640,9 +1506,6 @@ def primer_objectives(
        type - dict / None
        desc - dictionary of forbidden primer
               suffix sequences
-    :: exmotifs
-       type - cx.deque / None
-       desc - deque of all excluded motifs
     :: background
        type - db.vectorDB / None
        desc - vectorDB instance storing
@@ -1731,12 +1594,11 @@ def primer_objectives(
         # Return Traceback
         return False, traceloc
 
-    # Objective 4: Melting Temeperature Bounded
-    obj4, failtype = is_tmelt_feasible(
+    # Objective 4: Motif Embedding
+    obj4, exmotif = is_exmotif_feasible(
         primer=primer,
-        primerlen=primerlen,
-        mintmelt=mintmelt,
-        maxtmelt=maxtmelt)
+        exmotifs=exmotifs,
+        exmotifindex=exmotifindex)
 
     # Objective 4 Failed
     if not obj4:
@@ -1751,21 +1613,22 @@ def primer_objectives(
             terminal=False,
             liner=liner)
 
-        # Compute Traceback
-        traceloc = get_tmelt_traceback(
-            primer=primer,
-            failtype=failtype)
-
         # Update Stats
-        stats['vars']['Tmfail'] += 1
+        stats['vars']['exmotiffail'] += 1
+        stats['vars']['exmotifcounter'][exmotif] += 1
 
         # Return Traceback
-        return False, traceloc
+        return False, max(
+            0,
+            len(primer)-1)
 
-    # Objective 5: Motif Embedding
-    obj5, exmotif = is_exmotif_feasible(
+    # Objective 5: Edge Feasibility (Edge-Effects)
+    obj5, dxmotifs, traceloc = is_edge_feasible(
         primer=primer,
-        exmotifs=exmotifs)
+        primerlen=primerlen,
+        edgeeffectlength=edgeeffectlength,
+        prefixforbidden=prefixforbidden,
+        suffixforbidden=suffixforbidden)
 
     # Objective 5 Failed
     if not obj5:
@@ -1781,103 +1644,109 @@ def primer_objectives(
             liner=liner)
 
         # Update Stats
-        stats['vars']['exmotiffail'] += 1
-        stats['vars']['exmotifcounter'][exmotif] += 1
-
-        # Return Traceback
-        return False, max(
-            0,
-            len(primer)-1)
-
-    # Objective 6: Edge Feasibility (Edge-Effects)
-    obj6, dxmotifs, traceloc = is_edge_feasible(
-        primer=primer,
-        primerlen=primerlen,
-        edgeeffectlength=edgeeffectlength,
-        prefixforbidden=prefixforbidden,
-        suffixforbidden=suffixforbidden)
-
-    # Objective 6 Failed
-    if not obj6:
-
-        # Show Update
-        show_update(
-            element='Primer',
-            primer=primer,
-            optstatus=0,
-            optstate=6,
-            inittime=inittime,
-            terminal=False,
-            liner=liner)
-
-        # Update Stats
         stats['vars']['edgefail'] += len(dxmotifs)
         stats['vars']['exmotifcounter'].update(dxmotifs)
 
         # Return Traceback
         return False, traceloc
 
-    # Update Primer Orientation
-    cprimer = ut.get_revcomp(
-        seq=primer) if primertype == 1 else primer
+    # Is Primer Fully Explored?
+    if len(primer) == primerlen:
 
-    # Objective 7: Homodimer Feasibility
-    obj7, traceloc = is_dimer_feasible(
-        primer=cprimer,
-        primertype=primertype,
-        primerlen=primerlen,
-        primerspan=None,
-        pairedprimer=None,
-        pairedspan=None,
-        dimertype=0)
-
-    # Objective 7 Failed
-    if not obj7:
-
-        # Show Update
-        show_update(
-            element='Primer',
+        # Objective 6: Melting Temeperature Bounded
+        obj6, failtype = is_tmelt_feasible(
             primer=primer,
-            optstatus=0,
-            optstate=7,
-            inittime=inittime,
-            terminal=False,
-            liner=liner)
+            primerlen=primerlen,
+            mintmelt=mintmelt,
+            maxtmelt=maxtmelt)
 
-        # Update Stats
-        stats['vars']['homodimerfail'] += 1
+        # Objective 6 Failed
+        if not obj6:
 
-        # Return Traceback
-        return False, traceloc
+            # Show Update
+            show_update(
+                element='Primer',
+                primer=primer,
+                optstatus=0,
+                optstate=6,
+                inittime=inittime,
+                terminal=False,
+                liner=liner)
 
-    # Objective 8: Heterodimer Feasibility
-    obj8, traceloc = is_dimer_feasible(
-        primer=cprimer,
-        primertype=primertype,
-        primerlen=primerlen,
-        primerspan=None,
-        pairedprimer=pairedprimer,
-        pairedspan=None,
-        dimertype=1)
+            # Compute Traceback
+            traceloc = get_tmelt_traceback(
+                primer=primer,
+                failtype=failtype)
 
-    # Objective 8 Failed
-    if not obj8:
+            # Update Stats
+            stats['vars']['Tmfail'] += 1
 
-        # Show Update
-        show_update(
-            element='Primer',
-            primer=primer,
-            optstatus=0,
-            optstate=8,
-            inittime=inittime,
-            terminal=False,
-            liner=liner)
+            # Return Traceback
+            return False, traceloc
 
-        # Update Stats
-        stats['vars']['heterodimerfail'] += 1
+        # Update Primer Orientation
+        cprimer = ut.get_revcomp(
+            seq=primer) if primertype == 1 else primer
 
-        # Return Traceback
-        return False, traceloc
+        # Objective 7: Homodimer Feasibility
+        obj7, traceloc = is_dimer_feasible(
+            primer=cprimer,
+            primertype=primertype,
+            primerlen=primerlen,
+            primerspan=None,
+            pairedprimer=None,
+            pairedspan=None,
+            fixedbaseindex=fixedbaseindex,
+            dimertype=0)
+
+        # Objective 7 Failed
+        if not obj7:
+
+            # Show Update
+            show_update(
+                element='Primer',
+                primer=primer,
+                optstatus=0,
+                optstate=7,
+                inittime=inittime,
+                terminal=False,
+                liner=liner)
+
+            # Update Stats
+            stats['vars']['homodimerfail'] += 1
+
+            # Return Traceback
+            return False, traceloc
+
+        # Objective 8: Heterodimer Feasibility
+        obj8, traceloc = is_dimer_feasible(
+            primer=cprimer,
+            primertype=primertype,
+            primerlen=primerlen,
+            primerspan=None,
+            pairedprimer=pairedprimer,
+            pairedspan=None,
+            fixedbaseindex=fixedbaseindex,
+            dimertype=1)
+
+        # Objective 8 Failed
+        if not obj8:
+
+            # Show Update
+            show_update(
+                element='Primer',
+                primer=primer,
+                optstatus=0,
+                optstate=8,
+                inittime=inittime,
+                terminal=False,
+                liner=liner)
+
+            # Update Stats
+            stats['vars']['heterodimerfail'] += 1
+
+            # Return Traceback
+            return False, traceloc
 
     # Show Update
     show_update(

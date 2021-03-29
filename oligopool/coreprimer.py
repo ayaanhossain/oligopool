@@ -1150,7 +1150,8 @@ def is_tmelt_feasible(
 
 def get_tmelt_traceback(
     primer,
-    failtype):
+    failtype,
+    fixedbaseindex):
     '''
     Compute cautious traceback location
     to meet melting temperature failure.
@@ -1164,6 +1165,9 @@ def get_tmelt_traceback(
        type - integer
        desc - melting temperature failure
               type identifier
+    :: fixedbaseindex
+       type - set
+       desc - set of all fixed base indices
     '''
 
     # Define Default Traceback
@@ -1172,10 +1176,12 @@ def get_tmelt_traceback(
     # Lower Bound Mitigation
     if failtype == 0:
 
+        # Locate All Weak Base Indices
+        weakidx = set(idx for idx in range(len(primer)) \
+            if primer[idx] in 'AT') - fixedbaseindex
+
         # Locate Latest Weak Base
-        lastweakidx = max(
-            primer.rfind('A'),
-            primer.rfind('T'))
+        lastweakidx = max(weakidx) if weakidx else -1
 
         # No Weak Bases
         if lastweakidx == -1:
@@ -1190,12 +1196,14 @@ def get_tmelt_traceback(
     # Upper Bound Mitigation
     if failtype == 1:
 
-        # Locate Latest Strong Base
-        laststrongidx = max(
-            primer.rfind('G'),
-            primer.rfind('C'))
+        # Locate All Strong Base Indices
+        strongidx = set(idx for idx in range(len(primer)) \
+            if primer[idx] in 'GC') - fixedbaseindex
 
-        # No Strong Base
+        # Locate Latest Strong Base
+        laststrongidx = max(strongidx) if strongidx else -1
+
+        # No Strong Bases
         if laststrongidx == -1:
             # Abort
             return 0
@@ -1676,7 +1684,8 @@ def primer_objectives(
             # Compute Traceback
             traceloc = get_tmelt_traceback(
                 primer=primer,
-                failtype=failtype)
+                failtype=failtype,
+                fixedbaseindex=fixedbaseindex)
 
             # Update Stats
             stats['vars']['Tmfail'] += 1

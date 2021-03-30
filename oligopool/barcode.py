@@ -12,6 +12,8 @@ import corebarcode as cb
 def barcode_engine(
     barcodelen,
     minhdist,
+    maxreplen,
+    oligorepeats,
     leftcontext,
     rightcontext,
     exmotifs,
@@ -30,6 +32,13 @@ def barcode_engine(
        desc - minimum pairwise hamming
               distance between a pair
               of barcodes
+    :: maxreplen
+       type - integer
+       desc - maximum shared repeat length
+    :: oligorepeats
+       type - dict
+       desc - dictionary of all indexed
+              sets of oligopool repeats
     :: leftcontext
        type - list / None
        desc - list of sequence to the
@@ -141,6 +150,8 @@ def barcode_engine(
             barcodeseq=barcodeseq,
             barcodelen=barcodelen,
             minhdist=minhdist,
+            maxreplen=maxreplen,
+            oligorepeats=oligorepeats,
             exmotifs=exmotifs,
             contextarray=contextarray,
             leftcontexttype=leftcontexttype,
@@ -199,6 +210,8 @@ def barcode_engine(
             if optstate == 3:
                 stats['vars']['edgefail']     += sum(
                     emcounter.values())
+            if optstate == 4:
+                stats['vars']['repeatfail']   += 1
 
             # Inifinite Jumper Book-keeping Update
             if jtp == 2:
@@ -268,6 +281,7 @@ def barcode(
     oligolimit,
     barcodelen,
     minhdist,
+    maxreplen,
     barcodecol,
     outfile=None,
     leftcontext=None,
@@ -300,6 +314,11 @@ def barcode(
        desc - minimum required hamming distance between every
               pair of barcodes in the designed set, must be 1
               or greater
+    :: maxreplen
+       type - integer
+       desc - maximum shared repeat length between the
+              primers and flanking regions, must be between
+              6 and 20
     :: barcodecol
        type - string
        desc - name of the column to store designed barcodes
@@ -375,7 +394,7 @@ def barcode(
     # Full oligolimit Validation
     oligolimit_valid = vp.get_numeric_validity(
         numeric=oligolimit,
-        numeric_field='    Oligo Length  ',
+        numeric_field='    Oligo Limit   ',
         numeric_pre_desc=' At most ',
         numeric_post_desc=' Base Pair(s)',
         minval=4,
@@ -401,6 +420,17 @@ def barcode(
         numeric_pre_desc=' At least ',
         numeric_post_desc=' Mismatch(es) per Barcode Pair',
         minval=1,
+        maxval=barcodelen if barcodelen_valid else float('inf'),
+        precheck=False,
+        liner=liner)
+
+    # Full maxreplen Validation
+    maxreplen_valid = vp.get_numeric_validity(
+        numeric=maxreplen,
+        numeric_field='   Repeat Length  ',
+        numeric_pre_desc=' Up to ',
+        numeric_post_desc=' Base Pair(s) Oligopool Repeats',
+        minval=4,
         maxval=barcodelen if barcodelen_valid else float('inf'),
         precheck=False,
         liner=liner)
@@ -482,6 +512,7 @@ def barcode(
         oligolimit_valid,
         barcodelen_valid,
         minhdist_valid,
+        maxreplen_valid,
         barcodecol_valid,
         outfile_valid,
         leftcontext_valid,
@@ -495,9 +526,10 @@ def barcode(
     t0 = tt.time()
 
     # Adjust Numeric Paramters
-    oligolimit   = round(oligolimit)
+    oligolimit = round(oligolimit)
     barcodelen = round(barcodelen)
     minhdist   = round(minhdist)
+    maxreplen  = round(maxreplen)
 
     # Define Edge Effect Length
     edgeeffectlength = None
@@ -659,19 +691,55 @@ def barcode(
         (leftcontext,
          rightcontext) = None, None
 
+    # Parse Oligopool Repeats
+    liner.send('\n[Step 5: Parsing Oligopool Repeats]\n')
+
+    # Parse Repeats from indf
+    (parsestatus,
+    sourcecontext,
+    kmerspace,
+    fillcount,
+    freecount,
+    oligorepeats) = ut.get_parsed_oligopool_repeats(
+        df=indf,
+        maxreplen=maxreplen,
+        element='Primer',
+        merge=False,
+        liner=liner)
+
+    # Repeat Length infeasible
+    if not parsestatus:
+
+        # Prepare stats
+        stats = {
+            'status': False,
+            'basis' : 'infeasible',
+            'step'  : 5,
+            'vars'  : {
+                'sourcecontext': sourcecontext,
+                'kmerspace'    : kmerspace,
+                'fillcount'    : fillcount,
+                'freecount'    : freecount},
+            'warns' : warns}
+
+        # Return results
+        liner.close()
+        return (outdf, stats)
+
     # Launching Barcode Design
-    liner.send('\n[Step 5: Computing Barcodes]\n')
+    liner.send('\n[Step 6: Computing Barcodes]\n')
 
     # Define Barcode Design Stats
     stats = {
         'status'  : False,
         'basis'   : 'unsolved',
-        'step'    : 5,
+        'step'    : 6,
         'stepname': 'computing-barcodes',
         'vars'    : {
                'targetcount': targetcount,   # Required Number of Barcodes
               'barcodecount': 0,             # Barcode Design Count
               'distancefail': 0,             # Hamming Distance Fail Count
+                'repeatfail': 0,             # Repeat Fail Count
                'exmotiffail': 0,             # Exmotif Elimination Fail Count
                   'edgefail': 0,             # Edge Effect Fail Count
             'distancedistro': None,          # Hamming Distance Distribution
@@ -689,6 +757,8 @@ def barcode(
     stats) = barcode_engine(
         barcodelen=barcodelen,
         minhdist=minhdist,
+        maxreplen=maxreplen,
+        oligorepeats=oligorepeats,
         leftcontext=leftcontext,
         rightcontext=rightcontext,
         exmotifs=exmotifs,
@@ -698,7 +768,7 @@ def barcode(
 
     # Compute Hamming Distribution
     if not store is None:
-        liner.send('\n[Step 6: Computing Distance Distribution]\n')
+        liner.send('\n[Step 7: Computing Distance Distribution]\n')
         stats['vars']['distancedistro'] = cb.get_distro(
             store=store,
             codes=codes,
@@ -777,6 +847,7 @@ def barcode(
     else:
         maxval = max(stats['vars'][field] for field in (
             'distancefail',
+            'repeatfail',
             'exmotiffail',
             'edgefail'))
 
@@ -785,6 +856,7 @@ def barcode(
                 value=maxval))
 
         total_conflicts = stats['vars']['distancefail'] + \
+                          stats['vars']['repeatfail']   + \
                           stats['vars']['exmotiffail']  + \
                           stats['vars']['edgefail']
         liner.send(
@@ -794,6 +866,14 @@ def barcode(
                 sntn,
                 ut.safediv(
                     A=stats['vars']['distancefail'] * 100.,
+                    B=total_conflicts)))
+        liner.send(
+            '   Repeat Conflicts: {:{},{}} Event(s) ({:6.2f} %)\n'.format(
+                stats['vars']['repeatfail'],
+                plen,
+                sntn,
+                ut.safediv(
+                    A=stats['vars']['repeatfail'] * 100.,
                     B=total_conflicts)))
         liner.send(
             '  Exmotif Conflicts: {:{},{}} Event(s) ({:6.2f} %)\n'.format(

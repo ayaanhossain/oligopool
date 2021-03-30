@@ -275,8 +275,9 @@ def get_parsed_sequence_constraint(
         seqconstr=primerseq)
 
     # Finalize homology
-    homology = max(homology,
-                   max(map(len, regions)) + 1)
+    if regions:
+        homology = max(homology,
+                       max(map(len, regions)) + 1)
 
     # Internal Repeat Analysis
     liner.send(' Computing Internal Repeat Conflicts ...')
@@ -989,19 +990,24 @@ def show_update(
        desc - dynamic printing
     '''
 
+    if len(primer) >= 30:
+        design = primer[:14] + '..' + primer[-14:]
+    else:
+        design = primer
+
     liner.send(' Candidate: {} {} is {}{}'.format(
         element,
-        primer,
+        design,
         ['Rejected', 'Provisionally Accepted', 'Accepted'][optstatus],
         ['',
         ' due to Background Repeat',
         ' due to Oligopool Repeat',
         ' due to Paired Repeat',
-        ' due to Excluded Motif Infeasibility',
-        ' due to Edge Effect Infeasibility',
-        ' due to Melting Temperature Infeasibility',
-        ' due to Homodimer Infeasibility',
-        ' due to Heterodimer Infeasibility'][optstate]))
+        ' due to Excluded Motif',
+        ' due to Edge Effect',
+        ' due to Melting Temperature',
+        ' due to Homodimer',
+        ' due to Heterodimer'][optstate]))
 
     if terminal:
         liner.send('\* Time Elapsed: {:.2f} sec\n'.format(

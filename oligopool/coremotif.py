@@ -125,8 +125,9 @@ def get_parsed_sequence_constraint(
         seqconstr=motifseq)
 
     # Finalize homology
-    homology = max(homology,
-                   max(map(len, regions)) + 1)
+    if regions:
+        homology = max(homology,
+                       max(map(len, regions)) + 1)
 
     # Show Time Elapsed
     liner.send(' Time Elapsed: {:.2f} sec\n'.format(
@@ -339,15 +340,20 @@ def show_update(
        desc - dynamic printing
     '''
 
+    if len(motif) >= 30:
+        design = motif[:14] + '..' + motif[-14:]
+    else:
+        design = motif
+
     liner.send(' Candidate {:{},d}: {} {} is {}{}'.format(
         idx,
         plen,
         element,
-        motif,
+        design,
         ['Rejected', 'Provisionally Accepted', 'Accepted'][optstatus],
         ['',
-        ' due to Excluded Motif Infeasibility',
-        ' due to Edge Effect Infeasibility'][optstate]))
+        ' due to Excluded Motif',
+        ' due to Edge Effect'][optstate]))
 
     if terminal:
         liner.send('\* Time Elapsed: {:.2f} sec\n'.format(

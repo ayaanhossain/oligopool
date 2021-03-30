@@ -235,7 +235,7 @@ def motif(
     # Full oligolimit Validation
     oligolimit_valid = vp.get_numeric_validity(
         numeric=oligolimit,
-        numeric_field='    Oligo Length  ',
+        numeric_field='    Oligo Limit   ',
         numeric_pre_desc=' At most ',
         numeric_post_desc=' Base Pair(s)',
         minval=4,

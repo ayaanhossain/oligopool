@@ -196,7 +196,8 @@ def get_parsed_data_info(
 
     # data is a DataFrame?
     if isinstance(data, pd.DataFrame):
-        df = data.copy().reset_index()
+        df = data.copy().reset_index(
+            drop=data.index.name is None)
         data_is_df = True
 
     # data is a valid CSV file?
@@ -292,7 +293,8 @@ def get_parsed_data_info(
                 inplace=True)
 
             # Assert ID keys are unique
-            assert df.index.is_unique
+            if not df.index.is_unique:
+                raise Exception
 
             # Everything checked out
             df_indexible = True
@@ -421,7 +423,7 @@ def get_parsed_indata_info(
             for value in df[column]:
 
                 # A Non-DNA entry?
-                if not ut.is_DNA(seq=value.upper()):
+                if not ut.is_DNA(seq=value):
 
                     # Set flag
                     non_DNA_found = True

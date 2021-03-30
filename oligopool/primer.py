@@ -58,6 +58,9 @@ def primer_engine(
        type - float
        desc - primer melting temperature upper
               bound
+    :: maxreplen
+       type - integer
+       desc - maximum shared repeat length
     :: oligorepeats
        type - set
        desc - set storing oligopool repeats
@@ -389,7 +392,7 @@ def primer(
     # Full oligolimit Validation
     oligolimit_valid = vp.get_numeric_validity(
         numeric=oligolimit,
-        numeric_field='      Oligo Length     ',
+        numeric_field='      Oligo Limit      ',
         numeric_pre_desc=' At most ',
         numeric_post_desc=' Base Pair(s)',
         minval=4,
@@ -435,7 +438,7 @@ def primer(
         numeric_pre_desc=' Up to ',
         numeric_post_desc=' Base Pair(s) Oligopool Repeats',
         minval=6,
-        maxval=20,
+        maxval=len(primerseq) if primerseq_valid else float('inf'),
         precheck=False,
         liner=liner)
 
@@ -790,18 +793,20 @@ def primer(
         (prefixdict,
         suffixdict) = None, None
 
-    # Extract Oligopool Repeats
-    liner.send('\n[Step 7: Extractng Oligopool Repeats]\n')
+    # Parse Oligopool Repeats
+    liner.send('\n[Step 7: Parsing Oligopool Repeats]\n')
 
-    # Extract Repeats from indf
+    # Parse Repeats from indf
     (parsestatus,
+    sourcecontext,
     kmerspace,
     fillcount,
-    leftcount,
-    oligorepeats) = ut.get_parsed_oligo_repeats(
+    freecount,
+    oligorepeats) = ut.get_parsed_oligopool_repeats(
         df=indf,
         maxreplen=maxreplen,
         element='Primer',
+        merge=True,
         liner=liner)
 
     # Repeat Length infeasible
@@ -813,9 +818,10 @@ def primer(
             'basis' : 'infeasible',
             'step'  : 7,
             'vars'  : {
-                'kmerspace': kmerspace,
-                'fillcount': fillcount,
-                'leftcount': leftcount},
+                'sourcecontext': sourcecontext,
+                'kmerspace'    : kmerspace,
+                'fillcount'    : fillcount,
+                'freecount'    : freecount},
             'warns' : warns}
 
         # Return results

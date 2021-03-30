@@ -1,3 +1,4 @@
+from os import O_LARGEFILE
 import time  as tt
 
 import collections as cx
@@ -57,12 +58,12 @@ def get_parsed_barcode_length(
         ' Required Length: {:,} Base Pair(s)\n'.format(
             barcodelen))
     liner.send(
-        '   Design  Space: {:{},{}} Barcode(s)\n'.format(
+        '   Design Space : {:{},{}} Barcode(s)\n'.format(
             designspace,
             plen,
             sntn))
     liner.send(
-        '   Target  Count: {:{},{}} Barcode(s){}\n'.format(
+        '   Target Count : {:{},{}} Barcode(s){}\n'.format(
             targetcount,
             plen,
             sntn,
@@ -228,15 +229,21 @@ def show_update(
        desc - dynamic printing
     '''
 
+    if len(barcodeseq) >= 30:
+        design = barcodeseq[:14] + '..' + barcodeseq[-14:]
+    else:
+        design = barcodeseq
+
     liner.send(' Candidate {:{},d}: Barcode {} is {}{}'.format(
         count,
         plen,
-        barcodeseq,
+        design,
         ['Rejected', 'Accepted'][optstatus],
         ['',
-        ' due to Hamming Distance Infeasibility',
-        ' due to Excluded Motif Infeasibility',
-        ' due to Edge Effect Infeasibility'][optstate]))
+        ' due to Hamming Distance',
+        ' due to Excluded Motif',
+        ' due to Edge Effect',
+        ' due to Oligopool Repeat'][optstate]))
 
     if terminal:
         liner.send('\* Time Elapsed: {:.2f} sec\n'.format(
@@ -389,8 +396,9 @@ def is_edge_feasible(
 
         # Compute Feasibility
         mcond, motif = True, None
-        if (not lcntx is None) or \
-           (not rcntx is None):
+        if (not  exmotifs is None) and \
+           ((not lcntx    is None) or \
+            (not rcntx    is None)):
 
             # Book-keeping
             p = 0
@@ -441,12 +449,47 @@ def is_edge_feasible(
     # Failed Assignment
     return (False, None, cfails)
 
+def is_nonrepetitive(
+    barcodeseq,
+    maxreplen,
+    index,
+    oligorepeats):
+    '''
+    Determine if barcode is contextually
+    non-repetitive. Internal use only.
+
+    :: barcodeseq
+       type - string
+       desc - decoded barcode sequence
+    :: maxreplen
+       type - integer
+       desc - maximum shared repeat length
+              between barcode and context
+    :: index
+       type - integer
+       desc - context assignment index
+              for barcode sequences
+    :: oligorepeats
+       type - dict
+       desc - set of all repeats indexed
+              by context id
+    '''
+
+    for kmer in ut.stream_canon_spectrum(
+        seq=barcodeseq,
+        k=maxreplen+1):
+        if kmer in oligorepeats[index]:
+            return False
+    return True
+
 def barcode_objectives(
     store,
     count,
     barcodeseq,
     barcodelen,
     minhdist,
+    maxreplen,
+    oligorepeats,
     exmotifs,
     contextarray,
     leftcontexttype,
@@ -476,6 +519,14 @@ def barcode_objectives(
        desc - minimum pairwise hamming
               distance between a pair
               of barcodes
+    :: maxreplen
+       type - integer
+       desc - maximum shared repeat length
+              between barcode and context
+    :: oligorepeats
+       type - dict
+       desc - set of all repeats indexed
+              by context id
     :: exmotifs
        type - list / None
        desc - list of motifs to exclude
@@ -514,7 +565,7 @@ def barcode_objectives(
 
     # Objective 1 Failed
     if not obj1:
-        return (False, 1, None, None)      # Hamming Failure
+        return (False, 1, None, None)         # Hamming Failure
 
     # Objective 2: Motif Embedding
     obj2, exmotif = is_exmotif_feasible(
@@ -538,7 +589,23 @@ def barcode_objectives(
 
     # Objective 3 Failed
     if not obj3:
-        return (False, 3, None, afails)     # Edge Failure
+        return (False, 3, None, afails)       # Edge Failure
+
+    # Objective 4: Contextual Non-Repetitiveness
+    obj4 = is_nonrepetitive(
+        barcodeseq=barcodeseq,
+        maxreplen=maxreplen,
+        index=aidx,
+        oligorepeats=oligorepeats)
+
+    # Objective 4 Failed
+    if not obj4:
+        # Re-insert Assignment Back in Context
+        # Otherwise, Bug: Assigned Index is Lost
+        #                 Followed by Infinite Loop
+        #                 (Critical Bug)
+        contextarray.append(aidx)
+        return (False, 4, None, None)         # Repeat Failure
 
     # All conditions met!
     return (True, 0, aidx, None)

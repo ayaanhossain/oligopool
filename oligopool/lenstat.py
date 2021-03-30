@@ -25,9 +25,6 @@ def lenstat_engine(
     minspaceavail = None        # Minimum Free Space Available
     maxspaceavail = None        # Maximum Free Space Available
 
-    # Compute Maximum Column Name Length
-    plen = max([len(col) for col in indf.columns])
-
     # Compute Columnwise Contribution
     for idx,col in enumerate(indf.columns):
 
@@ -53,21 +50,16 @@ def lenstat_engine(
             maxvariantlen,
             ('Yes', 'No')[maxvariantlen <= oligolimit]]
 
-        # stats['minspaceavail'] = minspaceavail
-        # stats['maxspaceavail'] = maxspaceavail
-
         # Show Update
         if minelementlen == maxelementlen:
             liner.send(
-                ' Element {:>{}}: Occupies {:,} Base Pair(s)'.format(
+                ' Element {}: Occupies {:,} Base Pair(s)'.format(
                     col,
-                    plen,
                     minelementlen))
         else:
             liner.send(
-                ' Element {:>{}}: Occupies {:,} to {:,} Base Pair(s)'.format(
+                ' Element {}: Occupies {:,} to {:,} Base Pair(s)'.format(
                     col,
-                    plen,
                     minelementlen,
                     maxelementlen))
 

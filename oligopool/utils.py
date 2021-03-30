@@ -9,6 +9,7 @@ import atexit  as ae
 import collections as cx
 
 import numpy   as np
+from numpy.core.fromnumeric import repeat
 import numba   as nb
 import primer3 as p3
 
@@ -694,6 +695,134 @@ def get_parsed_oligolimit(
         minspaceavail,
         maxspaceavail)
 
+def get_parsed_oligopool_repeats(
+    df,
+    maxreplen,
+    element,
+    merge,
+    liner):
+    '''
+    Check if oligopool repeats are
+    feasible. Internal use only.
+
+    :: df
+       type - pd.DataFrame
+       desc - DataFrame to extract
+              oligopool repeats from
+    :: maxreplen
+       type - integer
+       desc - maximum shared repeat
+              length with oligopool
+    :: element
+       type - string
+       desc - element being designed
+    :: liner
+       type - coroutine
+       desc - dyanamic printing
+    '''
+
+    # Book-keeping
+    oligorepeats = {}
+    t0           = tt.time()
+    kmerspace    = ((4**(maxreplen+1)) // 2)
+    fillcount    = None
+    freecount    = None
+    repeatcount  = 0
+
+    # Verbage Stuff
+    plen = get_printlen(
+        value=kmerspace)
+    if plen > 15:
+        sntn = 'e'
+        plen = len('{:e}'.format(kmerspace))
+    else:
+        sntn = 'd'
+
+    # Show Update
+    if merge:
+        sourcecontext = False
+        liner.send(' Repeat Source: From Entire Oligopool\n')
+    else:
+        sourcecontext = True
+        liner.send(' Repeat Source: Contextually per Variant\n')
+
+    liner.send('  k-mer Space : {:{},{}} Unique {:,}-mers\n'.format(
+        kmerspace,
+        plen,
+        sntn,
+        maxreplen+1))
+
+    # Extract Repeats
+    liner.send(' Extracting Repeats ...')
+
+    for idx,oligo in enumerate(
+            get_df_concat(df=df)):
+        oligorepeats[idx] = set(
+            stream_canon_spectrum(
+                seq=oligo,
+                k=maxreplen+1))
+        repeatcount = max(
+            repeatcount,
+            len(oligorepeats[idx]))
+
+    # Merge Repeats
+    if merge:
+        liner.send(' Merging Repeats ...')
+        mergedoligorepeats = set()
+        for repeats in oligorepeats.values():
+            mergedoligorepeats.update(repeats)
+        repeatcount  = len(mergedoligorepeats)
+        oligorepeats = mergedoligorepeats
+
+    # Compute Feasibility
+    fillcount   = min(kmerspace, repeatcount)
+    freecount   = kmerspace - fillcount
+    parsestatus = (freecount * 1.) / kmerspace > .01
+    if parsestatus:
+        statusmsg = ''
+    else:
+        statusmsg = ' [INFEASIBLE]'
+
+    # Show Final Updates
+    liner.send('   Fill Count : {:{},{}} Unique {:,}-mers ({:6.2f} %)\n'.format(
+        fillcount,
+        plen,
+        sntn,
+        maxreplen+1,
+        safediv(
+            A=fillcount*100.,
+            B=kmerspace)))
+    liner.send('   Free Count : {:{},{}} Unique {:,}-mers ({:6.2f} %){}\n'.format(
+        freecount,
+        plen,
+        sntn,
+        maxreplen+1,
+        safediv(
+            A=freecount*100.,
+            B=kmerspace),
+        statusmsg))
+
+    if not parsestatus:
+        liner.send(
+            ' Verdict: {} Design Infeasible due to Repeat Length Constraint\n'.format(
+                element))
+    else:
+        liner.send(
+            ' Verdict: {} Design Possibly Feasible\n'.format(
+                element))
+
+    liner.send(
+        ' Time Elapsed: {:.2f} sec\n'.format(
+            tt.time()-t0))
+
+    # Return Results
+    return (parsestatus,
+        sourcecontext,
+        kmerspace,
+        fillcount,
+        freecount,
+        oligorepeats)
+
 # Exmotif Functions
 
 def stream_exmotif_splits(exmotif):
@@ -931,7 +1060,7 @@ def get_parsed_exmotifs(
             for suffix in sorted(warn['vars']['exmotifsuffixgroup'], key=len):
                 suffix = '\'' + '.'*(plen-len(suffix)-2) + suffix + '\''
                 liner.send(
-                    '   - Motif(s)   ending with {:>{}} [WARNING] (Suffix Prevents All 4 Bases After It)\n'.format(
+                    '   - Motif(s)   ending with {:>{}} [WARNING] (Suffix Prevents All 4 Bases Before It)\n'.format(
                         suffix,
                         plen))
 
@@ -1348,110 +1477,6 @@ def get_context_type_selector(context):
         raise TypeError(
             'Invalid Context Type {}'.format(
                 type(context)))
-
-def get_parsed_oligo_repeats(
-    df,
-    maxreplen,
-    element,
-    liner):
-    '''
-    Check if oligopool repeats are
-    feasible. Internal use only.
-
-    :: df
-       type - pd.DataFrame
-       desc - DataFrame to extract
-              oligopool repeats from
-    :: maxreplen
-       type - integer
-       desc - maximum shared repeat
-              length with oligopool
-    :: element
-       type - string
-       desc - element being designed
-    :: liner
-       type - coroutine
-       desc - dyanamic printing
-    '''
-
-    # Book-keeping
-    oligorepeats = set()
-    t0           = tt.time()
-    kmerspace    = ((4**(maxreplen+1)) // 2)
-    fillcount    = None
-    leftcount    = None
-
-    # Verbage Stuff
-    plen = get_printlen(
-        value=kmerspace)
-    if plen > 15:
-        sntn = 'e'
-        plen = len('{:e}'.format(kmerspace))
-    else:
-        sntn = 'd'
-
-    # Show Update
-    liner.send('  k-mer Space: {:{},{}} Unique {:,}-mers\n'.format(
-        kmerspace,
-        plen,
-        sntn,
-        maxreplen+1))
-    liner.send(' Extracting Repeats ...')
-
-    # Extract Repeats
-    for oligo in get_df_concat(df=df):
-        oligorepeats.update(
-            stream_canon_spectrum(
-                seq=oligo,
-                k=maxreplen+1))
-
-    # Compute Feasibility
-    fillcount   = min(kmerspace, len(oligorepeats))
-    leftcount   = kmerspace - fillcount
-    parsestatus = (leftcount * 1.) / kmerspace > .01
-    if parsestatus:
-        statusmsg = ''
-    else:
-        statusmsg = ' [INFEASIBLE]'
-
-    # Show Final Updates
-    liner.send('   Fill Count: {:{},{}} Unique {:,}-mers ({:6.2f} %)\n'.format(
-        fillcount,
-        plen,
-        sntn,
-        maxreplen+1,
-        safediv(
-            A=fillcount*100.,
-            B=kmerspace)))
-    liner.send('   Left Count: {:{},{}} Unique {:,}-mers ({:6.2f} %){}\n'.format(
-        leftcount,
-        plen,
-        sntn,
-        maxreplen+1,
-        safediv(
-            A=leftcount*100.,
-            B=kmerspace),
-        statusmsg))
-
-    if not parsestatus:
-        liner.send(
-            ' Verdict: {} Design Infeasible due to Repeat Length Constraint\n'.format(
-                element))
-    else:
-        liner.send(
-            ' Verdict: {} Design Possibly Feasible\n'.format(
-                element))
-
-    liner.send(
-        ' Time Elapsed: {:.2f} sec\n'.format(
-            tt.time()-t0))
-
-    # Return Results
-    return (parsestatus,
-        kmerspace,
-        fillcount,
-        leftcount,
-        oligorepeats)
 
 def get_parsed_edgeeffects(
     sequence,
@@ -1995,7 +2020,7 @@ def is_DNA(seq, dna_alpha=dna_alpha):
     '''
 
     if isinstance(seq, str) and \
-       set(seq) <= dna_alpha:
+       set(seq.upper()) <= dna_alpha:
         return True
     return False
 

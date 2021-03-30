@@ -24,9 +24,9 @@ codemeta
   finalized~~
 
 motif      -- done
-barcode    -- done
 background -- done
 primer     -- done
+barcode    -- done
 spacer     -- done
 split      -- needs finalization
 pad        -- needs finalization

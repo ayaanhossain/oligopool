@@ -699,6 +699,7 @@ def get_parsed_column_info(
     :: df
        type - pd.DataFrame
        desc - DataFrame to store output in
+              or get input from
     :: col_field
        type - string
        desc - col fieldname used in
@@ -720,7 +721,8 @@ def get_parsed_column_info(
     :: iscontext
        type - boolean
        desc - if True treat column as context,
-              otherwise column is singular
+              otherwise, column is a singular
+              and context free element
     :: typecontext
        type - integer / None
        desc - if 0, treat context as left,

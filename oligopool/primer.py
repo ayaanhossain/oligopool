@@ -12,6 +12,7 @@ import coreprimer  as cp
 
 def primer_engine(
     primerseq,
+    primerspan,
     homology,
     primertype,
     fixedbaseindex,
@@ -20,6 +21,7 @@ def primer_engine(
     maxreplen,
     oligorepeats,
     pairedprimer,
+    pairedspan,
     pairedrepeats,
     exmotifs,
     exmotifindex,
@@ -37,6 +39,10 @@ def primer_engine(
        type - string
        desc - degenerate primer design sequence
               constraint
+    :: primerspan
+       type - integer / None
+       desc - extraction span for primer sequence
+              for dimer evaluation
     :: homology
        type - integer
        desc - maximum allowed internal repeat
@@ -67,6 +73,10 @@ def primer_engine(
     :: pairedprimer
        type - string / None
        desc - paired primer sequence
+    :: pairedspan
+       type - integer / None
+       desc - extraction span for paired primer
+              sequence for dimer evaluation
     :: pairedrepeats
        type - set / None
        desc - set storing paired primer repeats
@@ -129,6 +139,7 @@ def primer_engine(
     objectivefunction = lambda primer: cp.primer_objectives(
         primer=primer,
         primerlen=len(primerseq),
+        primerspan=primerspan,
         primertype=primertype,
         fixedbaseindex=fixedbaseindex,
         mintmelt=mintmelt,
@@ -136,6 +147,7 @@ def primer_engine(
         maxreplen=maxreplen,
         oligorepeats=oligorepeats,
         pairedprimer=pairedprimer,
+        pairedspan=pairedspan,
         pairedrepeats=pairedrepeats,
         exmotifs=exmotifs,
         exmotifindex=exmotifindex,
@@ -551,8 +563,8 @@ def primer(
     t0 = tt.time()
 
     # Adjust Numeric Paramters
-    oligolimit  = round(oligolimit)
-    maxreplen = round(maxreplen)
+    oligolimit = round(oligolimit)
+    maxreplen  = round(maxreplen)
 
     # Define Edge Effect Length
     edgeeffectlength = None
@@ -587,10 +599,11 @@ def primer(
 
         # Prepare stats
         stats = {
-            'status': False,
-            'basis' : 'infeasible',
-            'step'  : 1,
-            'vars'  : {
+            'status'  : False,
+            'basis'   : 'infeasible',
+            'step'    : 1,
+            'stepname': 'parsing-oligo-limit',
+            'vars'    : {
                    'oligolimit': oligolimit,
                 'limitoverflow': True,
                 'minvariantlen': minvariantlen,
@@ -599,7 +612,7 @@ def primer(
                 'maxelementlen': maxelementlen,
                 'minspaceavail': minspaceavail,
                 'maxspaceavail': maxspaceavail},
-            'warns'  : warns}
+            'warns'   : warns}
 
         # Return results
         liner.close()
@@ -640,14 +653,15 @@ def primer(
 
             # Prepare stats
             stats = {
-                'status': False,
-                'basis' : 'infeasible',
-                'step'  : 2,
-                'vars'  : {
+                'status'  : False,
+                'basis'   : 'infeasible',
+                'step'    : 2,
+                'stepname': 'parsing-excluded-motifs',
+                'vars'    : {
                      'problens': problens,
                     'probcount': tuple(list(
                         4**pl for pl in problens))},
-                'warns' : warns}
+                'warns'   : warns}
 
             # Return results
             liner.close()
@@ -690,14 +704,15 @@ def primer(
 
         # Prepare stats
         stats = {
-            'status': False,
-            'basis' : 'infeasible',
-            'step'  : 3,
-            'vars'  : {
+            'status'  : False,
+            'basis'   : 'infeasible',
+            'step'    : 3,
+            'stepname': 'parsing-primer-sequence',
+            'vars'    : {
                     'designspace': designspace,
                 'internalrepeats': internalrepeats,
                   'pairedrepeats': pairedrepeats},
-            'warns' : warns}
+            'warns'   : warns}
 
         # Return results
         liner.close()
@@ -726,6 +741,7 @@ def primer(
         pairedprimer=pairedprimer,
         mintmelt=mintmelt,
         maxtmelt=maxtmelt,
+        element='Primer',
         liner=liner)
 
     # mintmelt and maxtmelt infeasible
@@ -733,15 +749,16 @@ def primer(
 
         # Prepare stats
         stats = {
-            'status': False,
-            'basis' : 'infeasible',
-            'step'  : 4,
-            'vars'  : {
+            'status'  : False,
+            'basis'   : 'infeasible',
+            'step'    : 4,
+            'stepname': 'parsing-melting-temperature',
+            'vars'    : {
                 'estimatedminTm': estimatedminTm,
                 'estimatedmaxTm': estimatedmaxTm,
                    'higherminTm': higherminTm,
                     'lowermaxTm': lowermaxTm},
-            'warns' : warns}
+            'warns'   : warns}
 
         # Return results
         liner.close()
@@ -782,6 +799,7 @@ def primer(
             leftpartition=leftpartition,
             rightpartition=rightpartition,
             exmotifs=exmotifs,
+            element='Primer',
             warn=warns[6],
             liner=liner)
 
@@ -814,29 +832,31 @@ def primer(
 
         # Prepare stats
         stats = {
-            'status': False,
-            'basis' : 'infeasible',
-            'step'  : 7,
-            'vars'  : {
+            'status'  : False,
+            'basis'   : 'infeasible',
+            'step'    : 7,
+            'stepname': 'parsing-oligopool-repeats',
+            'vars'    : {
                 'sourcecontext': sourcecontext,
                 'kmerspace'    : kmerspace,
                 'fillcount'    : fillcount,
                 'freecount'    : freecount},
-            'warns' : warns}
+            'warns'   : warns}
 
         # Return results
         liner.close()
         return (outdf, stats)
 
-    # Launching Barcode Design
+    # Launching Primer Design
     liner.send('\n[Step 8: Computing Primer]\n')
 
-    # Define Barcode Design Stats
+    # Define Primer Design Stats
     stats = {
-        'status': False,
-        'basis' : 'unsolved',
-        'step'  : 8,
-        'vars'  : {
+        'status'  : False,
+        'basis'   : 'unsolved',
+        'step'    : 8,
+        'stepname': 'computing-primer',
+        'vars'    : {
                    'primerTm': None,          # Primer Melting Temperature
                    'primerGC': None,          # Primer GC Content
                  'hairpinMFE': None,          # Primer Hairpin Free Energy
@@ -849,7 +869,7 @@ def primer(
                 'exmotiffail': 0,             # Exmotif Elimination Fail Count
                    'edgefail': 0,             # Edge Effect Fail Count
              'exmotifcounter': cx.Counter()}, # Exmotif Encounter Counter
-        'warns' : warns}
+        'warns'   : warns}
 
     # Schedule outfile deletion
     ofdeletion = ae.register(
@@ -860,6 +880,7 @@ def primer(
     (primer,
     stats) = primer_engine(
         primerseq=primerseq,
+        primerspan=None,
         homology=homology,
         primertype=primertype,
         fixedbaseindex=fixedbaseindex,
@@ -868,6 +889,7 @@ def primer(
         maxreplen=maxreplen,
         oligorepeats=oligorepeats,
         pairedprimer=pairedprimer,
+        pairedspan=None,
         pairedrepeats=pairedrepeats,
         exmotifs=exmotifs,
         exmotifindex=exmotifindex,

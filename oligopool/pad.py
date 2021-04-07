@@ -8,6 +8,7 @@ import nrpcalc     as nr
 import utils       as ut
 import valparse    as vp
 import coreprimer  as cp
+import primer      as pr
 
 
 # Gamplan
@@ -25,6 +26,161 @@ import coreprimer  as cp
 6. Run Maker to Build Forward Pad
 7. Run Maker to Build Reverse Pad
 '''
+
+def pad_engine(
+    fo,
+    homology,
+    primertype,
+    fixedbaseindex,
+    mintmelt,
+    maxtmelt,
+    maxreplen,
+    oligorepeats,
+    pairedprimer,
+    pairedrepeats,
+    exmotifs,
+    exmotifindex,
+    edgeeffectlength,
+    prefixdict,
+    suffixdict,
+    background,
+    stats,
+    liner):
+    '''
+    TBW
+    '''
+
+    # Book-keeping
+    t0 = tt.time() # Start Timer
+    # Flexible Structure Constraint
+    primerstruct = ''.join('x.'[idx in fixedbaseindex] \
+        for idx in fixedbaseindex)
+
+    # Update Paired Primer Orientation
+    # Since Forward Primer Design,
+    # interpret Paired Primer as
+    # Reverse Primer specified in
+    # terms of Forward Strand
+    if primertype == 0:
+        if not pairedprimer is None:
+            pairedprimer = ut.get_revcomp(
+                seq=pairedprimer)
+    # Correct Free Base Index
+    else:
+        fixedbaseindex = set(len(primerseq)-1-idx \
+            for idx in fixedbaseindex)
+
+    # Optimize exmotifs
+    if not exmotifs is None:
+        exmotifs = ut.get_grouped_sequences(
+            sequences=exmotifs)
+
+    # Define Objective Function
+    objectivefunction = lambda primer: cp.primer_objectives(
+        primer=primer,
+        primerlen=len(primerseq),
+        primertype=primertype,
+        fixedbaseindex=fixedbaseindex,
+        mintmelt=mintmelt,
+        maxtmelt=maxtmelt,
+        maxreplen=maxreplen,
+        oligorepeats=oligorepeats,
+        pairedprimer=pairedprimer,
+        pairedrepeats=pairedrepeats,
+        exmotifs=exmotifs,
+        exmotifindex=exmotifindex,
+        edgeeffectlength=edgeeffectlength,
+        prefixforbidden=prefixdict,
+        suffixforbidden=suffixdict,
+        background=background,
+        inittime=t0,
+        stats=stats,
+        liner=liner)
+
+    # Define Maker Instance
+    maker = nr.base.maker.NRPMaker(
+        part_type='DNA',
+        seed=None)
+
+    # Design Primer via Maker
+    primer = maker.nrp_maker(
+        homology=min(len(primerseq), homology),
+        seq_constr=primerseq,
+        struct_constr=primerstruct,
+        target_size=1,
+        background=None,
+        struct_type='both',
+        synth_opt=False,
+        local_model_fn=objectivefunction,
+        jump_count=1000,
+        fail_count=100000,
+        output_file=None,
+        verbose=False,
+        abortion=True,
+        allow_internal_repeat=False,
+        check_constraints=False)
+
+    # Check Status and Return Solution
+    if len(primer) > 0:
+
+        # Final Update
+        cp.show_update(
+            primer=primer[0],
+            element='Primer',
+            optstatus=2,
+            optstate=0,
+            inittime=t0,
+            terminal=True,
+            liner=liner)
+
+        # Extract Primer
+        primer = primer[0]
+
+        # We solved this!
+        stats['status'] = True
+        stats['basis']  = 'solved'
+
+        # Update Tm
+        stats['vars']['primerTm'] = ut.get_tmelt(
+            seq=primer)
+
+        # Update GC Percentage
+        stats['vars']['primerGC'] = (primer.count('G') + \
+                                     primer.count('C')) \
+                                        / (len(primer) * 0.01)
+
+        # Update Hairpin Free Energy
+        stats['vars']['hairpinMFE'] = cp.folder.evaluate_mfe(
+            seq=primer,
+            dg=True)[-1]
+
+        # Correct Primer Orientation
+        cprimer = ut.get_revcomp(
+            seq=primer) if primertype == 1 else primer
+
+        # Update Heterodimer Free Energy
+        stats['vars']['homodimerMFE'] = cp.folder.evaluate_mfe_dimer(
+            seq1=cprimer,
+            seq2=cprimer)[-1]
+
+        # Update Homodimer Free Energy
+        if not pairedprimer is None:
+            stats['vars']['heterodimerMFE'] = cp.folder.evaluate_mfe_dimer(
+                seq1=cprimer,
+                seq2=pairedprimer)[-1]
+
+        # Return Results
+        return (primer, stats)
+
+    # Design Unsuccessful
+    else:
+
+        # Final Update
+        liner.send('\* Time Elapsed: {:.2f} sec\n'.format(
+            tt.time() - t0))
+
+        # Return Results
+        return (None, stats)
 
 def get_background(Lmax):
 
@@ -323,7 +479,7 @@ def pad(
     indata,
     splitcol,
     typeIIS,
-    oligolength,
+    oligolimit,
     mintmelt,
     maxtmelt,
     maxreplen,
@@ -358,8 +514,12 @@ def pad(
         precheck=False,
         liner=liner)
 
+    # Store Split Column Name
+    splitcolname = splitcol
+
     # Full splitcol Validation
-    splitcol_valid = vp.get_parsed_column_info(
+    (splitcol,
+    splitcol_valid) = vp.get_parsed_column_info(
         col=splitcol,
         df=indf,
         col_field='   Split Column     ',
@@ -367,6 +527,8 @@ def pad(
         col_type=0,
         adjcol=None,
         adjval=None,
+        iscontext=False,
+        typecontext=None,
         liner=liner)
 
     # Full typeIIS Validation
@@ -378,9 +540,9 @@ def pad(
         liner=liner)
 
     # Full maxreplen Validation
-    oligolength_valid = vp.get_numeric_validity(
-        numeric=oligolength,
-        numeric_field='   Oligo Length     ',
+    oligolimit_valid = vp.get_numeric_validity(
+        numeric=oligolimit,
+        numeric_field='   Oligo Limit      ',
         numeric_pre_desc=' Design ',
         numeric_post_desc=' Base Pair(s) Padded Oligos',
         minval=60,
@@ -429,7 +591,7 @@ def pad(
         indata_valid,
         splitcol_valid,
         typeIIS_valid,
-        oligolength_valid,
+        oligolimit_valid,
         tmelt_valid,
         maxreplen_valid,
         outfile_valid]):
@@ -441,24 +603,28 @@ def pad(
     t0 = tt.time()
 
     # Adjust Numeric Paramters
-    oligolength = round(oligolength)
-    maxreplen   = round(maxreplen)
+    oligolimit = round(oligolimit)
+    maxreplen  = round(maxreplen)
+
+    # Define homology
+    homology = len(typeIIS.replace('N', ''))
 
     # Primer Design Book-keeping
     outdf = None
     stats = None
+    warns = {}
 
     # Parse Split Column
-    liner.send('\n[Parsing Split Column]\n')
+    liner.send('\n[Step 1: Parsing Split Column]\n')
 
     # Parse splitcol
     (parsestatus,
     minfragmentlen,
     maxfragmentlen,
-    maxallowedlen) = cp.get_parsed_splitcol(
-        indf=indf,
+    maxallowedlen,
+    paddingbalance) = cp.get_parsed_splitcol(
         splitcol=splitcol,
-        oligolength=oligolength,
+        oligolimit=oligolimit,
         liner=liner)
 
     # splitcol infeasible
@@ -466,34 +632,299 @@ def pad(
 
         # Prepare stats
         stats = {
-            'status': False,
-            'basis' : 'infeasible',
-            'step'  : 1,
-            'vars'  : {
+            'status'  : False,
+            'basis'   : 'infeasible',
+            'step'    : 1,
+            'stepname': 'parsing-split-column',
+            'vars'    : {
                 'maxfragmentlen': maxfragmentlen,
-                 'maxallowedlen': maxallowedlen}}
+                 'maxallowedlen': maxallowedlen},
+            'warns'   : warns}
 
         # Return results
         liner.close()
         return (outdf, stats)
 
     # Parse TypeIIS Constraint
-    liner.send('\n[Parsing TypeIIS System]\n')
+    liner.send('\n[Step 2: Parsing TypeIIS System]\n')
 
     # Parse typeIIS
-    # (parsestatus,
-    # forwardpadlen,
-    # reversepadlen,
-    # forwardfillerlen,
-    # reversefillerlen) =
-
-    cp.get_parsed_typeIIS_constraint(
+    (parsestatus,
+    fwdcore,
+    revcore,
+    fwdseq,
+    revseq,
+    minpadlen,
+    maxpadlen,
+    typeIISfree) = cp.get_parsed_typeIIS_constraint(
         typeIIS=typeIIS,
         typeIISname=typeIISname,
         minfragmentlen=minfragmentlen,
         maxfragmentlen=maxfragmentlen,
-        oligolength=oligolength,
+        oligolimit=oligolimit,
         liner=liner)
+
+    # typeIIS infeasible
+    if not parsestatus:
+
+        # Prepare stats
+        stats = {
+            'status'  : False,
+            'basis'   : 'infeasible',
+            'step'    : 2,
+            'stepname': 'parsing-typeIIS-system',
+            'vars'    : {
+                  'minpadlen': minpadlen,
+                  'maxpadlen': maxpadlen,
+                'typeIISfree': typeIISfree},
+            'warns'   : warns}
+
+        # Return results
+        liner.close()
+        return (outdf, stats)
+
+    # Parse Melting Temperature
+    liner.send('\n[Step 3: Parsing Melting Temperature]\n')
+
+    # Parse mintmelt and maxtmelt
+    (parsestatus,
+    estimatedminTm,
+    estimatedmaxTm,
+    higherminTm,
+    lowermaxTm,
+    mintmelt,
+    maxtmelt) = cp.get_parsed_primer_tmelt_constraint(
+        primerseq=revseq[:revcore],
+        pairedprimer=None,
+        mintmelt=mintmelt,
+        maxtmelt=maxtmelt,
+        element='Pad',
+        liner=liner)
+
+    # mintmelt and maxtmelt infeasible
+    if not parsestatus:
+
+        # Prepare stats
+        stats = {
+            'status'  : False,
+            'basis'   : 'infeasible',
+            'step'    : 3,
+            'stepname': 'parsing-melting-temperature',
+            'vars'    : {
+                'estimatedminTm': estimatedminTm,
+                'estimatedmaxTm': estimatedmaxTm,
+                   'higherminTm': higherminTm,
+                    'lowermaxTm': lowermaxTm},
+            'warns'   : warns}
+
+        # Return results
+        liner.close()
+        return (outdf, stats)
+
+    # Parse Excluded Motifs
+    liner.send('\n[Step 4: Parsing Excluded Motifs]\n')
+
+    # Update Step 4 Warning
+    warns[4] = {
+        'warncount': 0,
+        'stepname' : 'parsing-excluded-motifs',
+        'vars': None}
+
+    # Parse exmotifs
+    (parsestatus,
+    exmotifs,
+    problens,
+    leftpartition,
+    rightpartition) = ut.get_parsed_exmotifs(
+        exmotifs=(typeIIS.replace('N', ''), ),
+        typer=tuple,
+        element='Pad',
+        leftcontext=splitcol,
+        rightcontext=splitcol,
+        warn=warns[4],
+        liner=liner)
+
+    # Remove Step 4 Warning
+    if not warns[4]['warncount']:
+        warns.pop(4)
+
+    # exmotifs infeasible
+    if not parsestatus:
+
+        # Prepare stats
+        stats = {
+            'status'  : False,
+            'basis'   : 'infeasible',
+            'step'    : 4,
+            'stepname': 'parsing-excluded-motifs',
+            'vars'    : {
+                 'problens': problens,
+                'probcount': tuple(list(
+                    4**pl for pl in problens))},
+            'warns'   : warns}
+
+        # Return results
+        liner.close()
+        return (outdf, stats)
+
+    # Update Edge-Effect Length
+    edgeeffectlength = ut.get_edgeeffectlength(
+        exmotifs=exmotifs)
+
+    # Show update
+    liner.send('\n[Step 5: Extracting Context Sequences]\n')
+
+    # Extract Pad Contexts
+    (leftcontext,
+    rightcontext) = ut.get_extracted_context(
+        leftcontext=splitcol,
+        rightcontext=splitcol,
+        edgeeffectlength=edgeeffectlength,
+        reduce=True,
+        liner=liner)
+
+    # Show update
+    liner.send('\n[Step 6: Parsing Edge Effects]\n')
+
+    # Update Step 6 Warning
+    warns[6] = {
+        'warncount': 0,
+        'stepname' : 'parsing-edge-effects',
+        'vars': None}
+
+    # Compute Forbidden Prefixes and Suffixes
+    (prefixdict,
+    suffixdict) = cp.get_parsed_edgeeffects(
+        primerseq=fwdseq[-fwdcore:],
+        leftcontext=leftcontext,
+        rightcontext=rightcontext,
+        leftpartition=leftpartition,
+        rightpartition=rightpartition,
+        exmotifs=exmotifs,
+        element='Pad',
+        warn=warns[6],
+        liner=liner)
+
+    # Remove Step 6 Warning
+    if not warns[6]['warncount']:
+        warns.pop(6)
+
+    # Parse Oligopool Repeats
+    liner.send('\n[Step 7: Parsing Oligopool Repeats]\n')
+
+    # Parse Repeats from indf
+    (parsestatus,
+    sourcecontext,
+    kmerspace,
+    fillcount,
+    freecount,
+    oligorepeats) = ut.get_parsed_oligopool_repeats(
+        df=indf,
+        maxreplen=maxreplen,
+        element='Pad',
+        merge=True,
+        liner=liner)
+
+    # Repeat Length infeasible
+    if not parsestatus:
+
+        # Prepare stats
+        stats = {
+            'status'  : False,
+            'basis'   : 'infeasible',
+            'step'    : 7,
+            'stepname': 'parsing-oligopool-repeats',
+            'vars'    : {
+                'sourcecontext': sourcecontext,
+                'kmerspace'    : kmerspace,
+                'fillcount'    : fillcount,
+                'freecount'    : freecount},
+            'warns'   : warns}
+
+        # Return results
+        liner.close()
+        return (outdf, stats)
+
+    # Define Pad Design Stats
+    stats = {
+        'status'  : False,
+        'basis'   : 'unsolved',
+        'step'    : 8,
+        'stepname': 'computing-primer',
+        'vars'    : {
+                'fwdpadprimerTm': None,          # Forward Pad Melting Temperature
+                'revpadprimerTm': None,          # Reverse Pad Melting Temperature
+                'fwdpadprimerGC': None,          # Forward Pad GC Content
+                'revpadprimerGC': None,          # Reverse Pad GC Content
+              'fwdpadhairpinMFE': None,          # Forward Pad Hairpin Free Energy
+              'revpadhairpinMFE': None,          # Reverse Pad Hairpin Free Energy
+            'fwdpadhomodimerMFE': None,          # Forward Pad Homodimer Free Energy
+            'revpadhomodimerMFE': None,          # Reverse Pad Homodimer Free Energy
+                'heterodimerMFE': None,          # Heterodimer Free Energy
+                        'Tmfail': 0,             # Melting Temperature Fail Count
+                    'repeatfail': 0,             # Repeat Fail Count
+                 'homodimerfail': 0,             # Homodimer Fail Count
+               'heterodimerfail': 0,             # Heterodimer Fail Count
+                   'exmotiffail': 0,             # Exmotif Elimination Fail Count
+                      'edgefail': 0,             # Edge Effect Fail Count
+                'exmotifcounter': cx.Counter()}, # Exmotif Encounter Counter
+        'warns'   : warns}
+
+    # Schedule outfile deletion
+    ofdeletion = ae.register(
+        ut.remove_file,
+        outfile)
+
+    # Launching Forward Primer Design
+    liner.send('\n[Step 8: Computing Forward Primer]\n')
+
+    # Define Forward Primer Design Stats
+    fwdstats = {
+        'status'  : False,
+        'basis'   : 'unsolved',
+        'step'    : 8,
+        'stepname': 'computing-primer',
+        'vars'    : {
+                   'primerTm': None,          # Primer Melting Temperature
+                   'primerGC': None,          # Primer GC Content
+                 'hairpinMFE': None,          # Primer Hairpin Free Energy
+               'homodimerMFE': None,          # Homodimer Free Energy
+             'heterodimerMFE': None,          # Heterodimer Free Energy
+                     'Tmfail': 0,             # Melting Temperature Fail Count
+                 'repeatfail': 0,             # Repeat Fail Count
+              'homodimerfail': 0,             # Homodimer Fail Count
+            'heterodimerfail': 0,             # Heterodimer Fail Count
+                'exmotiffail': 0,             # Exmotif Elimination Fail Count
+                   'edgefail': 0,             # Edge Effect Fail Count
+             'exmotifcounter': cx.Counter()}, # Exmotif Encounter Counter
+        'warns'   : warns}
+
+    # Design Primer
+    (fwdprimer,
+    stats) = pr.primer_engine(
+        primerseq=fwdseq,
+        primerspan=fwdcore,
+        homology=homology,
+        primertype=0,
+        fixedbaseindex=cp.get_fixedbaseindex(seq=fwdseq),
+        mintmelt=mintmelt,
+        maxtmelt=maxtmelt,
+        maxreplen=maxreplen,
+        oligorepeats=oligorepeats,
+        pairedprimer=None,
+        pairedspan=None,
+        pairedrepeats=pairedrepeats,
+        exmotifs=exmotifs,
+        exmotifindex=exmotifindex,
+        edgeeffectlength=edgeeffectlength,
+        prefixdict=prefixdict,
+        suffixdict=suffixdict,
+        background=background,
+        stats=stats,
+        liner=liner)
+
+
+
 
     '''
     --1. Parse Split Column--

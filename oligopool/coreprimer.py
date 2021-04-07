@@ -146,6 +146,23 @@ def get_paired_repeat_conflicts(
     # Return results
     return (lcs <= 5, pairedrepeats)
 
+def get_fixedbaseindex(seq):
+    '''
+    Compute the fixed base index set.
+    Internal use only.
+
+    :: seq
+       type - string
+       desc - sequence to process for
+              fixed bases
+    '''
+
+    fixedbaseindex = set()
+    for idx in range(len(seq)):
+        if len(ut.ddna_space[seq[idx]]) == 1:
+            fixedbaseindex.add(idx)
+    return fixedbaseindex
+
 def get_parsed_sequence_constraint(
     primerseq,
     primertype,
@@ -188,10 +205,8 @@ def get_parsed_sequence_constraint(
     homology     = 6     # Initially, for Maker
 
     # Compute Fixed Base Index
-    fixedbaseindex = set()
-    for idx in range(len(primerseq)):
-        if len(ut.ddna_space[primerseq[idx]]) == 1:
-            fixedbaseindex.add(idx)
+    fixedbaseindex = get_fixedbaseindex(
+        seq=primerseq)
 
     # Design Space Analysis
     liner.send(' Computing Design Space ...')
@@ -435,6 +450,7 @@ def get_parsed_primer_tmelt_constraint(
     pairedprimer,
     mintmelt,
     maxtmelt,
+    element,
     liner):
     '''
     Determine melting temperature bounds for
@@ -453,6 +469,9 @@ def get_parsed_primer_tmelt_constraint(
     :: maxtmelt
        type - float
        desc - melting temperature upperbound
+    :: element
+       type - string
+       desc - element being designed
     :: liner
        type - coroutine
        desc - dynamic printing
@@ -577,10 +596,12 @@ def get_parsed_primer_tmelt_constraint(
     # Show Final Update
     if parsestatus:
         liner.send(
-            ' Verdict: Primer Design Possibly Feasible\n')
+            ' Verdict: {} Design Possibly Feasible\n'.format(
+                element))
     else:
         liner.send(
-            ' Verdict: Primer Design Infeasible due to Melting Temperature Constraints\n')
+            ' Verdict: {} Design Infeasible due to Melting Temperature Constraints\n'.format(
+                element))
 
     # Return Results
     return (parsestatus,
@@ -598,6 +619,7 @@ def get_parsed_edgeeffects(
     leftpartition,
     rightpartition,
     exmotifs,
+    element,
     warn,
     liner):
     '''
@@ -630,7 +652,7 @@ def get_parsed_edgeeffects(
 
     return ut.get_parsed_edgeeffects(
         sequence=primerseq,
-        element='Primer',
+        element=element,
         leftcontext=leftcontext,
         rightcontext=rightcontext,
         leftpartition=leftpartition,
@@ -641,53 +663,74 @@ def get_parsed_edgeeffects(
         liner=liner)
 
 def get_parsed_splitcol(
-    indf,
     splitcol,
-    oligolength,
+    oligolimit,
     liner):
     '''
-    TBW
+    Compute the feasibility of fragment lengths
+    in splitcol for basic padding.
+    Internal use only.
+
+    :: splitcol
+       type - string
+       desc - name of column storing split
+              fragments
+    :: oligolimit
+       type - integer
+       desc - maximum oligo length post padding
+    :: liner
+       type - coroutine
+       desc - dynamic printing
     '''
 
     # Book-keeping
     t0 = tt.time()
     parsestatus   = False
-    maxallowedlen = oligolength - 30 # Ensure minimum padding feasible
+    maxallowedlen = oligolimit - 30 # Ensure 15 + 15 bp
+                                    # minimum padding space
+                                    # available on terminii
 
     # Show Update
     liner.send(' Analyzing Split Fragments ...')
 
     # Compute Properties
-    fragments = set(indf[splitcol])
+    fragments = set(splitcol)
     fraglens  = list(map(len, fragments))
-    minffragmentlen    = min(fraglens)
-    maxfragmentlen    = max(fraglens)
+    minfragmentlen = min(fraglens)
+    maxfragmentlen = max(fraglens)
+
+    # Compute Padding Balance
+    paddingbalance = []
+    for fraglen in fraglens:
+        diff = oligolimit - fraglen
+        p = diff // 2
+        q = diff - p
+        paddingbalance.append((p, q))
+    paddingbalance = tuple(paddingbalance)
 
     # Show Update
-    plen = ut.get_printlen(
-        value=max(len(fragments), maxfragmentlen, minffragmentlen))
-
-    liner.send('   Split Fragments: {:{},d} Unique Sequences(s)\n'.format(
-        len(fragments),
-        plen))
-
-    liner.send(' Minimum Length   : {:{},d} Base Pair(s)\n'.format(
-        minffragmentlen,
-        plen))
+    liner.send(' Split Fragments: {:,} Unique Sequences(s)\n'.format(
+        len(fragments)))
 
     # Compute Feasibility
     if maxfragmentlen <= maxallowedlen:
         parsestatus = True
         parsemsg    = ''
     else:
-        parsemsg = ' [INFEASIBLE] (Fragment(s) Longer than Oligo Length - 30 = {} Base Pair(s))'.format(
+        parsemsg = ' [INFEASIBLE] (Fragment(s) Longer than {} - 30 = {} Base Pair(s))'.format(
+            oligolimit,
             maxallowedlen)
 
     # Show Updates
-    liner.send(' Maximum Length   : {:{},d} Base Pair(s){}\n'.format(
-        maxfragmentlen,
-        plen,
-        parsemsg))
+    if minfragmentlen == maxfragmentlen:
+        liner.send(' Fragment Length: {:,} Base Pair(s){}\n'.format(
+            minfragmentlen,
+            parsemsg))
+    else:
+        liner.send(' Fragment Length: {:,} to {:,} Base Pair(s){}\n'.format(
+            minfragmentlen,
+            maxfragmentlen,
+            parsemsg))
 
     liner.send(' Time Elapsed: {:.2f} sec\n'.format(
         tt.time()-t0))
@@ -702,16 +745,17 @@ def get_parsed_splitcol(
 
     # Return Results
     return (parsestatus,
-        minffragmentlen,
+        minfragmentlen,
         maxfragmentlen,
-        maxallowedlen)
+        maxallowedlen,
+        paddingbalance)
 
 def get_parsed_typeIIS_constraint(
     typeIIS,
     typeIISname,
     minfragmentlen,
     maxfragmentlen,
-    oligolength,
+    oligolimit,
     liner):
     '''
     TBW
@@ -722,12 +766,12 @@ def get_parsed_typeIIS_constraint(
     parsestatus = True
 
     # How much padding space available?
-    minpadlen = oligolength - maxfragmentlen
-    maxpadlen = oligolength - minfragmentlen
+    minpadlen = oligolimit - maxfragmentlen
+    maxpadlen = oligolimit - minfragmentlen
 
     plen = ut.get_printlen(
         value=max(
-            oligolength,
+            oligolimit,
             maxfragmentlen,
             minfragmentlen))
 
@@ -746,10 +790,10 @@ def get_parsed_typeIIS_constraint(
             plen))
 
     # Compute TypeIIS Padding Lengths
-    typeIISlen         = (6 + len(typeIIS)) * 2          # 2x 6 Ns + TypeIIS Motif + Cut
-    typeIISfree1       = max(0, 30 - typeIISlen)         # 2x 5' Ns to pad upto 15 bp TypeIIS Core
-    typeIISrequiredlen = typeIISfree1 + typeIISlen       # Total Length of TypeIIS Core >= 30 bp
-    typeIISfree2       = minpadlen - typeIISrequiredlen  # 2x 5' Ns to pad upto minpadlen
+    typeIISlen         = (6 + len(typeIIS)) * 2         # 2x 6 Ns + TypeIIS Motif + Cut
+    typeIISfree1       = max(0, 30 - typeIISlen)        # 2x 5' Ns to pad upto 15 bp TypeIIS Core
+    typeIISrequiredlen = typeIISfree1 + typeIISlen      # Total Length of TypeIIS Core >= 30 bp
+    typeIISfree2       = minpadlen - typeIISrequiredlen # 2x 5' Ns to pad upto minpadlen
 
     # Compute feasibility
     if typeIISfree2 < 0:
@@ -765,190 +809,72 @@ def get_parsed_typeIIS_constraint(
             typeIISrequiredlen,
             parsemsg))
 
-    print(typeIISlen)
-    print(typeIISfree1)
-    print(typeIISrequiredlen)
-    print(typeIISfree2)
+    # Did we succeed?
+    if parsestatus:
 
-    # Finalize Padding Lengths
-    typeIIScore = 'N'*(typeIISfree1 // 2) + 'N'*6 + typeIIS
+        # Compute Core Padding Length
+        typeIIScorelen = (typeIISfree1 // 2) + 6 + len(typeIIS)
 
-    print(typeIIScore, len(typeIIScore))
+        # Augment Core Padding Length
+        if typeIISfree2  >= 0  and \
+           typeIIScorelen < 22:
 
-    for val in ut.typeIIS_dict.values():
-        print(val[0], len(val[1]) + val[-1])
+            buffer  = (22 - typeIIScorelen) * 2
+            balance = min(buffer, typeIISfree2)
+            fwdbuff = balance // 2
+            revbuff = balance - fwdbuff
 
-    # # How much space available
-    # forwardpadlen    = maxpadlen // 2
-    # forwardprimerlen = minpadlen // 2
-    # forwardfillerlen = forwardlen - forwardpadlen
+            # Additional Padding Done
+            core = (typeIISfree1 // 2) + \
+                    6 + \
+                    len(typeIIS)
+            fwdcore = fwdbuff + core
+            revcore = core + revbuff
 
-    # liner.send(
-    #     ' Forward Pad Constructed: {:{},d} to Base Pair(s)\n'.format(
-    #         forwardconsspan,
-    #         plen))
-
-    # liner.send(
-    #     ' Padding Required: {:,} to {:,} Base Pair(s)\n'.format(
-    #         minpadlen,
-    #         maxpadlen))
-
-
-    # reverseconsspan = maxpadlen - forwardconsspan
-    # reverseevalspan = minpadlen - forwardevalspan
-
-    # Figure out Max and Min Pad Spans (both)
-
-    # Check if after Motif, >= 6 bp left on 5' of Pad (both)
-
-    # Return parsestatus, available forward pad length, required fwd pad len, ... rev pad
-
-def get_padding_lengths(
-    typeIIS,
-    fragments,
-    finallength,
-    liner):
-    '''
-    TBW
-    '''
-
-    # Time-keeping
-    t0 = tt.time()
-
-    # Figure out Extreme Lengths
-    cutlen = len(typeIIS)
-    minlen = float('+inf')
-    maxlen = float('-inf')
-
-    for idx,frag in enumerate(fragments):
-        liner.send(' Analyzing Fragment: {}'.format(idx))
-        if len(frag) < minlen:
-            minlen = len(frag)
-        if len(frag) > maxlen:
-            maxlen = len(frag)
-
-    liner.send(
-        '    Shortest  Pre-Padding Length: {} bp\n'.format(
-            minlen))
-    liner.send(
-        '     Longest  Pre-Padding Length: {} bp\n'.format(
-            maxlen))
-
-    # Compute Spans
-    fminspan  = finallength - maxlen
-    fmaxspan  = finallength - minlen
-
-    lconsspan = fmaxspan // 2
-    rconsspan = fmaxspan - lconsspan
-
-    levalspan = fminspan // 2
-    revalspan = fminspan - levalspan
-
-    shpadspan = lconsspan + minlen + rconsspan
-    lgpadspan = levalspan + maxlen + revalspan
-
-    # Show Final Updates
-    liner.send(
-        ' Forward Pad Construction Length: {} bp\n'.format(
-            lconsspan))
-    liner.send(
-        ' Reverse Pad Construction Length: {} bp\n'.format(
-            rconsspan))
-
-    liner.send(
-        ' Forward Pad   Evaluation Length: {} bp\n'.format(
-            levalspan))
-    liner.send(
-        ' Reverse Pad   Evaluation Length: {} bp\n'.format(
-            revalspan))
-
-    liner.send(
-        '    Shortest Post-Padding Length: {} bp\n'.format(
-            shpadspan))
-    liner.send(
-        '     Longest Post-Padding Length: {} bp\n'.format(
-            lgpadspan))
-
-    liner.send(
-        ' Time Elapsed: {:.2f} sec\n'.format(
-            tt.time()-t0))
-
-    # Adjust Construction Based on TypeIIS Cutsite
-    lconsspan -= cutlen
-    rconsspan -= cutlen
-
-    # Return Results
-    return (lconsspan,
-        rconsspan,
-        levalspan,
-        revalspan,)
-
-def evaluate_typeIIS_constraint(
-    typeIIS,
-    levalspan,
-    revalspan,
-    liner):
-
-    t0 = tt.time()
-    typeIISlen = len(typeIIS)
-
-    liner.send(
-        ' Minimum Forward Padding Length: {} bp\n'.format(
-            levalspan))
-    liner.send(
-        ' Minimum Reverse Padding Length: {} bp\n'.format(
-            revalspan))
-    liner.send(
-        ' Required Type IIS Motif Length: {} bp\n'.format(
-            typeIISlen))
-
-    fwdavail      = levalspan - typeIISlen
-    revavail      = revalspan - typeIISlen
-    typeIISstatus = True
-
-    for locavail,loc in ((fwdavail, 'Forward'), (revavail, 'Reverse')):
-        liner.send(
-            '  {} Pad 5\' End Gap Length: {} bp\n'.format(
-                loc, locavail))
-        if locavail >= 6:
-            liner.send('   Gap Length ≥ 6 bp? Yes\n')
+        # Unless Unnecessary ..
         else:
-            liner.send('   Gap Length ≥ 6 bp? No\n')
-            typeIISstatus = typeIISstatus and False
+            # No Additional Padding Required
+            fwdbuff = revbuff = 0
+            fwdcore = revcore = typeIIScorelen
 
+        # Build out Padding Sequence Constraints
+        fwdseq = 'N'*fwdbuff               + \
+                 ('N'*(typeIISfree1 // 2)) + \
+                 'NNNNNN' + typeIIS
+        revseq = ut.get_revcomp(typeIIS)   + \
+                 ('N'*(typeIISfree1 // 2)) + \
+                 'NNNNNN' + 'N'*revbuff
+
+        # Extend Padding Sequence for Maximal Span
+        p = maxpadlen // 2
+        q = maxpadlen - p
+        fwdseq = 'N'*(p - len(fwdseq)) + fwdseq
+        revseq = revseq + 'N'*(q - len(revseq))
+
+    # No ...
+    else:
+        # Set Dummy Vars
+        fwdcore = revcore = fwdseq = revseq = None
+
+    # Show Update and Verdict
     liner.send(' Time Elapsed: {:.2f} sec\n'.format(
         tt.time()-t0))
 
-    return typeIISstatus, fwdavail, revavail
+    if not parsestatus:
+        liner.send(
+            ' Verdict: Pad Design Infeasible due to TypeIIS System Constraints\n')
+    else:
+        liner.send(
+            ' Verdict: Pad Design Possibly Feasible\n')
 
-def get_parsed_pad_tmelt_constraint(
-    typeIIS,
-    mintmelt,
-    maxtmelt,
-    liner):
-    pass
-
-    # Same as Primer, but both pads evaluated
-
-    '''
-    for pad in [fwd, rev]:
-        for padlength in range(len(5' free size)):
-            primerseq = build contraint (based on pad type)
-
-            get extreme min and max
-
-            if min > required max:
-                break because infeasible further
-                previous min,max is the Tm window
-
-            elif max < required min:
-                try increasing padding length
-
-            elif min,max found is compatible:
-                break because solved
-
-        adjust min,max --> this is pad Tm range
-    '''
+    return (parsestatus,
+        fwdcore,
+        revcore,
+        fwdseq,
+        revseq,
+        minpadlen,
+        maxpadlen,
+        typeIISfree2)
 
 # Engine Objective and Helper Functions
 
@@ -1015,7 +941,8 @@ def show_update(
 
 def is_background_feasible(
     primer,
-    background):
+    background,
+    fixedbaseindex):
     '''
     Determine if primer contains a repeat
     with background. Internal use only.
@@ -1028,12 +955,16 @@ def is_background_feasible(
        type - db.vectorDB / None
        desc - vectorDB instance storing
               background repeats
+    :: fixedbaseindex
+       type - set
+       desc - set of all fixed base indices
     '''
 
     # No Background or Too Short
     # a Primer Candidate
     if (background is None) or \
-       (len(primer) < background.K):
+       (len(primer) < background.K) or \
+       (len(primer) in fixedbaseindex):
         return True, None # No Conflict
 
     # Background Repeat Found?
@@ -1046,7 +977,8 @@ def is_background_feasible(
 def is_oligopool_feasible(
     primer,
     maxreplen,
-    oligorepeats):
+    oligorepeats,
+    fixedbaseindex):
     '''
     Determine if primer contains a repeat
     with oligopool. Internal use only.
@@ -1058,10 +990,14 @@ def is_oligopool_feasible(
     :: oligorepeats
        type - set / None
        desc - set storing oligopool repeats
+    :: fixedbaseindex
+       type - set
+       desc - set of all fixed base indices
     '''
 
     # Too Short a Primer Candidate
-    if len(primer) < maxreplen+1:
+    if (len(primer) < maxreplen+1) or \
+       (len(primer) in fixedbaseindex):
         return True, None # No Conflict
 
     # Oligopool Repeat Found?
@@ -1077,7 +1013,8 @@ def is_oligopool_feasible(
 
 def is_paired_feasible(
     primer,
-    pairedrepeats):
+    pairedrepeats,
+    fixedbaseindex):
     '''
     Determine if primer contains a repeat
     with paired primer. Internal use only.
@@ -1090,12 +1027,17 @@ def is_paired_feasible(
        type - set / None
        desc - set storing paired primer
               repeats
+    :: fixedbaseindex
+       type - set
+       desc - set of all fixed base indices
     '''
 
     # No Paired Repeats or Too Short
-    # a Primer Candidate
+    # a Primer Candidate or Primer
+    # Candidate contains Embedded Repeat
     if (pairedrepeats is None) or \
-       (len(primer) < 6):
+       (len(primer) < 6) or \
+       (len(primer) in fixedbaseindex):
         return True, None # No Conflict
 
     # Paired Primer Repeat Found?
@@ -1448,6 +1390,7 @@ def is_dimer_feasible(
 def primer_objectives(
     primer,
     primerlen,
+    primerspan,
     primertype,
     fixedbaseindex,
     mintmelt,
@@ -1455,6 +1398,7 @@ def primer_objectives(
     maxreplen,
     oligorepeats,
     pairedprimer,
+    pairedspan,
     pairedrepeats,
     exmotifs,
     exmotifindex,
@@ -1477,6 +1421,9 @@ def primer_objectives(
        type - integer
        desc - length of the full primer
               sequence being designed
+    :: primerspan
+       type - integer / None
+       desc - primer extraction span for dimer
     :: primertype
        type - integer
        desc - primer design type identifier
@@ -1499,6 +1446,9 @@ def primer_objectives(
     :: pairedprimer
        type - string / None
        desc - paired primer sequence
+    :: pairedspan
+       type - integer / None
+       desc - paired primer extraction span
     :: pairedrepeats
        type - set / None
        desc - set storing paired primer repeats
@@ -1538,7 +1488,8 @@ def primer_objectives(
     # Objective 1: Background Non-Repetitiveness
     obj1, traceloc = is_background_feasible(
         primer=primer,
-        background=background)
+        background=background,
+        fixedbaseindex=fixedbaseindex)
 
     # Objective 1 Failed
     if not obj1:
@@ -1563,7 +1514,8 @@ def primer_objectives(
     obj2, traceloc = is_oligopool_feasible(
         primer=primer,
         maxreplen=maxreplen,
-        oligorepeats=oligorepeats)
+        oligorepeats=oligorepeats,
+        fixedbaseindex=fixedbaseindex)
 
     # Objective 2 Failed
     if not obj2:
@@ -1587,7 +1539,8 @@ def primer_objectives(
     # Objective 3: Paired Primer Non-Repetitiveness
     obj3, traceloc = is_paired_feasible(
         primer=primer,
-        pairedrepeats=pairedrepeats)
+        pairedrepeats=pairedrepeats,
+        fixedbaseindex=fixedbaseindex)
 
     # Objective 3 Failed
     if not obj3:
@@ -1708,7 +1661,7 @@ def primer_objectives(
             primer=cprimer,
             primertype=primertype,
             primerlen=primerlen,
-            primerspan=None,
+            primerspan=primerspan,
             pairedprimer=None,
             pairedspan=None,
             fixedbaseindex=fixedbaseindex,
@@ -1738,9 +1691,9 @@ def primer_objectives(
             primer=cprimer,
             primertype=primertype,
             primerlen=primerlen,
-            primerspan=None,
+            primerspan=primerspan,
             pairedprimer=pairedprimer,
-            pairedspan=None,
+            pairedspan=pairedspan,
             fixedbaseindex=fixedbaseindex,
             dimertype=1)
 

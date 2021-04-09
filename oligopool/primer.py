@@ -116,6 +116,17 @@ def primer_engine(
     primerstruct = ''.join('x.'[idx in fixedbaseindex] \
         for idx in fixedbaseindex)
 
+    # Extract Paired Primer Span
+    if (not pairedspan   is None) and \
+       (not pairedprimer is None):
+
+        # Forward-Pair = Reverse Extraction
+        if primertype == 0:
+            pairedprimer = pairedprimer[:+pairedspan]
+        # Reverse-Pair = Forward Extraction
+        else:
+            pairedprimer = pairedprimer[-pairedspan:]
+
     # Update Paired Primer Orientation
     # Since Forward Primer Design,
     # interpret Paired Primer as
@@ -147,7 +158,6 @@ def primer_engine(
         maxreplen=maxreplen,
         oligorepeats=oligorepeats,
         pairedprimer=pairedprimer,
-        pairedspan=pairedspan,
         pairedrepeats=pairedrepeats,
         exmotifs=exmotifs,
         exmotifindex=exmotifindex,
@@ -196,29 +206,37 @@ def primer_engine(
             liner=liner)
 
         # Extract Primer
-        primer = primer[0]
+        primer  = primer[0]
+        xprimer = primer[:]
+
+        # Adjust Extraction
+        if not primerspan is None:
+            if primertype == 0:
+                primer = primer[-primerspan:]
+            else:
+                primer = primer[:+primerspan]
 
         # We solved this!
         stats['status'] = True
         stats['basis']  = 'solved'
 
-        # Update Tm
-        stats['vars']['primerTm'] = ut.get_tmelt(
-            seq=primer)
-
-        # Update GC Percentage
-        stats['vars']['primerGC'] = (primer.count('G') + \
-                                     primer.count('C')) \
-                                        / (len(primer) * 0.01)
-
-        # Update Hairpin Free Energy
-        stats['vars']['hairpinMFE'] = cp.folder.evaluate_mfe(
-            seq=primer,
-            dg=True)[-1]
-
         # Correct Primer Orientation
         cprimer = ut.get_revcomp(
             seq=primer) if primertype == 1 else primer
+
+        # Update Tm
+        stats['vars']['primerTm'] = ut.get_tmelt(
+            seq=cprimer)
+
+        # Update GC Percentage
+        stats['vars']['primerGC'] = (cprimer.count('G') + \
+                                     cprimer.count('C')) \
+                                        / (len(cprimer) * 0.01)
+
+        # Update Hairpin Free Energy
+        stats['vars']['hairpinMFE'] = cp.folder.evaluate_mfe(
+            seq=cprimer,
+            dg=True)[-1]
 
         # Update Heterodimer Free Energy
         stats['vars']['homodimerMFE'] = cp.folder.evaluate_mfe_dimer(
@@ -232,7 +250,7 @@ def primer_engine(
                 seq2=pairedprimer)[-1]
 
         # Return Results
-        return (primer, stats)
+        return (xprimer, stats)
 
     # Design Unsuccessful
     else:

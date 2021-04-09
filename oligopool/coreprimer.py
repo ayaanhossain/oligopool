@@ -701,7 +701,7 @@ def get_parsed_splitcol(
 
     # Compute Padding Balance
     paddingbalance = []
-    for fraglen in fraglens:
+    for fraglen in map(len, splitcol):
         diff = oligolimit - fraglen
         p = diff // 2
         q = diff - p
@@ -758,7 +758,12 @@ def get_parsed_typeIIS_constraint(
     oligolimit,
     liner):
     '''
-    TBW
+    Compute the feasibility of specified
+    TypeIIS System. Internal use only.
+
+    :: typeIIS
+       type - string
+       desc - 
     '''
 
     # Book-keeping
@@ -825,11 +830,8 @@ def get_parsed_typeIIS_constraint(
             revbuff = balance - fwdbuff
 
             # Additional Padding Done
-            core = (typeIISfree1 // 2) + \
-                    6 + \
-                    len(typeIIS)
-            fwdcore = fwdbuff + core
-            revcore = core + revbuff
+            fwdcore = fwdbuff + typeIIScorelen
+            revcore = typeIIScorelen + revbuff
 
         # Unless Unnecessary ..
         else:
@@ -1053,7 +1055,8 @@ def is_paired_feasible(
 
 def is_tmelt_feasible(
     primer,
-    primerlen,
+    primerspan,
+    primertype,
     mintmelt,
     maxtmelt):
     '''
@@ -1064,9 +1067,14 @@ def is_tmelt_feasible(
        type - string
        desc - a partially explored primer
               sequence path
-    :: primerlen
+    :: primerspan
+       type - integer / None
+       desc - primer extraction span
+    :: primertype
        type - integer
-       desc - full primer sequence length
+       desc - primer design type identifier
+              0 = forward primer design
+              1 = reverse primer design
     :: mintmelt
        type - float
        desc - primer melting temperature
@@ -1077,9 +1085,12 @@ def is_tmelt_feasible(
               upper bound
     '''
 
-    # Too Short a Primer Candidate
-    if len(primer) < primerlen:
-        return True, None # No Conflict
+    # Extract Primer
+    if not primerspan is None:
+        if primertype == 0:
+            primer = primer[-primerspan:]
+        else:
+            primer = primer[:+primerspan]
 
     # Compute Melting Temperature
     tmelt = ut.get_tmelt(
@@ -1299,10 +1310,8 @@ def is_structure_feasible(
 def is_dimer_feasible(
     primer,
     primertype,
-    primerlen,
     primerspan,
     pairedprimer,
-    pairedspan,
     fixedbaseindex,
     dimertype):
     '''
@@ -1318,9 +1327,6 @@ def is_dimer_feasible(
        desc - primer design type identifier
               0 = forward primer design
               1 = reverse primer design
-    :: primerlen
-       type - integer
-       desc - full primer sequence length
     :: primerspan
        type - integer / None
        desc - primer length span to evaluate
@@ -1328,10 +1334,6 @@ def is_dimer_feasible(
     :: pairedprimer
        type - string / None
        desc - paired primer sequence
-    :: pairedspan
-       type - integer / None
-       desc - paired primer length span to
-              evaluate for padding
     :: fixedbaseindex
        type - set
        desc - set of all fixed base indices
@@ -1341,10 +1343,6 @@ def is_dimer_feasible(
               0 = compute homodimer
               1 = compute heterdimer
     '''
-
-    # Too Short a Primer Candidate
-    if len(primer) < primerlen:
-        return True, None
 
     # Unpaired Heterodimer: No Computation
     if (dimertype == 1) and \
@@ -1364,10 +1362,6 @@ def is_dimer_feasible(
     if dimertype == 0:
         pairedprimer = primer
 
-    # Paired Span Extraction for Padding
-    if not pairedspan is None:
-        pairedprimer = pairedprimer[-pairedspan:]
-
     # Compute the Dimer Minimum Free Energy Structures
     x, y, z = folder.evaluate_mfe_dimer(
         seq1=primer,
@@ -1382,7 +1376,15 @@ def is_dimer_feasible(
 
     # Update Traceback Orientation
     if revert:
-        traceloc = primerlen - 1 - traceloc
+        traceloc = len(primer) - 1 - traceloc
+
+    # Update traceloc for Span
+    if (not primerspan is None) and \
+       (primertype == 0):
+        diff = primerspan - len(primer)
+    else:
+        diff = 0
+    traceloc += diff
 
     # Return Result
     return objective, traceloc
@@ -1398,7 +1400,6 @@ def primer_objectives(
     maxreplen,
     oligorepeats,
     pairedprimer,
-    pairedspan,
     pairedrepeats,
     exmotifs,
     exmotifindex,
@@ -1446,9 +1447,6 @@ def primer_objectives(
     :: pairedprimer
        type - string / None
        desc - paired primer sequence
-    :: pairedspan
-       type - integer / None
-       desc - paired primer extraction span
     :: pairedrepeats
        type - set / None
        desc - set storing paired primer repeats
@@ -1617,13 +1615,22 @@ def primer_objectives(
         # Return Traceback
         return False, traceloc
 
+    # Decide Explorability
+    if (primertype == 1) and \
+       (not primerspan is None):
+        # print('Special Trigger')
+        explored = len(primer) == primerspan
+    else:
+        explored = len(primer) == primerlen
+
     # Is Primer Fully Explored?
-    if len(primer) == primerlen:
+    if explored:
 
         # Objective 6: Melting Temeperature Bounded
         obj6, failtype = is_tmelt_feasible(
             primer=primer,
-            primerlen=primerlen,
+            primerspan=primerspan,
+            primertype=primertype,
             mintmelt=mintmelt,
             maxtmelt=maxtmelt)
 
@@ -1660,10 +1667,8 @@ def primer_objectives(
         obj7, traceloc = is_dimer_feasible(
             primer=cprimer,
             primertype=primertype,
-            primerlen=primerlen,
             primerspan=primerspan,
             pairedprimer=None,
-            pairedspan=None,
             fixedbaseindex=fixedbaseindex,
             dimertype=0)
 
@@ -1690,10 +1695,8 @@ def primer_objectives(
         obj8, traceloc = is_dimer_feasible(
             primer=cprimer,
             primertype=primertype,
-            primerlen=primerlen,
             primerspan=primerspan,
             pairedprimer=pairedprimer,
-            pairedspan=pairedspan,
             fixedbaseindex=fixedbaseindex,
             dimertype=1)
 

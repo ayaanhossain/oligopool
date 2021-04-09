@@ -27,454 +27,6 @@ import primer      as pr
 7. Run Maker to Build Reverse Pad
 '''
 
-def pad_engine(
-    fo,
-    homology,
-    primertype,
-    fixedbaseindex,
-    mintmelt,
-    maxtmelt,
-    maxreplen,
-    oligorepeats,
-    pairedprimer,
-    pairedrepeats,
-    exmotifs,
-    exmotifindex,
-    edgeeffectlength,
-    prefixdict,
-    suffixdict,
-    background,
-    stats,
-    liner):
-    '''
-    TBW
-    '''
-
-    # Book-keeping
-    t0 = tt.time() # Start Timer
-    # Flexible Structure Constraint
-    primerstruct = ''.join('x.'[idx in fixedbaseindex] \
-        for idx in fixedbaseindex)
-
-    # Update Paired Primer Orientation
-    # Since Forward Primer Design,
-    # interpret Paired Primer as
-    # Reverse Primer specified in
-    # terms of Forward Strand
-    if primertype == 0:
-        if not pairedprimer is None:
-            pairedprimer = ut.get_revcomp(
-                seq=pairedprimer)
-    # Correct Free Base Index
-    else:
-        fixedbaseindex = set(len(primerseq)-1-idx \
-            for idx in fixedbaseindex)
-
-    # Optimize exmotifs
-    if not exmotifs is None:
-        exmotifs = ut.get_grouped_sequences(
-            sequences=exmotifs)
-
-    # Define Objective Function
-    objectivefunction = lambda primer: cp.primer_objectives(
-        primer=primer,
-        primerlen=len(primerseq),
-        primertype=primertype,
-        fixedbaseindex=fixedbaseindex,
-        mintmelt=mintmelt,
-        maxtmelt=maxtmelt,
-        maxreplen=maxreplen,
-        oligorepeats=oligorepeats,
-        pairedprimer=pairedprimer,
-        pairedrepeats=pairedrepeats,
-        exmotifs=exmotifs,
-        exmotifindex=exmotifindex,
-        edgeeffectlength=edgeeffectlength,
-        prefixforbidden=prefixdict,
-        suffixforbidden=suffixdict,
-        background=background,
-        inittime=t0,
-        stats=stats,
-        liner=liner)
-
-    # Define Maker Instance
-    maker = nr.base.maker.NRPMaker(
-        part_type='DNA',
-        seed=None)
-
-    # Design Primer via Maker
-    primer = maker.nrp_maker(
-        homology=min(len(primerseq), homology),
-        seq_constr=primerseq,
-        struct_constr=primerstruct,
-        target_size=1,
-        background=None,
-        struct_type='both',
-        synth_opt=False,
-        local_model_fn=objectivefunction,
-        jump_count=1000,
-        fail_count=100000,
-        output_file=None,
-        verbose=False,
-        abortion=True,
-        allow_internal_repeat=False,
-        check_constraints=False)
-
-    # Check Status and Return Solution
-    if len(primer) > 0:
-
-        # Final Update
-        cp.show_update(
-            primer=primer[0],
-            element='Primer',
-            optstatus=2,
-            optstate=0,
-            inittime=t0,
-            terminal=True,
-            liner=liner)
-
-        # Extract Primer
-        primer = primer[0]
-
-        # We solved this!
-        stats['status'] = True
-        stats['basis']  = 'solved'
-
-        # Update Tm
-        stats['vars']['primerTm'] = ut.get_tmelt(
-            seq=primer)
-
-        # Update GC Percentage
-        stats['vars']['primerGC'] = (primer.count('G') + \
-                                     primer.count('C')) \
-                                        / (len(primer) * 0.01)
-
-        # Update Hairpin Free Energy
-        stats['vars']['hairpinMFE'] = cp.folder.evaluate_mfe(
-            seq=primer,
-            dg=True)[-1]
-
-        # Correct Primer Orientation
-        cprimer = ut.get_revcomp(
-            seq=primer) if primertype == 1 else primer
-
-        # Update Heterodimer Free Energy
-        stats['vars']['homodimerMFE'] = cp.folder.evaluate_mfe_dimer(
-            seq1=cprimer,
-            seq2=cprimer)[-1]
-
-        # Update Homodimer Free Energy
-        if not pairedprimer is None:
-            stats['vars']['heterodimerMFE'] = cp.folder.evaluate_mfe_dimer(
-                seq1=cprimer,
-                seq2=pairedprimer)[-1]
-
-        # Return Results
-        return (primer, stats)
-
-    # Design Unsuccessful
-    else:
-
-        # Final Update
-        liner.send('\* Time Elapsed: {:.2f} sec\n'.format(
-            tt.time() - t0))
-
-        # Return Results
-        return (None, stats)
-
-def get_background(Lmax):
-
-    # Build the Background Instance
-    _, bkgpath = ut.setup_workspace(
-            outfile='',
-            outfile_suffix=None)
-    bkg = bk.background(
-        path='./{}'.format(bkgpath),
-        Lmax=Lmax,
-        verbose=True)
-    bkg.clear()
-
-    # Return Background
-    return bkg
-
-def get_frag_background(
-    fragments,
-    Lmax,
-    liner):
-
-    # Get Fragment Background
-    fragbkg = get_background(Lmax=Lmax)
-
-    # Populate Background Instance
-    fragbkg.multiadd(fragments)
-
-    # Return Background
-    return fragbkg
-
-def is_pad_local_feasible(
-    pad,
-    padtype,
-    padlen,
-    evalspan,
-    mintmelt,
-    maxtmelt,
-    pairedpad,
-    pairedevalspan,
-    background,
-    liner):
-
-    # Book-keeping
-    allstate = False
-    traceloc = len(pad)
-
-    # Background Non-Repetitiveness
-    bcond, bfail = cp.is_background_feasible(
-        primer=pad,
-        background=background)
-    if not bcond:
-        liner.send(
-            ' Candidate: {} Rejected due to Background Infeasibility'.format(
-                pad))
-        return False, bfail
-
-    # Melting Temperature
-    tcond, tfail = cp.is_tmelt_feasible(
-        primer=pad,
-        primerlen=padlen,
-        mintmelt=mintmelt,
-        maxtmelt=maxtmelt)
-    if not tcond:
-        liner.send(
-            ' Candidate: {} Rejected due to Tm Infeasibility'.format(
-                pad))
-        return False, cp.get_tmelt_traceback(
-            primer=pad,
-            failtype=tfail)
-
-
-    # Homodimer Feasibility
-    hcond, htloc = cp.is_dimer_feasible(
-        primer=pad,
-        primertype=padtype,
-        primerlen=padlen,
-        primerspan=evalspan,
-        pairedprimer=None,
-        pairedspan=evalspan,
-        dimertype=0)
-    if not hcond:
-        liner.send(
-            ' Candidate: {} Rejected due to Homodimer Infeasibility'.format(
-                pad))
-        return False, htloc
-
-    # Heterodimer Feasibility
-    qcond, qtloc = cp.is_dimer_feasible(
-        primer=pad,
-        primertype=padtype,
-        primerlen=padlen,
-        primerspan=evalspan,
-        pairedprimer=pairedpad,
-        pairedspan=pairedevalspan,
-        dimertype=1)
-    if not qcond:
-        liner.send(
-            ' Candidate: {} Rejected due to Heterodimer Infeasibility'.format(
-                pad))
-        return False, qtloc
-
-    # Everything OK!
-    if len(pad) < padlen:
-        liner.send(
-            ' Candidate: {} Partially Accepted'.format(
-                pad))
-    else:
-        liner.send(
-            ' Candidate: {} Completely Accepted'.format(
-                pad))
-
-    return True
-
-def padding_engine(
-    typeIIS,
-    fragments,
-    finallength,
-    mintmelt,
-    maxtmelt,
-    deltatmelt,
-    Lmax,
-    liner):
-
-    # Book-keeping
-    fwdpads = None
-    revpads = None
-    typeIIS = ut.typeIIS_dict[typeIIS.lower()]
-
-    # Estimate the Padding Span Length
-    liner.send('\n[Computing Padding Lengths]\n')
-    (lconsspan,
-     rconsspan,
-     levalspan,
-     revalspan) = get_padding_lengths(
-        typeIIS=typeIIS,
-        fragments=fragments,
-        finallength=finallength,
-        liner=liner)
-
-    # Build Forward and Reverse Padding Constraint
-    fwdpadseq = ('N' * lconsspan) + typeIIS
-    fwdstruct = 'x' * len(fwdpadseq)
-    revpadseq = ut.get_revcomp(typeIIS) + ('N' * rconsspan)
-    revstruct = 'x' * len(revpadseq)
-
-    # Determine TypeIIS Feasibility
-    liner.send('\n[Checking Type IIS Motif Feasibility]\n')
-    (typeIIS,
-     fwdavail,
-     revavail) = cp.evaluate_typeIIS_constraint(
-         typeIIS=typeIIS,
-         levalspan=levalspan,
-         revalspan=revalspan,
-         liner=liner)
-
-    if not typeIIS:
-        liner.send(' Verdict: Pad Design Infeasible due to Type IIS Motif Constraint\n')
-        return (False, None, None)
-    else:
-        liner.send(' Verdict: Pad Design Possibly Feasible\n')
-
-    # Determine Pad Tm Feasibility
-    for locseq,loc in ((fwdpadseq, 'Forward'), (revpadseq, 'Reverse')):
-
-        # Determine Forward / Reverse Pad Tm Feasibility
-        liner.send(
-            '\n[Checking {} Pad Tm Feasibility]\n'.format(
-                loc))
-        (tmeltstatus,
-         emintmelt,
-         emaxtmelt) = cp.evaluate_tmelt_constraint(
-            primerseq=locseq,
-            mintmelt=mintmelt,
-            maxtmelt=maxtmelt,
-            liner=liner)
-
-        if not tmeltstatus:
-            liner.send(' Verdict: {} Pad Infeasible due to Tm Constraint\n'.format(loc))
-            return (False, None, None)
-        else:
-            liner.send(' Verdict: {} Pad Design Possibly Feasible\n'.format(loc))
-
-    # Build Fragment Background
-    fragbkg = get_frag_background(
-        fragments=fragments,
-        Lmax=Lmax,
-        liner=liner)
-
-    # Define Maker Instance
-    maker = nr.base.maker.NRPMaker(
-        part_type='DNA',
-        seed=None)
-
-    # Define Padding Background
-    padbkg = get_background(Lmax=7)
-
-    # Show Update
-    liner.send('\n[Computing Forward Pad]\n')
-
-    # Forward Pad Local Objective
-    fwd_local_model_fn = lambda pad: is_pad_local_feasible(
-        pad=pad,
-        padtype=0,
-        padlen=len(fwdpadseq),
-        evalspan=levalspan,
-        mintmelt=mintmelt,
-        maxtmelt=maxtmelt,
-        pairedpad=None,
-        pairedevalspan=None,
-        background=fragbkg,
-        liner=liner)
-
-    # Construct Forward Pad
-    fwdpad = maker.nrp_maker(
-        homology=8,
-        seq_constr=fwdpadseq,
-        struct_constr=fwdstruct,
-        target_size=1,
-        background=padbkg,
-        struct_type='both',
-        synth_opt=True,
-        local_model_fn=fwd_local_model_fn,
-        jump_count=1000,
-        fail_count=100000,
-        output_file=None,
-        verbose=False,
-        abortion=True,
-        allow_internal_repeat=False,
-        check_constraints=False)
-
-    # Check Status and Return Solution
-    status = not (not fwdpad)
-    if not status:
-        liner.send('\* Forward Pad Constructed? No\n')
-        return (status, None, None)
-    else:
-        fwdpad = fwdpad[0]
-        liner.send('\* Forward Pad Constructed? Yes\n')
-
-    # fwdpad = 'TATGTAGTTATTCATGGTCTCTTCCC'
-
-    # Compute Requirements for Reverse Primer
-    fwdtmelt = ut.get_tmelt(seq=fwdpad)
-    padbkg.add(fwdpad)
-
-    # Show Update
-    liner.send('\n[Computing Reverse Pad]\n')
-
-    # Forward Pad Local Objective
-    rev_local_model_fn = lambda pad: is_pad_local_feasible(
-        pad=pad,
-        padtype=1,
-        padlen=len(revpadseq),
-        evalspan=revalspan,
-        mintmelt=fwdtmelt-deltatmelt,
-        maxtmelt=fwdtmelt+deltatmelt,
-        pairedpad=fwdpad,
-        pairedevalspan=levalspan,
-        background=fragbkg,
-        liner=liner)
-
-    # Construct Forward Pad
-    revpad = maker.nrp_maker(
-        homology=6,
-        seq_constr=revpadseq,
-        struct_constr=revstruct,
-        target_size=1,
-        background=padbkg,
-        struct_type='both',
-        synth_opt=True,
-        local_model_fn=rev_local_model_fn,
-        jump_count=1000,
-        fail_count=100000,
-        output_file=None,
-        verbose=False,
-        abortion=True,
-        allow_internal_repeat=False,
-        check_constraints=False)
-
-    # Check Status and Return Solution
-    status = not (not revpad)
-    if not status:
-        liner.send('\* Reverse Pad Constructed? No\n')
-        return (status, None, None)
-    else:
-        revpad = revpad[0]
-        liner.send('\* Reverse Pad Constructed? Yes\n')
-
-    # Drop Backgrounds
-    fragbkg.drop()
-    padbkg.drop()
-
-    return (True, fwdpad, revpad)
-
 def pad(
     indata,
     splitcol,
@@ -606,8 +158,10 @@ def pad(
     oligolimit = round(oligolimit)
     maxreplen  = round(maxreplen)
 
-    # Define homology
-    homology = len(typeIIS.replace('N', ''))
+    # Define Additional Variables
+    typeIISmotif = typeIIS.replace('N', '')
+    homology     = len(typeIISmotif) + 1
+    background   = None
 
     # Primer Design Book-keeping
     outdf = None
@@ -736,7 +290,7 @@ def pad(
     problens,
     leftpartition,
     rightpartition) = ut.get_parsed_exmotifs(
-        exmotifs=(typeIIS.replace('N', ''), ),
+        exmotifs=(typeIISmotif,ut.get_revcomp(typeIISmotif)),
         typer=tuple,
         element='Pad',
         leftcontext=splitcol,
@@ -875,15 +429,12 @@ def pad(
         ut.remove_file,
         outfile)
 
-    # Launching Forward Primer Design
-    liner.send('\n[Step 8: Computing Forward Primer]\n')
-
-    # Define Forward Primer Design Stats
+    # Define Forward Primer-Pad Design Stats
     fwdstats = {
         'status'  : False,
         'basis'   : 'unsolved',
         'step'    : 8,
-        'stepname': 'computing-primer',
+        'stepname': 'computing-forward-pad',
         'vars'    : {
                    'primerTm': None,          # Primer Melting Temperature
                    'primerGC': None,          # Primer GC Content
@@ -899,9 +450,17 @@ def pad(
              'exmotifcounter': cx.Counter()}, # Exmotif Encounter Counter
         'warns'   : warns}
 
-    # Design Primer
-    (fwdprimer,
-    stats) = pr.primer_engine(
+    # Define Forward Primer-Pad Attributes
+    pairedrepeats = set()
+    exmotifindex  = set([fwdseq.index(
+        typeIISmotif) + len(typeIISmotif)])
+
+    # Launching Forward Primer-Pad Design
+    liner.send('\n[Step 8: Computing Forward Pad]\n')
+
+    # Design Forward Primer-Pad
+    (fwdpad,
+    fwdstats) = pr.primer_engine(
         primerseq=fwdseq,
         primerspan=fwdcore,
         homology=homology,
@@ -917,21 +476,308 @@ def pad(
         exmotifs=exmotifs,
         exmotifindex=exmotifindex,
         edgeeffectlength=edgeeffectlength,
-        prefixdict=prefixdict,
+        prefixdict=None,
         suffixdict=suffixdict,
         background=background,
-        stats=stats,
+        stats=fwdstats,
         liner=liner)
 
+    # Define Reverse Primer-Pad Design Stats
+    revstats = {
+        'status'  : False,
+        'basis'   : 'unsolved',
+        'step'    : 9,
+        'stepname': 'computing-reverse-pad',
+        'vars'    : {
+                   'primerTm': None,          # Primer Melting Temperature
+                   'primerGC': None,          # Primer GC Content
+                 'hairpinMFE': None,          # Primer Hairpin Free Energy
+               'homodimerMFE': None,          # Homodimer Free Energy
+             'heterodimerMFE': None,          # Heterodimer Free Energy
+                     'Tmfail': 0,             # Melting Temperature Fail Count
+                 'repeatfail': 0,             # Repeat Fail Count
+              'homodimerfail': 0,             # Homodimer Fail Count
+            'heterodimerfail': 0,             # Heterodimer Fail Count
+                'exmotiffail': 0,             # Exmotif Elimination Fail Count
+                   'edgefail': 0,             # Edge Effect Fail Count
+             'exmotifcounter': cx.Counter()}, # Exmotif Encounter Counter
+        'warns'   : warns}
 
+    # Do we Continue?
+    if fwdstats['status']:
 
+        # Define Reverse Primer-Pad Attributes
+        pairedrepeats = set(ut.stream_canon_spectrum(
+            seq=fwdpad[-fwdcore:],
+            k=len(typeIIS)))
+        exmotifindex  = set([revseq.index(
+            ut.get_revcomp(typeIISmotif)) + len(typeIISmotif)])
 
-    '''
-    --1. Parse Split Column--
-    2. Parse Oligo Length
-    3. Extract Sequence Constraint (both)
-    3. Parse TypeIIS Feasibility
-    4. Parse Melting Temperature
-    5. Call Engine
-    6. Parse Output
-    '''
+        # Launching Reverse Primer-Pad Design
+        liner.send('\n[Step 9: Computing Reverse Pad]\n')
+
+        # Design Reverse Primer-Pad
+        (revpad,
+        revstats) = pr.primer_engine(
+            primerseq=revseq,
+            primerspan=revcore,
+            homology=homology,
+            primertype=1,
+            fixedbaseindex=cp.get_fixedbaseindex(seq=revseq),
+            mintmelt=fwdstats['vars']['primerTm']-1,
+            maxtmelt=fwdstats['vars']['primerTm']+1,
+            maxreplen=maxreplen,
+            oligorepeats=oligorepeats,
+            pairedprimer=fwdpad,
+            pairedspan=fwdcore,
+            pairedrepeats=pairedrepeats,
+            exmotifs=exmotifs,
+            exmotifindex=exmotifindex,
+            edgeeffectlength=edgeeffectlength,
+            prefixdict=prefixdict,
+            suffixdict=None,
+            background=background,
+            stats=revstats,
+            liner=liner)
+
+    # Meta Merge
+    stats['status']   = fwdstats['status'] and \
+                        revstats['status']
+    stats['basis']    = 'solved' if stats['status'] else 'unsolved'
+    stats['step']     = fwdstats['step'] if not revstats['status'] \
+                                         else   revstats['step']
+    stats['stepname'] = fwdstats['stepname'] if not revstats['status'] \
+                                             else   revstats['stepname']
+
+    # Forward Stats Merge
+    stats['vars']['fwdpadprimerTm']     = fwdstats['vars']['primerTm']
+    stats['vars']['fwdpadprimerGC']     = fwdstats['vars']['primerGC']
+    stats['vars']['fwdpadhairpinMFE']   = fwdstats['vars']['hairpinMFE']
+    stats['vars']['fwdpadhomodimerMFE'] = fwdstats['vars']['homodimerMFE']
+    stats['vars']['Tmfail']             = fwdstats['vars']['Tmfail']
+    stats['vars']['repeatfail']         = fwdstats['vars']['repeatfail']
+    stats['vars']['homodimerfail']      = fwdstats['vars']['homodimerfail']
+    stats['vars']['heterodimerfail']    = fwdstats['vars']['heterodimerfail']
+    stats['vars']['exmotiffail']        = fwdstats['vars']['exmotiffail']
+    stats['vars']['edgefail']           = fwdstats['vars']['edgefail']
+    stats['vars']['exmotifcounter']     = fwdstats['vars']['exmotifcounter']
+
+    # Reverse Stats Merge
+    stats['vars']['revpadprimerTm']     = revstats['vars']['primerTm']
+    stats['vars']['revpadprimerGC']     = revstats['vars']['primerGC']
+    stats['vars']['revpadhairpinMFE']   = revstats['vars']['hairpinMFE']
+    stats['vars']['revpadhomodimerMFE'] = revstats['vars']['homodimerMFE']
+    stats['vars']['heterodimerMFE']     = revstats['vars']['heterodimerMFE']
+    stats['vars']['Tmfail']            += revstats['vars']['Tmfail']
+    stats['vars']['repeatfail']        += revstats['vars']['repeatfail']
+    stats['vars']['homodimerfail']     += revstats['vars']['homodimerfail']
+    stats['vars']['heterodimerfail']   += revstats['vars']['heterodimerfail']
+    stats['vars']['exmotiffail']       += revstats['vars']['exmotiffail']
+    stats['vars']['edgefail']          += revstats['vars']['edgefail']
+    stats['vars']['exmotifcounter']    += revstats['vars']['exmotifcounter']
+
+    # Primer Status
+    if stats['status']:
+        padstatus = 'Successful'
+    else:
+        padstatus = 'Failed'
+
+    # Insert primer into indf
+    if stats['status']:
+
+        # Extract indf
+        indf = indf[[splitcolname]]
+
+        # Compute columns
+        LeftSpacer    = []
+        ForwardPrimer = []
+        RightSpacer   = []
+        ReversePrimer = []
+
+        # Decompose Balance
+        for balance in paddingbalance:
+
+            # Get the Current Balance
+            p,q = balance
+
+            # Left Pad Extration from Balance
+            xfwdpad = fwdpad[-p:]
+            s = p - fwdcore
+
+            # Do we have Left Spacer?
+            if s > 0:
+                leftspacer = xfwdpad[:s]
+            else:
+                leftspacer = '-'
+            fwdprimer = xfwdpad[-fwdcore:]
+
+            # Right Pad Extration from Balance
+            xrevpad = revpad[:q]
+            s = q - revcore
+
+            # Do we have Right Spacer?
+            if s > 0:
+                rightspacer = xrevpad[-s:]
+            else:
+                rightspacer = '-'
+            revprimer = xrevpad[:+revcore]
+
+            # Add Elements to Columns
+            LeftSpacer.append(leftspacer)
+            RightSpacer.append(rightspacer)
+            ForwardPrimer.append(fwdprimer)
+            ReversePrimer.append(revprimer)
+
+        # Add columns
+        indf['5\'Spacer']     = LeftSpacer
+        indf['3\'Spacer']     = RightSpacer
+        indf['ForwardPrimer'] = ForwardPrimer
+        indf['ReversePrimer'] = ReversePrimer
+
+        # Prepare outdf
+        outdf = indf
+        outdf = outdf[['5\'Spacer',
+            'ForwardPrimer',
+            splitcolname,
+            'ReversePrimer',
+            '3\'Spacer']]
+
+        # Write outdf to file
+        if not outfile is None:
+            outdf.to_csv(
+                path_or_buf=outfile,
+                sep=',')
+
+    # Primer Design Statistics
+    liner.send('\n[Pad Design Statistics]\n')
+
+    liner.send(
+        '       Design Status    : {}\n'.format(
+            padstatus))
+
+    # # Success Relevant Stats
+    if stats['status']:
+
+        liner.send(
+            '     Melting Temperature: {:6.2f} °C and {:6.2f} °C\n'.format(
+                stats['vars']['fwdpadprimerTm'],
+                stats['vars']['revpadprimerTm']))
+        liner.send(
+            '          GC Content    : {:6.2f} %  and {:6.2f} %\n'.format(
+                stats['vars']['fwdpadprimerGC'],
+                stats['vars']['revpadprimerGC']))
+        liner.send(
+            '     Hairpin MFE        : {:6.2f} kcal/mol and {:6.2f} kcal/mol\n'.format(
+                stats['vars']['fwdpadhairpinMFE'],
+                stats['vars']['revpadhairpinMFE']))
+        liner.send(
+            '   Homodimer MFE        : {:6.2f} kcal/mol and {:6.2f} kcal/mol\n'.format(
+                stats['vars']['fwdpadhomodimerMFE'],
+                stats['vars']['revpadhomodimerMFE']))
+        liner.send(
+            ' Heterodimer MFE        : {:6.2f} kcal/mol\n'.format(
+                stats['vars']['heterodimerMFE']))
+
+    # Failure Relavant Stats
+    else:
+        maxval = max(stats['vars'][field] for field in (
+            'Tmfail',
+            'repeatfail',
+            'homodimerfail',
+            'heterodimerfail',
+            'exmotiffail',
+            'edgefail'))
+
+        sntn, plen = ut.get_notelen(
+            printlen=ut.get_printlen(
+                value=maxval))
+
+        total_conflicts = stats['vars']['Tmfail']        + \
+                          stats['vars']['repeatfail']      + \
+                          stats['vars']['homodimerfail']   + \
+                          stats['vars']['heterodimerfail'] + \
+                          stats['vars']['exmotiffail']     + \
+                          stats['vars']['edgefail']
+
+        liner.send(
+            ' Melt. Temp. Conflicts  : {:{},{}} Event(s) ({:6.2f} %)\n'.format(
+                stats['vars']['Tmfail'],
+                plen,
+                sntn,
+                ut.safediv(
+                    A=stats['vars']['Tmfail'] * 100.,
+                    B=total_conflicts)))
+        liner.send(
+            '      Repeat Conflicts  : {:{},{}} Event(s) ({:6.2f} %)\n'.format(
+                stats['vars']['repeatfail'],
+                plen,
+                sntn,
+                ut.safediv(
+                    A=stats['vars']['repeatfail'] * 100.,
+                    B=total_conflicts)))
+        liner.send(
+            '   Homodimer Conflicts  : {:{},{}} Event(s) ({:6.2f} %)\n'.format(
+                stats['vars']['homodimerfail'],
+                plen,
+                sntn,
+                ut.safediv(
+                    A=stats['vars']['homodimerfail'] * 100.,
+                    B=total_conflicts)))
+        liner.send(
+            ' Heterodimer Conflicts  : {:{},{}} Event(s) ({:6.2f} %)\n'.format(
+                stats['vars']['heterodimerfail'],
+                plen,
+                sntn,
+                ut.safediv(
+                    A=stats['vars']['heterodimerfail'] * 100.,
+                    B=total_conflicts)))
+        liner.send(
+            '     Exmotif Conflicts  : {:{},{}} Event(s) ({:6.2f} %)\n'.format(
+                stats['vars']['exmotiffail'],
+                plen,
+                sntn,
+                ut.safediv(
+                    A=stats['vars']['exmotiffail'] * 100.,
+                    B=total_conflicts)))
+        liner.send(
+            '        Edge Conflicts  : {:{},{}} Event(s) ({:6.2f} %)\n'.format(
+                stats['vars']['edgefail'],
+                plen,
+                sntn,
+                ut.safediv(
+                    A=stats['vars']['edgefail'] * 100.,
+                    B=total_conflicts)))
+
+        # Enumerate Motif-wise Fail Counts
+        if stats['vars']['exmotifcounter']:
+
+            qlen = max(len(motif) \
+                for motif in stats['vars']['exmotifcounter'].keys()) + 2
+
+            sntn, vlen = ut.get_notelen(
+                printlen=ut.get_printlen(
+                    value=max(
+                        stats['vars']['exmotifcounter'].values())))
+
+            liner.send('   Exmotif-wise Conflict Distribution\n')
+
+            for exmotif,count in stats['vars']['exmotifcounter'].most_common():
+                exmotif = '\'{}\''.format(exmotif)
+                liner.send(
+                    '     - Exmotif {:>{}} Triggered {:{},{}} Event(s)\n'.format(
+                        exmotif, qlen, count, vlen, sntn))
+
+    # Show Time Elapsed
+    liner.send(
+        ' Time Elapsed: {:.2f} sec\n'.format(
+            tt.time()-t0))
+
+    # Unschedule outfile deletion
+    if padstatus:
+        ae.unregister(ofdeletion)
+
+    # Close Liner
+    liner.close()
+
+    # Return Solution and Statistics
+    return (outdf, stats)

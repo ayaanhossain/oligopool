@@ -11,22 +11,6 @@ import coreprimer  as cp
 import primer      as pr
 
 
-# Gamplan
-'''
-1. Figure out Max and Min Span
-2. Build out longest left and right filler constraints Ns + Motif or Motif + Ns
-3. Local Model Functions:
-   - Homodimer   on the longest  span should be feasible
-   - Heterodimer on the shortest span should be feasible
-   - Tm on the shortest span should be feasible
-   - NO exmotifs
-   - NO Edge Constraints
-4. Build Maker Object
-5. Build Background of Fragments
-6. Run Maker to Build Forward Pad
-7. Run Maker to Build Reverse Pad
-'''
-
 def pad(
     indata,
     splitcol,

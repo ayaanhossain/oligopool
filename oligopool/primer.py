@@ -597,7 +597,6 @@ def primer(
 
     # Parse oligolimit
     (parsestatus,
-    oligolimit,
     minvariantlen,
     maxvariantlen,
     minelementlen,

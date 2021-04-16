@@ -545,7 +545,6 @@ def barcode(
 
     # Parse oligolimit
     (parsestatus,
-    oligolimit,
     minvariantlen,
     maxvariantlen,
     minelementlen,

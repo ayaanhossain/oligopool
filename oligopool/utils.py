@@ -687,7 +687,6 @@ def get_parsed_oligolimit(
 
     # Return Results
     return (parsestatus,
-        oligolimit,
         minvariantlen,
         maxvariantlen,
         minelementlen,

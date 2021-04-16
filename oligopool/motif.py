@@ -357,7 +357,6 @@ def motif(
 
     # Parse oligolimit
     (parsestatus,
-    oligolimit,
     minvariantlen,
     maxvariantlen,
     minelementlen,

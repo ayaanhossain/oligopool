@@ -403,7 +403,6 @@ def spacer(
 
     # Parse oligolimit
     (parsestatus,
-    oligolimit,
     minvariantlen,
     maxvariantlen,
     minelementlen,

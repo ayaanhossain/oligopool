@@ -763,7 +763,26 @@ def get_parsed_typeIIS_constraint(
 
     :: typeIIS
        type - string
-       desc - 
+       desc - full typeIIS motif along with
+              any 3' Cut sequence
+    :: typeIISname
+       type - string
+       desc - typeIIS enzyme name
+    :: minfragmentlen
+       type - integer
+       desc - minimum split fragment length
+              in split column selected
+    :: maxfragmentlen
+       type - integer
+       desc - maximum split fragment length
+              in split column selected
+    :: oligolimit
+       type - integer
+       desc - maximum oligo length after
+              pads are added
+    :: liner
+       type - coroutine
+       desc - dynamic printing
     '''
 
     # Book-keeping

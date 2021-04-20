@@ -937,3 +937,97 @@ def get_split(
         return None # No Solution
     else:
         return r,q
+
+def aggregate_stats(
+    seqlist,
+    seqmat,
+    split,
+    overlap,
+    padvec,
+    stats,
+    liner):
+    '''
+    TBW
+    '''
+
+    # Book-keeping
+    t0 = tt.time()
+    splitstore = cx.deque([] for _ in range(len(split)))
+    overlapTmtotals = np.zeros(len(overlap))
+    overlapHDtotals = np.zeros(len(overlap))
+    TmDenom = np.zeros(len(overlap))
+    HDDenom = np.zeros(len(overlap))
+    edges   = min(10, max(1, 10**6 / len(seqlist)))
+    stats['vars']['splitlens'] = [float('inf') for _ in range(len(split))]
+
+    plen = ut.get_printlen(value=len(overlap))
+    qlen = ut.get_printlen(value=len(seqlist))
+
+    # Loop through Strings
+    for jdx in range(len(seqlist)):
+
+        # Store Split Strings
+        seq = seqlist[jdx]
+        for idx in range(len(split)):
+            splitseq = seq[split[idx][0]:split[idx][1]]
+            stats['vars']['splitlens'][idx] = min(
+                len(splitseq),
+                stats['vars']['splitlens'][idx])
+            if idx % 2 == 1:
+                splitseq = ut.get_revcomp(
+                    seq=splitseq)
+            splitstore[idx].append(splitseq)
+
+        # Loop through Overlaps
+        for idx,ol in enumerate(overlap):
+
+            # Compute and Store Tm
+            tmelt = ut.get_tmelt(
+                seq=seqlist[jdx],
+                i=overlap[idx][0],
+                j=overlap[idx][1])
+            overlapTmtotals[idx] += tmelt
+            TmDenom[idx] += 1
+
+            # Compute and Store HDist
+            if jdx < len(seqlist)-1:
+
+                # Fetch Subsample Coordinates
+                sxr = np.random.randint(
+                    low=jdx+1,
+                    high=len(seqlist),
+                    size=min(edges, len(seqlist)-jdx-1))
+
+                # Compute HDist
+                for kdx in sxr:
+                    hdist = ut.get_pair_hdist(
+                        store=seqmat,
+                        idx1=jdx,
+                        idx2=kdx,
+                        i=overlap[idx][0],
+                        j=overlap[idx][1])
+                    overlapHDtotals[idx] += hdist
+                    HDDenom[idx] += 1
+
+            # Show Update
+            liner.send(' Analyzing: Sequence {:{},d} - Overlap {:{},d}'.format(
+                jdx+1,
+                qlen,
+                idx+1,
+                plen))
+
+    # Average Statistics
+    stats['vars']['numsplits']    = len(split)
+    stats['vars']['overlaplens']  = [y-x for x,y in overlap]
+    stats['vars']['meanTmdistro'] = list(map(
+        int, np.round(overlapTmtotals / TmDenom)))
+    stats['vars']['meandistancedistro'] = list(map(
+        int, np.round(overlapHDtotals / HDDenom)))
+
+    # Show Time Elapsed
+    liner.send('\* Time Elapsed: {:.2f} sec\n'.format(
+        tt.time()-t0))
+
+    # Return Results
+    return (splitstore,
+        stats)

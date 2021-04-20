@@ -451,6 +451,39 @@ def get_store_hdist(
     # Return Result
     return hdist
 
+@nb.njit
+def get_pair_hdist(
+    store,
+    idx1,
+    idx2,
+    i=0,
+    j=None):
+    '''
+    Return the pairwise hamming distance between
+    store[idx1, i:j] and store[idx2, i:j].
+    Internal use only.
+
+    :: store
+       type - np.array
+       desc - numeric sequence array
+    :: idx1
+       type - integer
+       desc - location index of the first
+              sequence being compared
+    :: idx2
+       type - integer
+       desc - location index of the second
+              sequence being compared
+    :: i
+       type - integer
+       desc - starting index of comparison
+    :: j
+       type - integer
+       desc - ending   index of comparison
+    '''
+
+    return (store[idx1, i:j] != store[idx2, i:j]).sum()
+
 def get_tmelt(
     seq,
     i=0,

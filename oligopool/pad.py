@@ -639,7 +639,7 @@ def pad(
         '       Design Status    : {}\n'.format(
             padstatus))
 
-    # # Success Relevant Stats
+    # Success Relevant Stats
     if stats['status']:
 
         liner.send(

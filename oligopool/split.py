@@ -3,8 +3,8 @@ import time  as tt
 import collections as cx
 import atexit      as ae
 
-import numpy as np
-import numba as nb
+import numpy  as np
+import pandas as pd
 
 import utils     as ut
 import valparse  as vp
@@ -16,7 +16,6 @@ def split_engine(
     oligolimit,
     mintmelt,
     minhdist,
-    minoverlap,
     maxoverlap,
     minvariantlen,
     maxvariantlen,
@@ -157,24 +156,35 @@ def split_engine(
                 state  = 1
                 break
 
-    # Show Result
+    # Compute Verdict
     if status:
-        liner.send('\n  Solution Status: Splitting Completed\n'.format())
+        # Update Stats
+        stats['status'] = True
+        stats['basis']  = 'solved'
+        # Sh
+        liner.send(
+            '\n  Solution Status: Splitting Completed\n'.format())
     else:
         if state == 0:
-            liner.send('\n  Solution Status: Unsolved due to Infeasible Variable Contigs\n')
+            # Update Stats
+            stats['vars']['infeasiblecontigs'] = True
+
+            liner.send(
+                '\n  Solution Status: Unsolved due to Infeasible Variable Contigs\n')
         else:
-            liner.send('\n  Solution Status: Unsolved due to Uneven Number of Splits\n')
+            # Update Stats
+            stats['vars']['unevensplits'] = True
+
+            liner.send(
+                '\n  Solution Status: Unsolved due to Uneven Number of Splits\n')
 
     # Final Updates
     liner.send('  Time Elapsed: {:.2f} sec\n'.format(tt.time() - mt0))
 
     # Return Results
-    if not status:
-        return None # No Solution
-    return (status,
-        state,
-        split)
+    return (split,
+        overlap,
+        stats)
 
 def split(
     indata,
@@ -395,13 +405,15 @@ def split(
         'status'  : False,
         'basis'   : 'unsolved',
         'step'    : 8,
-        'stepname': 'computing-primer',
+        'stepname': 'computing-split',
         'vars'    : {
-                    'numsplits': 0,   # Total Number of Splits
-                    'splitlens': [],  # Split Oligo Lengths
-                  'overlaplens': [],  # Split Overlap Lengths
-                  'meansplitTm': [],  # Mean Tm of Each Split
-            'meansplitdistance': []}, # Mean HDist of Each Split
+                     'numsplits': 0,   # Total Number of Splits
+                     'splitlens': [],  # Split Oligo Lengths
+                   'overlaplens': [],  # Split Overlap Lengths
+                  'meanTmdistro': [],  # Mean Tm of Each Split
+            'meandistancedistro': [],  # Mean HDist of Each Split
+             'infeasiblecontigs': False,  # Infeasible Contigs Flag
+                  'unevensplits': False}, # Uneven Splits Flag
         'warns'   : warns}
 
     # Schedule outfile deletion
@@ -410,12 +422,13 @@ def split(
         outfile)
 
     # Design Split
-    split = split_engine(
+    (split,
+    overlap,
+    stats) = split_engine(
         seqlist=seqlist,
         oligolimit=oligolimit,
         mintmelt=mintmelt,
         minhdist=minhdist,
-        minoverlap=minoverlap,
         maxoverlap=maxoverlap,
         minvariantlen=minvariantlen,
         maxvariantlen=maxvariantlen,
@@ -425,11 +438,121 @@ def split(
         stats=stats,
         liner=liner)
 
-    # Compute Stats if Splitting Successful
-    print(split)
+    # Success Relevant Stats
+    if stats['status']:
 
-    # Post Processing
+        # Launching Stats Aggregation
+        liner.send('\n[Step 6: Aggregating Stats]\n')
 
+        # Compute Tm and HDist Distribution
+        # and Finalize Split Sequences
+        (splitstore,
+        stats) = cs.aggregate_stats(
+            seqlist=seqlist,
+            seqmat=seqmat,
+            split=split,
+            overlap=overlap,
+            padvec=padvec,
+            stats=stats,
+            liner=liner)
 
+    # Split Status
+    if stats['status']:
+        splitstatus = 'Successful'
+    else:
+        splitstatus = 'Failed'
 
+    # Insert split into outdf
+    if stats['status']:
 
+        # Prepare outdf
+        outdf = pd.DataFrame(
+            index=indf.index)
+
+        # Insert Splits into Columns
+        for sidx in range(len(split)):
+            outdf['Split-{}'.format(sidx+1)] = splitstore[sidx]
+
+        # Write outdf to file
+        if not outfile is None:
+            outdf.to_csv(
+                path_or_buf=outfile,
+                sep=',')
+
+    # Split Design Statistics
+    liner.send('\n[Split Design Statistics]\n')
+
+    liner.send(
+        '     Design Status  : {}\n'.format(
+            splitstatus))
+
+    # Success Relevant Stats
+    if stats['status']:
+
+        maxval = max(max(min(stats['vars'][field]) for field in (
+            'splitlens',
+            'overlaplens',
+            'meanTmdistro',
+            'meandistancedistro')),
+            stats['vars']['numsplits'])
+
+        sntn, plen = ut.get_notelen(
+            printlen=ut.get_printlen(
+                value=maxval))
+
+        liner.send(
+            '     No. of Splits  : {:{},d} Fragments per Variant\n'.format(
+                stats['vars']['numsplits'],
+                plen))
+        liner.send(
+            '      Split Length  : {:{},d} {}Base Pair(s)\n'.format(
+                min(stats['vars']['splitlens']),
+                plen,
+                ['', 'to {:,d} '.format(max(stats['vars']['splitlens']))][
+                    max(stats['vars']['splitlens']) != min(stats['vars']['splitlens'])
+                ]))
+        liner.send(
+            '    Overlap Length  : {:{},d} {}Base Pair(s)\n'.format(
+                min(stats['vars']['overlaplens']),
+                plen,
+                ['', 'to {:,d} '.format(max(stats['vars']['overlaplens']))][
+                    max(stats['vars']['overlaplens']) != min(stats['vars']['overlaplens'])
+                ]))
+        liner.send(
+            '    Overlap Tm      : {:{},d} {}°C\n'.format(
+                min(stats['vars']['meanTmdistro']),
+                plen,
+                ['', 'to {:,d} '.format(max(stats['vars']['meanTmdistro']))][
+                    max(stats['vars']['meanTmdistro']) != min(stats['vars']['meanTmdistro'])
+                ]))
+        liner.send(
+            '    Overlap Distance: {:{},d} {}Base Pair(s)\n'.format(
+               min(stats['vars']['meandistancedistro']),
+                plen,
+                ['', 'to {:,d} '.format(max(stats['vars']['meandistancedistro']))][
+                    max(stats['vars']['meandistancedistro']) != min(stats['vars']['meandistancedistro'])
+                ]))
+
+    # Failure Relavant Stats
+    else:
+        liner.send(
+            ' Infeasible Contigs : {}\n'.format(
+                ['No', 'Yes'][stats['vars']['infeasiblecontigs']]))
+        liner.send(
+            '      Unven Split   : {}\n'.format(
+                ['No', 'Yes'][stats['vars']['unevensplits']]))
+
+    # Show Time Elapsed
+    liner.send(
+        ' Time Elapsed: {:.2f} sec\n'.format(
+            tt.time()-t0))
+
+    # Unschedule outfile deletion
+    if splitstatus:
+        ae.unregister(ofdeletion)
+
+    # Close Liner
+    liner.close()
+
+    # Return Solution and Statistics
+    return (outdf, stats)

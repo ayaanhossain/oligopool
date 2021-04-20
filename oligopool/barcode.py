@@ -765,9 +765,13 @@ def barcode(
         stats=stats,
         liner=liner)
 
-    # Compute Hamming Distribution
+    # Success Relevant Stats
     if not store is None:
+
+        # Launching Distance Distribution Analysis
         liner.send('\n[Step 7: Computing Distance Distribution]\n')
+
+        # Compute Hamming Distance Distribution
         stats['vars']['distancedistro'] = cb.get_distro(
             store=store,
             codes=codes,

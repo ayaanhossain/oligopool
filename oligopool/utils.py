@@ -9,7 +9,6 @@ import atexit  as ae
 import collections as cx
 
 import numpy   as np
-from numpy.core.fromnumeric import repeat
 import numba   as nb
 import primer3 as p3
 
@@ -523,7 +522,7 @@ def get_tmelt(
     :: olc
        type - float
        desc - oligo conc. (nM)
-              (default=50 nM)
+              (default=50.0 nM)
     '''
     return p3.bindings.calcTm(
         seq=seq[i:j],

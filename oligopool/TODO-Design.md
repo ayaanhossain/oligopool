@@ -28,8 +28,8 @@ background -- done
 primer     -- done
 barcode    -- done
 spacer     -- done
-split      -- needs finalization
-pad        -- needs finalization
+split      -- done
+pad        -- done
 lenstat    -- done
 finalize   -- done
 
@@ -143,10 +143,10 @@ padding.py
 ~~* Follow Gameplan~~
 
 split.py
-* Pad shorter sequences, throwing warnings
-    - perhaps a validation?
-    - perhaps this is dynamic and determined
+~~* Pad shorter sequences, throwing warnings~~
+    ~~- perhaps a validation?~~
+    ~~- perhaps this is dynamic and determined
       as each split is made; a split comprising
       of less than T nucleotides of actual
-      fragment content is flagged out
-* Chop off padding before returning
+      fragment content is flagged out~~
+~~* Chop off padding before returning~~

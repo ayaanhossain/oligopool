@@ -3,7 +3,6 @@ import time  as tt
 import collections as cx
 
 import numpy as np
-from numpy.core.fromnumeric import var
 
 import utils as ut
 

@@ -10,9 +10,9 @@ import utils as ut
 
 # Parser and Setup Functions
 
-def get_parsed_oligolimit(
+def get_parsed_splitlimit(
     indf,
-    oligolimit,
+    splitlimit,
     liner):
     '''
     Determine if splitting is feasible
@@ -23,9 +23,10 @@ def get_parsed_oligolimit(
        type - pd.DataFrame
        desc - input DataFrame containing
               all designed variants
-    :: oligolimit
+    :: splitlimit
        type - integer
        desc - maximum allowed oligo length
+              after splitting
     :: liner
        type - coroutine
        desc - dynamic printing
@@ -33,7 +34,7 @@ def get_parsed_oligolimit(
 
     # Book-keeping
     t0 = tt.time()
-    lengthdiff    = round(oligolimit * 0.25)
+    lengthdiff    = round(splitlimit * 0.25)
     maxvariantlen = None
     minsplitcount = None
     maxsplitcount = None
@@ -63,10 +64,10 @@ def get_parsed_oligolimit(
     # maxvariantlen = 190
 
     # Compute Length Feasibility
-    if minvariantlen < oligolimit:
-        parsemsg = ' [INFEASIBLE] (Variants Shorter than Oligo Limit)'
-    elif oligolimit - (maxvariantlen - minvariantlen) < lengthdiff:
-        # Note: Length Differential is more than 1/4 th of Oligo Limit
+    if minvariantlen < splitlimit:
+        parsemsg = ' [INFEASIBLE] (Variants Shorter than Split Limit)'
+    elif splitlimit - (maxvariantlen - minvariantlen) < lengthdiff:
+        # Note: Length Differential is more than 1/4 th of Split Limit
         parsemsg = ' [INFEASIBLE] (Lengths Differ by More than {:,} bp)'.format(
             lengthdiff)
     else:
@@ -87,8 +88,8 @@ def get_parsed_oligolimit(
                 parsemsg))
 
     # Computing Split Counts
-    minsplitcount = int(np.ceil(minvariantlen / (oligolimit * 1.)))
-    maxsplitcount = int(np.ceil(maxvariantlen / (oligolimit * 1.)))
+    minsplitcount = int(np.ceil(minvariantlen / (splitlimit * 1.)))
+    maxsplitcount = int(np.ceil(maxvariantlen / (splitlimit * 1.)))
 
     # minsplitcount = 2
     # maxsplitcount = 3
@@ -122,7 +123,7 @@ def get_parsed_oligolimit(
     parsestatus = lengthcond and splitcond
     if not parsestatus:
         liner.send(
-            ' Verdict: Splitting Infeasible due to Oligo Limit Constraints\n')
+            ' Verdict: Splitting Infeasible due to Split Limit Constraints\n')
     else:
         liner.send(
             ' Verdict: Splitting Possibly Feasible\n')
@@ -624,7 +625,7 @@ def is_varcont_feasible(
 
 def get_splitend(
     fstart,
-    oligolimit,
+    splitlimit,
     variantlen):
     '''
     Return the fragment end coordinates.
@@ -633,7 +634,7 @@ def get_splitend(
     :: fstart
        type - integer
        desc - current fragment starting point
-    :: oligolimit
+    :: splitlimit
        type - integer
        desc - maximum length of split oligo
     :: variantlen
@@ -641,13 +642,13 @@ def get_splitend(
        desc - variant length considered
     '''
 
-    return min(fstart+oligolimit, variantlen)
+    return min(fstart+splitlimit, variantlen)
 
 def get_splitqueue(
     varcont,
     fstart,
     sstart,
-    oligolimit,
+    splitlimit,
     variantlen):
     '''
     Return all variable contigs splitpoints given
@@ -663,7 +664,7 @@ def get_splitqueue(
     :: sstart
        type - integer
        desc - current split starting point
-    :: oligolimit
+    :: splitlimit
        type - integer
        desc - maximum length of split oligo
     :: variantlen
@@ -679,7 +680,7 @@ def get_splitqueue(
     spq = cx.deque()
     end = get_splitend(
         fstart=fstart,
-        oligolimit=oligolimit,
+        splitlimit=splitlimit,
         variantlen=variantlen)
 
     # Determine Potential Splitpoints from Contigs
@@ -717,7 +718,7 @@ def get_splitqueue(
 
 def continue_splitting(
     fstart,
-    oligolimit,
+    splitlimit,
     variantlen):
     '''
     Determine if the current split engenders the last
@@ -726,7 +727,7 @@ def continue_splitting(
     :: fstart
        type - integer
        desc - current fragment starting point
-    :: oligolimit
+    :: splitlimit
        type - integer
        desc - maximum length of split oligo
     :: variantlen
@@ -738,7 +739,7 @@ def continue_splitting(
     # reach end of sequence
     if get_splitend(
         fstart=fstart,
-        oligolimit=oligolimit,
+        splitlimit=splitlimit,
         variantlen=variantlen) == variantlen:
         return False # No more splitting required
 
@@ -755,8 +756,8 @@ def get_split(
     liner):
     '''
     Return an integer r (p < r < q) from spq intervals such
-    that Tm(runmat[r:q]) > mintmelt and HD(seqmat) > minhdist.
-    Internal use only.
+    that r < q - maxoverlap, Tm(runmat[r:q]) > mintmelt and
+    HD(seqmat) > minhdist. Internal use only.
 
     :: seqlist
        type - list
@@ -826,7 +827,7 @@ def get_split(
             if r < q - maxoverlap:
                 # Show Update
                 liner.send(
-                    '      Sequence {:,}: Region (Start={:,}, End={:,}) has LONG Overlap ({:,} bp)'.format(
+                    '      Sequence {:,}: Region (Start={:,}, End={:,}) has LONGER Overlap ({:,} bp)'.format(
                         idx, r, q, q-r))
 
                 # Too big of an overlap
@@ -855,7 +856,7 @@ def get_split(
 
                     # Show Update
                     liner.send(
-                        '      Sequence {:,}: Region (Start={:,}, End={:,}) has LOW Tm ({:.2f} C)'.format(
+                        '      Sequence {:,}: Region (Start={:,}, End={:,}) has LOWER Tm ({:.2f} C)'.format(
                             idx, r, q, tmelt))
 
                     # Minimize r Value
@@ -886,7 +887,7 @@ def get_split(
 
                     # Show Update
                     liner.send(
-                        '      Sequence {:,}: Region (Start={:,}, End={:,}) has LOW HDist ({:,})'.format(
+                        '      Sequence {:,}: Region (Start={:,}, End={:,}) has LOWER HDist ({:,})'.format(
                             idx, r, q, hdist))
 
                     # Minimize r Value
@@ -918,7 +919,8 @@ def get_split(
             else:
                 # Unresolvable
                 if (not condol) or (r < p):
-                    liner.send('\*      Current Split Region Infeasible for Sequence {:,} ... Skipping\n'.format(idx))
+                    liner.send(
+                        '\*      Current Split Region Infeasible for Sequence {:,} ... Skipping\n'.format(idx))
                     r = None # No solution to current split
                     break    # Try Next Split Region ..
 
@@ -928,7 +930,8 @@ def get_split(
 
         # Do we have a solution?
         if not r is None:
-            liner.send('\*      Current Split Region Optimized for All {:,} Sequences\n'.format(idx))
+            liner.send(
+                '\*      Current Split Region Optimized for All {:,} Sequences\n'.format(idx))
             state  = True  # Solution Found!
             break # We're done!
 
@@ -943,11 +946,33 @@ def aggregate_stats(
     seqmat,
     split,
     overlap,
-    padvec,
     stats,
     liner):
     '''
-    TBW
+    Aggregate Melting Temperature, Hamming
+    Distance distribution and other metrics
+    for split regions. Internal use  only.
+
+    :: seqlist
+       type - list
+       desc - list of sequences to split
+    :: seqmat
+       type - np.array
+       desc - numeric sequence matrix
+    :: split
+       type - list
+       desc - list of all (start, end)
+              split fragment coordinates
+    :: overlap
+       type - list
+       desc - list of all (start, end)
+              split overlap cooridnates
+    :: stats
+       type - dict
+       desc - split design stats storage
+    :: liner
+       type - coroutine
+       desc - dynamic printing
     '''
 
     # Book-keeping

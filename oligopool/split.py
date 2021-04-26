@@ -13,7 +13,7 @@ import coresplit as cs
 
 def split_engine(
     seqlist,
-    oligolimit,
+    splitlimit,
     mintmelt,
     minhdist,
     maxoverlap,
@@ -25,14 +25,17 @@ def split_engine(
     stats,
     liner):
     '''
-    Return a list of split coordinates.
+    Compute and return splitting coordinates.
+    Internal use only.
 
     :: seqlist
        type - list
        desc - list of sequences to split
-    :: splitlen
+
+    :: splitlimit
        type - integer
-       desc - maximum oligo length for splitting
+       desc - maximum allowed oligo length
+              after splitting
     :: mintmelt
        type - float
        desc - minimum melting temperature of
@@ -40,7 +43,39 @@ def split_engine(
     :: minhdist
        type - integer
        desc - minimum pairwise hamming distance
-              between all regions at a split
+              between all split regions at a
+              given index
+    :: maxoverlap
+       type - integer
+       desc - maximum allowed split overlap
+              length
+    :: minvariantlen
+       type - integer
+       desc - length of the shortest variant
+              in the oligopool
+    :: maxvariantlen
+       type - integer
+       desc - length of the longest variant
+              in the oligopool
+    :: spanlen
+       type - integer
+       desc - minimum required split overlap
+              length
+    :: seqmat
+       type - np.array
+       desc - numerically encoded array for
+              all variants in oligopool with
+              additional padding to make all
+              sequences have length equal to
+              maxvariantlen
+    :: varcont
+       type - cx.deque
+       desc - a deque of tuple with start and
+              end coordinates of variable
+              regions
+    :: stats
+       type - dict
+       desc - split design stats storage
     :: liner
        type - coroutine
        desc - dynamic printing
@@ -65,13 +100,13 @@ def split_engine(
             fstart,
             cs.get_splitend(
                 fstart=fstart,
-                oligolimit=oligolimit,
+                splitlimit=splitlimit,
                 variantlen=maxvariantlen)))
 
         # Do we need to split any more?
         if not cs.continue_splitting(
             fstart=fstart,
-            oligolimit=oligolimit,
+            splitlimit=splitlimit,
             variantlen=maxvariantlen):
 
             # Store Final Fragment Coordinates
@@ -100,7 +135,7 @@ def split_engine(
                 varcont=varcont,
                 fstart=fstart,
                 sstart=sstart,
-                oligolimit=oligolimit,
+                splitlimit=splitlimit,
                 variantlen=maxvariantlen)
 
             # Did we find split regions?
@@ -188,7 +223,7 @@ def split_engine(
 
 def split(
     indata,
-    oligolimit,
+    splitlimit,
     mintmelt,
     minhdist,
     minoverlap,
@@ -217,10 +252,10 @@ def split(
         precheck=False,
         liner=liner)
 
-    # Full oligolimit Validation
-    oligolimit_valid = vp.get_numeric_validity(
-        numeric=oligolimit,
-        numeric_field='   Oligo Limit      ',
+    # Full splitlimit Validation
+    splitlimit_valid = vp.get_numeric_validity(
+        numeric=splitlimit,
+        numeric_field='   Split Limit      ',
         numeric_pre_desc=' Split Fragments at most ',
         numeric_post_desc=' Base Pair(s) Each',
         minval=4,
@@ -246,7 +281,7 @@ def split(
         numeric_pre_desc=' At least ',
         numeric_post_desc=' Mismatch(es) per Off-Target Overlap Pair ',
         minval=1,
-        maxval=oligolimit if oligolimit_valid else float('inf'),
+        maxval=splitlimit if splitlimit_valid else float('inf'),
         precheck=False,
         liner=liner)
 
@@ -259,7 +294,7 @@ def split(
         range_field=' Overlap Length     ',
         range_unit='Base Pair(s) Fragment Overlap(s)',
         range_min=15 if not minhdist_valid else max(15, minhdist),
-        range_max=oligolimit if oligolimit_valid else float('inf'),
+        range_max=splitlimit if splitlimit_valid else float('inf'),
         liner=liner)
 
     # Full outfile Validation
@@ -278,7 +313,7 @@ def split(
     # First Pass Validation
     if not all([
         indata_valid,
-        oligolimit_valid,
+        splitlimit_valid,
         tmelt_valid,
         minhdist_valid,
         overlap_valid,
@@ -291,7 +326,7 @@ def split(
     t0 = tt.time()
 
     # Adjust Numeric Paramters
-    oligolimit = round(oligolimit)
+    splitlimit = round(splitlimit)
     minhdist   = round(minhdist)
     minoverlap = round(minoverlap)
     maxoverlap = round(maxoverlap)
@@ -301,10 +336,10 @@ def split(
     stats = None
     warns = {}
 
-    # Parse Oligopool Limit Feasibility
-    liner.send('\n[Step 1: Parsing Oligo Limit]\n')
+    # Parse Oligopool Split Limit Feasibility
+    liner.send('\n[Step 1: Parsing Split Limit]\n')
 
-    # Parse oligolimit
+    # Parse splitlimit
     (parsestatus,
     seqlist,
     oligounderflow,
@@ -312,12 +347,12 @@ def split(
     minvariantlen,
     maxvariantlen,
     minsplitcount,
-    maxsplitcount) = cs.get_parsed_oligolimit(
+    maxsplitcount) = cs.get_parsed_splitlimit(
         indf=indf,
-        oligolimit=oligolimit,
+        splitlimit=splitlimit,
         liner=liner)
 
-    # oligolimit infeasible
+    # splitlimit infeasible
     if not parsestatus:
 
         # Prepare stats
@@ -325,9 +360,9 @@ def split(
             'status'  : False,
             'basis'   : 'infeasible',
             'step'    : 1,
-            'stepname': 'parsing-oligo-limit',
+            'stepname': 'parsing-split-limit',
             'vars'    : {
-                    'oligolimit': oligolimit,
+                    'splitlimit': splitlimit,
                 'oligounderflow': oligounderflow,
                    'unevensplit': unevensplit,
                  'minvariantlen': minvariantlen,
@@ -367,7 +402,7 @@ def split(
     # Parse Oligopool Limit Feasibility
     liner.send('\n[Step 4: Parsing Variable Contigs]\n')
 
-    # Parse oligolimit
+    # Parse splitlimit
     (parsestatus,
     varcont,
     varcontcount,
@@ -378,7 +413,7 @@ def split(
         spanlen=spanlen,
         liner=liner)
 
-    # oligolimit infeasible
+    # splitlimit infeasible
     if not parsestatus:
 
         # Prepare stats
@@ -426,7 +461,7 @@ def split(
     overlap,
     stats) = split_engine(
         seqlist=seqlist,
-        oligolimit=oligolimit,
+        splitlimit=splitlimit,
         mintmelt=mintmelt,
         minhdist=minhdist,
         maxoverlap=maxoverlap,
@@ -452,7 +487,6 @@ def split(
             seqmat=seqmat,
             split=split,
             overlap=overlap,
-            padvec=padvec,
             stats=stats,
             liner=liner)
 
@@ -526,7 +560,7 @@ def split(
                     max(stats['vars']['meanTmdistro']) != min(stats['vars']['meanTmdistro'])
                 ]))
         liner.send(
-            '    Overlap Distance: {:{},d} {}Base Pair(s)\n'.format(
+            '    Overlap Distance: {:{},d} {}Mismatch(es)\n'.format(
                min(stats['vars']['meandistancedistro']),
                 plen,
                 ['', 'to {:,d} '.format(max(stats['vars']['meandistancedistro']))][

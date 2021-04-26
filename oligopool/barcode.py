@@ -840,7 +840,7 @@ def barcode(
 
             for distance,count in stats['vars']['distancedistro'].most_common():
                 liner.send(
-                    '     - {:{},d} Barcode(s) w/ Distance ≥ {:{},d} Mismatches\n'.format(
+                    '     - {:{},d} Barcode(s) w/ Distance ≥ {:{},d} Mismatch(es)\n'.format(
                         count,
                         clen,
                         distance,

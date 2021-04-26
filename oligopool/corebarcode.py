@@ -1,4 +1,3 @@
-from os import O_LARGEFILE
 import time  as tt
 
 import collections as cx

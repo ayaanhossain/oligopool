@@ -18,11 +18,19 @@ pack.py
 
 index.py (same as prep.py)
 
-* Indexing Structure
+~~* Indexing Structure
     - Each index takes in barcode.csv and variant.csv
     - ID must be shared between barcode and variants
     - Fields: ID LeftConstant Barcode(/Variant) RightConstant
-    - Either LeftConstant or RightConstant must be present
+    - Either LeftConstant or RightConstant must be present~~
+
+~~* Introduce get_paired_parsed_indata_info(...) as a superset of
+  get_parsed_indata_info(...) that ensures paired df indexes
+  match each other and reindex the input df based on paired
+  df. Look into get_parsed_spacerlen_info(...) for clues.~~
+
+* Finish Engine
+* Finish Scry
 
 count.py
 

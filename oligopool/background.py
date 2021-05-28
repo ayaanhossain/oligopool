@@ -289,7 +289,7 @@ def background(
     liner.send(' Time Elapsed: {:.2f} sec\n'.format(tt.time()-t0))
 
     # Unschedule outfile deletion
-    if backgroundstatus:
+    if backgroundstatus == 'Successful':
         ae.unregister(oddeletion)
 
     # Close Liner

@@ -76,7 +76,7 @@ def get_internal_repeat_conflicts(regions):
     internalrepeats = cx.Counter()
     status = True # No Conflict
 
-    # Compute internalrepeats
+    # Compute internal repeats
     for region in regions:
         internalrepeats.update(ut.stream_canon_spectrum(
             seq=region, k=6))
@@ -512,7 +512,7 @@ def get_parsed_primer_tmelt_constraint(
                 maxtmelt))
 
     # Estimate Tm Range
-    liner.send('Estimating Feasible Melting Temperature Range ...')
+    liner.send(' Estimating Feasible Melting Temperature Range ...')
 
     # Estimate Minimum Feasible Tm
     for i in range(100 * len(primerseq)):

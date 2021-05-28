@@ -1,17 +1,17 @@
 codemeta
 ~~* edge effect refactor to utils.py?~~
 ~~* Checking constraints in Maker switchable~~
-* Extract test for modules in tests directory
+~~* Extract test for modules in tests directory~~
   ~~* barcode.py~~
   ~~* primer.py~~
-* Failure states are recorded in dictionary
+~~* Failure states are recorded in dictionary
   - type: infeasible, unsolved, solved
   - step: 0  for solved,
           -1 for unsolved,
           xx for infeasible step integer id
   - variables: {
       keys: values
-    } // empty when successful
+    } // empty when successful~~
 ~~* Column Requirement specification for parsing~~
 ~~* introduce search order, an integer paramter
   which is 10^exponent of failure count / retry attempts~~

@@ -6,6 +6,7 @@ import zipfile         as zf
 import math            as mt
 
 import numpy    as np
+from numpy.core.fromnumeric import var
 import pandas   as pd
 
 import vectordb as db
@@ -248,7 +249,8 @@ def get_parsed_data_info(
     if df_extracted:
 
         # Compute emptiness
-        df_nonempty = not df.empty
+        df_nonempty = not df.empty and \
+                      len(df.columns) > 1
 
         if not df_nonempty:
             liner.send(
@@ -473,6 +475,8 @@ def get_parsed_indata_info(
         df = None
 
     # Return data validity
+    if precheck:
+        return (df, data_name, df_valid)
     return (df, df_valid)
 
 def get_outfile_validity(
@@ -766,7 +770,7 @@ def get_parsed_column_info(
 
             # There's no df to check col in
             liner.send(
-                '{}: {} \'{}\'\n'.format(
+                '{}: {} \'{}\' [COLUMN EXISTENCE UNKNOWN]\n'.format(
                     col_field,
                     col_desc,
                     col))
@@ -993,7 +997,7 @@ def get_parsed_exseqs_info(
         return (exseqs, True)
 
      # Is exseqs a CSV file or DataFrame?
-    (df,
+    (df, _,
     df_valid) = get_parsed_indata_info(
         indata=exseqs,
         indata_field=exseqs_field,
@@ -1337,6 +1341,111 @@ def get_parsed_spacerlen_info(
 
     # Return Results
     return (spacerlen, True)
+
+def get_parsed_variantdata_info(
+    variantdata,
+    variantdata_field,
+    required_fields,
+    bardf,
+    barcodedata_valid,
+    liner):
+    '''
+    Determine if variantdata is valid and the
+    ID is consistant with bardf.
+    Internal use only.
+
+    :: variantdata
+       type - string / pd.DataFrame
+       desc - path to CSV file or a pandas
+              DataFrame storing variant
+              information
+    :: variantdata_field
+       type - string
+       desc - variantdata fieldname used in
+              printing
+    :: required_fields
+       type - list / None
+       desc - list of column names which
+              must be present in data
+    :: bardf
+       type - pd.DataFrame / None
+       desc - pandas DataFrame containing
+              barcode information
+    :: barcodedata_valid
+       type - boolean
+       desc - if True indicates that shared
+              ID is to be computed, otherwise
+              ID matching is skipped
+    :: liner
+       type - coroutine
+       desc - dynamic printing
+    '''
+
+    # Is variantdata None?
+    if variantdata is None:
+        liner.send(
+            '{}: None Specified\n'.format(
+                variantdata_field))
+        return (None, True) # Because variant is optional
+
+    # Is variantdata valid?
+    (vardf,
+    data_name,
+    variantdata_valid) = get_parsed_indata_info(
+        indata=variantdata,
+        indata_field=variantdata_field,
+        required_fields=required_fields,
+        precheck=True,
+        liner=liner)
+
+    # Does vardf share ID with bardf?
+    variantdata_idx_match = False
+    if variantdata_valid:
+
+        # Are the indexes matching?
+        idx_match = False
+        if barcodedata_valid:
+
+            # Matching IDs?
+            idx_match = len(vardf.index)    == len(bardf.index) and \
+                        sorted(vardf.index) == sorted(bardf.index)
+
+            # Everything OK!
+            if idx_match:
+                vardf = vardf.reindex(bardf.index)
+                variantdata_idx_match = True # same as idx_match
+
+            # Indexes don't match
+            else:
+                liner.send(
+                    '{}: {} w/ {:,} Record(s) [COLUMN=\'ID\' DOES NOT MATCH BARCODE DATA]\n'.format(
+                        variantdata_field,
+                        data_name,
+                        len(vardf.index)))
+
+        # No basis for matching, so show indifference
+        # here, return and fail later on
+        else:
+            variantdata_idx_match = True # Technically, we can't complain!
+
+    # Compute final validity
+    vardf_valid = all([
+        variantdata_valid,
+        variantdata_idx_match])
+
+    # Is df valid?
+    if vardf_valid:
+        liner.send(
+            '{}: {} w/ {:,} Record(s)\n'.format(
+                variantdata_field,
+                data_name,
+                len(vardf.index)))
+    else:
+        # Erase df
+        vardf = None
+
+    # Return data validity
+    return (vardf, vardf_valid)
 
 def get_categorical_validity(
     category,

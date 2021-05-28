@@ -4,13 +4,25 @@ import shutil  as su
 import time    as tt
 
 import uuid    as uu
+import pickle  as pk
+import zipfile as zf
 import atexit  as ae
 
 import collections as cx
 
+import ctypes                       as ct
+import multiprocessing              as mp
+import multiprocessing.sharedctypes as mpsct
+
 import numpy   as np
 import numba   as nb
 import primer3 as p3
+
+import msgpack as mg
+import pyfastx as pf
+import edlib   as ed
+
+import scry as sy
 
 
 # Global Lookups
@@ -259,6 +271,22 @@ def get_sample(value, lf, uf):
 
 # DataFrame Functions
 
+def get_unique_count(iterable):
+    '''
+    Return the count of unique elements
+    in iterable. Internal use only.
+
+    :: iterable
+       type - iterable
+       desc - iterable to uniquify
+    '''
+
+    seen = set()
+    for element in iterable:
+        if not element in seen:
+            seen.add(element)
+    return len(seen)
+
 def get_uniques(
     iterable,
     typer):
@@ -274,6 +302,7 @@ def get_uniques(
        desc - factory function to wrap
               uniques extracted
     '''
+
     uniques = []
     seen    = set()
     for element in iterable:
@@ -2163,7 +2192,7 @@ def get_edist(seq1, seq2, max_ed=None, mode='NW'):
        type - string
        desc - a string in alphabet
               {A, T, G, C}
-    :: max_hd
+    :: max_ed
        type - integer / None
        desc - compute edit distance
               between seq1 and seq2,
@@ -2208,11 +2237,18 @@ def get_adjusted_path(path, suffix):
               with given path
     '''
 
+    # Do we have a valid string path?
+    if not isinstance(path, str):
+        return None
+
+    # Adjust path
     if path.endswith('/'):
         path = path.rstrip('/')
     if not suffix is None and \
        not path.endswith(suffix):
         path += str(suffix)
+
+    # Return adjusted path
     return path
 
 def get_path_status(
@@ -2434,3 +2470,316 @@ def remove_directory(dirpath):
             suffix=None)
         if os.path.exists(dirpath):
             su.rmtree(dirpath)
+
+# Data Saving / Loading Functions
+
+def savedict(dobj, filepath):
+    '''
+    MSGPACK dump a dictionary to filepath.
+    Internal use only.
+
+    :: dobj
+       type - dict
+       desc - dictionary to persist to disk
+    :: filepath
+       type - string
+       desc - filepath to save dictionary
+    '''
+
+    with open(filepath, 'wb') as outfile:
+        mg.dump(
+            o=dobj,
+            stream=outfile,
+            autoreset=True,
+            use_bin_type=True)
+
+def sorteditems(dobj):
+    '''
+    Return a list of dicionary items
+    sorted by keys. Internal use only.
+
+    :: dobj
+       type - dict
+       desc - a dictionary to sort by
+              keys
+    '''
+
+    return list((k,dobj[k]) for k in sorted(dobj))
+
+def savepack(pobj, filepath):
+    '''
+    MSGPACK dump a read pack to filepath.
+    Internal use only.
+
+    :: pobj
+       type - dict
+       desc - read pack to persist to disk
+    :: filepath
+       type - string
+       desc - filepath to save read pack
+    '''
+
+    with open(filepath, 'wb') as outfile:
+        mg.dump(
+            o=sorteditems(pobj),
+            stream=outfile,
+            autoreset=True,
+            use_bin_type=True)
+
+def picklesave(obj, filepath):
+    '''
+    Pickle dump an object to filepath.
+    Internal use only.
+
+    :: obj
+       type - object
+       desc - object to persist to disk
+    :: filepath
+       type - string
+       desc - filepath to save object
+    '''
+
+    with open(filepath, 'wb') as outfile:
+        pk.dump(
+            obj=obj,
+            file=outfile,
+            protocol=4,
+            fix_imports=True)
+
+def savemeta(pobj, filepath):
+    '''
+    Pickle dump a meta read pack to filepath.
+    Internal use only.
+
+    :: pobj
+       type - dict
+       desc - meta read pack to persist to disk
+    :: filepath
+       type - string
+       desc - filepath to save meta read pack
+    '''
+
+    return picklesave(
+        obj=pobj,
+        filepath=filepath)
+
+def savemodel(mobj, filepath):
+    '''
+    Pickle dump a TrueSignt model to filepath.
+    Internal use only.
+
+    :: mobj
+       type - Scry
+       desc - TrueSignt model to persist
+              to disk
+    :: filepath
+       type - string
+       desc - filepath to save model
+    '''
+
+    return picklesave(
+        obj=mobj,
+        filepath=filepath)
+
+def loaddict(archive, dfile):
+    '''
+    MSGPACK load a dictionary from archive.
+    Internal use only.
+
+    :: archive
+       type - ZipFile
+       desc - archive storing files
+    :: dfile
+       type - string
+       desc - filepath to archived
+              dictionary
+    '''
+
+    incontent = archive.read(dfile)
+    obj = mg.unpackb(
+        packed=incontent,
+        use_list=False,
+        raw=False,
+        strict_map_key=False)
+    del incontent
+    return obj
+
+def loadpack(archive, pfile):
+    '''
+    MSGPACK load a read pack from archive.
+    Internal use only.
+
+    :: archive
+       type - ZipFile
+       desc - archive storing files
+    :: pfile
+       type - string
+       desc - filepath to archived
+              read pack
+    '''
+
+    incontent = archive.read(pfile)
+    obj = mg.unpackb(
+        packed=incontent,
+        use_list=True,
+        raw=False)
+    del incontent
+    return obj
+
+def loadmeta(filepath):
+    '''
+    Pickle load a meta read pack from filepath.
+    Internal use only.
+
+    :: filepath
+       type - string
+       desc - filepath to saved meta read pack
+    '''
+
+    with open(filepath, 'rb') as infile:
+        obj = pk.load(
+            file=infile,
+            fix_imports=True)
+    return obj
+
+def loadmodel(archive, mfile):
+    '''
+    Pickle load a Scry instance from
+    archive. Internal use only.
+
+    :: archive
+       type - ZipFile
+       desc - archive storing files
+    :: pfile
+       type - string
+       desc - filepath to archived
+              Scry instance
+    '''
+
+    incontent = archive.read(mfile)
+    obj = pk.loads(
+        data=incontent,
+        fix_imports=True)
+    del incontent
+    return obj
+
+# Archiving Functions
+
+@coroutine
+def archive_engine(arcfile, mode='x'):
+    '''
+    Return a coroutine to archive sent files.
+    Internal use only.
+
+    :: arcfile
+       type - string
+       desc - archive storing all objects
+    :: mode
+       type - 'x' / 'a'
+       desc - archive operation mode
+              (default='x')
+    '''
+
+    # Delete Previous Archive File
+    if mode == 'x':
+        remove_file(
+            filepath=arcfile)
+
+    # Setup Archive File
+    arcfile = zf.ZipFile(
+        file=arcfile,
+        mode=mode,
+        compression=zf.ZIP_DEFLATED,
+        compresslevel=2)
+
+    # Arcname Extractor
+    arcname = lambda file: file[file.rfind('/')+1:]
+
+    # Online
+    try:
+        while True:
+
+            # Receive Objects
+            obj,liner = (yield)
+
+            # Decide Archive Entry Name
+            arcentry = arcname(obj)
+
+            # Update Archive Progress
+            if not liner is None:
+                liner.send(
+                    ' Archiving {} in Progress'.format(
+                        arcentry))
+
+            # Archive Object
+            arcfile.write(
+                filename=obj,
+                arcname=arcentry)
+
+    # Closure
+    except GeneratorExit:
+        arcfile.close()
+
+def archive(
+    objqueue,
+    arcfile,
+    prodcount,
+    prodactive,
+    liner):
+    '''
+    Archive objects from paths stored in
+    objqueue. Internal use only.
+
+    :: objqueue
+       type - SimpleQueue
+       desc - queue storing object paths
+              to be archived
+    :: arcfile
+       type - string
+       desc - archive storing all objects
+    :: prodcount
+       type - integer
+       desc - total number of producers
+              scheduled to add to objqueue
+    :: prodactive
+       type - SafeCounter
+       desc - total number of producers
+              actively adding to objqueue
+    :: liner
+       type - coroutine
+       desc - dynamic printing and
+              logging
+    '''
+
+    # Define Archiver
+    archiver = archive_engine(
+        arcfile=arcfile,
+        mode='x')
+
+    # Archive In-Progress
+    while prodcount:
+
+        # Waiting ...
+        if objqueue.empty():
+            continue
+
+        # Do we have a new product?
+        obj = objqueue.get()
+
+        # Did a producer finish?
+        if obj is None:
+            prodcount -= 1
+            continue
+
+        # Send Object to Archiver
+        if prodactive and \
+           prodactive.value() == 0:
+            archiver.send((obj, liner))
+        else:
+            archiver.send((obj, None))
+
+        # Remove Archived File
+        os.remove(obj)
+
+    # Archive Completed
+    archiver.close()

@@ -920,7 +920,7 @@ def barcode(
             tt.time()-t0))
 
     # Unschedule outfile deletion
-    if barcodestatus:
+    if barcodestatus == 'Successful':
         ae.unregister(ofdeletion)
 
     # Close Liner

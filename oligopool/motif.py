@@ -665,7 +665,7 @@ def motif(
             tt.time()-t0))
 
     # Unschedule outfile deletion
-    if motifstatus:
+    if motifstatus == 'Successful':
         ae.unregister(ofdeletion)
 
     # Close Liner

@@ -582,7 +582,7 @@ def split(
             tt.time()-t0))
 
     # Unschedule outfile deletion
-    if splitstatus:
+    if splitstatus == 'Successful':
         ae.unregister(ofdeletion)
 
     # Close Liner

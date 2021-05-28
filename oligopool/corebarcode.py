@@ -48,7 +48,7 @@ def get_parsed_barcode_length(
     parsestatus = designspace >= targetcount
 
     if not parsestatus:
-        parsemsg = ' [INFEASIBLE] [Design Space is Smaller than Target Space]'
+        parsemsg = ' [INFEASIBLE] (Design Space is Smaller than Target Space)'
     else:
         parsemsg = ''
 

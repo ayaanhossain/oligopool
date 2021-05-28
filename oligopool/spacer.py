@@ -692,7 +692,7 @@ def spacer(
             tt.time()-t0))
 
     # Unschedule outfile deletion
-    if spacerstatus:
+    if spacerstatus == 'Successful':
         ae.unregister(ofdeletion)
 
     # Close Liner

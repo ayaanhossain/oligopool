@@ -1066,7 +1066,7 @@ def primer(
             tt.time()-t0))
 
     # Unschedule outfile deletion
-    if primerstatus:
+    if primerstatus == 'Successful':
         ae.unregister(ofdeletion)
 
     # Close Liner

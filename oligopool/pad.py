@@ -757,7 +757,7 @@ def pad(
             tt.time()-t0))
 
     # Unschedule outfile deletion
-    if padstatus:
+    if padstatus == 'Successful':
         ae.unregister(ofdeletion)
 
     # Close Liner

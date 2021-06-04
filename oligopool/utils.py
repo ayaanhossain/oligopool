@@ -246,6 +246,23 @@ def safelog10(A):
 
     return np.log10(A) if A > 0. else 0.
 
+def safelog(A, n=10):
+    '''
+    Return the log10 of A, except when A is less
+    than or equal to zero return zero (no more
+    pesky Math Domain Errors).
+    Internal use only.
+
+    :: A
+       type - nu.Real
+       desc - quantity
+    :: n
+       type - nu.Real
+       desc - base (default=10)
+    '''
+
+    return np.log(A) / np.log(n) if (A > 0. and n > 0.) else 0.
+
 def get_sample(value, lf, uf):
     '''
     Return a random integer between
@@ -2219,6 +2236,23 @@ def get_edist(seq1, seq2, max_ed=None, mode='NW'):
     if edist == -1:
         return None
     return edist
+
+def get_tvalue(elementlen):
+    '''
+    Return the mismatch tolerance
+    value based on elementlen.
+    Internal use only.
+
+    :: elementlen
+       type - integer
+       desc - length of elements
+    '''
+
+    if   elementlen <=  8:
+        return 0
+    elif elementlen <= 15:
+        return 1
+    return round(((elementlen - 1) // 5) - 1)
 
 # Workspace Functions
 

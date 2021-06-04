@@ -6,7 +6,6 @@ import zipfile         as zf
 import math            as mt
 
 import numpy    as np
-from numpy.core.fromnumeric import var
 import pandas   as pd
 
 import vectordb as db

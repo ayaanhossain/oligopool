@@ -393,7 +393,7 @@ def infer_tvalue(
     elementlen,
     maximum):
     '''
-    Infer k-values for barcode set.
+    Infer t-values for index element.
     Internal use only.
 
     :: elementlen
@@ -405,7 +405,8 @@ def infer_tvalue(
        desc - maximum t-value
     '''
 
-    return min(maximum, (elementlen // 10) + 1)
+    return min(maximum,
+              (elementlen - 1) // 10)
 
 def split_map(
     maptosplit,

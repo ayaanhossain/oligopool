@@ -242,7 +242,8 @@ def show_update(
         ' due to Hamming Distance',
         ' due to Excluded Motif',
         ' due to Edge Effect',
-        ' due to Oligopool Repeat'][optstate]))
+        ' due to Oligopool Repeat',
+        ' due to Composition'][optstate]))
 
     if terminal:
         liner.send('\* Time Elapsed: {:.2f} sec\n'.format(
@@ -481,11 +482,42 @@ def is_nonrepetitive(
             return False
     return True
 
+def is_composition_feasible(
+    barcodeseq,
+    substringlen,
+    substringcache,):
+    '''
+    Determine if barcode is terminally
+    non-repetitive. Internal use only.
+
+    :: barcodeseq
+       type - string
+       desc - decoded barcode sequence
+    :: substringlen
+       type - integer
+       desc - barcode substring extraction
+              length
+    :: substringcache
+       type - integer
+       desc - barcode substring storage
+    '''
+
+    subset = []
+    for substring in ut.stream_spectrum(
+        seq=barcodeseq,
+        k=substringlen):
+        if substring in substringcache:
+            return False, None
+        subset.append(substring)
+    return True, subset
+
 def barcode_objectives(
     store,
     count,
     barcodeseq,
     barcodelen,
+    substringlen,
+    substringcache,
     minhdist,
     maxreplen,
     oligorepeats,
@@ -511,8 +543,14 @@ def barcode_objectives(
        type - string
        desc - decoded barcode sequence
     :: barcodelen
-       type - string
+       type - integer
        desc - barcode length
+    :: substringlen
+       type - integer
+       desc - barcode substring length
+    :: substringcache
+       type - set
+       desc - barcode substring storage
     :: minhdist
        type - integer
        desc - minimum pairwise hamming
@@ -564,7 +602,7 @@ def barcode_objectives(
 
     # Objective 1 Failed
     if not obj1:
-        return (False, 1, None, None)         # Hamming Failure
+        return (False, 1, None, None, None)         # Hamming Failure
 
     # Objective 2: Motif Embedding
     obj2, exmotif = is_exmotif_feasible(
@@ -574,7 +612,7 @@ def barcode_objectives(
 
     # Objective 2 Failed
     if not obj2:
-        return (False, 2, None, {exmotif: 1}) # Motif Failure
+        return (False, 2, None, {exmotif: 1}, None) # Motif Failure
 
     # Objective 3: Edge Feasibility (Edge-Effects)
     obj3, aidx, afails = is_edge_feasible(
@@ -588,7 +626,7 @@ def barcode_objectives(
 
     # Objective 3 Failed
     if not obj3:
-        return (False, 3, None, afails)       # Edge Failure
+        return (False, 3, None, afails, None)       # Edge Failure
 
     # Objective 4: Contextual Non-Repetitiveness
     obj4 = is_nonrepetitive(
@@ -604,10 +642,27 @@ def barcode_objectives(
         #                 Followed by Infinite Loop
         #                 (Critical Bug)
         contextarray.append(aidx)
-        return (False, 4, None, None)         # Repeat Failure
+        return (False, 4, None, None, None)         # Repeat Failure
+
+    # Objective 5: Composition Objective
+    subset = None
+    if barcodelen - substringlen > 0: # We have Composition to Optimize
+        obj5, subset = is_composition_feasible(
+            barcodeseq=barcodeseq,
+            substringlen=substringlen,
+            substringcache=substringcache)
+
+        # Objective 5 Failed
+        if not obj5:
+            # Re-insert Assignment Back in Context
+            # Otherwise, Bug: Assigned Index is Lost
+            #                 Followed by Infinite Loop
+            #                 (Critical Bug)
+            contextarray.append(aidx)
+            return (False, 5, None, None, None)     # Repeat Failure
 
     # All conditions met!
-    return (True, 0, aidx, None)
+    return (True, 0, aidx, None, subset)
 
 def get_distro(
     store,

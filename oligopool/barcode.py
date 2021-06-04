@@ -13,6 +13,7 @@ def barcode_engine(
     barcodelen,
     minhdist,
     maxreplen,
+    barcodetype,
     oligorepeats,
     leftcontext,
     rightcontext,
@@ -35,6 +36,11 @@ def barcode_engine(
     :: maxreplen
        type - integer
        desc - maximum shared repeat length
+    :: barcodetype
+       type - integer
+       desc - bacode design type identifier
+              0 = terminus optimized barcodes
+              1 = spectrum optimized barcodes
     :: oligorepeats
        type - dict
        desc - dictionary of all indexed
@@ -67,12 +73,33 @@ def barcode_engine(
     '''
 
     # Book-keeping
-    t0 = tt.time()              # Start Timer
-    store = np.zeros(           # Store Encoded Barcodes
+    t0 = tt.time()               # Start Timer
+    store = np.zeros(            # Store Encoded Barcodes
         (targetcount, barcodelen),
         dtype=np.float64)
-    codes = []                  # Store Decoded Barcodes
-    assignmentarray = []        # Assignment Array
+    codes = []                   # Store Decoded Barcodes
+    assignmentarray = []         # Assignment Array
+
+    # Spectral Uniquness
+    minstringlen = int(np.ceil(ut.safelog(
+        A=targetcount*barcodelen,
+        n=4)))
+    # Is barcodelen at minimum?
+    if barcodelen <= minstringlen:
+        substringlen = barcodelen
+        liner.send(' Type Optimization: Deactivated\n')
+    else:
+        # Terminus Optimized
+        if barcodetype == 0:
+            substringlen = barcodelen - (ut.get_tvalue(
+                elementlen=barcodelen) + 1)
+            if substringlen <= minstringlen:
+                substringlen = minstringlen
+        # Spectrum Optimized
+        else:
+            substringlen = minstringlen
+        liner.send(' Type Optimization: Activated\n')
+    substringcache = set()
 
     # Context Setup
     contextarray   = cx.deque(range(targetcount))  # Context Array
@@ -144,11 +171,14 @@ def barcode_engine(
         (optstatus,
         optstate,
         aidx,
-        emcounter) = cb.barcode_objectives(
+        emcounter,
+        subset) = cb.barcode_objectives(
             store=store,
             count=stats['vars']['barcodecount'],
             barcodeseq=barcodeseq,
             barcodelen=barcodelen,
+            substringlen=substringlen,
+            substringcache=substringcache,
             minhdist=minhdist,
             maxreplen=maxreplen,
             oligorepeats=oligorepeats,
@@ -186,6 +216,10 @@ def barcode_engine(
             # Update Codes
             codes.append(barcodeseq)
 
+            # Update Cache
+            if barcodelen - substringlen > 0:
+                substringcache.update(subset)
+
             # Update Last Accounted Barcode
             acccodeseq = barcodeseq
 
@@ -212,6 +246,8 @@ def barcode_engine(
                     emcounter.values())
             if optstate == 4:
                 stats['vars']['repeatfail']   += 1
+            if optstate == 5:
+                stats['vars']['typefail']     += 1
 
             # Inifinite Jumper Book-keeping Update
             if jtp == 2:
@@ -284,6 +320,7 @@ def barcode(
     maxreplen,
     barcodecol,
     outfile=None,
+    barcodetype=0,
     leftcontext=None,
     rightcontext=None,
     exmotifs=None,
@@ -327,6 +364,16 @@ def barcode(
        desc - filename to save updated DataFrame with barcodes
               (suffix='.oligopool.barcode.csv')
               (default=None)
+    :: barcodetype
+       type - integer
+       desc - barcode design type identifier
+              0 = terminus optimized barcodes are designed
+                  (k-mer uniqueness at minimum threshold)
+                  (barcode design is fast)
+              1 = spectrum optimized barcodes are designed
+                  (k-mer uniqueness at maximum threshold)
+                  (barcode design is slow)
+              (default=0)
     :: leftcontext
        type - string / None
        desc - name of the column containing DNA sequences
@@ -464,6 +511,17 @@ def barcode(
     # Optional Argument Parsing
     liner.send('\n Optional Arguments\n')
 
+    # Full barcodetype Validation
+    barcodetype_valid = vp.get_categorical_validity(
+        category=barcodetype,
+        category_field='  Barcode Type    ',
+        category_pre_desc=' ',
+        category_post_desc=' Barcodes',
+        category_dict={
+            0: 'Terminus Optimized',
+            1: 'Spectrum Optimized'},
+        liner=liner)
+
     # Store Context Names
     leftcontextname  = leftcontext
     rightcontextname = rightcontext
@@ -515,6 +573,7 @@ def barcode(
         maxreplen_valid,
         barcodecol_valid,
         outfile_valid,
+        barcodetype_valid,
         leftcontext_valid,
         rightcontext_valid,
         exmotifs_valid,]):
@@ -737,6 +796,7 @@ def barcode(
         'vars'    : {
                'targetcount': targetcount,   # Required Number of Barcodes
               'barcodecount': 0,             # Barcode Design Count
+                  'typefail': 0,             # Barcode Tyoe Failure Count
               'distancefail': 0,             # Hamming Distance Fail Count
                 'repeatfail': 0,             # Repeat Fail Count
                'exmotiffail': 0,             # Exmotif Elimination Fail Count
@@ -757,6 +817,7 @@ def barcode(
         barcodelen=barcodelen,
         minhdist=minhdist,
         maxreplen=maxreplen,
+        barcodetype=barcodetype,
         oligorepeats=oligorepeats,
         leftcontext=leftcontext,
         rightcontext=rightcontext,

@@ -254,6 +254,11 @@ def index(
         precheck=False,
         liner=liner)
 
+    # Sort bardf
+    if barcodedata_valid:
+        bardf.sort_index(
+            inplace=True)
+
     # Full barcodecol Validation
     (barcodes,
     barcodecol_valid) = vp.get_parsed_column_info(

@@ -371,24 +371,6 @@ def get_extracted_variants(
 
 # Engine Helper Functions
 
-def infer_kvalue(
-    elementlen,
-    minimum):
-    '''
-    Infer k-values for barcode set.
-    Internal use only.
-
-    :: elementlen
-       type - iterable
-       desc - an list of reference
-              sequences
-    :: minimum
-       type - integer
-       desc - minimum k-value
-    '''
-
-    return max(minimum, (elementlen // 2) - 1)
-
 def infer_tvalue(
     elementlen,
     maximum):
@@ -397,16 +379,36 @@ def infer_tvalue(
     Internal use only.
 
     :: elementlen
-       type - iterable
-       desc - an list of reference
-              sequences
+       type - integer
+       desc - length of element
     :: minimum
        type - integer
        desc - maximum t-value
     '''
 
-    return min(maximum,
-              (elementlen - 1) // 10)
+    return min(maximum, ut.get_tvalue(
+        elementlen=elementlen))
+
+def infer_kvalue(
+    elementlen,
+    tvalue,
+    minimum):
+    '''
+    Infer k-values for barcode set.
+    Internal use only.
+
+    :: elementlen
+       type - integer
+       desc - length of element
+    :: t-value
+       type - estimated t-value
+              for barcode set
+    :: minimum
+       type - integer
+       desc - minimum k-value
+    '''
+
+    return max(minimum, (elementlen // (tvalue * 2)))
 
 def split_map(
     maptosplit,

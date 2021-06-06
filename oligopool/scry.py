@@ -17,17 +17,17 @@ class Scry(object):
         Internal use only.
         '''
 
-        # Maps
+        # Corpus Variables
         self.c = None # Corpus Map
-        self.X = None # Corpus List
+        self.C = None # Inverse Corpus Map
         self.d = None # Spectrum Dictionary
 
-        # Instance Variables
         self.n = None # Corpus Length
         self.k = None # Corpus k-value
         self.t = None # Corpus t-value
-        self.z = None
+        self.z = None # Corpus count
 
+        # Priming Status Variables
         self.pt = None # Primed t-value
         self.pm = None # Primed mode
 
@@ -169,6 +169,7 @@ class Scry(object):
 
         # Book-keeping
         c = {}
+        C = {}
         d = {}
         B = set()
 
@@ -177,11 +178,10 @@ class Scry(object):
 
             # Show Update
             if not liner is None:
-                if y%100 == 0:
-                    liner.send(
-                        ' Barcode Model: Phase 1 on {}'.format(
-                            'Barcode {:,}'.format(
-                                y)))
+                liner.send(
+                    ' Barcode Model: Phase 1 on {}'.format(
+                        'Barcode {:,}'.format(
+                            y)))
 
             # Store Substrings in Corpus Map
             for ss,_ in Scry.stream_substrings(
@@ -190,6 +190,9 @@ class Scry(object):
                     c[ss] = y
                 else:
                     c[ss] = None # Duplicate Sentinel
+
+            # Store Inverse Mapping
+            C[y] = x
 
             # Store k-mers in Spectrum Dictionary
             if t > 0: # Mutation Expected in Query
@@ -217,13 +220,13 @@ class Scry(object):
                 idxgroup = [None]*(n-k+1)
                 ygroup   = []
                 previdx  = None
-                for ix,(idx,y) in enumerate(d[kmer]):
+                for idxi,(idxj,y) in enumerate(d[kmer]):
                     ygroup.append(y)
-                    if idx != previdx:
-                        idxgroup[idx] = [ix, ix+1]
-                        previdx = idx
+                    if idxj != previdx:
+                        idxgroup[idxj] = [idxi, idxi+1]
+                        previdx = idxj
                     else:
-                        idxgroup[idx][-1] += 1
+                        idxgroup[idxj][-1] += 1
 
                 # Update k-mer Record
                 d[kmer] = (np.array(ygroup),
@@ -231,11 +234,11 @@ class Scry(object):
                           for r in idxgroup))
 
         # Return Objects
-        return c,d
+        return c,C,d
 
     def train(self, X, Y, n, k, t, liner=None):
         '''
-        Train a Scry model.
+        Train a Scry instance.
 
         :: X
            type - iterable
@@ -261,10 +264,10 @@ class Scry(object):
 
         X = list(X)
         Y = list(Y)
-        c,d = self.index(
+        c,C,d = self.index(
             X=X, Y=Y, n=n, k=k, t=t,
             liner=liner)
-        self.X = X
+        self.C = C
         self.c = self.absorb(c, {})
         self.d = self.absorb(d, {})
         self.n = n
@@ -310,11 +313,13 @@ class Scry(object):
         self.pm = mode
         self.primed = True
 
+        return self
+
     @staticmethod
     @nb.njit
     def update_scorevector(sv, iv, sr, en, sk):
         '''
-        Update scorevector indices by k.
+        Update scorevector indices by sk.
         Internal use only.
 
         :: sv
@@ -338,7 +343,7 @@ class Scry(object):
 
     @staticmethod
     @nb.njit
-    def select_maxindex(sv):
+    def select_maxindices(sv):
         '''
         Select index with maximum score.
         Internal use only.
@@ -348,12 +353,9 @@ class Scry(object):
            desc - score vector
         '''
 
-        idx = np.flatnonzero(sv == np.max(sv))
-        if len(idx) > 1:
-            print(idx)
-            return None, None
-        idx = idx[0]
-        return idx, sv[idx]
+        idxv = np.flatnonzero(sv == np.max(sv))
+        idx  = idxv[0]
+        return idxv, sv[idx]
 
     def predict(self, x):
         '''
@@ -386,18 +388,18 @@ class Scry(object):
         # Localize Corpus Map
         sc = self.c
 
-        # Quick Check!
+        # Quick Check! (Most Expected Hit)
         if x in sc:
             y = sc[x]
             if y is None:
-                # Uniquely Resolved
+                # Pre-resolved Duplicate
                 return None, None
-            # Pre-resolved Duplicate
+            # Uniquely Resolved
             return y, 1.0
 
         # Analyze Substrings in Decreasing
         # Length Order, Left to Right
-        sl = sn if sn < n else n-1
+        sl = sn if sn < n else n-1 # (n-1 -> |x| = n was no hit)
         ys = set()
         pl = sl
         for sx,l in Scry.stream_substrings(
@@ -415,13 +417,13 @@ class Scry(object):
             if sx in sc:
                 y = sc[sx]
                 if y is None:
-                    # Unresolvable Duplicate
+                    # Pre-resolved Duplicate
                     return None, None
                 else:
                     # Potentially Resolved
                     ys.add(y)
 
-        # Last Round Assessment
+        # Final Round Assessment
         if len(ys) > 0:
             if len(ys) == 1:
                 # Uniquely Resolved
@@ -430,16 +432,18 @@ class Scry(object):
             return None, None
 
         # Are we done?
-        if self.pm == 0:
+        if (st == 0) or (self.pm == 0):
             # Continue No Further
             return None, None
 
         # Case 2: Critical Matches
 
-        # Localize Spectrum Dictionary
+        # Localize more instance attributes
         sk = self.k
         sd = self.d
         z  = self.z
+
+        # Book-keeping
         sv = np.zeros(z)
         xs = 0.
         u  = sn-sk
@@ -451,14 +455,14 @@ class Scry(object):
             # Have we seen this k-mer?
             if kmer in sd:
 
-                # Process Index Range
+                # Find Index Range Bounds
                 iv,ig = sd[kmer]
                 mi = idx-st
                 si = mi if mi > 0 else 0
                 xi = idx+st
                 ei = xi if xi < u else u
 
-                # Finalize Index Range
+                # Refine Index Range Bounds
                 kk = si
                 sr = None
                 en = None
@@ -474,7 +478,7 @@ class Scry(object):
 
                 # Range Valid?
                 if not st is None:
-                    # Score Matching Indices
+                    # Update Scores
                     xs += sk
                     Scry.update_scorevector(
                         sv=sv, iv=iv, sr=sr, en=en, sk=sk)
@@ -483,24 +487,43 @@ class Scry(object):
         if xs == 0.:
             # Nothing Matched ..
             return None, None
-        else:
-            # Get Best Matches
-            idx,idxs = Scry.select_maxindex(
-                sv=sv)
 
-            # Ambiguous Matching
-            if idx is None or idxs == 0.:
-                return None, None
+        # Get Best Matches
+        idxv,idxs = Scry.select_maxindices(
+            sv=sv)
 
-            # True Alignment Scoring
+        # Localize Corpus Dictionary
+        sC = self.C
+
+        # Find True Alignment-based Matches
+        malns = None
+        xidx  = []
+        for idx in idxv:
             alns = ed.align(
-                query=self.X[idx],
-                target=x,
+                query=x,
+                target=sC[idx],
                 mode='NW',
                 task='distance',
-                k=sk)['editDistance']
-
-            # Final Verdict
+                k=st)['editDistance']
             if alns == -1:
-                return None, None
-            return idx, idxs / xs
+                continue
+            else:
+                if (malns is None) or \
+                   (malns > alns):
+                    malns = alns
+                    xidx  = [idx]
+                elif alns == malns:
+                    xidx.append(idx)
+
+        if len(xidx) > 1:
+            print(len(xidx))
+
+        # Did we find good matches?
+        if (malns is None) or \
+           (len(xidx) > 1):
+            # Nope, Matches Overmutated
+            # or, No Unique Matches
+            return None, None
+
+        # Final Result
+        return xidx[0], idxs / (xs if xs > idxs else idxs)

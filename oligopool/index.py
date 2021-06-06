@@ -98,16 +98,6 @@ def index_engine(
         }
     }
 
-    # Compute Barcode Set k-value
-    liner.send(' Inferring Barcode k-value ...')
-    barcodekval = ci.infer_kvalue(
-        elementlen=barcodelen,
-        minimum=4)
-    liner.send(
-        ' Barcode k-value: {:,} Base Pair(s)\n'.format(
-            barcodekval))
-    metamap['barcodekval'] = barcodekval
-
     # Compute Barcode Set t-value
     liner.send(' Inferring Barcode t-value ...')
     barcodetval = ci.infer_tvalue(
@@ -118,9 +108,20 @@ def index_engine(
             barcodetval))
     metamap['barcodetval'] = barcodetval
 
+    # Compute Barcode Set k-value
+    liner.send(' Inferring Barcode k-value ...')
+    barcodekval = ci.infer_kvalue(
+        elementlen=barcodelen,
+        tvalue=barcodetval,
+        minimum=3)
+    liner.send(
+        ' Barcode k-value: {:,} Base Pair(s)\n'.format(
+            barcodekval))
+    metamap['barcodekval'] = barcodekval
+
     # Compute Variant Set t-value
     if variantdict:
-        liner.send(' Inferring Barcode t-value ...')
+        liner.send(' Inferring Variant t-value ...')
         varianttval = ci.infer_tvalue(
             elementlen=min(map(len, variantdict.values())),
             maximum=2)
@@ -191,7 +192,10 @@ def index_engine(
     barcodemodel = sy.Scry().train(
         X=X,
         Y=Y,
-        t=barcodetval)
+        n=barcodelen,
+        k=barcodekval,
+        t=barcodetval,
+        liner=liner)
 
     # Save Barcode Model
     opath = indexdir+'barcode.model'

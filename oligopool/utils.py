@@ -2245,7 +2245,7 @@ def get_tvalue(elementlen):
 
     :: elementlen
        type - integer
-       desc - length of elements
+       desc - length of element
     '''
 
     if   elementlen <=  8:

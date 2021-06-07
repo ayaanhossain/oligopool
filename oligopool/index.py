@@ -483,7 +483,7 @@ def index(
         liner.close()
         return stats
 
-    # Do we have associated associates?
+    # Do we have associated variants?
     if not associatedata is None:
 
         # Extract Associate Data
@@ -532,12 +532,12 @@ def index(
                 'stepname': 'parsing-associate-constants',
                 'vars'    : {
                     'constantsextracted': constantsextracted,
-                    'constantsunique': constantsuniq,
-                        'longconstants': longconstants,
-                        'prefixunique': prefixuniq,
-                        'suffixunique': suffixuniq,
-                            'prefixlen': prefixlen,
-                            'suffixlen': suffixlen},
+                       'constantsunique': constantsuniq,
+                         'longconstants': longconstants,
+                          'prefixunique': prefixuniq,
+                          'suffixunique': suffixuniq,
+                             'prefixlen': prefixlen,
+                             'suffixlen': suffixlen},
                 'warns'   : warns}
 
             # Return results

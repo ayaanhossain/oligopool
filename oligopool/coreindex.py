@@ -294,23 +294,23 @@ def get_parsed_constants(
         prefixlen,
         suffixlen)
 
-def get_extracted_variants(
-    variants,
+def get_extracted_associates(
+    associates,
     expcount,
     IDdict,
     warn,
     liner):
     '''
-    Return extracted variant sequences.
+    Return extracted associate sequences.
     Internal use only.
 
-    :: variants
+    :: associates
        type - pd.Series
        desc - ordered list of barcode
-              associated variants
+              associated associates
     :: expcount
        type - integer
-       desc - total number of variants
+       desc - total number of associates
               expected based on the
               barcode count
     :: warn
@@ -324,42 +324,42 @@ def get_extracted_variants(
     # Start Timer
     t0 = tt.time()
 
-    # Extract Variants
-    liner.send(' Parsing Variants ...')
+    # Extract Associates
+    liner.send(' Parsing Associates ...')
 
-    variantdict  = dict(enumerate(variants))
-    variantcount = ut.get_unique_count(
-        iterable=variants)
-    variantuniq  = variantcount == expcount
+    associatedict  = dict(enumerate(associates))
+    associatecount = ut.get_unique_count(
+        iterable=associates)
+    associateuniq  = associatecount == expcount
 
     # Compute Duplicates
     duplicates = set()
-    if not variantuniq:
+    if not associateuniq:
         seen = cx.defaultdict(
             lambda: list())
-        for idx,variant in variantdict.items():
-            seen[variant].append(idx)
-        for variant,idxs in seen.items():
+        for idx,associate in associatedict.items():
+            seen[associate].append(idx)
+        for associate,idxs in seen.items():
             if len(idxs) > 1:
                 duplicates.add(tuple(map(
                     lambda x: IDdict[x], idxs)))
 
     # Show Updates
     liner.send(
-        ' Variant Extracted: {:,} Unique Variant(s)\n'.format(
-            variantcount))
+        ' Associate Extracted: {:,} Unique Sequence(s)\n'.format(
+            associatecount))
 
-    variantmsg = ['No [WARNING] (Duplicate Variants Detected)', 'Yes'][variantuniq]
+    associatemsg = ['No [WARNING] (Duplicate Associates Detected)', 'Yes'][associateuniq]
     liner.send(
-        ' Variant Unique   : {}\n'.format(
-            variantmsg))
-    if not variantuniq:
+        ' Associate Unique   : {}\n'.format(
+            associatemsg))
+    if not associateuniq:
         warn['warncount'] += len(duplicates)
         warn['vars'] = {
-            'expectedcount': expcount,
-             'variantcount': variantcount,
-            'variantunique': variantuniq,
-               'duplicates': duplicates}
+              'expectedcount': expcount,
+             'associatecount': associatecount,
+            'associateunique': associateuniq,
+                 'duplicates': duplicates}
 
     # Show Time Elapsed
     liner.send(
@@ -367,7 +367,7 @@ def get_extracted_variants(
             tt.time()-t0))
 
     # Return Results
-    return variantdict
+    return associatedict
 
 # Engine Helper Functions
 
@@ -439,3 +439,39 @@ def split_map(
         X.append(x[seqstr:seqlen])
         Y.append(y)
     return X, Y
+
+def get_associate_tvalues(
+    associatedict,
+    maximum,
+    liner):
+    '''
+    Return a dictionary of associate
+    t-values. Internal use only.
+
+    :: associatedict
+       type - dict
+       desc - complete associate sequence
+              dictionary
+    :: minimum
+       type - integer
+       desc - maximum t-value
+    :: liner
+       type - coroutine
+       desc - dynamic printing
+    '''
+
+    associatetvaldict = {}
+    mintval = None
+    maxtval = None
+    for ID,associate in associatedict.items():
+        tvalue = infer_tvalue(
+            elementlen=len(associate),
+            maximum=maximum)
+        liner.send(
+            ' Inferring Associate t-value: Associate {:,} w/ {:,} Mismatch(es)'.format(
+                ID,
+                tvalue))
+        associatetvaldict[ID] = tvalue
+        mintval = min(mintval, tvalue) if not mintval is None else tvalue
+        maxtval = max(maxtval, tvalue) if not maxtval is None else tvalue
+    return associatetvaldict, mintval, maxtval

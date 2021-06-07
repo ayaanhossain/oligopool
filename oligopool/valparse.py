@@ -1341,26 +1341,26 @@ def get_parsed_spacerlen_info(
     # Return Results
     return (spacerlen, True)
 
-def get_parsed_variantdata_info(
-    variantdata,
-    variantdata_field,
+def get_parsed_associatedata_info(
+    associatedata,
+    associatedata_field,
     required_fields,
     bardf,
     barcodedata_valid,
     liner):
     '''
-    Determine if variantdata is valid and the
+    Determine if associatedata is valid and the
     ID is consistant with bardf.
     Internal use only.
 
-    :: variantdata
+    :: associatedata
        type - string / pd.DataFrame
        desc - path to CSV file or a pandas
               DataFrame storing variant
               information
-    :: variantdata_field
+    :: associatedata_field
        type - string
-       desc - variantdata fieldname used in
+       desc - associatedata fieldname used in
               printing
     :: required_fields
        type - list / None
@@ -1380,71 +1380,71 @@ def get_parsed_variantdata_info(
        desc - dynamic printing
     '''
 
-    # Is variantdata None?
-    if variantdata is None:
+    # Is associatedata None?
+    if associatedata is None:
         liner.send(
             '{}: None Specified\n'.format(
-                variantdata_field))
+                associatedata_field))
         return (None, True) # Because variant is optional
 
-    # Is variantdata valid?
-    (vardf,
+    # Is associatedata valid?
+    (assdf,
     data_name,
-    variantdata_valid) = get_parsed_indata_info(
-        indata=variantdata,
-        indata_field=variantdata_field,
+    associatedata_valid) = get_parsed_indata_info(
+        indata=associatedata,
+        indata_field=associatedata_field,
         required_fields=required_fields,
         precheck=True,
         liner=liner)
 
-    # Does vardf share ID with bardf?
-    variantdata_idx_match = False
-    if variantdata_valid:
+    # Does assdf share ID with bardf?
+    associatedata_idx_match = False
+    if associatedata_valid:
 
         # Are the indexes matching?
         idx_match = False
         if barcodedata_valid:
 
             # Matching IDs?
-            idx_match = len(vardf.index)    == len(bardf.index) and \
-                        sorted(vardf.index) == sorted(bardf.index)
+            idx_match = len(assdf.index)    == len(bardf.index) and \
+                        sorted(assdf.index) == sorted(bardf.index)
 
             # Everything OK!
             if idx_match:
-                vardf = vardf.reindex(bardf.index)
-                variantdata_idx_match = True # same as idx_match
+                assdf = assdf.reindex(bardf.index)
+                associatedata_idx_match = True # same as idx_match
 
             # Indexes don't match
             else:
                 liner.send(
                     '{}: {} w/ {:,} Record(s) [COLUMN=\'ID\' DOES NOT MATCH BARCODE DATA]\n'.format(
-                        variantdata_field,
+                        associatedata_field,
                         data_name,
-                        len(vardf.index)))
+                        len(assdf.index)))
 
         # No basis for matching, so show indifference
         # here, return and fail later on
         else:
-            variantdata_idx_match = True # Technically, we can't complain!
+            associatedata_idx_match = True # Technically, we can't complain!
 
     # Compute final validity
-    vardf_valid = all([
-        variantdata_valid,
-        variantdata_idx_match])
+    assdf_valid = all([
+        associatedata_valid,
+        associatedata_idx_match])
 
     # Is df valid?
-    if vardf_valid:
+    if assdf_valid:
         liner.send(
             '{}: {} w/ {:,} Record(s)\n'.format(
-                variantdata_field,
+                associatedata_field,
                 data_name,
-                len(vardf.index)))
+                len(assdf.index)))
     else:
         # Erase df
-        vardf = None
+        assdf = None
 
     # Return data validity
-    return (vardf, vardf_valid)
+    return (assdf, assdf_valid)
 
 def get_categorical_validity(
     category,

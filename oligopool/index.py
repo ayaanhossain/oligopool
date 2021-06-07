@@ -19,9 +19,9 @@ def index_engine(
     barcodelen,
     barcodeprefix,
     barcodesuffix,
-    variantdict,
-    variantprefix,
-    variantsuffix,
+    associatedict,
+    associateprefix,
+    associatesuffix,
     indexdir,
     indexqueue,
     liner):
@@ -32,7 +32,7 @@ def index_engine(
 
     :: IDdict
        type - dict
-       desc - barcode/variant ID dictionary
+       desc - barcode/associate ID dictionary
     :: barcodedict
        type - dict
        desc - complete barcode sequence
@@ -52,16 +52,16 @@ def index_engine(
     :: barcodesuffix
        type - string / None
        desc - constant barcode suffix
-    :: variantdict
+    :: associatedict
        type - dict
-       desc - complete variant sequence
+       desc - complete associate sequence
               dictionary
-    :: variantprefix
+    :: associateprefix
        type - string / None
-       desc - constant variant prefix
-    :: variantsuffix
+       desc - constant associate prefix
+    :: associatesuffix
        type - string / None
-       desc - constant variant suffix
+       desc - constant associate suffix
     :: indexdir
        type - string
        desc - path to directory temporarily
@@ -85,15 +85,15 @@ def index_engine(
     # Counting Meta Data Initialization
     maxtval = 2
     metamap = {
-        'eventcount'   : barcodecount,
-        'barcodename'  : barcodename,
-        'barcodelen'   : barcodelen,
-        'barcodeprefix': barcodeprefix,
-        'barcodesuffix': barcodesuffix,
-        'association'  : len(variantdict) > 0,
-        'variantprefix': variantprefix,
-        'variantsuffix': variantsuffix,
-        'IDmap'        : {
+        'eventcount'     : barcodecount,
+        'barcodename'    : barcodename,
+        'barcodelen'     : barcodelen,
+        'barcodeprefix'  : barcodeprefix,
+        'barcodesuffix'  : barcodesuffix,
+        'association'    : len(associatedict) > 0,
+        'associateprefix': associateprefix,
+        'associatesuffix': associatesuffix,
+        'IDmap'          : {
             k:IDdict.pop(k) for k in range(len(IDdict))
         }
     }
@@ -104,7 +104,7 @@ def index_engine(
         elementlen=barcodelen,
         maximum=2)
     liner.send(
-        ' Barcode t-value: {:,} Mismatch(es)\n'.format(
+        '   Barcode t-value: {:,} Mismatch(es)\n'.format(
             barcodetval))
     metamap['barcodetval'] = barcodetval
 
@@ -115,22 +115,31 @@ def index_engine(
         tvalue=barcodetval,
         minimum=3)
     liner.send(
-        ' Barcode k-value: {:,} Base Pair(s)\n'.format(
+        '   Barcode k-value: {:,} Base Pair(s)\n'.format(
             barcodekval))
     metamap['barcodekval'] = barcodekval
 
-    # Compute Variant Set t-value
-    if variantdict:
-        liner.send(' Inferring Variant t-value ...')
-        varianttval = ci.infer_tvalue(
-            elementlen=min(map(len, variantdict.values())),
-            maximum=2)
-        liner.send(
-            ' Variant t-value: {:,} Mismatch(es)\n'.format(
-                varianttval))
-        metamap['varianttval'] = varianttval
+    # Compute Associate Set t-value
+    if associatedict:
+        liner.send(' Inferring Associate t-value ...')
+        (associatetvaldict,
+        mintval,
+        maxtval) = ci.get_associate_tvalues(
+            associatedict=associatedict,
+            maximum=4,
+            liner=liner)
+        if mintval == maxtval:
+            liner.send(
+                ' Associate t-value: {:,} Mismatch(es)\n'.format(
+                    mintval))
+        else:
+            liner.send(
+                ' Associate t-value: {:,} to {:,} Mismatch(es)\n'.format(
+                    mintval,
+                    maxtval))
+        metamap['associatetvaldict'] = associatetvaldict
     else:
-        metamap['varianttval'] = None
+        metamap['associatetvaldict'] = None
 
     # Compute Barcode Prefix t-value
     if not barcodeprefix is None:
@@ -151,18 +160,18 @@ def index_engine(
         metamap['bsxtval'] = None
 
     # Compute Barcode Prefix t-value
-    if not variantprefix is None:
+    if not associateprefix is None:
         vpxtval = ci.infer_tvalue(
-            elementlen=len(variantprefix),
+            elementlen=len(associateprefix),
             maximum=2)
         metamap['vpxtval'] = vpxtval
     else:
         metamap['vpxtval'] = None
 
     # Compute Barcode Suffix t-value
-    if not variantsuffix is None:
+    if not associatesuffix is None:
         vsxtval = ci.infer_tvalue(
-            elementlen=len(variantsuffix),
+            elementlen=len(associatesuffix),
             maximum=2)
         metamap['vsxtval'] = vsxtval
     else:
@@ -182,7 +191,7 @@ def index_engine(
         filepath=opath)
     indexqueue.put(opath)
     del metamap
-    liner.send(' Writing    Meta Map  : Done\n')
+    liner.send(' Writing      Meta Map  : Done\n')
 
     # Train Barcode Model
     liner.send(' Training Barcode Model ...')
@@ -205,17 +214,17 @@ def index_engine(
     indexqueue.put(opath)
     del barcodedict
     del barcodemodel
-    liner.send(' Writing Barcode Model: Done\n')
+    liner.send(' Writing   Barcode Model: Done\n')
 
-    # Save and Delete variantdict
-    liner.send(' Writing Variant Map ...')
-    opath = indexdir+'variant.map'
+    # Save and Delete associatedict
+    liner.send(' Writing Associate Map ...')
+    opath = indexdir+'associate.map'
     ut.savedict(
-        dobj=variantdict,
+        dobj=associatedict,
         filepath=opath)
     indexqueue.put(opath)
-    del variantdict
-    liner.send(' Writing Variant Map  : Done\n')
+    del associatedict
+    liner.send(' Writing Associate Map  : Done\n')
 
     # Show Time Elapsed
     liner.send(
@@ -231,10 +240,10 @@ def index(
     indexfile,
     barcodeprefix=None,
     barcodesuffix=None,
-    variantdata=None,
-    variantcol=None,
-    variantprefix=None,
-    variantsuffix=None,
+    associatedata=None,
+    associatecol=None,
+    associateprefix=None,
+    associatesuffix=None,
     verbose=True):
     '''
     TBW
@@ -253,7 +262,7 @@ def index(
     (bardf,
     barcodedata_valid) = vp.get_parsed_indata_info(
         indata=barcodedata,
-        indata_field='  Barcode Data  ',
+        indata_field='   Barcode Data  ',
         required_fields=('ID',),
         precheck=False,
         liner=liner)
@@ -268,7 +277,7 @@ def index(
     barcodecol_valid) = vp.get_parsed_column_info(
         col=barcodecol,
         df=bardf,
-        col_field='  Barcode Column',
+        col_field='   Barcode Column',
         col_desc='Input from Column',
         col_type=0,
         adjcol=None,
@@ -281,7 +290,7 @@ def index(
     indexfile_valid = vp.get_outfile_validity(
         outfile=indexfile,
         outfile_suffix='.oligopool.index',
-        outfile_field='    Index File  ',
+        outfile_field='     Index File  ',
         liner=liner)
 
     # Adjust indexfile Suffix
@@ -297,7 +306,7 @@ def index(
     barcodeprefix_valid) = vp.get_parsed_column_info(
         col=barcodeprefix,
         df=bardf,
-        col_field='  Barcode Prefix',
+        col_field='   Barcode Prefix',
         col_desc='Input from Column',
         col_type=0,
         adjcol=barcodecol,
@@ -311,7 +320,7 @@ def index(
     barcodesuffix_valid) = vp.get_parsed_column_info(
         col=barcodesuffix,
         df=bardf,
-        col_field='  Barcode Suffix',
+        col_field='   Barcode Suffix',
         col_desc='Input from Column',
         col_type=0,
         adjcol=barcodecol,
@@ -320,22 +329,22 @@ def index(
         typecontext=None,
         liner=liner)
 
-    # First Pass indata Parsing and Validation
-    (vardf,
-    variantdata_valid) = vp.get_parsed_variantdata_info(
-        variantdata=variantdata,
-        variantdata_field='  Variant Data  ',
+    # First Pass associatedata Parsing and Validation
+    (assdf,
+    associatedata_valid) = vp.get_parsed_associatedata_info(
+        associatedata=associatedata,
+        associatedata_field=' Associate Data  ',
         required_fields=('ID',),
         bardf=bardf,
         barcodedata_valid=barcodedata_valid,
         liner=liner)
 
-    # Full variantcol Validation
-    (variants,
-    variantcol_valid) = vp.get_parsed_column_info(
-        col=variantcol,
-        df=vardf,
-        col_field='  Variant Column',
+    # Full associatecol Validation
+    (associates,
+    associatecol_valid) = vp.get_parsed_column_info(
+        col=associatecol,
+        df=assdf,
+        col_field=' Associate Column',
         col_desc='Input from Column',
         col_type=0,
         adjcol=None,
@@ -344,29 +353,29 @@ def index(
         typecontext=None,
         liner=liner)
 
-    # Full variantprefix Validation
-    (variantprefix,
-    variantprefix_valid) = vp.get_parsed_column_info(
-        col=variantprefix,
-        df=vardf,
-        col_field='  Variant Prefix',
+    # Full associateprefix Validation
+    (associateprefix,
+    associateprefix_valid) = vp.get_parsed_column_info(
+        col=associateprefix,
+        df=assdf,
+        col_field=' Associate Prefix',
         col_desc='Input from Column',
         col_type=0,
-        adjcol=variantcol,
+        adjcol=associatecol,
         adjval=+1,
         iscontext=False,
         typecontext=None,
         liner=liner)
 
-    # Full variantsuffix Validation
-    (variantsuffix,
-    variantsuffix_valid) = vp.get_parsed_column_info(
-        col=variantsuffix,
-        df=vardf,
-        col_field='  Variant Suffix',
+    # Full associatesuffix Validation
+    (associatesuffix,
+    associatesuffix_valid) = vp.get_parsed_column_info(
+        col=associatesuffix,
+        df=assdf,
+        col_field=' Associate Suffix',
         col_desc='Input from Column',
         col_type=0,
-        adjcol=variantcol,
+        adjcol=associatecol,
         adjval=-1,
         iscontext=False,
         typecontext=None,
@@ -379,10 +388,10 @@ def index(
         indexfile_valid,
         barcodeprefix_valid,
         barcodesuffix_valid,
-        variantdata_valid,
-        variantcol_valid,
-        variantprefix_valid,
-        variantsuffix_valid]):
+        associatedata_valid,
+        associatecol_valid,
+        associateprefix_valid,
+        associatesuffix_valid]):
         liner.send('\n')
         raise RuntimeError(
             'Invalid Argument Input(s).')
@@ -474,45 +483,45 @@ def index(
         liner.close()
         return stats
 
-    # Do we have associated variants?
-    if not variantdata is None:
+    # Do we have associated associates?
+    if not associatedata is None:
 
-        # Extract Variant Data
-        liner.send('\n[Step 3: Extracting Variant Data]\n')
+        # Extract Associate Data
+        liner.send('\n[Step 3: Extracting Associate Data]\n')
 
         # Update Step 3 Warning
         warns[3] = {
             'warncount': 0,
-            'stepname' : 'parsing-variant-data',
+            'stepname' : 'parsing-associate-data',
             'vars': None}
 
-        # Extract variantdata
-        variantdict = ci.get_extracted_variants(
-            variants=variants,
+        # Extract associatedata
+        associatedict = ci.get_extracted_associates(
+            associates=associates,
             expcount=barcodecount,
             IDdict=IDdict,
             warn=warns[3],
             liner=liner)
 
-        # Parse Variant Constant Feasibility
-        liner.send('\n[Step 4: Parsing Variant Constants]\n')
+        # Parse Associate Constant Feasibility
+        liner.send('\n[Step 4: Parsing Associate Constants]\n')
 
-        # Parse variantprefix and variantsuffix
+        # Parse associateprefix and associatesuffix
         (parsestatus,
         constantsextracted,
         constantsuniq,
         longconstants,
-        variantprefix,
-        variantsuffix,
+        associateprefix,
+        associatesuffix,
         prefixuniq,
         suffixuniq,
         prefixlen,
         suffixlen) = ci.get_parsed_constants(
-            prefixconstant=variantprefix,
-            suffixconstant=variantsuffix,
+            prefixconstant=associateprefix,
+            suffixconstant=associatesuffix,
             liner=liner)
 
-        # Variant Constants infeasible
+        # Associate Constants infeasible
         if not parsestatus:
 
             # Prepare stats
@@ -520,7 +529,7 @@ def index(
                 'status'  : False,
                 'basis'   : 'infeasible',
                 'step'    : 4,
-                'stepname': 'parsing-variant-constants',
+                'stepname': 'parsing-associate-constants',
                 'vars'    : {
                     'constantsextracted': constantsextracted,
                     'constantsunique': constantsuniq,
@@ -536,9 +545,9 @@ def index(
             return stats
 
     else:
-        variantdict   = {}
-        variantprefix = None
-        variantsuffix = None
+        associatedict   = {}
+        associateprefix = None
+        associatesuffix = None
 
     # Setup Workspace
     (indexfile,
@@ -575,9 +584,9 @@ def index(
         barcodelen=barcodelen,
         barcodeprefix=barcodeprefix,
         barcodesuffix=barcodesuffix,
-        variantdict=variantdict,
-        variantprefix=variantprefix,
-        variantsuffix=variantsuffix,
+        associatedict=associatedict,
+        associateprefix=associateprefix,
+        associatesuffix=associatesuffix,
         indexdir=indexdir,
         indexqueue=indexqueue,
         liner=liner)

@@ -158,6 +158,128 @@ def get_indir_validity(
     # indir valid
     return indir_status == 8
 
+def get_readfile_validity(
+    readfile,
+    readfile_field,
+    paired_readfile,
+    liner):
+    '''
+    Determine if a given readfile exists, is
+    non-empty and of FastQ type? If provided,
+    check if given readfile is a duplicate of
+    paired_readfile? Internal use only.
+
+    :: readfile
+       type - string
+       desc - path to FastQ file storing
+              reads
+    :: readfile_field
+       type - string
+       desc - readfile fieldname used in
+              printing
+    :: paired_readfile
+       type - string / None
+       desc - path to paired FastQ file
+              storing reads
+    :: liner
+       type - coroutine
+       desc - dynamic printing
+    '''
+
+    # readfile exists and non-empty?
+    readfile_exists = get_infile_validity(
+        infile=readfile,
+        infile_suffix=None,
+        infile_field=readfile_field,
+        liner=liner)
+
+    # readfile is of FastQ type?
+    readfile_is_fastq = False
+    if readfile_exists:
+
+        # FastQ file read attempt
+        try:
+            next(ut.stream_fastq_engine(
+                filepath=readfile))
+
+        # Read unsuccesful
+        except:
+            liner.send(
+                '{}: {} [INVALID FASTQ FILE]\n'.format(
+                    readfile_field, readfile))
+
+        # Read successful
+        else:
+            readfile_is_fastq = True
+
+    # Pairs duplicate?
+    readfile_duplicate = False
+    if readfile_is_fastq:
+
+        # Pair to compare?
+        if not paired_readfile is None:
+            if os.path.samefile(
+                readfile,
+                paired_readfile):
+                liner.send(
+                    '{}: {} [DUPLICATE OF R1 FILE]\n'.format(
+                        readfile_field, readfile))
+                readfile_duplicate = True
+
+        # Pair comparison successful
+        # or unnecessary
+        if not readfile_duplicate:
+            liner.send('{}: {}\n'.format(
+                readfile_field, readfile))
+
+    # Return readfile validity
+    return all([
+        readfile_exists,
+        readfile_is_fastq,
+        not readfile_duplicate])
+
+def get_optional_readfile_validity(
+    readfile,
+    readfile_field,
+    paired_readfile,
+    liner):
+    '''
+    Determine if an optional readfile exists,
+    is non-empty and of FastQ type? If provided,
+    check if given readfile is a duplicate of
+    paired_readfile? Internal use only.
+
+    :: readfile
+       type - string
+       desc - path to FastQ file storing
+              reads
+    :: readfile_field
+       type - string
+       desc - readfile fieldname used in
+              printing
+    :: paired_readfile
+       type - string / None
+       desc - path to paired FastQ file
+              storing reads
+    :: liner
+       type - coroutine
+       desc - dynamic printing
+    '''
+
+    # readfile is None
+    if readfile is None:
+        liner.send(
+            '{}: None Specified\n'.format(
+                readfile_field))
+        return True
+
+    # Regular readfile Validation
+    return get_readfile_validity(
+        readfile=readfile,
+        readfile_field=readfile_field,
+        paired_readfile=paired_readfile,
+        liner=liner)
+
 def get_parsed_data_info(
     data,
     data_field,
@@ -1090,6 +1212,69 @@ def get_numeric_validity(
     # Return numeric validity
     return numeric_valid
 
+def get_optional_numeric_validity(
+    numeric,
+    numeric_field,
+    numeric_pre_desc,
+    numeric_post_desc,
+    minval,
+    maxval,
+    precheck,
+    liner):
+    '''
+    Determine if optionally provided
+    numeric is a Real number.
+    Internal use only.
+
+    :: numeric
+       type - Real
+       desc - number to validate
+    :: numeric_field
+       type - string
+       desc - numeric fieldname used in
+              printing
+    :: numeric_pre_desc
+       type - string
+       desc - numeric pre-description
+              used in printing
+    :: numeric_post_desc
+       type - string
+       desc - numeric post-description
+              used in printing
+    :: minval
+       type - Real
+       desc - minimum allowed value
+    :: maxval
+       type - Real
+       desc - maximum allowed value
+    :: precheck
+       type - boolean
+       desc - if True prints numeric_desc
+              when validation successful too,
+              otherwise this is a pre-check
+    :: liner
+       type - coroutine
+       desc - dynamic printing
+    '''
+
+    # numeric is None
+    if numeric is None:
+        liner.send(
+            '{}: None Specified\n'.format(
+                numeric_field))
+        return True
+
+    # Regular numeric Validation
+    return get_numeric_validity(
+        numeric=numeric,
+        numeric_field=numeric_field,
+        numeric_pre_desc=numeric_pre_desc,
+        numeric_post_desc=numeric_post_desc,
+        minval=minval,
+        maxval=maxval,
+        precheck=precheck,
+        liner=liner)
+
 def get_parsed_spacerlen_info(
     spacerlen,
     spacerlen_field,
@@ -1519,6 +1704,58 @@ def get_categorical_validity(
     # Return catgory validity
     return cat_valid
 
+def get_optional_categorical_validity(
+    category,
+    category_field,
+    category_pre_desc,
+    category_post_desc,
+    category_dict,
+    liner):
+    '''
+    Determine if optional category is valid
+    with respect to category_dict.
+    Internal use only.
+
+    :: category
+       type - Real
+       desc - category to validate
+    :: category_field
+       type - string
+       desc - category fieldname used in
+              printing
+    :: category_pre_desc
+       type - string
+       desc - category pre-description
+              used in printing
+    :: category_post_desc
+       type - string
+       desc - category post-description
+              used in printing
+    :: category_dict
+       type - dict
+       desc - category description used
+              in printing
+    :: liner
+       type - coroutine
+       desc - dynamic printing
+    '''
+
+    # category is None
+    if category is None:
+        liner.send(
+            '{}: None Specified\n'.format(
+                category_field))
+        return True
+
+    # Regular numeric Validation
+    return get_categorical_validity(
+        category=category,
+        category_field=category_field,
+        category_pre_desc=category_pre_desc,
+        category_post_desc=category_post_desc,
+        category_dict=category_dict,
+        liner=liner)
+
 def get_parsed_typeIIS_info(
     typeIIS,
     typeIIS_field,
@@ -1939,3 +2176,80 @@ def get_parsed_background(
                 background_field,
                 background))
         return None, False
+
+def get_parsed_core_info(
+    ncores,
+    core_field,
+    default,
+    liner):
+    '''
+    Determine if ncores is a positive Real and
+    valid for given function. Internal use only.
+
+    :: ncores
+       type - Real
+       desc - number of cores to use for function
+    :: core_field
+       type - string
+       desc - ncores fieldname used in printing
+    :: default
+       type - None / integer
+       desc - default value to use when ncores
+              is Real but logically invalid
+    :: liner
+       type - coroutine
+       desc - dynamic printing
+    '''
+
+    # How many cores available in total?
+    sys_cores = mp.cpu_count()
+
+    # ncores is non-integer?
+    if not isinstance(ncores, nu.Real):
+        liner.send(
+            '{}: Use {} out of {:,} Cores [INPUT TYPE IS INVALID]\n'.format(
+                core_field, ncores, sys_cores))
+        ncores_valid = False
+
+    # ncores must be >= 0
+    elif ncores < 0:
+        liner.send(
+            '{}: Use {:,} out of {:,} Cores [INPUT VALUE IS INVALID]\n'.format(
+                core_field, ncores, sys_cores))
+        ncores_valid = False
+
+    # ncores is valid
+    elif ncores >= 0:
+        autoinferred = ''
+
+        # ncores adjusted
+        if  ncores > sys_cores:
+            ncores = sys_cores
+            autoinferred = '(Auto-Inferred)'
+
+        # ncores defaulting
+        elif ncores == 0:
+            autoinferred = '(Auto-Inferred)'
+
+            # Amdahl's Ironclad Law
+            optncores = max(
+                round(mt.sqrt(sys_cores)),
+                round(mt.log2(sys_cores)))
+
+            if default is None:
+                ncores = optncores
+            else:
+                ncores = min(default, sys_cores)
+
+        liner.send(
+            '{}: Use {:,} out of {:,} Cores {}\n'.format(
+                core_field,
+                ncores,
+                sys_cores,
+                autoinferred))
+
+        ncores_valid = True
+
+    # Return adjusted ncores and
+    # validity of input ncores
+    return round(ncores), ncores_valid

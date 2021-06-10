@@ -89,6 +89,56 @@ typeIIS_dict = {
     'sapi'    : ('SapI',     'GCTCTTC', 4),
     'sfani'   : ('SfaNI',    'GCATC',   9)}
 
+
+# Shared Counter
+class SafeCounter(object):
+    '''
+    Because mp.Value is a lie.
+    Internal use only.
+    '''
+
+    def __init__(self, initval=0):
+        '''
+        Initialize SafeCounter instance with
+        initval for storing integer counters.
+
+        :: initval
+           type - integer
+           desc - initialization value
+        '''
+        self.counter = mpsct.RawValue(
+            ct.c_longlong, 0)
+        self.lock = mp.Lock()
+
+    def increment(self, incr=1):
+        '''
+        Increment instance value by incr.
+
+        :: incr
+           type - integer
+           desc - increment value
+        '''
+        with self.lock:
+            self.counter.value += incr
+
+    def decrement(self, decr=1):
+        '''
+        Decrease instance value by decr.
+
+        :: decr
+           type - integer
+           desc - decrement value
+        '''
+        with self.lock:
+            self.counter.value -= decr
+
+    def value(self):
+        '''
+        Return the current value of instance.
+        '''
+        with self.lock:
+            return self.counter.value
+
 # Decorators
 
 def coroutine(func):
@@ -2253,6 +2303,72 @@ def get_tvalue(elementlen):
     elif elementlen <= 15:
         return 1
     return round(((elementlen - 1) // 5) - 1)
+
+# FastQ IO Functions
+
+def stream_fastq_engine(
+    filepath,
+    coreid=0,
+    ncores=1):
+    '''
+    Stream reads, and associated quality
+    information stored in a FastQ file.
+    Internal use only.
+
+    :: filepath
+       type - string
+       desc - FastQ file storing reads
+    :: coreid
+       type - integer
+       desc - current core integer id
+              (default=0)
+    :: ncores
+       type - integer
+       desc - total number of readers
+              concurrently initiated
+              (default=1)
+    '''
+
+    # Try reading file
+    try:
+
+        # Setup reading
+        entry  = iter(pf.Fastq(
+            file_name=filepath,
+            build_index=False))
+
+        rcount = 0
+        tcount = coreid
+
+        # Scan reads
+        while True:
+
+            # Skip/parse entries
+            try:
+                # Skip entires
+                if rcount < tcount:
+                    next(entry)
+                    rcount += 1
+                    continue
+
+                # Parse and yield (read, qual)
+                yield next(entry)[1:3]
+
+                # Update counters
+                rcount += 1
+                tcount += ncores
+
+            # EOF handling
+            except Exception as E:
+                # We're done!
+                break
+
+    # Handle exceptions
+    except Exception as E:
+        raise E
+
+    # End-of-file Token
+    yield None, None
 
 # Workspace Functions
 

@@ -2,7 +2,6 @@ import time as tt
 
 import collections as cx
 import itertools   as ix
-from typing import Iterable
 
 import utils as ut
 
@@ -71,7 +70,7 @@ def get_parsed_barcodes(
 
     # Show Updates
     liner.send(
-        ' Barcode Extracted: {:,} Unique Barcode(s)\n'.format(
+        ' Barcode Extracted: {:,} Unique Sequences(s)\n'.format(
             barcodecount))
 
     barcodemsg = ['No [INFEASIBLE] (Duplicate Barcodes Detected)', 'Yes'][barcodesuniq]

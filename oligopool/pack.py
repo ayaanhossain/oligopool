@@ -41,7 +41,116 @@ def pack_engine(
     nactive,
     liner):
     '''
-    TBD
+    Process r1file and r2file and pack read
+    pairs by frequency. Internal use only.
+
+    Scan, process and stream reads from
+    FastQ files. Internal use only.
+
+    :: r1file
+       type - string
+       desc - path to FastQ file storing
+              R1 reads
+    :: r2file
+       type - string / None
+       desc - path to FastQ file storing
+              R2 reads
+    :: r1type
+       type - integer
+       desc - R1 read type identifier
+              0 = Forward Reads
+              1 = Reverse Reads
+    :: r2type
+       type - integer / None
+       desc - R2 read type identifier
+              0 = Forward Reads
+              1 = Reverse Reads
+    :: r1length
+       type - integer
+       desc - minimum required R1 read
+              length for packing
+    :: r2length
+       type - integer / None
+       desc - minimum required R2 read
+              length for packing
+    :: r1qual
+       type - integer
+       desc - minimum required R1 read
+              Q-Score for packing
+    :: r2qual
+       type - integer / None
+       desc - minimum required R2 read
+              Q-Score for packing
+    :: packdir
+       type - string
+       desc - path to directory temporarily
+              storing packed reads
+    :: metaqueue
+       type - SimpleQueue
+       desc - queue storing meta read pack
+              file paths once saved into
+              packdir
+    :: packqueue
+       type - SimpleQueue
+       desc - queue storing read pack file
+              paths once saved into packdir
+    :: packtype
+       type - integer
+       desc - packing operation identifier
+              0 = concatenated / joined reads
+              1 = assembled / merged reads
+    :: packsize
+       type - integer
+       desc - maximum number of reads (in
+              millions) stored per pack
+    :: r1truncfile
+       type - Event
+       desc - multiprocessing Event triggered
+              on truncated r1file
+    :: r2truncfile
+       type - Event
+       desc - multiprocessing Event triggered
+              on truncated r2file
+    :: scannedreads
+       type - SafeCounter
+       desc - total number of existing read
+              pairs in r1file and r2file
+    :: ambiguousreads
+       type - SafeCounter
+       desc - total number of rejected read
+              pairs in r1file and r2file due
+              to ambiguous bases in the reads
+    :: shortreads
+       type - SafeCounter
+       desc - total number of rejected read
+              pairs in r1file and r2file due
+              to shorter than expected lengths
+    :: survivedreads
+       type - SafeCounter
+       desc - total number of filtered read
+              pairs in r1file and r2file
+    :: packedreads
+       type - SafeCounter
+       desc - total number of uniquely
+              packed reads in batches
+    :: packsbuilt
+       type - SafeCounter
+       desc - total number of read packs
+              built from r1file and r2file
+    :: coreid
+       type - integer
+       desc - current core integer id
+    :: ncores
+       type - integer
+       desc - total number of packers
+              concurrently initiated
+    :: nactive
+       type - SafeCounter
+       desc - total number of packers
+              concurrently active
+    :: liner
+       type - coroutine
+       desc - dynamic printing
     '''
 
     # Book-keeping Variables
@@ -57,9 +166,14 @@ def pack_engine(
     max_dump_reach  = 0
     max_dump_target = packsize
 
+    # Setup Verbage Variables
+    if packtype:
+        verbagefactor = 0.1
+    else:
+        verbagefactor = 1
     verbagetarget   = rn.randint(
-        *map(round, (min_dump_target * 0.080,
-                     min_dump_target * 0.120)))
+        *map(round, (min_dump_target * 0.080 * verbagefactor,
+                     min_dump_target * 0.120 * verbagefactor)))
 
     clen = len(str(ncores))
     plen = len(str(packsize)) + \
@@ -117,10 +231,11 @@ def pack_engine(
 
             # Show Updates
             liner.send(
-                ' Core {:{},d}: Built Pack {}.{} w/ {:{},d} Reads in {:.2f} sec\n'.format(
+                ' Core {:{},d}: Built Pack {:{},d}.{} w/ {:{},d} Reads in {:.2f} sec\n'.format(
                     coreid,
                     clen,
                     coreid,
+                    clen,
                     c_packsbuilt,
                     len(cpack),
                     plen,
@@ -162,10 +277,11 @@ def pack_engine(
 
             # Show Updates
             liner.send(
-                ' Core {:{},d}: Built Pack {}.{} w/ {:{},d} Reads in {:05.2f} sec\n'.format(
+                ' Core {:{},d}: Built Pack {:{},d}.{} w/ {:{},d} Reads in {:05.2f} sec\n'.format(
                     coreid,
                     clen,
                     coreid,
+                    clen,
                     c_packsbuilt,
                     len(cpack),
                     plen,
@@ -215,12 +331,6 @@ def pack_engine(
         # Dump Meta Pack?
         if mpack:
 
-            # # Dump Meta Pack
-            # ut.savepack(
-            #     pobj=mpack,
-            #     filepath=mpath)
-            # packqueue.put(mpath)
-
             # Define Pack Path
             mpath = '{}.meta'.format(
                 mpath)
@@ -239,135 +349,25 @@ def pack_engine(
             # Cleanup Meta Pack
             del mpack
 
-    # Update Read Packing Book-keeping
-    packedreads.increment(incr=c_packedreads)
-    packsbuilt.increment(incr=c_packsbuilt)
-    nactive.decrement()
+        # Update Read Packing Book-keeping
+        packedreads.increment(incr=c_packedreads)
+        packsbuilt.increment(incr=c_packsbuilt)
 
     # Packing Completed
+    nactive.decrement()
     packqueue.put(None)
-
-def pack_aggregator(
-    metaqueue,
-    packqueue,
-    packedreads,
-    packsbuilt,
-    liner):
-    '''
-    Aggregate all meta read packs referenced
-    in metaqueue by merging common reads in
-    meta read packs, and save them as usual
-    read packs and their paths in packqueue.
-
-    : metaqueue
-       type - SimpleQueue
-       desc - queue storing meta read pack
-              file paths once saved into
-              packdir
-    :: packqueue
-       type - SimpleQueue
-       desc - queue storing read pack file
-              paths once saved into packdir
-    :: packedreads
-       type - SafeCounter
-       desc - total number of uniquely
-              packed reads in batches
-    :: packsbuilt
-       type - SafeCounter
-       desc - total number of read packs
-              built from r1file and r2file
-    :: liner
-       type - coroutine
-       desc - dynamic printing
-    '''
-
-    # Do we have Meta Packs to aggregate?
-    if metaqueue.empty():
-        return None
-
-    # Fetch First Meta Pack
-    mpath = metaqueue.get()
-    mpack = ut.loadmeta(
-        filepath=mpath)
-
-    # Merge Remaining Meta Packs
-    while not metaqueue.empty():
-
-        # Fetch Another Meta Pack
-        cpath = metaqueue.get()
-        cpack = ut.loadmeta(
-            filepath=cpath)
-
-        # Show Update
-        cpackid = cpath.split('/')[-1].rstrip(
-            '.meta')
-        liner.send(
-            ' Reducing {} in Progress'.format(
-                cpackid))
-
-        # Reduced Meta Pack
-        npack = cx.Counter()
-        npath = cpath.rstrip('.meta')
-
-        # Merge Fetched Meta Pack
-        while cpack:
-
-            # Pop Reads and their Count
-            reads,count = cpack.popitem()
-
-            # Reads Common to First Meta Pack
-            if reads in mpack:
-                # Add Count to First Meta Pack
-                mpack[reads] += count
-
-                # Subtract from Packed Reads
-                packedreads.decrement()
-
-            # Uncommon Read
-            else:
-
-                # Store in Reduced Meta Pack
-                npack[reads] = count
-
-        # Unable to fully reduce Fetched Meta Pack?
-        if npack:
-
-            # Dump Reduced Meta Pack
-            ut.savepack(
-                pobj=npack,
-                filepath=npath)
-
-            # Enqueue Pack Path
-            packqueue.put(npath)
-
-        # We fully reduced Fetched Meta Pack
-        else:
-
-            # One less Read Pack to Count
-            packsbuilt.decrement()
-
-    # First Meta Pack Path
-    mpath = mpath.rstrip('.meta')
-
-    # Dump First Meta Pack
-    ut.savepack(
-        pobj=mpack,
-        filepath=mpath)
-
-    # Enqueue Pack Path
-    packqueue.put(mpath)
 
 def pack(
     r1file,
     r1type,
+    packtype,
     packfile,
     r1length=1,
-    r1qual=30,
+    r1qual=20,
     r2file=None,
     r2type=None,
     r2length=None,
     r2qual=None,
-    packtype=0,
     packsize=3.0,
     ncores=0,
     verbose=True):
@@ -402,6 +402,17 @@ def pack(
             1: 'Reverse Reads 3\' <--R--- 5\''},
         liner=liner)
 
+    # Full packtype Validation
+    packtype_valid = vp.get_categorical_validity(
+        category=packtype,
+        category_field=' Pack Type   ',
+        category_pre_desc=' ',
+        category_post_desc='',
+        category_dict={
+            0: 'Store Concatenated / Joined Reads',
+            1: 'Store Assembled / Merged Reads'},
+        liner=liner)
+
     # Full packfile Validation
     packfile_valid = vp.get_outfile_validity(
         outfile=packfile,
@@ -434,7 +445,7 @@ def pack(
         numeric_field='   R1 Quality',
         numeric_pre_desc=' Use Reads w/ Mean Q-Score of ',
         numeric_post_desc=' or Higher',
-        minval=30,
+        minval=0,
         maxval=float('inf'),
         precheck=False,
         liner=liner)
@@ -486,20 +497,9 @@ def pack(
         numeric_field='   R2 Quality',
         numeric_pre_desc=' Use Reads w/ Mean Q-Score of ',
         numeric_post_desc=' or Higher',
-        minval=30,
+        minval=0,
         maxval=float('inf'),
         precheck=False,
-        liner=liner)
-
-    # Full packtype Validation
-    packtype_valid = vp.get_categorical_validity(
-        category=packtype,
-        category_field=' Pack Type   ',
-        category_pre_desc=' ',
-        category_post_desc='',
-        category_dict={
-            0: 'Store Concatenated / Joined Reads',
-            1: 'Store Assembled / Merged Reads'},
         liner=liner)
 
     # Full packsize Validation
@@ -518,7 +518,7 @@ def pack(
     ncores_valid) = vp.get_parsed_core_info(
         ncores=ncores,
         core_field='  Num Cores  ',
-        default=None if packtype == 0 else float('inf'),
+        default=None,
         liner=liner)
 
     # First Pass Validation
@@ -591,12 +591,17 @@ def pack(
                'packsize': packsize,
               'packcount': int(packsbuilt.value()),
                 'scanned': int(scannedreads.value()),
+              'ambiguous': int(ambiguousreads.value()),
+                  'short': int(shortreads.value()),
                'survived': int(survivedreads.value()),
                  'packed': int(packedreads.value())},
         'warns'   : warns}
 
     # Packer Process Store
     readpackers = []
+
+    # Engine Timer
+    et = tt.time()
 
     # Fire off Single-Core Read Packer
     if ncores == 1:
@@ -685,128 +690,164 @@ def pack(
 
     # Handle Truncated Read Files
     if r1truncfile.is_set():
-        liner.send('\n')
+        liner.send(
+            ' R1 File Truncated or Incompatible with R2 File\n')
         ut.remove_file(
             filepath=packfile)
-        raise RuntimeError(
-            'R1 File is Truncated or Incompatible with R2 File.')
+        stats['vars']['r1truncated'] = True
 
-    if r2truncfile.is_set():
-        liner.send('\n')
+    elif r2truncfile.is_set():
+        liner.send(
+            ' R2 File Truncated or Incompatible with R1 File\n')
         ut.remove_file(
             filepath=packfile)
-        raise RuntimeError(
-            'R2 File is Truncated or Incompatible with R1 File.')
+        stats['vars']['r1truncated'] = True
 
-    # Aggregate Meta Read Packs
-    pack_aggregator(
-        metaqueue=metaqueue,
-        packqueue=packqueue,
-        packedreads=packedreads,
-        packsbuilt=packsbuilt,
-        liner=liner)
+    else:
+        stats['status'] = True
+        stats['basis']  = 'solved'
 
-    # Define Archiver
-    archiver = ut.archive_engine(
-        arcfile=packfile,
-        mode='a')
+    # Did we succeed?
+    if stats['status']:
 
-    # Archive Meta Read Packs
-    while not packqueue.empty():
-        xpath = packqueue.get()
-        archiver.send((xpath, liner))
+        # Aggregate Meta Read Packs
+        cp.pack_aggregator(
+            metaqueue=metaqueue,
+            packqueue=packqueue,
+            packedreads=packedreads,
+            packsbuilt=packsbuilt,
+            liner=liner)
+
+        # Define Archiver
+        archiver = ut.archive_engine(
+            arcfile=packfile,
+            mode='a')
+
+        # Archive Meta Read Packs
+        while not packqueue.empty():
+            xpath = packqueue.get()
+            archiver.send((xpath, liner))
+
+    # Close All Read Packers
+    for readpacker in readpackers:
+        readpacker.close()
+
+    # Show Time Elapsed
+    liner.send(
+        ' Time Elapsed: {:.2f} sec\n'.format(
+            tt.time() - et))
+
+    # Update Stats
+    stats['vars']['packcount'] = int(packsbuilt.value())
+    stats['vars']['scanned']   = int(scannedreads.value())
+    stats['vars']['ambiguous'] = int(ambiguousreads.value())
+    stats['vars']['short']     = int(shortreads.value())
+    stats['vars']['survived']  = int(survivedreads.value())
+    stats['vars']['packed']    = int(packedreads.value())
 
     # Packing Status
-    if packsbuilt.value() > 0:
-        packstatus = (True,  'Successful')
+    if stats['status']:
+        packstatus = 'Successful'
     else:
-        packstatus = (False, 'Failed')
+        packstatus = 'Failed'
 
     # Read Packing Stats
-    liner.send('\n[Packing Stats]\n')
+    liner.send('\n[Packing Statistics]\n')
 
     plen = ut.get_printlen(
         value=scannedreads.value())
 
     liner.send(
-        '   Packing  Status: {}\n'.format(
-            packstatus[1]))
+        '   Packing Status : {}\n'.format(
+            packstatus))
     liner.send(
-        '   Scanned   Reads: {:{},d}\n'.format(
+        '     R1 Truncated : {}\n'.format(
+            ['No', 'Yes'][r1truncfile.is_set()]))
+    liner.send(
+        '     R2 Truncated : {}\n'.format(
+            ['No', 'Yes'][r2truncfile.is_set()]))
+    liner.send(
+        '   Scanned Reads  : {:{},d}\n'.format(
             scannedreads.value(),
             plen))
     liner.send(
-        ' Ambiguous   Reads: {:{},d} ({:6.2f} %)\n'.format(
+        ' Ambiguous Reads  : {:{},d} ({:6.2f} %)\n'.format(
             ambiguousreads.value(),
             plen,
             ut.safediv(
                 A=(100. * ambiguousreads.value()),
                 B=scannedreads.value())))
     liner.send(
-        '     Short   Reads: {:{},d} ({:6.2f} %)\n'.format(
+        '     Short Reads  : {:{},d} ({:6.2f} %)\n'.format(
             shortreads.value(),
             plen,
             ut.safediv(
                 A=(100. * shortreads.value()),
                 B=scannedreads.value())))
     liner.send(
-        '  Survived   Reads: {:{},d} ({:6.2f} %)\n'.format(
+        '  Survived Reads  : {:{},d} ({:6.2f} %)\n'.format(
              survivedreads.value(),
             plen,
             ut.safediv(
                 A=(100. * survivedreads.value()),
                 B=scannedreads.value())))
     liner.send(
-        '    Packed   Reads: {:{},d}\n'.format(
+        '    Packed Reads  : {:{},d}\n'.format(
             packedreads.value(),
             plen))
     liner.send(
-        '   Packing   Ratio: {:.2f} to 1\n'.format(
+        '   Packing Ratio  : {:.2f} to 1\n'.format(
             ut.safediv(
                 A=(1. * survivedreads.value()),
                 B=packedreads.value())))
     liner.send(
-        '   Packing   Order: {:.2f} %\n'.format(
+        '   Packing Order  : {:.2f} %\n'.format(
             (100. * (
                 1. - ut.safediv(
                     A=packedreads.value(),
                     B=survivedreads.value())))))
     liner.send(
-        '     Packs   Built: {} Read Packs\n'.format(
+        '     Packs Built  : {} Read Packs\n'.format(
             packsbuilt.value()))
     liner.send(
-        '      Time Elapsed: {:.2f} sec\n'.format(
+        '  Time Elapsed: {:.2f} sec\n'.format(
             tt.time() - t0))
 
-    # Archive Packing Stats
-    packstat = {
-        'packtype' : packtype,
-        'packsize' : packsize,
-        'packcount': int(packsbuilt.value()),
-        'scanned'  : int(scannedreads.value()),
-        'survived' : int(survivedreads.value()),
-        'packed'   : int(packedreads.value())
-    }
+    # Did we succeed?
+    if stats['status']:
 
-    statpath = '{}/packing.stat'.format(
-        packdir)
+        # Archive Packing Stats
+        packstat = {
+            'packtype' : packtype,
+            'packsize' : packsize,
+            'packcount': int(packsbuilt.value()),
+            'scanned'  : int(scannedreads.value()),
+            'survived' : int(survivedreads.value()),
+            'packed'   : int(packedreads.value())
+        }
 
-    ut.savedict(
-        dobj=packstat,
-        filepath=statpath)
+        statpath = '{}/packing.stat'.format(
+            packdir)
 
-    archiver.send((statpath, None))
+        ut.savedict(
+            dobj=packstat,
+            filepath=statpath)
 
-    # Close Archiver
-    archiver.close()
+        archiver.send((statpath, None))
+
+        # Close Archiver
+        archiver.close()
 
     # # Remove Workspace
     ut.remove_directory(
         dirpath=packdir)
 
     # Unschedule packfile deletion
-    if packstatus[0]:
+    if packstatus == 'Successful':
         ae.unregister(pkdeletion)
 
     # Close Liner
     liner.close()
+
+    # Return Statistics
+    return stats

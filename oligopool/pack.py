@@ -518,7 +518,7 @@ def pack(
     ncores_valid) = vp.get_parsed_core_info(
         ncores=ncores,
         core_field='  Num Cores  ',
-        default=None,
+        default=None if not packtype else mp.cpu_count() // 2,
         liner=liner)
 
     # First Pass Validation

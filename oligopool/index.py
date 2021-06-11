@@ -603,7 +603,7 @@ def index(
     indexstatus = 'Successful'
 
     # Indexing Stats
-    liner.send('\n[Indexing Stats]\n')
+    liner.send('\n[Indexing Statistics]\n')
 
     liner.send(
         ' Indexing Status : {}\n'.format(

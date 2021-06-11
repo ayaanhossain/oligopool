@@ -1,6 +1,7 @@
 import time as tt
 
-import itertools as ix
+import itertools   as ix
+import collections as cx
 
 import numpy   as np
 import numba   as nb
@@ -352,6 +353,16 @@ def get_merged_reads(r1, r2, qv1, qv2):
     outie_score) = get_outie_merged(
         r1=r1, r2=r2, qv1=qv1, qv2=qv2)
 
+    # Only Innie Assembly was Successful
+    if not innie_aseembled is None and \
+       outie_aseembled is None:
+       return innie_aseembled
+
+    # Only Outie Assembly was Successful
+    if not outie_aseembled is None and \
+       innie_aseembled is None:
+       return outie_aseembled
+
     # Nothing Assembled?
     if innie_aseembled is None and \
        outie_aseembled is None:
@@ -387,7 +398,88 @@ def stream_processed_fastq(
     ncores,
     liner):
     '''
-    TBD
+    Scan, process and stream reads from
+    FastQ files. Internal use only.
+
+    :: r1file
+       type - string
+       desc - path to FastQ file storing
+              R1 reads
+    :: r2file
+       type - string / None
+       desc - path to FastQ file storing
+              R2 reads
+    :: r1type
+       type - integer
+       desc - R1 read type identifier
+              0 = Forward Reads
+              1 = Reverse Reads
+    :: r2type
+       type - integer / None
+       desc - R2 read type identifier
+              0 = Forward Reads
+              1 = Reverse Reads
+    :: r1length
+       type - integer
+       desc - minimum required R1 read
+              length for packing
+    :: r2length
+       type - integer / None
+       desc - minimum required R2 read
+              length for packing
+    :: r1qual
+       type - integer
+       desc - minimum required R1 read
+              Q-Score for packing
+    :: r2qual
+       type - integer / None
+       desc - minimum required R2 read
+              Q-Score for packing
+    :: packtype
+       type - integer
+       desc - packing operation identifier
+              0 = concatenated / joined reads
+              1 = assembled / merged reads
+    :: r1truncfile
+       type - Event
+       desc - multiprocessing Event triggered
+              on truncated r1file
+    :: r2truncfile
+       type - Event
+       desc - multiprocessing Event triggered
+              on truncated r2file
+    :: scannedreads
+       type - SafeCounter
+       desc - total number of existing read
+              pairs in r1file and r2file
+    :: ambiguousreads
+       type - SafeCounter
+       desc - total number of rejected read
+              pairs in r1file and r2file due
+              to ambiguous bases in the reads
+    :: shortreads
+       type - SafeCounter
+       desc - total number of rejected read
+              pairs in r1file and r2file due
+              to shorter than expected lengths
+    :: survivedreads
+       type - SafeCounter
+       desc - total number of filtered read
+              pairs in r1file and r2file
+    :: verbagetarget
+       type - integer
+       desc - total number of reads to scan per
+              batch before updating scannedreads
+    :: coreid
+       type - integer
+       desc - current core integer id
+    :: ncores
+       type - integer
+       desc - total number of readers
+              concurrently initiated
+    :: liner
+       type - coroutine
+       desc - dynamic printing
     '''
 
     # Start Timer
@@ -424,6 +516,11 @@ def stream_processed_fastq(
         r1,q1 = next(reader1)
         r2,q2 = next(reader2)
 
+        # Exhausted File Pair
+        if r1 is None and \
+           r2 is None:
+            break
+
         # Can Read Files be Truncated?
         if truncable:
 
@@ -438,11 +535,6 @@ def stream_processed_fastq(
                  not r1 is None:
                  r2truncfile.set()
                  break
-
-        # Exhausted File Pair
-        if r1 is None and \
-           r2 is None:
-            break
 
         # Correct Orientation for Reads
         if r1type:
@@ -476,48 +568,50 @@ def stream_processed_fastq(
                 c_ambiguousreads += 1 # Update Ambiguous Read Count based on R2
                 filterpass = False    # This Read will be Skipped
 
-        # Get Quality Vectors for Merging
-        if packtype:
-
-            # R1 Quality Vector
-            qv1 = qual2qvec(qualstring=q1)
-            # R2 Quality Vector
-            if not r2 is None:
-                qv2 = qual2qvec(qualstring=q2)
-            else:
-                qv2 = None
-
         # Filter II
         if filterpass:
 
             # Merging Operation Quality Check
             if packtype:
 
+                # Get Quality Vectors for Merging
+                qv1 = qual2qvec(qualstring=q1)
+                # R2 Quality Vector
+                if r2 is None:
+                    qv2 = None
+                else:
+                    qv2 = qual2qvec(qualstring=q2)
+
                 # Filter II on R1
-                if not qualpass_merge(
-                    qvec=qv1,
-                    threshold=r1qual):
+                if   not qualpass_merge(
+                        qvec=qv1,
+                        threshold=r1qual):
                     c_ambiguousreads += 1 # Update Ambiguous Read Count based on R1
                     filterpass = False    # This Read will be Skipped
 
                 # Filter II on R2
-                if (not r2 is None) and \
-                   (not qualpass_merge(
-                       qvec=qv2,
-                       threshold=r2qual)):
+                elif (not r2 is None) and \
+                     (not qualpass_merge(
+                        qvec=qv2,
+                        threshold=r2qual)):
                     c_ambiguousreads += 1 # Update Ambiguous Read Count based on R2
                     filterpass = False    # This Read will be Skipped
 
             # Concatenation Operation Quality Check
             else:
+
                 # Filter II on R1
-                if not qualpass_concat(qualstring=q1):
+                if   not qualpass_concat(
+                        qualstring=q1,
+                        threshold=r1qual):
                     c_ambiguousreads += 1 # Update Ambiguous Read Count based on R1
                     filterpass = False    # This Read will be Skipped
 
                 # Filter II on R2
-                if (not r2 is None) and \
-                   (not qualpass_concat(qualstring=q2)):
+                elif (not r2 is None) and \
+                     (not qualpass_concat(
+                        qualstring=q2,
+                        threshold=r2qual)):
                     c_ambiguousreads += 1 # Update Ambiguous Read Count based on R2
                     filterpass = False    # This Read will be Skipped
 
@@ -537,11 +631,10 @@ def stream_processed_fastq(
             # Do we stream this Read?
             if not read is None:
                 # High Quality Read
-                print(read)
-                yield read
+                c_survivedreads  += 1 # Update Survived Read Count
+                yield read            # This Read will be Stored
             else:
-                # Update Ambiguous Read Count based on R1 and R2
-                c_ambiguousreads += 1
+                c_ambiguousreads += 1 # Update Ambiguous Read Count
 
         # Update Book-keeping
         c_scannedreads += 1
@@ -579,3 +672,113 @@ def stream_processed_fastq(
                 clen,
                 c_scannedreads,
                 tt.time()-t0))
+
+def pack_aggregator(
+    metaqueue,
+    packqueue,
+    packedreads,
+    packsbuilt,
+    liner):
+    '''
+    Aggregate all meta read packs referenced
+    in metaqueue by merging common reads in
+    meta read packs, and save them as usual
+    read packs and their paths in packqueue.
+
+    : metaqueue
+       type - SimpleQueue
+       desc - queue storing meta read pack
+              file paths once saved into
+              packdir
+    :: packqueue
+       type - SimpleQueue
+       desc - queue storing read pack file
+              paths once saved into packdir
+    :: packedreads
+       type - SafeCounter
+       desc - total number of uniquely
+              packed reads in batches
+    :: packsbuilt
+       type - SafeCounter
+       desc - total number of read packs
+              built from r1file and r2file
+    :: liner
+       type - coroutine
+       desc - dynamic printing
+    '''
+
+    # Do we have Meta Packs to aggregate?
+    if metaqueue.empty():
+        return None
+
+    # Fetch First Meta Pack
+    mpath = metaqueue.get()
+    mpack = ut.loadmeta(
+        filepath=mpath)
+
+    # Merge Remaining Meta Packs
+    while not metaqueue.empty():
+
+        # Fetch Another Meta Pack
+        cpath = metaqueue.get()
+        cpack = ut.loadmeta(
+            filepath=cpath)
+
+        # Show Update
+        cpackid = cpath.split('/')[-1].rstrip(
+            '.meta')
+        liner.send(
+            ' Reducing {} in Progress'.format(
+                cpackid))
+
+        # Reduced Meta Pack
+        npack = cx.Counter()
+        npath = cpath.rstrip('.meta')
+
+        # Merge Fetched Meta Pack
+        while cpack:
+
+            # Pop Reads and their Count
+            reads,count = cpack.popitem()
+
+            # Reads Common to First Meta Pack
+            if reads in mpack:
+                # Add Count to First Meta Pack
+                mpack[reads] += count
+
+                # Subtract from Packed Reads
+                packedreads.decrement()
+
+            # Uncommon Read
+            else:
+
+                # Store in Reduced Meta Pack
+                npack[reads] = count
+
+        # Unable to fully reduce Fetched Meta Pack?
+        if npack:
+
+            # Dump Reduced Meta Pack
+            ut.savepack(
+                pobj=npack,
+                filepath=npath)
+
+            # Enqueue Pack Path
+            packqueue.put(npath)
+
+        # We fully reduced Fetched Meta Pack
+        else:
+
+            # One less Read Pack to Count
+            packsbuilt.decrement()
+
+    # First Meta Pack Path
+    mpath = mpath.rstrip('.meta')
+
+    # Dump First Meta Pack
+    ut.savepack(
+        pobj=mpack,
+        filepath=mpath)
+
+    # Enqueue Pack Path
+    packqueue.put(mpath)

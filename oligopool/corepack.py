@@ -728,7 +728,7 @@ def pack_aggregator(
         cpackid = cpath.split('/')[-1].rstrip(
             '.meta')
         liner.send(
-            ' Reducing {} in Progress'.format(
+            ' Aggregating {} in Progress'.format(
                 cpackid))
 
         # Reduced Meta Pack

@@ -536,9 +536,9 @@ def stream_processed_fastq(
         r1,qv1 = next(reader1)
         r2,qv2 = next(reader2)
 
-        # Simulate Early Termination
-        if c_scannedreads > 0.5 * 10**6:
-            break
+        # # Simulate Early Termination
+        # if c_scannedreads > 0.5 * 10**6:
+        #     break
 
         # Exhausted File Pair
         if r1 is None and \

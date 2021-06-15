@@ -1,9 +1,6 @@
 import time as tt
 
-import collections     as cx
-import itertools       as ix
-import multiprocessing as mp
-import atexit          as ae
+import atexit    as ae
 
 import utils     as ut
 import valparse  as vp
@@ -561,7 +558,7 @@ def index(
         indexfile)
 
     # Prepared Objects Queue
-    indexqueue = mp.SimpleQueue()
+    indexqueue = ut.SafeQueue()
 
     # Launching Indexing
     liner.send('\n[Step 5: Computing Index]\n')
@@ -595,6 +592,7 @@ def index(
     ut.archive(
         objqueue=indexqueue,
         arcfile=indexfile,
+        mode='x',
         prodcount=1,
         prodactive=0,
         liner=liner)

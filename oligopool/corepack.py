@@ -1,3 +1,5 @@
+import os
+
 import time as tt
 
 import itertools   as ix
@@ -14,23 +16,7 @@ import utils as ut
 # Engine Helper Functions
 
 @nb.njit
-def qual2qvec(qualstring):
-    '''
-    Return Q-Score vector.
-    Internal use only.
-
-    :: qualstring
-       type - string
-       desc - quality string
-    '''
-
-    qvec = np.zeros(len(qualstring))
-    for i in range(len(qualstring)):
-        qvec[i] = ord(qualstring[i]) - 33.
-    return qvec
-
-@nb.njit
-def qualpass_merge(qvec, threshold):
+def qualpass(qvec, threshold):
     '''
     Return Q-Score vector.
     Internal use only.
@@ -38,28 +24,12 @@ def qualpass_merge(qvec, threshold):
     :: qvec
        type - np.array
        desc - Q-Score vector
-    '''
-
-    return np.mean(qvec) >= threshold
-
-@nb.njit
-def qualpass_concat(qualstring, threshold):
-    '''
-    Determine if qualstring mean is above
-    threshold. Internal use only.
-
-    :: qualstring
-       type - string
-       desc - quality string
     :: threshold
        type - integer
        desc - quality threshold
     '''
 
-    tot = 0.
-    for qc in qualstring:
-        tot += ord(qc) - 33.
-    return (tot / len(qualstring)) >= threshold
+    return np.mean(qvec) >= threshold
 
 def get_concatenated_reads(r1, r2):
     '''
@@ -115,8 +85,14 @@ def get_innie_consensus(r1, r2, qv1, qv2, olen):
         i += 1
         j += 1
 
-    # Return Results
-    return ''.join(ml)
+    # Compute Result
+    result = ''.join(ml)
+
+    # Free Memory
+    ml = None
+
+    # Return Result
+    return result
 
 def get_innie_merged(r1, r2, qv1, qv2):
     '''
@@ -148,6 +124,8 @@ def get_innie_merged(r1, r2, qv1, qv2):
     if len(end_locs) > 10:
         # Likely Lots of Mutation,
         # Skip this Read
+        end_locs.clear() # Memory Management
+        del end_locs     # Memory Management
         return None, None
 
     # Find Overlap End Coordinate
@@ -157,11 +135,16 @@ def get_innie_merged(r1, r2, qv1, qv2):
     if end < 10:
         # Not High Confidence,
         # Skip this Read
+        end_locs.clear() # Memory Management
+        del end_locs     # Memory Management
         return None, None
+
+    # Define Query Slice
+    qslice = r2[:end]
 
     # Infix Align r1 and r2
     aln = ed.align(
-        query=r2[:end],
+        query=qslice,
         target=r1,
         mode='HW',
         task='path',
@@ -171,19 +154,24 @@ def get_innie_merged(r1, r2, qv1, qv2):
     if aln['editDistance'] == -1:
         # Too many mutations,
         # Skip this Read
+        del qslice  # Memory Management
+        aln.clear() # Memory Management
+        del aln     # Memory Management
         return None, float('inf')
 
     # Do we have Indels?
-    cigar = set(aln['cigar'])
-    if 'D' in cigar or \
-       'I' in cigar:
+    if 'D' in aln['cigar'] or \
+       'I' in aln['cigar']:
         # We don't care about Indels,
         # Skip this Read
+        del qslice  # Memory Management
+        aln.clear() # Memory Management
+        del aln     # Memory Management
         return None, float('inf')
 
     # Compute Merged Read
     score = aln['editDistance']
-    if aln['editDistance'] == 0:
+    if score == 0:
         merged = r1 + r2[end:]
     else:
         merged = get_innie_consensus(
@@ -192,6 +180,11 @@ def get_innie_merged(r1, r2, qv1, qv2):
             qv1=qv1,
             qv2=qv2,
             olen=end)
+
+    # Memory Management
+    del qslice
+    aln.clear()
+    del aln
 
     # Return Results
     return merged, score
@@ -234,8 +227,14 @@ def get_outie_consensus(r1, r2, qv1, qv2, olen):
         i += 1
         j += 1
 
-    # Return Results
-    return ''.join(ml)
+    # Compute Result
+    result = ''.join(ml)
+
+    # Free Memory
+    ml = None
+
+    # Return Result
+    return result
 
 def get_outie_merged(r1, r2, qv1, qv2):
     '''
@@ -267,6 +266,8 @@ def get_outie_merged(r1, r2, qv1, qv2):
     if len(end_locs) > 10:
         # Likely Lots of Mutation,
         # Skip this Read
+        end_locs.clear() # Memory Management
+        del end_locs     # Memory Management
         return None, None
 
     # Find Overlap End Coordinate
@@ -276,7 +277,12 @@ def get_outie_merged(r1, r2, qv1, qv2):
     if end < 10:
         # Not High Confidence,
         # Skip this Read
+        end_locs.clear() # Memory Management
+        del end_locs     # Memory Management
         return None, None
+
+    # Define Query Slice
+    qslice = r1[:end]
 
     # Infix Align r1 and r2
     aln = ed.align(
@@ -290,20 +296,25 @@ def get_outie_merged(r1, r2, qv1, qv2):
     if aln['editDistance'] == -1:
         # Too many mutations,
         # Skip this Read
+        del qslice  # Memory Management
+        aln.clear() # Memory Management
+        del aln     # Memory Management
         return None, float('inf')
 
     # Do we have Indels?
-    cigar = set(aln['cigar'])
-    if 'D' in cigar or \
-       'I' in cigar:
+    if 'D' in aln['cigar'] or \
+       'I' in aln['cigar']:
         # We don't care about Indels,
         # Skip this Read
+        del qslice  # Memory Management
+        aln.clear() # Memory Management
+        del aln     # Memory Management
         return None, float('inf')
 
     # Compute Merged Read
     score = aln['editDistance']
-    if aln['editDistance'] == 0:
-        merged = r1[:end]
+    if score == 0:
+        merged = qslice
     else:
         merged = get_outie_consensus(
             r1=r1,
@@ -311,6 +322,11 @@ def get_outie_merged(r1, r2, qv1, qv2):
             qv1=qv1,
             qv2=qv2,
             olen=end)
+
+    # Memory Management
+    del qslice
+    aln.clear()
+    del aln
 
     # Return Results
     return merged, score
@@ -337,6 +353,10 @@ def get_merged_reads(r1, r2, qv1, qv2):
     # Is r2 None?
     if r2 is None:
         # Nothing to Merge
+        return r1
+
+    # Both Fully Overlap?
+    if r1 == r2:
         return r1
 
     # Innie Assembly
@@ -513,8 +533,12 @@ def stream_processed_fastq(
     while True:
 
         # Concurrent Reading
-        r1,q1 = next(reader1)
-        r2,q2 = next(reader2)
+        r1,qv1 = next(reader1)
+        r2,qv2 = next(reader2)
+
+        # Simulate Early Termination
+        if c_scannedreads > 0.5 * 10**6:
+            break
 
         # Exhausted File Pair
         if r1 is None and \
@@ -539,7 +563,8 @@ def stream_processed_fastq(
         # Correct Orientation for Reads
         if r1type:
             r1 = ut.get_revcomp(r1)
-        if r2type:
+        if (not r2file is None) and \
+           r2type:
             r2 = ut.get_revcomp(r2)
 
         # Apply Ambiguity, Length, and Quality Filters
@@ -571,49 +596,20 @@ def stream_processed_fastq(
         # Filter II
         if filterpass:
 
-            # Merging Operation Quality Check
-            if packtype:
+            # Filter II on R1
+            if   not qualpass(
+                    qvec=qv1,
+                    threshold=r1qual):
+                c_ambiguousreads += 1 # Update Ambiguous Read Count based on R1
+                filterpass = False    # This Read will be Skipped
 
-                # Get Quality Vectors for Merging
-                qv1 = qual2qvec(qualstring=q1)
-                # R2 Quality Vector
-                if r2 is None:
-                    qv2 = None
-                else:
-                    qv2 = qual2qvec(qualstring=q2)
-
-                # Filter II on R1
-                if   not qualpass_merge(
-                        qvec=qv1,
-                        threshold=r1qual):
-                    c_ambiguousreads += 1 # Update Ambiguous Read Count based on R1
-                    filterpass = False    # This Read will be Skipped
-
-                # Filter II on R2
-                elif (not r2 is None) and \
-                     (not qualpass_merge(
-                        qvec=qv2,
-                        threshold=r2qual)):
-                    c_ambiguousreads += 1 # Update Ambiguous Read Count based on R2
-                    filterpass = False    # This Read will be Skipped
-
-            # Concatenation Operation Quality Check
-            else:
-
-                # Filter II on R1
-                if   not qualpass_concat(
-                        qualstring=q1,
-                        threshold=r1qual):
-                    c_ambiguousreads += 1 # Update Ambiguous Read Count based on R1
-                    filterpass = False    # This Read will be Skipped
-
-                # Filter II on R2
-                elif (not r2 is None) and \
-                     (not qualpass_concat(
-                        qualstring=q2,
-                        threshold=r2qual)):
-                    c_ambiguousreads += 1 # Update Ambiguous Read Count based on R2
-                    filterpass = False    # This Read will be Skipped
+            # Filter II on R2
+            elif (not r2 is None) and \
+                 (not qualpass(
+                    qvec=qv2,
+                    threshold=r2qual)):
+                c_ambiguousreads += 1 # Update Ambiguous Read Count based on R2
+                filterpass = False    # This Read will be Skipped
 
         # Read(-Pair) Operation
         if filterpass:
@@ -633,6 +629,7 @@ def stream_processed_fastq(
                 # High Quality Read
                 c_survivedreads  += 1 # Update Survived Read Count
                 yield read            # This Read will be Stored
+                del   read            # Memory Management
             else:
                 c_ambiguousreads += 1 # Update Ambiguous Read Count
 
@@ -713,14 +710,33 @@ def pack_aggregator(
 
     # Fetch First Meta Pack
     mpath = metaqueue.get()
+
+    # Meta Pack hasn't Materialized?
+    while not os.path.isfile(mpath):
+        continue
+
+    # Load First Meta Pack
     mpack = ut.loadmeta(
         filepath=mpath)
+
+    # Show Update
+    mpackid = mpath.split('/')[-1].rstrip(
+        '.meta')
+    liner.send(
+        ' Aggregating {} in Progress'.format(
+            mpackid))
 
     # Merge Remaining Meta Packs
     while not metaqueue.empty():
 
         # Fetch Another Meta Pack
         cpath = metaqueue.get()
+
+        # Meta Pack hasn't Materialized?
+        while not os.path.isfile(cpath):
+            continue
+
+        # Load Meta Pack
         cpack = ut.loadmeta(
             filepath=cpath)
 
@@ -743,6 +759,7 @@ def pack_aggregator(
 
             # Reads Common to First Meta Pack
             if reads in mpack:
+
                 # Add Count to First Meta Pack
                 mpack[reads] += count
 
@@ -780,5 +797,9 @@ def pack_aggregator(
         pobj=mpack,
         filepath=mpath)
 
-    # Enqueue Pack Path
+    # Clear Line
+    liner.send(' ')
+
+    # Enqueue Pack Path and Done!
     packqueue.put(mpath)
+    packqueue.put(None)

@@ -1,13 +1,12 @@
-import time as tt
 import gc
+
+import time as tt
 
 import collections as cx
 import random      as rn
 import atexit      as ae
 
-import ctypes                       as ct
-import multiprocessing              as mp
-import multiprocessing.sharedctypes as mpsct
+import multiprocessing as mp
 
 import utils    as ut
 import valparse as vp
@@ -168,10 +167,10 @@ def pack_engine(
 
     # Setup Verbage Variables
     if packtype:
-        verbagefactor = 0.1
+        verbagefactor = 0.2
     else:
         verbagefactor = 1
-    verbagetarget   = rn.randint(
+    verbagetarget = rn.randint(
         *map(round, (min_dump_target * 0.080 * verbagefactor,
                      min_dump_target * 0.120 * verbagefactor)))
 
@@ -247,16 +246,6 @@ def pack_engine(
                 coreid,
                 c_packsbuilt)
 
-            # Dump Current Pack or Setup Meta Pack
-            if mpack:
-                ut.savepack(
-                    pobj=cpack,
-                    filepath=cpath)
-                packqueue.put(cpath)
-            else:
-                mpack = cpack
-                mpath = cpath
-
             # Update Book-keeping
             t0 = tt.time()
             c_packedreads  += len(cpack)
@@ -264,10 +253,29 @@ def pack_engine(
             max_dump_reach  = 0
             min_dump_reach  = 0
 
-            # Setup Next Pack
-            del cpack
-            cpack = cx.Counter()
-            gc.collect()
+            # Dump Current Pack
+            if mpack:
+
+                # Persist Current Pack to Disk
+                ut.savepack(
+                    pobj=cpack,
+                    filepath=cpath)
+
+                # Enqueue Current Pack Path
+                packqueue.put(cpath)
+
+                # Cleanup Current Pack
+                cpack.clear()
+                del cpack
+                cpack = cx.Counter()
+                gc.collect()
+
+            # Setup Meta Pack
+            else:
+                mpack = cpack
+                mpath = cpath
+                cpack = cx.Counter()
+                gc.collect()
 
     # Final Dumping
     if not truncated:
@@ -289,7 +297,8 @@ def pack_engine(
 
             # Dump Read Pack Appropriately
 
-            if c_packsbuilt == 0: # Meta pack
+            # Meta pack
+            if c_packsbuilt == 0:
 
                 # Define Pack Path
                 cpath = '{}/{}.{}.pack.meta'.format(
@@ -305,7 +314,8 @@ def pack_engine(
                 # Enqueue Meta Pack Path
                 metaqueue.put(cpath)
 
-            else:                 # Non-Meta Pack
+            # Non-Meta Pack
+            else:
 
                 # Define Pack Path
                 cpath = '{}/{}.{}.pack'.format(
@@ -323,10 +333,12 @@ def pack_engine(
 
             # Update Book-keeping
             c_packedreads += len(cpack)
-            c_packsbuilt   = max(1, c_packsbuilt)
+            c_packsbuilt  += 1
 
             # Cleanup Final Pack
+            cpack.clear()
             del cpack
+            gc.collect()
 
         # Dump Meta Pack?
         if mpack:
@@ -343,11 +355,10 @@ def pack_engine(
             # Enqueue Meta Pack Path
             metaqueue.put(mpath)
 
-            # Update Book-keeping
-            c_packsbuilt += 1
-
             # Cleanup Meta Pack
+            mpack.clear()
             del mpack
+            gc.collect()
 
         # Update Read Packing Book-keeping
         packedreads.increment(incr=c_packedreads)
@@ -518,7 +529,7 @@ def pack(
     ncores_valid) = vp.get_parsed_core_info(
         ncores=ncores,
         core_field='  Num Cores  ',
-        default=None if not packtype else mp.cpu_count() // 2,
+        default=None if not packtype else mp.cpu_count() // 3,
         liner=liner)
 
     # First Pass Validation
@@ -560,8 +571,8 @@ def pack(
     packsize = int(packsize * (10.**6))
 
     # Read Pack Queues
-    metaqueue = mp.SimpleQueue()
-    packqueue = mp.SimpleQueue()
+    metaqueue = ut.SafeQueue()
+    packqueue = ut.SafeQueue()
 
     # Truncated Read Files Event
     r1truncfile = mp.Event()
@@ -680,13 +691,15 @@ def pack(
     ut.archive(
         objqueue=packqueue,
         arcfile=packfile,
+        mode='x',
         prodcount=ncores,
         prodactive=nactive,
         liner=liner)
 
-    # Join All Read Packers
+    # Join and Close All Read Packers
     for readpacker in readpackers:
         readpacker.join()
+        readpacker.close()
 
     # Handle Truncated Read Files
     if r1truncfile.is_set():
@@ -711,12 +724,26 @@ def pack(
     if stats['status']:
 
         # Aggregate Meta Read Packs
-        cp.pack_aggregator(
-            metaqueue=metaqueue,
-            packqueue=packqueue,
-            packedreads=packedreads,
-            packsbuilt=packsbuilt,
-            liner=liner)
+        if ncores == 1:
+            # Single Core Aggregator
+            cp.pack_aggregator(
+                metaqueue=metaqueue,
+                packqueue=packqueue,
+                packedreads=packedreads,
+                packsbuilt=packsbuilt,
+                liner=liner)
+        else:
+            # Define Meta Pack Aggregator
+            # on a Separate Core
+            aggregator = mp.Process(
+                target=cp.pack_aggregator,
+                args=(metaqueue,
+                    packqueue,
+                    packedreads,
+                    packsbuilt,
+                    liner,))
+            # Start Aggregator
+            aggregator.start()
 
         # Define Archiver
         archiver = ut.archive_engine(
@@ -728,9 +755,10 @@ def pack(
             xpath = packqueue.get()
             archiver.send((xpath, liner))
 
-    # Close All Read Packers
-    for readpacker in readpackers:
-        readpacker.close()
+        # Join and CLose Aggregator
+        if ncores > 1:
+            aggregator.join()
+            aggregator.close()
 
     # Show Time Elapsed
     liner.send(
@@ -815,6 +843,10 @@ def pack(
 
     # Did we succeed?
     if stats['status']:
+
+        # Close Queues
+        metaqueue.close()
+        packqueue.close()
 
         # Archive Packing Stats
         packstat = {

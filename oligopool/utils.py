@@ -10,8 +10,8 @@ import atexit  as ae
 
 import collections as cx
 
-import ctypes                       as ct
-import multiprocessing              as mp
+import ctypes          as ct
+import multiprocessing as mp
 import multiprocessing.sharedctypes as mpsct
 
 import numpy   as np
@@ -19,13 +19,14 @@ import numba   as nb
 import primer3 as p3
 
 import msgpack as mg
-import pyfastx as pf
+import dinopy  as dp
 import edlib   as ed
 
 import scry as sy
 
 
 # Global Lookups
+
 complement_table = str.maketrans(
     '-ACGTURYSWKMBVDHN',
     '-TGCATKYWSRMBDHVN')
@@ -89,8 +90,8 @@ typeIIS_dict = {
     'sapi'    : ('SapI',     'GCTCTTC', 4),
     'sfani'   : ('SfaNI',    'GCATC',   9)}
 
+# Shared Classes
 
-# Shared Counter
 class SafeCounter(object):
     '''
     Because mp.Value is a lie.
@@ -107,7 +108,7 @@ class SafeCounter(object):
            desc - initialization value
         '''
         self.counter = mpsct.RawValue(
-            ct.c_longlong, 0)
+            ct.c_longlong, initval)
         self.lock = mp.Lock()
 
     def increment(self, incr=1):
@@ -117,9 +118,11 @@ class SafeCounter(object):
         :: incr
            type - integer
            desc - increment value
+                  (default=1)
         '''
         with self.lock:
             self.counter.value += incr
+        return self
 
     def decrement(self, decr=1):
         '''
@@ -128,16 +131,115 @@ class SafeCounter(object):
         :: decr
            type - integer
            desc - decrement value
+                  (default=1)
         '''
         with self.lock:
             self.counter.value -= decr
+        return self
 
     def value(self):
         '''
         Return the current value of instance.
         '''
         with self.lock:
-            return self.counter.value
+            val = self.counter.value
+        return val
+
+class SafeQueue(object):
+    '''
+    Because mp.SimpleQueue is a lie.
+    Internal use only.
+    '''
+
+    def __init__(self):
+        '''
+        Initialize SafeQueue instance
+        with locking for data sharing.
+        '''
+        self.queue   = mp.SimpleQueue()
+        self.counter = SafeCounter(initval=0)
+        self.lock    = mp.Lock()
+        self.alive   = mpsct.RawValue(
+            ct.c_bool, True)
+
+    def alivemethod(func):
+        '''
+        Decorator to ensure SafeQueue instance
+        is alive. Raise Error otherwise.
+        '''
+        def wrapper(self, *args, **kwargs):
+            if self.alive.value is True:
+                return func(self, *args, **kwargs)
+            else:
+                raise RuntimeError(
+                    'SafeQueue instance is closed')
+        return wrapper
+
+    @alivemethod
+    def put(self, item):
+        '''
+        Put item in queue.
+
+        :: item
+           type - PyObject
+           desc - object to be placed
+        '''
+        with self.lock:
+            self.queue.put(item)
+            self.counter.increment()
+        return self
+
+    @alivemethod
+    def get(self):
+        '''
+        Remove and return an item
+        from the queue.
+        '''
+        with self.lock:
+            if self.counter.value() > 0:
+                item = self.queue.get()
+                self.counter.decrement()
+            else:
+                item = None
+        return item
+
+    def length(self):
+        '''
+        Return the number of items
+        in queue.
+        '''
+        with self.lock:
+            length = self.counter.value()
+        return length
+
+    @alivemethod
+    def __len__(self):
+        '''
+        Dunder function for length.
+        '''
+        return self.length()
+
+    @alivemethod
+    def empty(self):
+        '''
+        Return True if the queue is empty,
+        False otherwise.
+        '''
+        with self.lock:
+            status = self.queue.empty()
+        return status
+
+    @alivemethod
+    def close(self):
+        '''
+        Close the queue and release internal
+        resources.
+        '''
+        with self.lock:
+            self.queue.close()
+            self.queue   = None
+            self.counter = None
+            self.alive.value = False
 
 # Decorators
 
@@ -2333,9 +2435,12 @@ def stream_fastq_engine(
     try:
 
         # Setup reading
-        entry  = iter(pf.Fastq(
-            file_name=filepath,
-            build_index=False))
+        entry = dp.FastqReader(
+            source=filepath).reads(
+                read_names=False,
+                quality_values=True,
+                quality_tally=False,
+                dtype=str)
 
         rcount = 0
         tcount = coreid
@@ -2352,7 +2457,11 @@ def stream_fastq_engine(
                     continue
 
                 # Parse and yield (read, qual)
-                yield next(entry)[1:3]
+                read,qual = next(entry)
+                qual = np.frombuffer(
+                    qual,
+                    dtype=np.int8) - 33
+                yield (read, qual)
 
                 # Update counters
                 rcount += 1
@@ -2623,6 +2732,39 @@ def remove_directory(dirpath):
 
 # Data Saving / Loading Functions
 
+def msgpacksave(obj, filepath):
+    '''
+    MSGPACK dump an object to filepath.
+    Internal use only.
+
+    :: obj
+       type - object
+       desc - object to persist to disk
+    :: filepath
+       type - string
+       desc - filepath to save object
+    '''
+
+    # Pack Data
+    outcontent = mg.packb(
+        o=obj,
+        use_single_float=False,
+        autoreset=True,
+        use_bin_type=True,
+        strict_types=False)
+
+    # Check Previous FIle Non-Existent
+    if os.path.exists(filepath):
+        raise RuntimeError(
+            '{} exists!'.format(filepath))
+
+    # Write Pack to File
+    with open(filepath, 'wb') as outfile:
+        outfile.write(outcontent)
+
+    # Cleanup
+    del outcontent
+
 def savedict(dobj, filepath):
     '''
     MSGPACK dump a dictionary to filepath.
@@ -2636,12 +2778,9 @@ def savedict(dobj, filepath):
        desc - filepath to save dictionary
     '''
 
-    with open(filepath, 'wb') as outfile:
-        mg.dump(
-            o=dobj,
-            stream=outfile,
-            autoreset=True,
-            use_bin_type=True)
+    return msgpacksave(
+        obj=dobj,
+        filepath=filepath)
 
 def sorteditems(dobj):
     '''
@@ -2654,7 +2793,7 @@ def sorteditems(dobj):
               keys
     '''
 
-    return list((k,dobj[k]) for k in sorted(dobj))
+    return sorted(dobj.items())
 
 def savepack(pobj, filepath):
     '''
@@ -2669,12 +2808,11 @@ def savepack(pobj, filepath):
        desc - filepath to save read pack
     '''
 
-    with open(filepath, 'wb') as outfile:
-        mg.dump(
-            o=sorteditems(pobj),
-            stream=outfile,
-            autoreset=True,
-            use_bin_type=True)
+    sortedpack = sorteditems(pobj)
+    msgpacksave(
+        obj=sortedpack,
+        filepath=filepath)
+    del sortedpack
 
 def picklesave(obj, filepath):
     '''
@@ -2731,6 +2869,22 @@ def savemodel(mobj, filepath):
         obj=mobj,
         filepath=filepath)
 
+def msgpackload(incontent):
+    '''
+    MSGPACK load object from content
+    stream. Internal use only.
+
+    :: incontent
+       type - file-like object
+       desc - input content stream
+    '''
+
+    return mg.unpackb(
+        packed=incontent,
+        use_list=True,
+        raw=False,
+        strict_map_key=False)
+
 def loaddict(archive, dfile):
     '''
     MSGPACK load a dictionary from archive.
@@ -2746,11 +2900,8 @@ def loaddict(archive, dfile):
     '''
 
     incontent = archive.read(dfile)
-    obj = mg.unpackb(
-        packed=incontent,
-        use_list=False,
-        raw=False,
-        strict_map_key=False)
+    obj = msgpackload(
+        incontent=incontent)
     del incontent
     return obj
 
@@ -2769,10 +2920,8 @@ def loadpack(archive, pfile):
     '''
 
     incontent = archive.read(pfile)
-    obj = mg.unpackb(
-        packed=incontent,
-        use_list=True,
-        raw=False)
+    obj = msgpackload(
+        incontent=incontent)
     del incontent
     return obj
 
@@ -2852,13 +3001,17 @@ def archive_engine(arcfile, mode='x'):
             # Receive Objects
             obj,liner = (yield)
 
+            # Object hasn't Materialized?
+            while not os.path.isfile(obj):
+                continue
+
             # Decide Archive Entry Name
             arcentry = arcname(obj)
 
             # Update Archive Progress
             if not liner is None:
                 liner.send(
-                    ' Archiving {} in Progress'.format(
+                    ' Archiving {} in Progress\n'.format(
                         arcentry))
 
             # Archive Object
@@ -2873,6 +3026,7 @@ def archive_engine(arcfile, mode='x'):
 def archive(
     objqueue,
     arcfile,
+    mode,
     prodcount,
     prodactive,
     liner):
@@ -2887,6 +3041,10 @@ def archive(
     :: arcfile
        type - string
        desc - archive storing all objects
+    :: mode
+       type - 'x' / 'a'
+       desc - archive operation mode
+              (default='x')
     :: prodcount
        type - integer
        desc - total number of producers
@@ -2904,7 +3062,7 @@ def archive(
     # Define Archiver
     archiver = archive_engine(
         arcfile=arcfile,
-        mode='x')
+        mode=mode)
 
     # Archive In-Progress
     while prodcount:

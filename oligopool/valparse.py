@@ -2237,7 +2237,7 @@ def get_parsed_core_info(
                 round(mt.log2(sys_cores)))
 
             if default is None:
-                ncores = optncores
+                ncores = optncores + 1
             else:
                 ncores = min(default, sys_cores)
 
@@ -2250,6 +2250,8 @@ def get_parsed_core_info(
 
         ncores_valid = True
 
-    # Return adjusted ncores and
-    # validity of input ncores
-    return round(ncores), ncores_valid
+    # Return adjusted ncores and validity
+    ncores = round(ncores)
+    if ncores > 1:
+        ncores = ncores-1
+    return ncores, ncores_valid

@@ -5,13 +5,195 @@ import time as tt
 import itertools   as ix
 import collections as cx
 
-import numpy   as np
-import numba   as nb
-import edlib   as ed
-import pyfastx as pf
+import numpy    as np
+import numba    as nb
+import edlib    as ed
+import psutil   as pu
+import parasail as ps
 
 import utils as ut
 
+
+# Edit Distance Matrix
+
+editmat = ps.matrix_create("ACGTN-", 1, -1)
+
+# Parser and Setup Functions
+
+def get_extracted_overlap_parameters(
+    r1file,
+    r2file,
+    r1type,
+    r2type,
+    liner):
+    '''
+    Determine the priority of merging
+    functions from FastQ readfiles.
+    Internal use only.
+
+    :: r1file
+       type - string
+       desc - path to FastQ file storing
+              R1 reads
+    :: r2file
+       type - string / None
+       desc - path to FastQ file storing
+              R2 reads
+    :: r1type
+       type - integer
+       desc - R1 read type identifier
+              0 = Forward Reads
+              1 = Reverse Reads
+    :: r2type
+       type - integer / None
+       desc - R2 read type identifier
+              0 = Forward Reads
+              1 = Reverse Reads
+    :: liner
+       type - coroutine
+       desc - dynamic printing
+    '''
+
+    # Start Timer
+    t0 = tt.time()
+
+    # Setup R1 Streamer
+    reader1 = ut.stream_fastq_engine(
+        filepath=r1file,
+        invert=r1type,
+        qualvec=False,
+        skipcount=0,
+        coreid=1,
+        ncores=2)
+
+    # Setup R2 Streamer
+    reader2 = ut.stream_fastq_engine(
+        filepath=r2file,
+        invert=r2type,
+        qualvec=False,
+        skipcount=0,
+        coreid=1,
+        ncores=2)
+
+    # Book-keeping
+    samplecount = 0
+    sampletotal = 0.5 * 10**5
+    reachcount  = 0
+    inniecount  = 0
+    outiecount  = 0
+    mergefnhigh = None
+    mergegnlow  = None
+
+    # Process Read Samples
+    while samplecount < sampletotal:
+
+        # Get Paired Reads
+        r1,q1 = next(reader1)
+        r2,q2 = next(reader2)
+
+        # Update Book-keeping
+        samplecount += 1
+        reachcount  += 1
+
+        # Show Update
+        if reachcount == 10000:
+            liner.send(
+                ' Reads Analyzed: {:,}'.format(
+                    samplecount))
+            reachcount = 0
+
+        # Find Innie Overlap Location
+        innieend = ps.sg_qb_de_striped_16(
+            s1=r1,         # Query
+            s2=r2,         # Reference
+            open=1,        # Gap Open
+            extend=1,      # Gap Extension
+            matrix=editmat # +1/-1 Edit Matrix
+        ).end_ref + 1
+
+        # Compute Innie Score
+        if innieend > 10:
+            inniescore = ed.align(
+                query=r2[:innieend],
+                target=r1,
+                mode='HW',
+                task='distance',
+                k=10)['editDistance']
+            if inniescore == -1:
+                inniescore = float('inf')
+        else:
+            inniescore = float('inf')
+
+        # Find Outie Overlap Location
+        outieend = ps.sg_qb_de_striped_16(
+            s1=r2,         # Query
+            s2=r1,         # Reference
+            open=1,        # Gap Open
+            extend=1,      # Gap Extension
+            matrix=editmat # +1/-1 Edit Matrix
+        ).end_ref + 1
+
+        # Compute Outie Score
+        if outieend > 10:
+            outiescore = ed.align(
+                query=r1[:outieend],
+                target=r2,
+                mode='HW',
+                task='distance',
+                k=10)['editDistance']
+            if outiescore == -1:
+                outiescore = float('inf')
+        else:
+            outiescore = float('inf')
+
+        # Which one did the best?
+        if   inniescore < outiescore: # Innie Winner
+            inniecount += 1
+        elif outiescore < inniescore: # Outie Winner
+            outiecount += 1
+        else:
+            if inniescore < float('inf') and \
+               outiescore < float('inf') and \
+               inniescore == outiescore:
+                # No Clear Winner ...
+                inniecount += 1
+                outiecount += 1
+
+    # Normalize Counts
+    totalcount = inniecount + outiecount
+    inniecount = (100. * inniecount) / totalcount
+    outiecount = 100. - inniecount
+
+    # Show Update
+    liner.send(
+        ' Reads Analyzed: {:,}\n'.format(
+            samplecount))
+    liner.send(
+        ' Innie Events  : {:6.2f} %\n'.format(
+            inniecount))
+    liner.send(
+        ' Outie Events  : {:6.2f} %\n'.format(
+            outiecount))
+
+    # Compute Results
+    if inniecount >= outiecount:
+        mergefnhigh = get_innie_merged
+        mergefnlow  = get_outie_merged
+        liner.send(
+            ' Priority: Innie Merging\n')
+    else:
+        mergefnhigh = get_outie_merged
+        mergefnlow  = get_innie_merged
+        liner.send(
+            ' Priority: Outie Merging\n')
+
+    # Show Time Elapsed
+    liner.send(
+        ' Time Elapsed: {:.2f} sec\n'.format(
+            tt.time()-t0))
+
+    # Return Results
+    return mergefnhigh, mergefnlow
 
 # Engine Helper Functions
 
@@ -114,11 +296,27 @@ def get_innie_merged(r1, r2, qv1, qv2):
     '''
 
     # Find Overlap Locations
-    end_locs = ed.align(
-        query=r1,
+    aln = ed.align(
+        query=r1[-10:],
         target=r2,
-        mode='SHW',
-        task='distance')['locations']
+        mode='HW',
+        task='distance',
+        k=4)
+
+    # Bad Alignment?
+    if aln['editDistance'] == -1:
+        # Too many mutations,
+        # Skip this Read
+        aln.clear() # Memory Management
+        del aln     # Memory Management
+        return None, float('inf')
+
+    # Extract End Locations
+    end_locs = aln['locations']
+
+    # Clear Memory
+    aln.clear() # Memory Management
+    del aln     # Memory Management
 
     # Too Many Overlap Locations?
     if len(end_locs) > 10:
@@ -129,7 +327,7 @@ def get_innie_merged(r1, r2, qv1, qv2):
         return None, None
 
     # Find Overlap End Coordinate
-    end = end_locs[-1][-1] + 1
+    end = end_locs[0][-1] + 1
 
     # Too Small of an Overlap?
     if end < 10:
@@ -256,11 +454,27 @@ def get_outie_merged(r1, r2, qv1, qv2):
     '''
 
     # Find Overlap Locations
-    end_locs = ed.align(
-        query=r2,
+    aln = ed.align(
+        query=r2[-10:],
         target=r1,
-        mode='SHW',
-        task='distance')['locations']
+        mode='HW',
+        task='distance',
+        k=4)
+
+    # Bad Alignment?
+    if aln['editDistance'] == -1:
+        # Too many mutations,
+        # Skip this Read
+        aln.clear() # Memory Management
+        del aln     # Memory Management
+        return None, float('inf')
+
+    # Extract End Locations
+    end_locs = aln['locations']
+
+    # Clear Memory
+    aln.clear() # Memory Management
+    del aln     # Memory Management
 
     # Too Many Overlap Locations?
     if len(end_locs) > 10:
@@ -271,7 +485,7 @@ def get_outie_merged(r1, r2, qv1, qv2):
         return None, None
 
     # Find Overlap End Coordinate
-    end = end_locs[-1][-1] + 1
+    end = end_locs[0][-1] + 1
 
     # Too Small of an Overlap?
     if end < 10:
@@ -286,7 +500,7 @@ def get_outie_merged(r1, r2, qv1, qv2):
 
     # Infix Align r1 and r2
     aln = ed.align(
-        query=r1[:end],
+        query=qslice,
         target=r2,
         mode='HW',
         task='path',
@@ -331,7 +545,9 @@ def get_outie_merged(r1, r2, qv1, qv2):
     # Return Results
     return merged, score
 
-def get_merged_reads(r1, r2, qv1, qv2):
+def get_merged_reads(r1, r2, qv1, qv2,
+    mergefnhigh,
+    mergefnlow):
     '''
     Return assembled read from r1 and r2.
     Internal use only.
@@ -348,54 +564,58 @@ def get_merged_reads(r1, r2, qv1, qv2):
     :: qv2
        type - np.array
        desc - R2 Q-Score vector
+    :: mergefnhigh
+       type - function
+       desc - high priority merging
+              function
+    :: mergefnlow
+       type - function
+       desc - low priority merging
+              function
     '''
 
-    # Is r2 None?
+    # Do we not need to assemble?
     if r2 is None:
         # Nothing to Merge
         return r1
 
-    # Both Fully Overlap?
-    if r1 == r2:
-        return r1
-
-    # Innie Assembly
-    (innie_aseembled,
-    innie_score) = get_innie_merged(
+    # High Priority Assembly
+    (high_assembled,
+    high_score) = mergefnhigh(
         r1=r1, r2=r2, qv1=qv1, qv2=qv2)
 
-    # Is Innie Enough?
-    if innie_score == 0:
-        return innie_aseembled
+    # Is High Priority Enough?
+    if high_score == 0:
+        return high_assembled
 
-    # Outie Assembly
-    (outie_aseembled,
-    outie_score) = get_outie_merged(
+    # Low Priority Assembly
+    (low_assembled,
+    low_score) = mergefnlow(
         r1=r1, r2=r2, qv1=qv1, qv2=qv2)
 
-    # Only Innie Assembly was Successful
-    if not innie_aseembled is None and \
-       outie_aseembled is None:
-       return innie_aseembled
+    # Only High Priority Assembly was Successful
+    if not high_assembled is None and \
+       low_assembled is None:
+       return high_assembled
 
-    # Only Outie Assembly was Successful
-    if not outie_aseembled is None and \
-       innie_aseembled is None:
-       return outie_aseembled
+    # Only Low Priority Assembly was Successful
+    if not low_assembled is None and \
+       high_assembled is None:
+       return low_assembled
 
     # Nothing Assembled?
-    if innie_aseembled is None and \
-       outie_aseembled is None:
+    if high_assembled is None and \
+       low_assembled is None:
        return None
 
     # Both Equally Assembled?
-    if innie_score == outie_score:
+    if high_score == low_score:
         return None
 
     # Return Assembly with Best Score
-    if innie_score < outie_score:
-        return innie_aseembled
-    return outie_aseembled
+    if high_score < low_score:
+        return high_assembled
+    return low_assembled
 
 def stream_processed_fastq(
     r1file,
@@ -407,8 +627,12 @@ def stream_processed_fastq(
     r1qual,
     r2qual,
     packtype,
+    assemblyparams,
     r1truncfile,
     r2truncfile,
+    filecomplete,
+    insofarreads,
+    previousreads,
     scannedreads,
     ambiguousreads,
     shortreads,
@@ -416,6 +640,8 @@ def stream_processed_fastq(
     verbagetarget,
     coreid,
     ncores,
+    memlimit,
+    launchtime,
     liner):
     '''
     Scan, process and stream reads from
@@ -460,6 +686,10 @@ def stream_processed_fastq(
        desc - packing operation identifier
               0 = concatenated / joined reads
               1 = assembled / merged reads
+    :: assemblyparams
+       type - dict / None
+       desc - dictionary storing read overlap
+              merging parameters
     :: r1truncfile
        type - Event
        desc - multiprocessing Event triggered
@@ -468,6 +698,19 @@ def stream_processed_fastq(
        type - Event
        desc - multiprocessing Event triggered
               on truncated r2file
+    :: filecomplete
+       type - mp.Event
+       desc - multiprocessing Event triggered
+              when r1file and r2file fully
+              scanned
+    :: insofarreads
+       type - integer
+       desc - total number of read pairs scanned
+              so far from r1file and r2file
+    :: previousreads
+       type - integer
+       desc - total number of read pairs scanned
+              previously from r1file and r2file
     :: scannedreads
        type - SafeCounter
        desc - total number of existing read
@@ -497,26 +740,39 @@ def stream_processed_fastq(
        type - integer
        desc - total number of readers
               concurrently initiated
+    :: memlimit
+       type - nu.Real
+       desc - total amount of memory
+              allowed per core
+    :: launchtime
+       type - time
+       desc - initial launch timestamp
     :: liner
        type - coroutine
        desc - dynamic printing
     '''
 
     # Start Timer
-    t0 = tt.time()
+    t0 = launchtime
 
     # Book-keeping Variables
     verbagereach     = 0
+    c_previousreads  = previousreads.value()
     c_scannedreads   = 0
     c_ambiguousreads = 0
     c_shortreads     = 0
     c_survivedreads  = 0
     clen             = len(str(ncores))
     truncable        = not r2file is None
+    batchreach       = 0
+    batchsize        = 0.5 * (10**6)
 
     # Setup R1 Streamer
     reader1 = ut.stream_fastq_engine(
         filepath=r1file,
+        invert=r1type,
+        qualvec=r1qual > 0,
+        skipcount=insofarreads,
         coreid=coreid,
         ncores=ncores)
 
@@ -524,10 +780,18 @@ def stream_processed_fastq(
     if not r2file is None:
         reader2 = ut.stream_fastq_engine(
             filepath=r2file,
+            invert=r2type,
+            qualvec=r2qual > 0,
+            skipcount=insofarreads,
             coreid=coreid,
             ncores=ncores)
     else:
         reader2 = ix.repeat((None, None))
+
+    # Setup Merging Functions
+    if packtype:
+        mergefnhigh = assemblyparams['mergefnhigh']
+        mergefnlow  = assemblyparams['mergefnlow']
 
     # Read Scanning Loop
     while True:
@@ -538,11 +802,13 @@ def stream_processed_fastq(
 
         # # Simulate Early Termination
         # if c_scannedreads > 0.5 * 10**6:
+        #     filecomplete.set()
         #     break
 
         # Exhausted File Pair
         if r1 is None and \
            r2 is None:
+            filecomplete.set()
             break
 
         # Can Read Files be Truncated?
@@ -560,18 +826,11 @@ def stream_processed_fastq(
                  r2truncfile.set()
                  break
 
-        # Correct Orientation for Reads
-        if r1type:
-            r1 = ut.get_revcomp(r1)
-        if (not r2file is None) and \
-           r2type:
-            r2 = ut.get_revcomp(r2)
-
         # Apply Ambiguity, Length, and Quality Filters
         filterpass = True
 
         # Filter I on R1
-        if   'N' in r1:
+        if   r1.count('N') > 10:
             c_ambiguousreads += 1 # Update Ambiguous Read Count based on R1
             filterpass = False    # This Read will be Skipped
         elif len(r1) < r1length:
@@ -583,7 +842,7 @@ def stream_processed_fastq(
 
         # Filter I on R2
         if filterpass and (not r2 is None):
-            if   'N' in r2:
+            if   r2.count('N') > 10:
                 c_ambiguousreads += 1 # Update Ambiguous Read Count based on R2
                 filterpass = False    # This Read will be Skipped
             elif len(r2) < r2length:
@@ -597,14 +856,16 @@ def stream_processed_fastq(
         if filterpass:
 
             # Filter II on R1
-            if   not qualpass(
+            if   (r1qual > 0) and \
+                 (not qualpass(
                     qvec=qv1,
-                    threshold=r1qual):
+                    threshold=r1qual)):
                 c_ambiguousreads += 1 # Update Ambiguous Read Count based on R1
                 filterpass = False    # This Read will be Skipped
 
             # Filter II on R2
-            elif (not r2 is None) and \
+            elif (r2qual > 0) and \
+                 (not r2 is None) and \
                  (not qualpass(
                     qvec=qv2,
                     threshold=r2qual)):
@@ -617,7 +878,9 @@ def stream_processed_fastq(
             # Assemble R1 and R2
             if packtype:
                 read = get_merged_reads(
-                    r1=r1, r2=r2, qv1=qv1, qv2=qv2)
+                    r1=r1, r2=r2, qv1=qv1, qv2=qv2,
+                    mergefnhigh=mergefnhigh,
+                    mergefnlow=mergefnlow)
 
             # Join R1 and R2
             else:
@@ -636,6 +899,7 @@ def stream_processed_fastq(
         # Update Book-keeping
         c_scannedreads += 1
         verbagereach   += 1
+        batchreach     += 1
 
         # Time to show updates?
         if verbagereach >= verbagetarget:
@@ -645,13 +909,24 @@ def stream_processed_fastq(
                 ' Core {:{},d}: Scanned {:,d} Reads in {:.2f} sec'.format(
                     coreid,
                     clen,
-                    c_scannedreads,
+                    c_previousreads + c_scannedreads,
                     tt.time()-t0))
 
             # Update Book-keeping
             verbagereach = 0
 
+        # Did we complete a batch?
+        if batchreach == batchsize:
+            # Check Memory Consumed So Far
+            memused = pu.Process(os.getpid()).memory_info().rss / 10**9
+            # Crossed Threshold?
+            if memused > memlimit:
+                break # Release, your Memory Real Estate, biatch!
+            else:
+                batchreach = 0 # Reset Counter
+
     # Final Book-keeping Update
+    previousreads.increment(incr=c_scannedreads)
     scannedreads.increment(incr=c_scannedreads)
     ambiguousreads.increment(incr=c_ambiguousreads)
     shortreads.increment(incr=c_shortreads)
@@ -661,14 +936,20 @@ def stream_processed_fastq(
     if survivedreads.value() == 0:
         # Nothing Survived, Important
         # to Show Reads were Scanned!
-
         # Show Updates
         liner.send(
             ' Core {:{},d}: Scanned {:,d} Reads in {:.2f} sec\n'.format(
                 coreid,
                 clen,
-                c_scannedreads,
+                c_previousreads + c_scannedreads,
                 tt.time()-t0))
+
+    # Restart, We Must!
+    if packtype and not filecomplete.is_set():
+        # Show Updates
+        liner.send(' Core {:{},d}: Restarting ...\n'.format(
+            coreid,
+            clen))
 
 def pack_aggregator(
     metaqueue,
@@ -704,6 +985,9 @@ def pack_aggregator(
        desc - dynamic printing
     '''
 
+    # Book-keeping
+    aggcount = 0
+
     # Do we have Meta Packs to aggregate?
     if metaqueue.empty():
         return None
@@ -718,13 +1002,7 @@ def pack_aggregator(
     # Load First Meta Pack
     mpack = ut.loadmeta(
         filepath=mpath)
-
-    # Show Update
-    mpackid = mpath.split('/')[-1].rstrip(
-        '.meta')
-    liner.send(
-        ' Aggregating {} in Progress'.format(
-            mpackid))
+    aggcount += 1
 
     # Merge Remaining Meta Packs
     while not metaqueue.empty():
@@ -739,6 +1017,7 @@ def pack_aggregator(
         # Load Meta Pack
         cpack = ut.loadmeta(
             filepath=cpath)
+        aggcount += 1
 
         # Show Update
         cpackid = cpath.split('/')[-1].rstrip(
@@ -789,6 +1068,13 @@ def pack_aggregator(
             # One less Read Pack to Count
             packsbuilt.decrement()
 
+    # Show Update
+    mpackid = mpath.split('/')[-1].rstrip(
+        '.meta')
+    liner.send(
+        ' Aggregating {} in Progress'.format(
+            mpackid))
+
     # First Meta Pack Path
     mpath = mpath.rstrip('.meta')
 
@@ -803,3 +1089,7 @@ def pack_aggregator(
     # Enqueue Pack Path and Done!
     packqueue.put(mpath)
     packqueue.put(None)
+
+    # Final Update
+    liner.send(
+        ' Meta Aggregated: {:,} Read Pack(s)\n'.format(aggcount))

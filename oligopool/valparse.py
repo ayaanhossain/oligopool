@@ -7,6 +7,7 @@ import math            as mt
 
 import numpy    as np
 import pandas   as pd
+import psutil   as pu
 
 import vectordb as db
 import utils    as ut
@@ -2237,7 +2238,7 @@ def get_parsed_core_info(
                 round(mt.log2(sys_cores)))
 
             if default is None:
-                ncores = optncores + 1
+                ncores = optncores
             else:
                 ncores = min(default, sys_cores)
 
@@ -2248,10 +2249,92 @@ def get_parsed_core_info(
                 sys_cores,
                 autoinferred))
 
+        ncores = round(ncores)
         ncores_valid = True
 
     # Return adjusted ncores and validity
-    ncores = round(ncores)
-    if ncores > 1:
-        ncores = ncores-1
     return ncores, ncores_valid
+
+def get_parsed_memory_info(
+    memlimit,
+    memlimit_field,
+    default,
+    ncores,
+    ncores_valid,
+    liner):
+    '''
+    Determine if memlimit is a positive Real and
+    valid for given function. Internal use only.
+
+    :: memlimit
+       type - Real
+       desc - amount of memory to be allocated
+              per core for a function
+    :: core_field
+       type - string
+       desc - memlimit fieldname used in printing
+    :: default
+       type - None / integer
+       desc - default value to use when memlimit
+              is Real but logically invalid
+    :: ncores
+       type - integer
+       desc - total number of cores used in the
+              function
+    :: ncores_valid
+       type - boolean
+       desc - if True ncores was parsed to be
+              valid
+    :: liner
+       type - coroutine
+       desc - dynamic printing
+    '''
+
+    # Is ncores invalid?
+    if not ncores_valid:
+        liner.send(
+            '{}: Use {} GB RAM per Core\n'.format(
+                memlimit_field, memlimit))
+        return memlimit, False
+
+    # How much memory available in total?
+    sys_mem = np.floor(
+        pu.virtual_memory().available / (10**9)) - 1.0
+
+    # memlimit is non-integer?
+    if not isinstance(memlimit, nu.Real):
+        liner.send(
+            '{}: Use {} GB RAM per Core [INPUT TYPE IS INVALID]\n'.format(
+                memlimit_field, memlimit))
+        memlimit_valid = False
+
+    # memlimit must be >= 0
+    elif memlimit < 0:
+        liner.send(
+            '{}: Use {:,} GB RAM per Core [INPUT VALUE IS INVALID]\n'.format(
+                memlimit_field, memlimit))
+        memlimit_valid = False
+
+    # memlimit is valid
+    elif memlimit >= 0:
+        autoinferred = ''
+
+        # Normalize to Core Count
+        sys_mem /= ncores
+
+        # memlimit adjusted
+        if  memlimit > sys_mem or \
+            memlimit == 0.:
+            memlimit = sys_mem
+            autoinferred = '(Auto-Inferred)'
+
+        liner.send(
+            '{}: Use {:,} GB RAM per Core {}\n'.format(
+                memlimit_field,
+                memlimit,
+                autoinferred))
+
+        memlimit_valid = True
+
+    # Return adjusted memlimit and validity
+    return memlimit, memlimit_valid

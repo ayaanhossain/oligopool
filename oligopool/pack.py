@@ -10,7 +10,7 @@ import multiprocessing as mp
 
 import utils    as ut
 import valparse as vp
-import corepack as cp
+import corepack2 as cp
 
 
 def pack_engine(
@@ -26,9 +26,13 @@ def pack_engine(
     metaqueue,
     packqueue,
     packtype,
+    assemblyparams,
     packsize,
     r1truncfile,
     r2truncfile,
+    filecomplete,
+    insofarreads,
+    previousreads,
     scannedreads,
     ambiguousreads,
     shortreads,
@@ -36,8 +40,11 @@ def pack_engine(
     packedreads,
     packsbuilt,
     coreid,
+    batchid,
     ncores,
     nactive,
+    memlimit,
+    launchtime,
     liner):
     '''
     Process r1file and r2file and pack read
@@ -98,22 +105,40 @@ def pack_engine(
        desc - packing operation identifier
               0 = concatenated / joined reads
               1 = assembled / merged reads
+    :: assemblyparams
+       type - dict / None
+       desc - dictionary storing read overlap
+              merging parameters
     :: packsize
        type - integer
        desc - maximum number of reads (in
               millions) stored per pack
     :: r1truncfile
-       type - Event
+       type - mp.Event
        desc - multiprocessing Event triggered
               on truncated r1file
     :: r2truncfile
-       type - Event
+       type - mp.Event
        desc - multiprocessing Event triggered
               on truncated r2file
+    :: filecomplete
+       type - mp.Event
+       desc - multiprocessing Event triggered
+              when r1file and r2file fully
+              scanned
+    :: insofarreads
+       type - integer
+       desc - total number of read pairs scanned
+              so far from r1file and r2file
+    :: previousreads
+       type - SafeCounter
+       desc - total number of read pairs scanned
+              previously from r1file and r2file
+              by current core
     :: scannedreads
        type - SafeCounter
-       desc - total number of existing read
-              pairs in r1file and r2file
+       desc - total number of read pairs scanned
+              from r1file and r2file
     :: ambiguousreads
        type - SafeCounter
        desc - total number of rejected read
@@ -139,6 +164,9 @@ def pack_engine(
     :: coreid
        type - integer
        desc - current core integer id
+    :: batchid
+       type - integer
+       desc - current batch integer id
     :: ncores
        type - integer
        desc - total number of packers
@@ -147,6 +175,13 @@ def pack_engine(
        type - SafeCounter
        desc - total number of packers
               concurrently active
+    :: memlimit
+       type - nu.Real
+       desc - total amount of memory
+              allowed per core
+    :: launchtime
+       type - time
+       desc - initial launch timestamp
     :: liner
        type - coroutine
        desc - dynamic printing
@@ -194,8 +229,12 @@ def pack_engine(
         r1qual=r1qual,
         r2qual=r2qual,
         packtype=packtype,
+        assemblyparams=assemblyparams,
         r1truncfile=r1truncfile,
         r2truncfile=r2truncfile,
+        filecomplete=filecomplete,
+        insofarreads=insofarreads,
+        previousreads=previousreads,
         scannedreads=scannedreads,
         ambiguousreads=ambiguousreads,
         shortreads=shortreads,
@@ -203,6 +242,8 @@ def pack_engine(
         verbagetarget=verbagetarget,
         coreid=coreid,
         ncores=ncores,
+        memlimit=memlimit,
+        launchtime=launchtime,
         liner=liner):
 
         # Truncated Files?
@@ -230,21 +271,23 @@ def pack_engine(
 
             # Show Updates
             liner.send(
-                ' Core {:{},d}: Built Pack {:{},d}.{} w/ {:{},d} Reads in {:.2f} sec\n'.format(
+                ' Core {:{},d}: Built Pack {:{},d}.{}.{} w/ {:{},d} Reads in {:.2f} sec\n'.format(
                     coreid,
                     clen,
                     coreid,
                     clen,
                     c_packsbuilt,
+                    batchid,
                     len(cpack),
                     plen,
                     tt.time()-t0))
 
             # Define Pack Path
-            cpath = '{}/{}.{}.pack'.format(
+            cpath = '{}/{}.{}.{}.pack'.format(
                 packdir,
                 coreid,
-                c_packsbuilt)
+                c_packsbuilt,
+                batchid)
 
             # Update Book-keeping
             t0 = tt.time()
@@ -285,12 +328,13 @@ def pack_engine(
 
             # Show Updates
             liner.send(
-                ' Core {:{},d}: Built Pack {:{},d}.{} w/ {:{},d} Reads in {:05.2f} sec\n'.format(
+                ' Core {:{},d}: Built Pack {:{},d}.{}.{} w/ {:{},d} Reads in {:05.2f} sec\n'.format(
                     coreid,
                     clen,
                     coreid,
                     clen,
                     c_packsbuilt,
+                    batchid,
                     len(cpack),
                     plen,
                     tt.time()-t0))
@@ -301,10 +345,11 @@ def pack_engine(
             if c_packsbuilt == 0:
 
                 # Define Pack Path
-                cpath = '{}/{}.{}.pack.meta'.format(
+                cpath = '{}/{}.{}.{}.pack.meta'.format(
                     packdir,
                     coreid,
-                    c_packsbuilt)
+                    c_packsbuilt,
+                    batchid,)
 
                 # Dump Meta Pack
                 ut.savemeta(
@@ -318,10 +363,11 @@ def pack_engine(
             else:
 
                 # Define Pack Path
-                cpath = '{}/{}.{}.pack'.format(
+                cpath = '{}/{}.{}.{}.pack'.format(
                     packdir,
                     coreid,
-                    c_packsbuilt)
+                    c_packsbuilt,
+                    batchid)
 
                 # Dump Pack
                 ut.savepack(
@@ -381,6 +427,7 @@ def pack(
     r2qual=None,
     packsize=3.0,
     ncores=0,
+    memlimit=0,
     verbose=True):
     '''
     TBD
@@ -520,7 +567,7 @@ def pack(
         numeric_pre_desc=' Store up to ',
         numeric_post_desc=' Million Reads per Pack',
         minval=0.10,
-        maxval=10.0,
+        maxval=5.00,
         precheck=False,
         liner=liner)
 
@@ -530,6 +577,16 @@ def pack(
         ncores=ncores,
         core_field='  Num Cores  ',
         default=None if not packtype else mp.cpu_count() // 3,
+        liner=liner)
+
+    # Full num_core Parsing and Validation
+    (memlimit,
+    memlimit_valid) = vp.get_parsed_memory_info(
+        memlimit=memlimit,
+        memlimit_field='  Mem Limit  ',
+        default=0,
+        ncores=ncores,
+        ncores_valid=ncores_valid,
         liner=liner)
 
     # First Pass Validation
@@ -545,7 +602,8 @@ def pack(
         q2valid,
         packtype_valid,
         packsize_valid,
-        ncores_valid]):
+        ncores_valid,
+        memlimit_valid]):
         liner.send('\n')
         raise RuntimeError(
             'Invalid Argument Input(s).')
@@ -553,8 +611,37 @@ def pack(
     # Start Timer
     t0 = tt.time()
 
+    # Adjust Numeric Parameters
+    if r2file is None:
+        packtype = 0
+
     # Setup Warning Dictionary
     warns = {}
+
+    # Some Assembly Required?
+    if packtype:
+
+        # Compute Assembly Parameters
+        liner.send('\n[Step 1: Extracting Assembly Parameters]\n')
+
+        # Extract Overlap Parameters
+        (mergefnhigh,
+        mergefnlow) = cp.get_extracted_overlap_parameters(
+            r1file=r1file,
+            r2file=r2file,
+            r1type=r1type,
+            r2type=r2type,
+            liner=liner)
+
+        # Store Parameters
+        assemblyparams = {
+            'mergefnhigh': mergefnhigh,
+             'mergefnlow': mergefnlow}
+
+    # Vanilla Storage
+    else:
+        # Nothing to see here ...
+        assemblyparams = None
 
     # Setup Workspace
     (packfile,
@@ -575,8 +662,9 @@ def pack(
     packqueue = ut.SafeQueue()
 
     # Truncated Read Files Event
-    r1truncfile = mp.Event()
-    r2truncfile = mp.Event()
+    r1truncfile  = mp.Event()
+    r2truncfile  = mp.Event()
+    filecomplete = mp.Event()
 
     # Read Packing Book-keeping
     nactive        = ut.SafeCounter(initval=ncores)
@@ -586,120 +674,155 @@ def pack(
     survivedreads  = ut.SafeCounter()
     packedreads    = ut.SafeCounter()
     packsbuilt     = ut.SafeCounter()
+    batchid        = 0
+    insofarreads   = 0
+    previousreads  = [
+        ut.SafeCounter() for _ in range(ncores)]
 
     # Launching Read Packing
-    liner.send('\n[Step 1: Computing Read Packs]\n')
+    liner.send('\n[Step 2: Computing Read Packs]\n')
 
     # Define Packing Stats
     stats = {
         'status'  : False,
         'basis'   : 'unsolved',
-        'step'    : 1,
+        'step'    : 2,
         'stepname': 'computing-read-packs',
         'vars'    : {
-            'r1truncated': False,
-            'r2truncated': False,
-               'packsize': packsize,
-              'packcount': int(packsbuilt.value()),
-                'scanned': int(scannedreads.value()),
-              'ambiguous': int(ambiguousreads.value()),
-                  'short': int(shortreads.value()),
-               'survived': int(survivedreads.value()),
-                 'packed': int(packedreads.value())},
+            'metaaggcount': 0,
+             'r1truncated': False,
+             'r2truncated': False,
+                'packsize': packsize,
+               'packcount': int(packsbuilt.value()),
+                 'scanned': int(scannedreads.value()),
+               'ambiguous': int(ambiguousreads.value()),
+                   'short': int(shortreads.value()),
+                'survived': int(survivedreads.value()),
+                  'packed': int(packedreads.value())},
         'warns'   : warns}
-
-    # Packer Process Store
-    readpackers = []
 
     # Engine Timer
     et = tt.time()
 
-    # Fire off Single-Core Read Packer
-    if ncores == 1:
+    # Batched Processing
+    while True:
 
-        pack_engine(
-            r1file=r1file,
-            r2file=r2file,
-            r1type=r1type,
-            r2type=r2type,
-            r1length=r1length,
-            r2length=r2length,
-            r1qual=r1qual,
-            r2qual=r2qual,
-            packdir=packdir,
-            metaqueue=metaqueue,
-            packqueue=packqueue,
-            packtype=packtype,
-            packsize=packsize,
-            r1truncfile=r1truncfile,
-            r2truncfile=r2truncfile,
-            scannedreads=scannedreads,
-            ambiguousreads=ambiguousreads,
-            shortreads=shortreads,
-            survivedreads=survivedreads,
-            packedreads=packedreads,
-            packsbuilt=packsbuilt,
-            coreid=0,
-            ncores=ncores,
-            nactive=nactive,
+        # Packer Process Store
+        readpackers = []
+
+        # Fire off Single-Core Read Packer
+        if ncores == 1:
+
+            pack_engine(
+                r1file=r1file,
+                r2file=r2file,
+                r1type=r1type,
+                r2type=r2type,
+                r1length=r1length,
+                r2length=r2length,
+                r1qual=r1qual,
+                r2qual=r2qual,
+                packdir=packdir,
+                metaqueue=metaqueue,
+                packqueue=packqueue,
+                packtype=packtype,
+                assemblyparams=assemblyparams,
+                packsize=packsize,
+                r1truncfile=r1truncfile,
+                r2truncfile=r2truncfile,
+                filecomplete=filecomplete,
+                insofarreads=insofarreads,
+                previousreads=previousreads[0],
+                scannedreads=scannedreads,
+                ambiguousreads=ambiguousreads,
+                shortreads=shortreads,
+                survivedreads=survivedreads,
+                packedreads=packedreads,
+                packsbuilt=packsbuilt,
+                coreid=0,
+                batchid=batchid,
+                ncores=ncores,
+                nactive=nactive,
+                memlimit=memlimit,
+                launchtime=et,
+                liner=liner)
+
+        # Fire off Multi-Core Read Packers
+        else:
+
+            # Queue All Read Packers
+            coreid = 0
+            while coreid < ncores:
+
+                # Define Packer
+                readpacker = mp.Process(
+                    target=pack_engine,
+                    args=(r1file,
+                        r2file,
+                        r1type,
+                        r2type,
+                        r1length,
+                        r2length,
+                        r1qual,
+                        r2qual,
+                        packdir,
+                        metaqueue,
+                        packqueue,
+                        packtype,
+                        assemblyparams,
+                        packsize,
+                        r1truncfile,
+                        r2truncfile,
+                        filecomplete,
+                        insofarreads,
+                        previousreads[coreid],
+                        scannedreads,
+                        ambiguousreads,
+                        shortreads,
+                        survivedreads,
+                        packedreads,
+                        packsbuilt,
+                        coreid,
+                        batchid,
+                        ncores,
+                        nactive,
+                        memlimit,
+                        et,
+                        liner,))
+
+                # Start Packer
+                readpacker.start()
+
+                # Update Book-keeping
+                readpackers.append(readpacker)
+                coreid += 1
+
+        # Truncated File Breaking Conditions
+        if r1truncfile.is_set() or \
+           r2truncfile.is_set():
+            break
+
+        # Archive Non-Meta Read Packs
+        ut.archive(
+            objqueue=packqueue,
+            arcfile=packfile,
+            mode='x',
+            prodcount=ncores,
+            prodactive=nactive,
             liner=liner)
 
-    # Fire off Multi-Core Read Packers
-    else:
+        # Join and Close All Read Packers
+        for readpacker in readpackers:
+            readpacker.join()
+            readpacker.close()
 
-        # Queue All Read Packers
-        coreid = 0
-        while coreid < ncores:
-
-            # Define Packer
-            readpacker = mp.Process(
-                target=pack_engine,
-                args=(r1file,
-                    r2file,
-                    r1type,
-                    r2type,
-                    r1length,
-                    r2length,
-                    r1qual,
-                    r2qual,
-                    packdir,
-                    metaqueue,
-                    packqueue,
-                    packtype,
-                    packsize,
-                    r1truncfile,
-                    r2truncfile,
-                    scannedreads,
-                    ambiguousreads,
-                    shortreads,
-                    survivedreads,
-                    packedreads,
-                    packsbuilt,
-                    coreid,
-                    ncores,
-                    nactive,
-                    liner,))
-
-            # Start Packer
-            readpacker.start()
-
+        # Process Next Batch?
+        if not filecomplete.is_set():
             # Update Book-keeping
-            readpackers.append(readpacker)
-            coreid += 1
-
-    # Archive Non-Meta Read Packs
-    ut.archive(
-        objqueue=packqueue,
-        arcfile=packfile,
-        mode='x',
-        prodcount=ncores,
-        prodactive=nactive,
-        liner=liner)
-
-    # Join and Close All Read Packers
-    for readpacker in readpackers:
-        readpacker.join()
-        readpacker.close()
+            insofarreads = scannedreads.value()
+            batchid += 1
+        else:
+            break
 
     # Handle Truncated Read Files
     if r1truncfile.is_set():
@@ -720,8 +843,24 @@ def pack(
         stats['status'] = True
         stats['basis']  = 'solved'
 
+    # Show Time Elapsed
+    liner.send(
+        ' Time Elapsed: {:.2f} sec\n'.format(
+            tt.time() - et))
+
     # Did we succeed?
     if stats['status']:
+
+        # Launching Read Packing
+        liner.send('\n[Step 3: Aggregating Meta Packs]\n')
+
+        # Update Stats
+        stats['step'] = 3
+        stats['stepname'] = 'aggregating-meta-packs'
+        stats['vars']['metaaggcount'] = len(metaqueue)
+
+        # Aggregation Timer
+        at = tt.time()
 
         # Aggregate Meta Read Packs
         if ncores == 1:
@@ -760,10 +899,10 @@ def pack(
             aggregator.join()
             aggregator.close()
 
-    # Show Time Elapsed
-    liner.send(
-        ' Time Elapsed: {:.2f} sec\n'.format(
-            tt.time() - et))
+        # Show Time Elapsed
+        liner.send(
+            ' Time Elapsed: {:.2f} sec\n'.format(
+                tt.time() - at))
 
     # Update Stats
     stats['vars']['packcount'] = int(packsbuilt.value())
@@ -786,56 +925,56 @@ def pack(
         value=scannedreads.value())
 
     liner.send(
-        '   Packing Status : {}\n'.format(
+        '   Packing Status: {}\n'.format(
             packstatus))
     liner.send(
-        '     R1 Truncated : {}\n'.format(
+        '     R1 Truncated: {}\n'.format(
             ['No', 'Yes'][r1truncfile.is_set()]))
     liner.send(
-        '     R2 Truncated : {}\n'.format(
+        '     R2 Truncated: {}\n'.format(
             ['No', 'Yes'][r2truncfile.is_set()]))
     liner.send(
-        '   Scanned Reads  : {:{},d}\n'.format(
+        '   Scanned Reads : {:{},d}\n'.format(
             scannedreads.value(),
             plen))
     liner.send(
-        ' Ambiguous Reads  : {:{},d} ({:6.2f} %)\n'.format(
+        ' Ambiguous Reads : {:{},d} ({:6.2f} %)\n'.format(
             ambiguousreads.value(),
             plen,
             ut.safediv(
                 A=(100. * ambiguousreads.value()),
                 B=scannedreads.value())))
     liner.send(
-        '     Short Reads  : {:{},d} ({:6.2f} %)\n'.format(
+        '     Short Reads : {:{},d} ({:6.2f} %)\n'.format(
             shortreads.value(),
             plen,
             ut.safediv(
                 A=(100. * shortreads.value()),
                 B=scannedreads.value())))
     liner.send(
-        '  Survived Reads  : {:{},d} ({:6.2f} %)\n'.format(
+        '  Survived Reads : {:{},d} ({:6.2f} %)\n'.format(
              survivedreads.value(),
             plen,
             ut.safediv(
                 A=(100. * survivedreads.value()),
                 B=scannedreads.value())))
     liner.send(
-        '    Packed Reads  : {:{},d}\n'.format(
+        '    Packed Reads : {:{},d}\n'.format(
             packedreads.value(),
             plen))
     liner.send(
-        '   Packing Ratio  : {:.2f} to 1\n'.format(
+        '   Packing Ratio : {:.2f} to 1\n'.format(
             ut.safediv(
                 A=(1. * survivedreads.value()),
                 B=packedreads.value())))
     liner.send(
-        '   Packing Order  : {:.2f} %\n'.format(
+        '   Packing Order : {:.2f} %\n'.format(
             (100. * (
                 1. - ut.safediv(
                     A=packedreads.value(),
                     B=survivedreads.value())))))
     liner.send(
-        '     Packs Built  : {} Read Packs\n'.format(
+        '     Packs Built : {} Read Packs\n'.format(
             packsbuilt.value()))
     liner.send(
         '  Time Elapsed: {:.2f} sec\n'.format(

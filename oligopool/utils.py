@@ -18,9 +18,9 @@ import numpy   as np
 import numba   as nb
 import primer3 as p3
 
-import msgpack as mg
-import dinopy  as dp
-import edlib   as ed
+import msgpack  as mg
+import pyfastx  as pf
+import edlib    as ed
 
 import scry as sy
 
@@ -2404,12 +2404,15 @@ def get_tvalue(elementlen):
         return 0
     elif elementlen <= 15:
         return 1
-    return round(((elementlen - 1) // 5) - 1)
+    return ((elementlen - 1) // 5) - 1
 
 # FastQ IO Functions
 
 def stream_fastq_engine(
     filepath,
+    invert=False,
+    qualvec=False,
+    skipcount=0,
     coreid=0,
     ncores=1):
     '''
@@ -2420,6 +2423,22 @@ def stream_fastq_engine(
     :: filepath
        type - string
        desc - FastQ file storing reads
+    :: invert
+       type - boolean
+       desc - if True will reverse complement
+              read, and reverse the quality
+              vector
+              (default=False)
+    :: qualvec
+       type - boolean
+       desc - if True will compute and return
+              the quality vector instead of
+              just the quality string
+    :: skipcount
+       type - integer
+       desc - total number of reads from
+              the beginning that may be
+              (default=0)
     :: coreid
        type - integer
        desc - current core integer id
@@ -2435,20 +2454,32 @@ def stream_fastq_engine(
     try:
 
         # Setup reading
-        entry = dp.FastqReader(
-            source=filepath).reads(
-                read_names=False,
-                quality_values=True,
-                quality_tally=False,
-                dtype=str)
+        entry = iter(pf.Fastq(
+            file_name=filepath,
+            build_index=False,
+            full_index=False))
 
+        scount = 0
         rcount = 0
         tcount = coreid
 
         # Scan reads
         while True:
 
-            # Skip/parse entries
+            # Initial skipping
+            try:
+                # Skip initial entries
+                if scount < skipcount:
+                    next(entry)
+                    scount += 1
+                    continue
+
+            # EOF handling
+            except:
+                # We're done!
+                break
+
+            # Skip/parse normal entries
             try:
                 # Skip entires
                 if rcount < tcount:
@@ -2457,10 +2488,23 @@ def stream_fastq_engine(
                     continue
 
                 # Parse and yield (read, qual)
-                read,qual = next(entry)
-                qual = np.frombuffer(
-                    qual,
-                    dtype=np.int8) - 33
+                fqe  = next(entry)
+                read = fqe[1]
+                qual = fqe[2]
+
+                # Do we correct Orientation?
+                if invert:
+                    read = get_revcomp(
+                        seq=read)
+                    qual = qual[::-1]
+
+                # Vectorize Quality
+                if qualvec:
+                    qual = np.frombuffer(
+                        qual.encode(),
+                        dtype=np.int8) - 33
+
+                # Return Results
                 yield (read, qual)
 
                 # Update counters
@@ -2827,6 +2871,12 @@ def picklesave(obj, filepath):
        desc - filepath to save object
     '''
 
+    # Check Previous FIle Non-Existent
+    if os.path.exists(filepath):
+        raise RuntimeError(
+            '{} exists!'.format(filepath))
+
+    # Pickle Dump Object!
     with open(filepath, 'wb') as outfile:
         pk.dump(
             obj=obj,
@@ -3001,6 +3051,10 @@ def archive_engine(arcfile, mode='x'):
             # Receive Objects
             obj,liner = (yield)
 
+            # Remnant None Object?
+            if obj is None:
+                continue
+
             # Object hasn't Materialized?
             while not os.path.isfile(obj):
                 continue
@@ -3011,7 +3065,7 @@ def archive_engine(arcfile, mode='x'):
             # Update Archive Progress
             if not liner is None:
                 liner.send(
-                    ' Archiving {} in Progress\n'.format(
+                    ' Archiving {} in Progress'.format(
                         arcentry))
 
             # Archive Object

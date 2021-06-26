@@ -2182,6 +2182,7 @@ def get_parsed_core_info(
     ncores,
     core_field,
     default,
+    offset,
     liner):
     '''
     Determine if ncores is a positive Real and
@@ -2197,6 +2198,10 @@ def get_parsed_core_info(
        type - None / integer
        desc - default value to use when ncores
               is Real but logically invalid
+    :: offset
+       type - integer
+       desc - maximum numbers of core to withold
+              from allocation if all cores usable
     :: liner
        type - coroutine
        desc - dynamic printing
@@ -2253,12 +2258,12 @@ def get_parsed_core_info(
         ncores_valid = True
 
     # Return adjusted ncores and validity
-    return ncores, ncores_valid
+    adjcores = max(1, min(ncores, sys_cores-offset))
+    return adjcores, ncores_valid
 
 def get_parsed_memory_info(
     memlimit,
     memlimit_field,
-    default,
     ncores,
     ncores_valid,
     liner):
@@ -2273,10 +2278,6 @@ def get_parsed_memory_info(
     :: core_field
        type - string
        desc - memlimit fieldname used in printing
-    :: default
-       type - None / integer
-       desc - default value to use when memlimit
-              is Real but logically invalid
     :: ncores
        type - integer
        desc - total number of cores used in the
@@ -2311,7 +2312,7 @@ def get_parsed_memory_info(
     # memlimit must be >= 0
     elif memlimit < 0:
         liner.send(
-            '{}: Use {:,} GB RAM per Core [INPUT VALUE IS INVALID]\n'.format(
+            '{}: Use {:.2f} GB RAM per Core [INPUT VALUE IS INVALID]\n'.format(
                 memlimit_field, memlimit))
         memlimit_valid = False
 
@@ -2329,7 +2330,7 @@ def get_parsed_memory_info(
             autoinferred = '(Auto-Inferred)'
 
         liner.send(
-            '{}: Use {:,} GB RAM per Core {}\n'.format(
+            '{}: Use {:.2f} GB RAM per Core {}\n'.format(
                 memlimit_field,
                 memlimit,
                 autoinferred))

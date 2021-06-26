@@ -774,7 +774,9 @@ def stream_processed_fastq(
         qualvec=r1qual > 0,
         skipcount=insofarreads,
         coreid=coreid,
-        ncores=ncores)
+        ncores=ncores,
+        fastqid=1,
+        liner=liner)
 
     # Setup R2 Streamer
     if not r2file is None:
@@ -784,7 +786,9 @@ def stream_processed_fastq(
             qualvec=r2qual > 0,
             skipcount=insofarreads,
             coreid=coreid,
-            ncores=ncores)
+            ncores=ncores,
+            fastqid=2,
+            liner=liner)
     else:
         reader2 = ix.repeat((None, None))
 
@@ -818,12 +822,14 @@ def stream_processed_fastq(
             if       r1 is None and \
                  not r2 is None:
                  r1truncfile.set()
+                 filecomplete.set()
                  break
 
             # Truncated R2 File
             elif     r2 is None and \
                  not r1 is None:
                  r2truncfile.set()
+                 filecomplete.set()
                  break
 
         # Apply Ambiguity, Length, and Quality Filters
@@ -964,12 +970,12 @@ def pack_aggregator(
     read packs and their paths in packqueue.
 
     : metaqueue
-       type - SimpleQueue
+       type - SafeQueue
        desc - queue storing meta read pack
               file paths once saved into
               packdir
     :: packqueue
-       type - SimpleQueue
+       type - SafeQueue
        desc - queue storing read pack file
               paths once saved into packdir
     :: packedreads
@@ -997,6 +1003,7 @@ def pack_aggregator(
 
     # Meta Pack hasn't Materialized?
     while not os.path.isfile(mpath):
+        tt.sleep(0)
         continue
 
     # Load First Meta Pack
@@ -1007,11 +1014,15 @@ def pack_aggregator(
     # Merge Remaining Meta Packs
     while not metaqueue.empty():
 
+        # Release Control
+        tt.sleep(0)
+
         # Fetch Another Meta Pack
         cpath = metaqueue.get()
 
         # Meta Pack hasn't Materialized?
         while not os.path.isfile(cpath):
+            tt.sleep(0)
             continue
 
         # Load Meta Pack

@@ -171,7 +171,6 @@ class Scry(object):
         c = {}
         C = {}
         d = {}
-        B = set()
 
         # Indexing Phase 1 - Build Initial Index Objects
         for x,y in zip(X,Y):
@@ -457,9 +456,9 @@ class Scry(object):
 
                 # Find Index Range Bounds
                 iv,ig = sd[kmer]
-                mi = idx-st
+                mi = idx - st
                 si = mi if mi > 0 else 0
-                xi = idx+st
+                xi = idx + st
                 ei = xi if xi < u else u
 
                 # Refine Index Range Bounds
@@ -514,9 +513,6 @@ class Scry(object):
                     xidx  = [idx]
                 elif alns == malns:
                     xidx.append(idx)
-
-        if len(xidx) > 1:
-            print(len(xidx))
 
         # Did we find good matches?
         if (malns is None) or \

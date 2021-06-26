@@ -195,6 +195,101 @@ def get_extracted_overlap_parameters(
     # Return Results
     return mergefnhigh, mergefnlow
 
+def reader_engine(
+    r1file,
+    r2file,
+    r1type,
+    r2type,
+    r1qual,
+    r2qual,
+    r1truncfile,
+    r2truncfile,
+    filecomplete,
+    readqueues,
+    scannedreads,
+    liner):
+    ''' TBD '''
+
+    # Book-keeping
+    truncable = not r2file is None
+    processedreads = 0
+    insertionidx   = 0
+    numconsumers   = len(readqueues)
+
+    # Setup R1 Streamer
+    reader1 = ut.stream_fastq_engine(
+        filepath=r1file,
+        invert=r1type,
+        qualvec=r1qual > 0,
+        skipcount=0,
+        coreid=0,
+        ncores=1)
+
+    # Setup R2 Streamer
+    if not r2file is None:
+        reader2 = ut.stream_fastq_engine(
+            filepath=r2file,
+            invert=r2type,
+            qualvec=r2qual > 0,
+            skipcount=0,
+            coreid=0,
+            ncores=1)
+    else:
+        reader2 = ix.repeat((None, None))
+
+    while True:
+
+        # # Simulate Early Termination
+        # if processedreads > 0.5 * 10**6:
+        #     filecomplete.set()
+        #     break
+
+        # Fetch Reads
+        r1,q1 = next(reader1)
+        r2,q2 = next(reader2)
+
+        # Exhausted File Pair
+        if r1 is None and \
+           r2 is None:
+            filecomplete.set()
+            break
+
+        # Can Read Files be Truncated?
+        if truncable:
+
+            # Truncated R1 File
+            if       r1 is None and \
+                 not r2 is None:
+                 filecomplete.set()
+                 r1truncfile.set()
+                 break
+
+            # Truncated R2 File
+            elif     r2 is None and \
+                 not r1 is None:
+                 filecomplete.set()
+                 r2truncfile.set()
+                 break
+
+        # Round-Robin Read Insertion
+        readqueue = readqueues[insertionidx]
+        data = (r1,q1,r2,q2,)
+        readqueue[1].send(data)
+        tt.sleep(0)
+
+        # Update Book-keeping
+        processedreads += 1
+        insertionidx   += 1
+        if insertionidx == numconsumers:
+            insertionidx = 0
+
+    # Final Queue Updates
+    for readqueue in readqueues:
+        readqueue.put((None, None, None, None,))
+
+    # Final Book-keeping Update
+    scannedreads.increment(incr=processedreads)
+
 # Engine Helper Functions
 
 @nb.njit
@@ -618,22 +713,16 @@ def get_merged_reads(r1, r2, qv1, qv2,
     return low_assembled
 
 def stream_processed_fastq(
-    r1file,
-    r2file,
-    r1type,
-    r2type,
+    readqueue,
+    readstream,
     r1length,
     r2length,
     r1qual,
     r2qual,
     packtype,
     assemblyparams,
-    r1truncfile,
-    r2truncfile,
     filecomplete,
-    insofarreads,
     previousreads,
-    scannedreads,
     ambiguousreads,
     shortreads,
     survivedreads,
@@ -763,34 +852,8 @@ def stream_processed_fastq(
     c_shortreads     = 0
     c_survivedreads  = 0
     clen             = len(str(ncores))
-    truncable        = not r2file is None
     batchreach       = 0
     batchsize        = 0.5 * (10**6)
-
-    # Setup R1 Streamer
-    reader1 = ut.stream_fastq_engine(
-        filepath=r1file,
-        invert=r1type,
-        qualvec=r1qual > 0,
-        skipcount=insofarreads,
-        coreid=coreid,
-        ncores=ncores,
-        fastqid=1,
-        liner=liner)
-
-    # Setup R2 Streamer
-    if not r2file is None:
-        reader2 = ut.stream_fastq_engine(
-            filepath=r2file,
-            invert=r2type,
-            qualvec=r2qual > 0,
-            skipcount=insofarreads,
-            coreid=coreid,
-            ncores=ncores,
-            fastqid=2,
-            liner=liner)
-    else:
-        reader2 = ix.repeat((None, None))
 
     # Setup Merging Functions
     if packtype:
@@ -800,37 +863,21 @@ def stream_processed_fastq(
     # Read Scanning Loop
     while True:
 
-        # Concurrent Reading
-        r1,qv1 = next(reader1)
-        r2,qv2 = next(reader2)
+        if not readstream.is_set():
+            tt.sleep(0)
+            continue
 
-        # # Simulate Early Termination
-        # if c_scannedreads > 0.5 * 10**6:
-        #     filecomplete.set()
-        #     break
+        # Concurrent Reading
+        data = readqueue[0].recv()
+        if data is None:
+            tt.sleep(0)
+            continue
+        r1,qv1,r2,qv2 = data
 
         # Exhausted File Pair
         if r1 is None and \
            r2 is None:
-            filecomplete.set()
             break
-
-        # Can Read Files be Truncated?
-        if truncable:
-
-            # Truncated R1 File
-            if       r1 is None and \
-                 not r2 is None:
-                 r1truncfile.set()
-                 filecomplete.set()
-                 break
-
-            # Truncated R2 File
-            elif     r2 is None and \
-                 not r1 is None:
-                 r2truncfile.set()
-                 filecomplete.set()
-                 break
 
         # Apply Ambiguity, Length, and Quality Filters
         filterpass = True
@@ -933,7 +980,6 @@ def stream_processed_fastq(
 
     # Final Book-keeping Update
     previousreads.increment(incr=c_scannedreads)
-    scannedreads.increment(incr=c_scannedreads)
     ambiguousreads.increment(incr=c_ambiguousreads)
     shortreads.increment(incr=c_shortreads)
     survivedreads.increment(incr=c_survivedreads)
@@ -970,12 +1016,12 @@ def pack_aggregator(
     read packs and their paths in packqueue.
 
     : metaqueue
-       type - SafeQueue
+       type - SimpleQueue
        desc - queue storing meta read pack
               file paths once saved into
               packdir
     :: packqueue
-       type - SafeQueue
+       type - SimpleQueue
        desc - queue storing read pack file
               paths once saved into packdir
     :: packedreads
@@ -1013,9 +1059,6 @@ def pack_aggregator(
 
     # Merge Remaining Meta Packs
     while not metaqueue.empty():
-
-        # Release Control
-        tt.sleep(0)
 
         # Fetch Another Meta Pack
         cpath = metaqueue.get()

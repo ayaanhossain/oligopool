@@ -1,5 +1,6 @@
 import sys
 import os
+import gc
 import shutil  as su
 import time    as tt
 
@@ -90,6 +91,9 @@ typeIIS_dict = {
     'sapi'    : ('SapI',     'GCTCTTC', 4),
     'sfani'   : ('SfaNI',    'GCATC',   9)}
 
+trimflag = sys.platform.lower(
+    ).startswith('linux')
+
 # Shared Classes
 
 class SafeCounter(object):
@@ -147,16 +151,26 @@ class SafeCounter(object):
 
 class SafeQueue(object):
     '''
-    Because mp.SimpleQueue is a lie.
+    Because mp.Queue is a lie.
     Internal use only.
     '''
 
-    def __init__(self):
+    def __init__(
+        self,
+        maxsize=None):
         '''
         Initialize SafeQueue instance
         with locking for data sharing.
         '''
-        self.queue   = mp.SimpleQueue()
+        if not maxsize is None:
+            # Finite Queue
+            self.queue = mp.Queue(
+                maxsize=maxsize)
+        else:
+            # Infinite Queue
+            self.queue = mp.Queue()
+
+        # Setup Sentinels
         self.counter = SafeCounter(initval=0)
         self.lock    = mp.Lock()
         self.alive   = mpsct.RawValue(
@@ -237,6 +251,7 @@ class SafeQueue(object):
         '''
         with self.lock:
             self.queue.close()
+            self.queue.join_thread()
             self.queue   = None
             self.counter = None
             self.alive.value = False
@@ -2414,7 +2429,9 @@ def stream_fastq_engine(
     qualvec=False,
     skipcount=0,
     coreid=0,
-    ncores=1):
+    ncores=1,
+    fastqid=None,
+    liner=None):
     '''
     Stream reads, and associated quality
     information stored in a FastQ file.
@@ -2448,6 +2465,9 @@ def stream_fastq_engine(
        desc - total number of readers
               concurrently initiated
               (default=1)
+    :: liner
+       type - coroutine / None
+       desc - dynamic printing
     '''
 
     # Try reading file
@@ -2459,7 +2479,16 @@ def stream_fastq_engine(
             build_index=False,
             full_index=False))
 
-        scount = 0
+        # Skip Book-keeping
+        clen     = len(str(ncores))
+        scount   = 0
+        screach  = 0
+        sctarget = round(
+            skipcount * np.random.uniform(
+                0.01, 0.02, 1)[0])
+        skiphase = scount < skipcount
+
+        # Parsing Book-keeping
         rcount = 0
         tcount = coreid
 
@@ -2469,9 +2498,30 @@ def stream_fastq_engine(
             # Initial skipping
             try:
                 # Skip initial entries
-                if scount < skipcount:
+                if skiphase:
+
+                    # Fetch Read
                     next(entry)
-                    scount += 1
+
+                    # Update Trackers
+                    scount  += 1
+                    screach += 1
+                    skiphase = scount < skipcount
+
+                    # Time to show Updates?
+                    if screach == sctarget:
+                        if not liner is None:
+                            # Show Updates
+                            liner.send(' Core {:{},d}: Reached R{} - {:6.2f} % '.format(
+                                coreid,
+                                clen,
+                                fastqid,
+                                (scount * 100.) / skipcount))
+
+                        # Reset Tracker
+                        screach = 0
+
+                    # Continue Skipping ..
                     continue
 
             # EOF handling
@@ -3048,6 +3098,9 @@ def archive_engine(arcfile, mode='x'):
     try:
         while True:
 
+            # Release Control
+            tt.sleep(0)
+
             # Receive Objects
             obj,liner = (yield)
 
@@ -3057,6 +3110,7 @@ def archive_engine(arcfile, mode='x'):
 
             # Object hasn't Materialized?
             while not os.path.isfile(obj):
+                tt.sleep(0)
                 continue
 
             # Decide Archive Entry Name
@@ -3121,6 +3175,9 @@ def archive(
     # Archive In-Progress
     while prodcount:
 
+        # Release Control
+        tt.sleep(0)
+
         # Waiting ...
         if objqueue.empty():
             continue
@@ -3145,3 +3202,26 @@ def archive(
 
     # Archive Completed
     archiver.close()
+
+# Memory Management Functions
+
+def trim_malloc():
+    '''
+    Trim the heap.
+    Internal use only.
+    '''
+
+    if trimflag:
+        try:
+            ct.CDLL('libc.so.6').malloc_trim(0)
+        except:
+            pass
+
+def free_mem():
+    '''
+    Free memory used by a process.
+    Internal use only.
+    '''
+
+    gc.collect()
+    trim_malloc()

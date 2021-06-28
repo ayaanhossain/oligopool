@@ -6,6 +6,8 @@ import atexit      as ae
 
 import multiprocessing as mp
 
+from numpy import core
+
 import utils    as ut
 import valparse as vp
 import corepack as cp
@@ -28,8 +30,6 @@ def pack_engine(
     packsize,
     r1truncfile,
     r2truncfile,
-    filecomplete,
-    insofarreads,
     previousreads,
     scannedreads,
     ambiguousreads,
@@ -43,6 +43,8 @@ def pack_engine(
     nactive,
     memlimit,
     launchtime,
+    restart,
+    shutdown,
     liner):
     '''
     Process r1file and r2file and pack read
@@ -119,15 +121,6 @@ def pack_engine(
        type - mp.Event
        desc - multiprocessing Event triggered
               on truncated r2file
-    :: filecomplete
-       type - mp.Event
-       desc - multiprocessing Event triggered
-              when r1file and r2file fully
-              scanned
-    :: insofarreads
-       type - integer
-       desc - total number of read pairs scanned
-              so far from r1file and r2file
     :: previousreads
        type - SafeCounter
        desc - total number of read pairs scanned
@@ -180,6 +173,14 @@ def pack_engine(
     :: launchtime
        type - time
        desc - initial launch timestamp
+    :: restart
+       type - mp.Event
+       desc - multiprocessing event when
+              process needs to restart
+    :: shutdown
+       type - mp.Event
+       desc - multiprocessing event when
+              process needs to shutdown
     :: liner
        type - coroutine
        desc - dynamic printing
@@ -230,8 +231,6 @@ def pack_engine(
         assemblyparams=assemblyparams,
         r1truncfile=r1truncfile,
         r2truncfile=r2truncfile,
-        filecomplete=filecomplete,
-        insofarreads=insofarreads,
         previousreads=previousreads,
         scannedreads=scannedreads,
         ambiguousreads=ambiguousreads,
@@ -242,6 +241,8 @@ def pack_engine(
         ncores=ncores,
         memlimit=memlimit,
         launchtime=launchtime,
+        restart=restart,
+        shutdown=shutdown,
         liner=liner):
 
         # Truncated Files?
@@ -590,7 +591,7 @@ def pack(
         ncores=ncores,
         core_field='  Num Cores  ',
         default=None if not packtype else mp.cpu_count() // 3,
-        offset=1,
+        offset=2,
         liner=liner)
 
     # Full num_core Parsing and Validation
@@ -674,10 +675,13 @@ def pack(
     metaqueue = ut.SafeQueue()
     packqueue = ut.SafeQueue()
 
-    # Truncated Read Files Event
+    # Read File Processing Book-keeping
     r1truncfile  = mp.Event()
     r2truncfile  = mp.Event()
-    filecomplete = mp.Event()
+    restarts  = [
+        mp.Event() for _ in range(ncores)]
+    shutdowns = [
+        mp.Event() for _ in range(ncores)]
 
     # Read Packing Book-keeping
     nactive        = ut.SafeCounter(initval=ncores)
@@ -687,8 +691,7 @@ def pack(
     survivedreads  = ut.SafeCounter()
     packedreads    = ut.SafeCounter()
     packsbuilt     = ut.SafeCounter()
-    batchid        = 0
-    insofarreads   = 0
+    batchids       = [0] * ncores
     previousreads  = [
         ut.SafeCounter() for _ in range(ncores)]
 
@@ -717,18 +720,102 @@ def pack(
     # Engine Timer
     et = tt.time()
 
-    # Batched Processing
-    while True:
+    # Define Archiver for Non-Meta Read Packs
+    archiver = mp.Process(
+        target=ut.archive,
+        args=(packqueue,
+            packfile,
+            'x',
+            ncores,
+            nactive,
+            liner,))
 
-        # Packer Process Store
-        readpackers = []
+    # Fire-off Archiver
+    archiver.start()
 
-        # Queue All Read Packers
-        coreid = 0
-        while coreid < ncores:
+    # Define Packer Process Store
+    readpackers = []
 
-            # Define Packer
-            readpacker = mp.Process(
+    # Fire-off Initial Read Packers
+    coreid = 0
+    while coreid < ncores:
+
+        # Define Packer
+        readpacker = mp.Process(
+            target=pack_engine,
+            args=(r1file,
+                r2file,
+                r1type,
+                r2type,
+                r1length,
+                r2length,
+                r1qual,
+                r2qual,
+                packdir,
+                metaqueue,
+                packqueue,
+                packtype,
+                assemblyparams,
+                packsize,
+                r1truncfile,
+                r2truncfile,
+                previousreads[coreid],
+                scannedreads,
+                ambiguousreads,
+                shortreads,
+                survivedreads,
+                packedreads,
+                packsbuilt,
+                coreid,
+                batchids[coreid],
+                ncores,
+                nactive,
+                memlimit,
+                et,
+                restarts[coreid],
+                shutdowns[coreid],
+                liner,))
+
+        # Start Packer
+        readpacker.start()
+
+        # Update Book-keeping
+        readpackers.append(readpacker)
+        coreid += 1
+
+    # Packer Management
+    coreid = 0
+    activepackers = ncores
+    while activepackers:
+
+        # Had Packer Finished?
+        if readpackers[coreid] is None:
+            pass
+
+        # Has Packer Shutdown?
+        elif shutdowns[coreid].is_set():
+            # Cleanup
+            readpackers[coreid].join()
+            readpackers[coreid].close()
+            # Update
+            readpackers[coreid] = None
+            activepackers -= 1
+            # Reset
+            restarts[coreid].clear()
+            shutdowns[coreid].clear()
+
+        # Must Packer Restart?
+        elif restarts[coreid].is_set():
+            # Cleanup
+            readpackers[coreid].join()
+            readpackers[coreid].close()
+            # Update
+            readpackers[coreid] = None
+            batchids[coreid] += 1
+            # Reset
+            restarts[coreid].clear()
+            shutdowns[coreid].clear()
+            readpackers[coreid] = mp.Process(
                 target=pack_engine,
                 args=(r1file,
                     r2file,
@@ -746,8 +833,6 @@ def pack(
                     packsize,
                     r1truncfile,
                     r2truncfile,
-                    filecomplete,
-                    insofarreads,
                     previousreads[coreid],
                     scannedreads,
                     ambiguousreads,
@@ -756,47 +841,26 @@ def pack(
                     packedreads,
                     packsbuilt,
                     coreid,
-                    batchid,
+                    batchids[coreid],
                     ncores,
                     nactive,
                     memlimit,
                     et,
+                    restarts[coreid],
+                    shutdowns[coreid],
                     liner,))
+            readpackers[coreid].start()
 
-            # Start Packer
-            readpacker.start()
+        # Next Iteration
+        coreid = (coreid + 1) % ncores
+        tt.sleep(0)
 
-            # Update Book-keeping
-            readpackers.append(readpacker)
-            coreid += 1
+    # Join Archiver
+    archiver.join()
+    archiver.close()
 
-        # Truncated File Breaking Conditions
-        if r1truncfile.is_set() or \
-           r2truncfile.is_set():
-            break
-
-        # Archive Non-Meta Read Packs
-        ut.archive(
-            objqueue=packqueue,
-            arcfile=packfile,
-            mode='x',
-            prodcount=ncores,
-            prodactive=nactive,
-            liner=liner)
-
-        # Join and Close All Read Packers
-        for readpacker in readpackers:
-            readpacker.join()
-            readpacker.close()
-
-        # Process Next Batch?
-        if not filecomplete.is_set():
-            # Update Book-keeping
-            insofarreads = scannedreads.value()
-            batchid += 1
-            ut.free_mem()
-        else:
-            break
+    # Free Memory
+    ut.free_mem()
 
     # Handle Truncated Read Files
     if r1truncfile.is_set():

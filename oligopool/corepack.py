@@ -617,6 +617,39 @@ def get_merged_reads(r1, r2, qv1, qv2,
         return high_assembled
     return low_assembled
 
+def get_skipcount(
+    previousreads,
+    coreid,
+    ncores):
+    '''
+    Return the number of reads to be
+    skipped for current core.
+    Internal use only.
+
+    :: previousreads
+       type - integer
+       desc - total number of read pairs scanned
+              previously from r1file and r2file
+    :: coreid
+       type - integer
+       desc - current core integer id
+    :: ncores
+       type - integer
+       desc - total number of readers
+              concurrently initiated
+    '''
+
+    # Book-keeping
+    n = coreid
+    m = ncores
+    p = previousreads
+    d = ncores - coreid - 1
+
+    # Compute and Return Results
+    if p <= 0:
+        return 0
+    return ((p-1) * m) + (n + 1) + d
+
 def stream_processed_fastq(
     r1file,
     r2file,
@@ -630,8 +663,6 @@ def stream_processed_fastq(
     assemblyparams,
     r1truncfile,
     r2truncfile,
-    filecomplete,
-    insofarreads,
     previousreads,
     scannedreads,
     ambiguousreads,
@@ -642,6 +673,8 @@ def stream_processed_fastq(
     ncores,
     memlimit,
     launchtime,
+    restart,
+    shutdown,
     liner):
     '''
     Scan, process and stream reads from
@@ -747,6 +780,14 @@ def stream_processed_fastq(
     :: launchtime
        type - time
        desc - initial launch timestamp
+    :: restart
+       type - mp.Event
+       desc - multiprocessing Event
+              triggered to restart
+    :: shutdown
+       type - mp.Event
+       desc - multiprocessing Event
+              triggered to shutdown
     :: liner
        type - coroutine
        desc - dynamic printing
@@ -766,13 +807,17 @@ def stream_processed_fastq(
     truncable        = not r2file is None
     batchreach       = 0
     batchsize        = 0.5 * (10**6)
+    skipcount        = get_skipcount(
+        previousreads=c_previousreads,
+        coreid=coreid,
+        ncores=ncores)
 
     # Setup R1 Streamer
     reader1 = ut.stream_fastq_engine(
         filepath=r1file,
         invert=r1type,
         qualvec=r1qual > 0,
-        skipcount=insofarreads,
+        skipcount=skipcount,
         coreid=coreid,
         ncores=ncores,
         fastqid=1,
@@ -784,7 +829,7 @@ def stream_processed_fastq(
             filepath=r2file,
             invert=r2type,
             qualvec=r2qual > 0,
-            skipcount=insofarreads,
+            skipcount=skipcount,
             coreid=coreid,
             ncores=ncores,
             fastqid=2,
@@ -812,7 +857,7 @@ def stream_processed_fastq(
         # Exhausted File Pair
         if r1 is None and \
            r2 is None:
-            filecomplete.set()
+            shutdown.set()
             break
 
         # Can Read Files be Truncated?
@@ -822,14 +867,14 @@ def stream_processed_fastq(
             if       r1 is None and \
                  not r2 is None:
                  r1truncfile.set()
-                 filecomplete.set()
+                 shutdown.set()
                  break
 
             # Truncated R2 File
             elif     r2 is None and \
                  not r1 is None:
                  r2truncfile.set()
-                 filecomplete.set()
+                 shutdown.set()
                  break
 
         # Apply Ambiguity, Length, and Quality Filters
@@ -927,9 +972,15 @@ def stream_processed_fastq(
             memused = pu.Process(os.getpid()).memory_info().rss / 10**9
             # Crossed Threshold?
             if memused > memlimit:
+                restart.set() # Enable Restart
                 break # Release, your Memory Real Estate, biatch!
             else:
                 batchreach = 0 # Reset Counter
+
+        # # Simulate Asynchornous Restarts
+        # if batchreach == ((coreid+1) * 10000):
+        #     restart.set()
+        #     break
 
     # Final Book-keeping Update
     previousreads.increment(incr=c_scannedreads)
@@ -951,9 +1002,15 @@ def stream_processed_fastq(
                 tt.time()-t0))
 
     # Restart, We Must!
-    if packtype and not filecomplete.is_set():
+    if restart.is_set():
         # Show Updates
         liner.send(' Core {:{},d}: Restarting ...\n'.format(
+            coreid,
+            clen))
+    # Shutdown!
+    elif shutdown.is_set():
+        # Show Updates
+        liner.send(' Core {:{},d}: Shutting Down\n'.format(
             coreid,
             clen))
 

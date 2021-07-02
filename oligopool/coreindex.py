@@ -148,6 +148,7 @@ def get_trimmed_constant(
 def get_parsed_constants(
     prefixconstant,
     suffixconstant,
+    attachetype,
     liner):
     '''
     Check barcode constant feasibility.
@@ -159,6 +160,11 @@ def get_parsed_constants(
     :: suffixconstant
        type - pd.Series / None
        desc - suffix constant to barcodes
+    :: attachetype
+       type - integer
+       desc - constant attachement type
+              0 = barcode
+              1 = associate
     :: liner
        type - coroutine
        desc - dynamic printing
@@ -190,7 +196,7 @@ def get_parsed_constants(
 
         if prefixuniq:
             prefixconstant = get_trimmed_constant(
-                constant=prefixconstant[0],
+                constant=prefixconstant.iloc[0],
                 targetlen=20,
                 constanttype=0)
             prefixlen = len(prefixconstant)
@@ -213,7 +219,7 @@ def get_parsed_constants(
 
         if suffixuniq:
             suffixconstant = get_trimmed_constant(
-                constant=suffixconstant[0],
+                constant=suffixconstant.iloc[0],
                 targetlen=20,
                 constanttype=1)
             suffixlen = len(suffixconstant)
@@ -278,8 +284,10 @@ def get_parsed_constants(
         liner.send(
             ' Verdict: Indexing Possibly Feasible\n')
     else:
+        attache = ['Barcode', 'Associate'][attachetype]
         liner.send(
-            ' Verdict: Indexing Infeasible due to Barcode Constant(s)\n')
+            ' Verdict: Indexing Infeasible due to {} Constant(s)\n'.format(
+                attache))
 
     # Return Results
     return (parsestatus,

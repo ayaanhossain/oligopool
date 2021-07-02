@@ -82,7 +82,7 @@ def index_engine(
     # Counting Meta Data Initialization
     maxtval = 2
     metamap = {
-        'eventcount'     : barcodecount,
+        'variantcount'   : barcodecount,
         'barcodename'    : barcodename,
         'barcodelen'     : barcodelen,
         'barcodeprefix'  : barcodeprefix,
@@ -135,6 +135,8 @@ def index_engine(
                     mintval,
                     maxtval))
         metamap['associatetvaldict'] = associatetvaldict
+        metamap['associatetvalmin']  = mintval
+        metamap['associatetvalmax']  = maxtval
     else:
         metamap['associatetvaldict'] = None
 
@@ -156,23 +158,23 @@ def index_engine(
     else:
         metamap['bsxtval'] = None
 
-    # Compute Barcode Prefix t-value
+    # Compute Associate Prefix t-value
     if not associateprefix is None:
-        vpxtval = ci.infer_tvalue(
+        apxtval = ci.infer_tvalue(
             elementlen=len(associateprefix),
             maximum=2)
-        metamap['vpxtval'] = vpxtval
+        metamap['apxtval'] = apxtval
     else:
-        metamap['vpxtval'] = None
+        metamap['apxtval'] = None
 
-    # Compute Barcode Suffix t-value
+    # Compute Associate Suffix t-value
     if not associatesuffix is None:
-        vsxtval = ci.infer_tvalue(
+        asxtval = ci.infer_tvalue(
             elementlen=len(associatesuffix),
             maximum=2)
-        metamap['vsxtval'] = vsxtval
+        metamap['asxtval'] = asxtval
     else:
-        metamap['vsxtval'] = None
+        metamap['asxtval'] = None
 
     # Compute Read Anchor Motif
     if not barcodeprefix is None:
@@ -214,14 +216,15 @@ def index_engine(
     liner.send(' Writing   Barcode Model: Done\n')
 
     # Save and Delete associatedict
-    liner.send(' Writing Associate Map ...')
-    opath = indexdir+'associate.map'
-    ut.savedict(
-        dobj=associatedict,
-        filepath=opath)
-    indexqueue.put(opath)
-    del associatedict
-    liner.send(' Writing Associate Map  : Done\n')
+    if associatedict:
+        liner.send(' Writing Associate Map ...')
+        opath = indexdir+'associate.map'
+        ut.savedict(
+            dobj=associatedict,
+            filepath=opath)
+        indexqueue.put(opath)
+        del associatedict
+        liner.send(' Writing Associate Map  : Done\n')
 
     # Show Time Elapsed
     liner.send(
@@ -455,6 +458,7 @@ def index(
     suffixlen) = ci.get_parsed_constants(
         prefixconstant=barcodeprefix,
         suffixconstant=barcodesuffix,
+        attachetype=0,
         liner=liner)
 
     # Barcode Constants infeasible
@@ -516,6 +520,7 @@ def index(
         suffixlen) = ci.get_parsed_constants(
             prefixconstant=associateprefix,
             suffixconstant=associatesuffix,
+            attachetype=1,
             liner=liner)
 
         # Associate Constants infeasible

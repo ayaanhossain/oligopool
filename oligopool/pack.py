@@ -6,8 +6,6 @@ import atexit      as ae
 
 import multiprocessing as mp
 
-from numpy import core
-
 import utils    as ut
 import valparse as vp
 import corepack as cp
@@ -249,6 +247,7 @@ def pack_engine(
         if  r1truncfile.is_set() or \
             r2truncfile.is_set():
             truncated = True
+            shutdown.set()
             break
 
         # Pack Read
@@ -800,6 +799,7 @@ def pack(
             # Update
             readpackers[coreid] = None
             activepackers -= 1
+            ut.free_mem()
             # Reset
             restarts[coreid].clear()
             shutdowns[coreid].clear()
@@ -812,6 +812,7 @@ def pack(
             # Update
             readpackers[coreid] = None
             batchids[coreid] += 1
+            ut.free_mem()
             # Reset
             restarts[coreid].clear()
             shutdowns[coreid].clear()
@@ -901,41 +902,37 @@ def pack(
         at = tt.time()
 
         # Aggregate Meta Read Packs
-        if ncores == 1:
-            # Single Core Aggregator
-            cp.pack_aggregator(
-                metaqueue=metaqueue,
-                packqueue=packqueue,
-                packedreads=packedreads,
-                packsbuilt=packsbuilt,
-                liner=liner)
-        else:
-            # Define Meta Pack Aggregator
-            # on a Separate Core
-            aggregator = mp.Process(
-                target=cp.pack_aggregator,
-                args=(metaqueue,
-                    packqueue,
-                    packedreads,
-                    packsbuilt,
-                    liner,))
-            # Start Aggregator
-            aggregator.start()
+        # Define Meta Pack Aggregator
+        # on a Separate Core
+        aggregator = mp.Process(
+            target=cp.pack_aggregator,
+            args=(metaqueue,
+                packqueue,
+                packedreads,
+                packsbuilt,
+                liner,))
 
-        # Define Archiver
-        archiver = ut.archive_engine(
-            arcfile=packfile,
-            mode='a')
+        # Start Aggregator
+        aggregator.start()
+
+        # Update Producer Count
+        nactive.increment()
 
         # Archive Meta Read Packs
-        while not packqueue.empty():
-            xpath = packqueue.get()
-            archiver.send((xpath, liner))
+        ut.archive(
+            objqueue=packqueue,
+            arcfile=packfile,
+            mode='a',
+            prodcount=1,
+            prodactive=nactive,
+            liner=liner)
 
-        # Join and CLose Aggregator
-        if ncores > 1:
-            aggregator.join()
-            aggregator.close()
+        # Update Producer Count
+        nactive.decrement()
+
+        # Join and Close Aggregator
+        aggregator.join()
+        aggregator.close()
 
         # Show Time Elapsed
         liner.send(
@@ -1021,10 +1018,6 @@ def pack(
     # Did we succeed?
     if stats['status']:
 
-        # Close Queues
-        metaqueue.close()
-        packqueue.close()
-
         # Archive Packing Stats
         packstat = {
             'packtype' : packtype,
@@ -1035,17 +1028,35 @@ def pack(
             'packed'   : int(packedreads.value())
         }
 
+        # Prepare Archiving Sentinels
         statpath = '{}/packing.stat'.format(
             packdir)
+        packqueue.put(statpath)
+        packqueue.put(None)
 
+        # Dump Pack Stat
         ut.savedict(
             dobj=packstat,
             filepath=statpath)
 
-        archiver.send((statpath, None))
+        # Update Producer Count
+        nactive.increment()
 
-        # Close Archiver
-        archiver.close()
+        # Archive Pack Stat
+        ut.archive(
+            objqueue=packqueue,
+            arcfile=packfile,
+            mode='a',
+            prodcount=1,
+            prodactive=nactive,
+            liner=liner)
+
+        # Update Producer Count
+        nactive.decrement()
+
+        # Close Queues
+        metaqueue.close()
+        packqueue.close()
 
     # # Remove Workspace
     ut.remove_directory(

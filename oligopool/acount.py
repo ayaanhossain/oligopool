@@ -14,10 +14,10 @@ import numpy  as np
 import pandas as pd
 import edlib  as ed
 
-from . import utils     as ut
-from . import valparse  as vp
-from . import scry      as sy
-from . import phiX      as px
+import utils     as ut
+import valparse  as vp
+import scry      as sy
+import phiX      as px
 
 def count_engine(
     prepfile,
@@ -452,266 +452,137 @@ def count_engine(
     trinukereads.increment(incr=c_trinukereads)
     incalcreads.increment(incr=c_incalcreads)
 
-def count_aggregator(
-    prepfile,
-    countqueue,
-    countfile,
-    prodcount):
-    '''
-    Aggregate all count matrices stored in
-    countqueue in to a pandas DataFrame and
-    optionally write it out as countfile
-    CSV file. Internal use only.
-
-    :: prepfile
-       type - string
-       desc - path to compressed zipfile
-              storing prepared structures
-              and data models for amplicon
-              and sample data
-    :: countqueue
-       type - SimpleQueue
-       desc - queue storing count matrices
-              aggregating one or more read
-              packs processed by each core
-    :: countfile
-       type - string / None
-       desc - path to CSV file storing
-              amplicon read counts of
-              prepared samples; if None
-              then no CSV file is written
-              and only an in-memory pandas
-              DataFrame of read counts is
-              returned to the user
-    :: prodcount
-       type - integer
-       desc - total number of producers
-              scheduled to add to countqueue
-    '''
-
-    # Define Aggregate Matrix and DataFrame
-    agmatrix = None
-    agdf     = None
-
-    # Open prepfile
-    prepfile = zf.ZipFile(
-        file=prepfile)
-
-    # Load Meta Map and Sample Features
-    metamap = ut.loaddict(
-        archive=prepfile,
-        dfile='meta.map')
-    samfeats = ut.loaddict(
-        archive=prepfile,
-        dfile='sam.feats')
-
-    # Close prepfile
-    prepfile.close()
-
-    # Waiting on Count Matrices
-    while countqueue.empty():
-        continue
-
-    # Count Matrix Aggregation Loop
-    while prodcount:
-
-        # Fetch Count Matrix / Token
-        cqtoken = countqueue.get()
-
-        # Exhaustion Token
-        if cqtoken is None:
-            prodcount -= 1
-            continue
-
-        # Update Aggregate Matrix
-        if not agmatrix is None:
-            agmatrix += cqtoken
-        else:
-            agmatrix  = cqtoken
-
-    # Empty Aggregate Matrix?
-    if np.sum(agmatrix) == 0.:
-        agmatrix = None
-
-    # Do we have Aggregate Matrix?
-    if not agmatrix is None:
-
-        # Build Aggregate DataFrame
-        agdf = pd.DataFrame(
-            data=agmatrix.astype(np.int64),
-            columns=metamap['headers'],
-            index=metamap['SampleID'])
-        agdf.index.name = 'SampleID'
-
-        # Build Meta Feature DataFrame
-        ftdf = pd.DataFrame.from_dict(
-            data=samfeats,
-            orient='index')
-        ftdf.index.name = 'SampleID'
-
-        # Merge DataFrames
-        agdf = agdf.join(
-            ftdf, on='SampleID')
-
-        # Dump Aggregate DataFrame
-        if not countfile is None:
-            agdf.to_csv(
-                path_or_buf=countfile,
-                sep=',')
-
-    # Return Aggregate DataFrame
-    return agdf
-
-def count(
-    prepfile,
+def acount(
+    indexfile,
     packfile,
-    countfile=None,
-    amperrors=-1,
-    barerrors=-1,
+    countfile,
+    maptype=0,
+    barcodeerrors=-1,
+    associateerrors=-1,
     ncores=0,
+    memlimit=0,
     verbose=True):
     '''
-    The 'count' function iterates through reads stored in <packfile>
-    and maps barcodes (as prepared) identifying every unique sample
-    and tabulates associated amplicon count. Reads with more errors
-    than specified tolerances are discarded. The final count matrix
-    is written to <countfile> (CSV) along with any sample meta data
-    if specified, otherwise returned as a pandas DataFrame.
-
-    :: prepfile
-       type - string
-       desc - path to prepfile storing indexes and models
-              (suffix='.dxseq.prep')
-    :: packfile
-       type - string
-       desc - path to packfile storing packed paired-reads
-              (suffix='.dxseq.pack')
-    :: countfile
-       type - string / None
-       desc - filename to save count matrix as CSV
-              (suffix='.dxseq.count.csv')
-              (default=None)
-    :: amperrors
-       type - integer
-       desc - maximum number of substituion mutations
-              to tolerate in amplicons and controls
-              (integer >= 0, -1=auto-inferred)
-              (default=-1)
-    :: barerrors
-       type - integer
-       desc - maximum number of substituion mutations
-              to tolerate in well and plate barcodes
-              (integer >= 0, -1=auto-inferred)
-              (default=-1)
-    :: ncores
-       type - integer
-       desc - number of cores used in counting
-              (positive integer, 0=auto-inferred)
-              (default=0)
-    :: verbose
-       type - boolean
-       desc - if True will log updates to stdout
-              (default=True)
-
-    Output: A file named <countfile> with '.dxseq.count.csv' suffix,
-            if specified; otherwise a pandas DataFrame is returned.
-
-    Note 1. Read counting is CPU bound, and scales using multiple
-            cores. An optimal number of cores is determined based
-            on the number of read packs in <packfile> and present
-            system core count.
-
-    Note 2. Default errors for barcodes and amplicons is inferred
-            during the prep step. Using higher errors, especially
-            for barcodes, may increase false positive read counts
-            and slow down overall read counting speed.
+    TBD
     '''
 
     # Start Liner
     liner = ut.liner_engine(online=verbose)
 
-    # Counting Verbage Print
-    liner.send('\n[dxseq - Counting]\n\n')
+    # Packing Verbage Print
+    liner.send('\n[Oligopool Calculator: Analysis Mode - Associate Count]\n')
 
-    # Full prepfile Validation
-    prepfile_valid = vp.get_prepfile_validity(
-        prepfile=prepfile,
-        prepfile_field='     Prep   File',
+    # Required Argument Parsing
+    liner.send('\n Required Arguments\n')
+
+    # Full indexfile Validation
+    indexfile_valid = vp.get_indexfile_validity(
+        indexfile=indexfile,
+        indexfile_field='     Index File  ',
+        associated=True,
         liner=liner)
 
-    # Adjust prepfile Suffix
-    if prepfile_valid:
-        prepfile = ut.get_adjusted_path(
-            path=prepfile,
-            suffix='.dxseq.prep')
+    # Adjust indexfile Suffix
+    if indexfile_valid:
+        indexfile = ut.get_adjusted_path(
+            path=indexfile,
+            suffix='.oligopool.index')
 
     # Full packfile Validation
     (packfile_valid,
     packcount) = vp.get_parsed_packfile(
         packfile=packfile,
-        packfile_field='     Pack   File',
+        packfile_field='      Pack File  ',
         liner=liner)
 
     # Adjust packfile Suffix
     if packfile_valid:
         packfile = ut.get_adjusted_path(
             path=packfile,
-            suffix='.dxseq.pack')
+            suffix='.oligopool.pack')
 
     # Full countfile Validation
-    countfile_valid = vp.get_outdf_validity(
-        outdf=countfile,
-        outdf_suffix='.dxseq.count.csv',
-        outdf_field='    Count   File',
+    countfile_valid = vp.get_outfile_validity(
+        outfile=countfile,
+        outfile_suffix='.oligopool.acount.csv',
+        outfile_field='     Count File  ',
         liner=liner)
 
     # Adjust countfile Suffix
     if not countfile is None:
         countfile = ut.get_adjusted_path(
             path=countfile,
-            suffix='.dxseq.count.csv')
+            suffix='.oligopool.acount.csv')
 
-    # Full amperrors Validation
-    amperrors_valid = vp.get_errors_validity(
-        errors=amperrors,
-        errors_field=' Amplicon Errors',
-        errors_pre_desc=' Allow up to ',
-        errors_post_desc=' Mutations per Amplicon',
-        errors_base='A',
-        prepfile_valid=prepfile_valid,
-        prepfile=prepfile,
+    # Optional Argument Parsing
+    liner.send('\n Optional Arguments\n')
+
+    # Full maptype Validation
+    maptype_valid = vp.get_categorical_validity(
+        category=maptype,
+        category_field='   Mapping Type  ',
+        category_pre_desc=' ',
+        category_post_desc=' Classification',
+        category_dict={
+            0: 'Terminus Optimized',
+            1: 'Spectrum Optimized'},
         liner=liner)
 
-    # Full barerrors Validation
-    barerrors_valid = vp.get_errors_validity(
-        errors=barerrors,
-        errors_field='  Barcode Errors',
-        errors_pre_desc=' Allow up to ',
-        errors_post_desc=' Mutations per Barcode ',
+    # Full barcodeerrors Validation
+    barcodeerrors_valid = vp.get_errors_validity(
+        errors=barcodeerrors,
+        errors_field='   Barcode Errors',
+        errors_pre_desc=' At most ',
+        errors_post_desc=' Mutations per Barcode',
         errors_base='B',
-        prepfile_valid=prepfile_valid,
-        prepfile=prepfile,
+        indexfile_valid=indexfile_valid,
+        indexfile=indexfile,
+        liner=liner)
+
+    # Full associateerrors Validation
+    associateerrors_valid = vp.get_errors_validity(
+        errors=associateerrors,
+        errors_field=' Associate Errors',
+        errors_pre_desc=' At most ',
+        errors_post_desc=' Mutations per Associate',
+        errors_base='A',
+        indexfile_valid=indexfile_valid,
+        indexfile=indexfile,
         liner=liner)
 
     # Full num_core Parsing and Validation
     (ncores,
     ncores_valid) = vp.get_parsed_core_info(
         ncores=ncores,
-        core_field='      Num  Cores',
+        core_field='       Num Cores ',
         default=packcount,
+        offset=2,
+        liner=liner)
+
+    # Full num_core Parsing and Validation
+    (memlimit,
+    memlimit_valid) = vp.get_parsed_memory_info(
+        memlimit=memlimit,
+        memlimit_field='       Mem Limit ',
+        ncores=ncores,
+        ncores_valid=ncores_valid,
         liner=liner)
 
     # First Pass Validation
     if not all([
-        prepfile_valid,
+        indexfile_valid,
         packfile_valid,
         countfile_valid,
-        amperrors_valid,
-        barerrors_valid,
-        ncores_valid]):
+        maptype_valid,
+        barcodeerrors_valid,
+        associateerrors_valid,
+        ncores_valid,
+        memlimit_valid]):
         liner.send('\n')
         raise RuntimeError(
             'Invalid Argument Input(s).')
+
+    return
 
     # Schedule countfile deletion
     ctdeletion = ae.register(

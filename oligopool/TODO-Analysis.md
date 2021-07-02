@@ -29,8 +29,8 @@ index.py (same as prep.py)
   match each other and reindex the input df based on paired
   df. Look into get_parsed_spacerlen_info(...) for clues.~~
 
-* Finish Engine
-* Finish Scry
+~~* Finish Engine~~
+~~* Finish Scry~~
 
 count.py
 

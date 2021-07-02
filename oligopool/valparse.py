@@ -4,6 +4,7 @@ import numbers         as nu
 import multiprocessing as mp
 import zipfile         as zf
 import math            as mt
+import collections     as cx
 
 import numpy    as np
 import pandas   as pd
@@ -281,6 +282,323 @@ def get_optional_readfile_validity(
         paired_readfile=paired_readfile,
         liner=liner)
 
+def get_inzip_validity(
+    inzip,
+    inzip_suffix,
+    inzip_field,
+    inzip_type,
+    liner):
+    '''
+    Determine if zipfile is valid.
+    Internal use only.
+
+    :: inzip
+       type - string
+       desc - path to compressed zipfile
+    :: inzip_suffix
+       type - string
+       desc - zipfile suffix adjustment
+    :: inzip_field
+       type - string
+       desc - zipfile fieldname used
+              in printing
+    :: inzip_type
+       type - string
+       desc - zipfile type name string
+    :: liner
+       type - coroutine
+       desc - dynamic printing
+    '''
+
+    # zipfile exists and non-empty?
+    inzip_exists = get_infile_validity(
+        infile=inzip,
+        infile_suffix=inzip_suffix,
+        infile_field=inzip_field,
+        liner=liner)
+
+    # inzip is zipfile?
+    inzip_is_zipfile = False
+    if inzip_exists:
+        inzip = ut.get_adjusted_path(
+            path=inzip,
+            suffix=inzip_suffix)
+        inzip_is_zipfile = zf.is_zipfile(
+            filename=inzip)
+        if not inzip_is_zipfile:
+            liner.send(
+                '{}: {} [INVALID {} FILE]\n'.format(
+                    inzip_field, inzip, inzip_type))
+
+    # inzip is good?
+    inzip_is_good = False
+    archive = None
+    if inzip_is_zipfile:
+        archive = zf.ZipFile(
+            file=inzip)
+        inzip_is_good = True
+        # inzip_is_good = archive.testzip() is None
+        # if not inzip_is_good:
+        #     liner.send(
+        #         '{}: {} [CORRUPT {} FILE]\n'.format(
+        #             inzip_field, inzip, inzip_type))
+
+    # inzip valid?
+    return (all([
+        inzip_exists,
+        inzip_is_zipfile,
+        inzip_is_good]),
+        inzip,
+        archive)
+
+def get_indexfile_validity(
+    indexfile,
+    indexfile_field,
+    associated,
+    liner):
+    '''
+    Determine if indexfile points to a
+    valid zipfile with indexed objects.
+    Internal use only.
+
+    :: indexfile
+       type - string
+       desc - path to compressed zipfile
+              storing prepared structures
+              and data models
+              (suffix='.oligopool.index')
+    :: indexfile_field
+       type - string
+       desc - indexfile fieldname used in
+              printing
+    :: associated
+       type - boolean
+       desc - if True then indexfile is
+              expected to have associates
+    :: liner
+       type - coroutine
+       desc - dynamic printing
+    '''
+
+    # indexfile exists and non-empty?
+    (indexfile_ok_format,
+    indexfile,
+    archive) = get_inzip_validity(
+        inzip=indexfile,
+        inzip_suffix='.oligopool.index',
+        inzip_field=indexfile_field,
+        inzip_type='INDEX',
+        liner=liner)
+
+    # indexfile content ok?
+    indexfile_ok_content = False
+    if indexfile_ok_format:
+        try:
+            indexed = set([
+                'barcode.model',
+                'meta.map'])
+            if associated:
+                indexed.add('associate.map')
+            assert set(archive.namelist()) == indexed
+            variantcount = ut.loaddict(
+                archive=archive,
+                dfile='meta.map')['variantcount']
+        except:
+            liner.send(
+                '{}: {} [INVALID INDEX FILE]\n'.format(
+                    indexfile_field, indexfile))
+        else:
+            liner.send(
+                '{}: {} w/ {:,} Variant(s)\n'.format(
+                    indexfile_field, indexfile, variantcount))
+            indexfile_ok_content = True
+        finally:
+            archive.close()
+
+    # indexfile valid?
+    return all([
+        indexfile_ok_format,
+        indexfile_ok_content])
+
+def get_indexfiles_validity(
+    indexfiles,
+    indexfiles_field,
+    associated,
+    liner):
+    '''
+    Determine if all indexfiles are valid.
+    Internal use only.
+
+    :: indexfiles
+       type - string / list
+       desc - path to compressed zipfile
+              storing prepared structures
+              and data models
+              (suffix='.oligopool.index')
+    :: indexfiles_field
+       type - string
+       desc - indexfile fieldname used in
+              printing
+    :: associated
+       type - boolean
+       desc - if True then indexfiles are
+              expected to have associates
+    :: liner
+       type - coroutine
+       desc - dynamic printing
+    '''
+
+    # Do we have a single indexfile?
+    if isinstance(indexfiles, str):
+        return get_indexfile_validity(
+            indexfile=indexfiles,
+            indexfile_field=indexfiles_field,
+            associated=associated,
+            liner=liner)
+
+    # Are indexfiles iterable?
+    indexfiles_iterable = False
+    indexfile_store = cx.deque()
+    try:
+        for indexfile in indexfiles:
+            indexfile_store.append(indexfile)
+        else:
+            indexfiles_iterable = True
+    except:
+        liner.send(
+            '{}: {} [INPUT TYPE IS INVALID]\n'.format(
+                indexfiles_field, indexfiles))
+
+    # Are indexfiles valid?
+    indexfiles_ok = True
+    seen_indexfiles  = set()
+    if indexfiles_iterable:
+
+        # Prepare Spacing
+        altspacing = ' '*len(indexfiles_field)
+
+        # Show Header Update
+        liner.send(
+            '{}: {:,} Index Input(s)\n'.format(
+                indexfiles_field, len(indexfile_store)))
+
+        # Core Validation Loop
+        while indexfile_store:
+
+            # Fetch indexfile
+            indexfile = indexfile_store.popleft()
+
+            # Duplicate indexfile?
+            if indexfile in seen_indexfiles:
+                # Show Update
+                liner.send(
+                    '{}: {} [DUPLICATE INDEX FILE]\n'.format(
+                        altspacing, ut.get_adjusted_path(
+                            path=indexfile,
+                            suffix='oligopool.index')))
+                # Update Global Validity
+                indexfiles_ok = indexfiles_ok and False
+                # Next!
+                continue
+
+            # Record indexfile
+            else:
+                seen_indexfiles.add(indexfile)
+
+            # Get Current Validity
+            idxfile_valid = get_indexfile_validity(
+                indexfile=indexfile,
+                indexfile_field=altspacing,
+                associated=associated,
+                liner=liner)
+
+            # Update Global Validity
+            indexfiles_ok = indexfiles_ok and idxfile_valid
+
+    # Return Results
+    return indexfiles_iterable and indexfiles_ok
+
+def get_parsed_packfile(
+    packfile,
+    packfile_field,
+    liner):
+    '''
+    Determine if packfile points to a
+    valid zipfile with .pack files.
+    Also, return packcount.
+    Internal use only.
+
+    :: packfile
+       type - string
+       desc - path to compressed zipfile
+              storing read packs
+              (suffix='.dxseq.pack')
+    :: packfile_field
+       type - string
+       desc - packfile fieldname used in
+              printing
+    :: liner
+       type - coroutine
+       desc - dynamic printing
+    '''
+
+    # packfile exists and non-empty?
+    (packfile_ok_format,
+    packfile,
+    archive) = get_inzip_validity(
+        inzip=packfile,
+        inzip_suffix='.oligopool.pack',
+        inzip_field=packfile_field,
+        inzip_type='PACK',
+        liner=liner)
+
+    # packfile content ok and non-empty?
+    packfile_ok_content = False
+    packcount = 0
+    packfile_nonempty = False
+    if packfile_ok_format:
+        try:
+
+            for cpath in archive.namelist():
+                assert cpath.endswith('.pack') or \
+                       cpath.endswith('.stat')
+                packcount += 1
+
+            packcount -= 1 # Stat File isn't Pack
+
+            assert packcount == ut.loaddict(
+                archive=archive,
+                dfile='packing.stat')['packcount']
+
+            packfile_nonempty = packcount > 0
+
+        except:
+            # Invalid / corrupt packfile
+            liner.send(
+                '{}: {} [INVALID PACK FILE]\n'.format(
+                    packfile_field, packfile))
+        else:
+            # Empty packfile
+            if not packfile_nonempty:
+                liner.send(
+                    '{}: {} w/ {} Read Packs [EMPTY PACK FILE]\n'.format(
+                        packfile_field, packfile, packcount))
+            # Packfile has packs
+            else:
+                liner.send(
+                    '{}: {} w/ {} Read Packs\n'.format(
+                        packfile_field, packfile, packcount))
+                packfile_ok_content = True
+        finally:
+            archive.close()
+
+    # packfile valid?
+    return (all([
+        packfile_ok_format,
+        packfile_ok_content,
+        packfile_nonempty]),
+        packcount)
+
 def get_parsed_data_info(
     data,
     data_field,
@@ -514,7 +832,7 @@ def get_parsed_indata_info(
               must be present in data
     :: precheck
        type - boolean
-       desc - if True prints content description
+       desc - if False prints content description
               when validation successful too,
               otherwise this is a pre-check
     :: liner
@@ -1179,7 +1497,7 @@ def get_numeric_validity(
        desc - maximum allowed value
     :: precheck
        type - boolean
-       desc - if True prints numeric_desc
+       desc - if False prints numeric_desc
               when validation successful too,
               otherwise this is a pre-check
     :: liner
@@ -1250,7 +1568,7 @@ def get_optional_numeric_validity(
        desc - maximum allowed value
     :: precheck
        type - boolean
-       desc - if True prints numeric_desc
+       desc - if False prints numeric_desc
               when validation successful too,
               otherwise this is a pre-check
     :: liner
@@ -2177,6 +2495,99 @@ def get_parsed_background(
                 background_field,
                 background))
         return None, False
+
+def get_errors_validity(
+    errors,
+    errors_field,
+    errors_pre_desc,
+    errors_post_desc,
+    errors_base,
+    indexfile_valid,
+    indexfile,
+    liner):
+    '''
+    Determine if numeric is a None or a
+    positive Real. Internal use only.
+
+    :: errors
+       type - Real / None
+       desc - error value to validate
+    :: errors_field
+       type - string
+       desc - errors fieldname used in
+              printing
+    :: errors_pre_desc
+       type - string
+       desc - errors pre-description used
+              in printing
+    :: errors_post_desc
+       type - string
+       desc - errors post-description used
+              in printing
+    :: errors_base
+       type - string
+       desc - either 'A' or 'B'
+    :: indexfile_valid
+       type - boolean
+       desc - True if indexfile is valid,
+              False otherwise
+    :: indexfile
+       type - string
+       desc - filename storing prepared
+              indexes and models
+    :: liner
+       type - coroutine
+       desc - dynamic printing
+    '''
+
+    # errors is positive real?
+    error_numeric = get_numeric_validity(
+        numeric=errors,
+        numeric_field=errors_field,
+        numeric_pre_desc=errors_pre_desc,
+        numeric_post_desc=errors_post_desc,
+        minval=float('-inf'),
+        maxval=float('+inf'),
+        precheck=True,
+        liner=liner)
+
+    # errors status?
+    if error_numeric:
+        errors = int(errors)
+        # errors is default
+        if errors < 0.:
+            if indexfile_valid:
+                archive = zf.ZipFile(
+                    file=indexfile)
+                metamap = ut.loaddict(
+                    archive=archive,
+                    dfile='meta.map')
+                if errors_base == 'A':
+                    errors = metamap['associatetvalmax']
+                else:
+                    errors = metamap['barcodetval']
+                errors = int(errors)
+                archive.close()
+                liner.send(
+                    '{}:{}{}{} (Auto-Inferred)\n'.format(
+                        errors_field,
+                        errors_pre_desc,
+                        errors,
+                        errors_post_desc))
+            else:
+                liner.send(
+                    '{}: Indeterminable\n'.format(
+                        errors_field))
+        # errors is specified
+        else:
+            liner.send('{}:{}{}{}\n'.format(
+                errors_field,
+                errors_pre_desc,
+                errors,
+                errors_post_desc))
+
+    # Return errors validity
+    return int(error_numeric)
 
 def get_parsed_core_info(
     ncores,

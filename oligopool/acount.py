@@ -6,156 +6,67 @@ import zipfile     as zf
 import random      as rn
 import atexit      as ae
 
-import ctypes                       as ct
-import multiprocessing              as mp
-import multiprocessing.sharedctypes as mpsct
+import multiprocessing as mp
 
-import numpy  as np
-import pandas as pd
-import edlib  as ed
+import psutil as pu
 
 import utils     as ut
 import valparse  as vp
-import scry      as sy
 import phiX      as px
+import corecount as cc
 
-def count_engine(
-    prepfile,
+
+def acount_engine(
+    indexfile,
     packfile,
     packqueue,
+    countdir,
     countqueue,
-    amperrors,
-    barerrors,
-    coreid,
-    ncores,
+    maptype,
+    barcodeerrors,
+    associateerrors,
+    previousreads,
     analyzedreads,
-    diagnosticreads,
     phiXreads,
-    mononukereads,
-    dinukereads,
-    trinukereads,
+    lowcomplexreads,
     incalcreads,
+    experimentreads,
+    coreid,
+    batchid,
+    ncores,
+    memlimit,
+    launchtime,
+    restart,
+    shutdown,
     liner):
     '''
-    Count read packs stored in packfile and
-    enqueue the final read count matrix in to
-    countqueue. Internal use only.
-
-    :: prepfile
-       type - string
-       desc - path to compressed zipfile
-              storing prepared structures
-              and data models for amplicon
-              and sample data
-    :: packfile
-       type - string
-       desc - path to compressed zipfile
-              storing read packs
-    :: packqueue
-       type - SimpleQueue
-       desc - queue storing path to read pack
-              files stored in packfile
-    :: countqueue
-       type - SimpleQueue
-       desc - queue storing count matrices
-              aggregating one or more read
-              packs processed by each core
-    :: amperrors
-       type - Real / None
-       desc - maximum number of mutations
-              tolerated in amplicons / controls
-              before discarding reads from
-              counting
-    :: barerrors
-       type - Real / None
-       desc - maximum number of mutations
-              tolerated in barcodes before
-              discarding reads from counting
-    :: coreid
-       type - integer
-       desc - current core integer id
-    :: ncores
-       type - integer
-       desc - total number of counters
-              concurrently initiated
-    :: analyzedreads
-       type - c_longlong
-       desc - total number of existing read
-              pairs in packfile
-    :: diagnosticreads
-       type - c_longlong
-       desc - total number of read pairs
-              of sample origin
-    :: phiXreads
-       type - c_longlong
-       desc - total number of read pairs
-              discarded of PhiX origin
-    :: phiXreads
-       type - c_longlong
-       desc - total number of read pairs
-              discarded due to dinucleotide
-              read composition
-    :: mononukereads
-       type - c_longlong
-       desc - total number of read pairs
-              discarded and containing
-              homopolymer runs
-    :: dinukereads
-       type - c_longlong
-       desc - total number of read pairs
-              discarded and containing
-              dinucleotide runs
-    :: trinukereads
-       type - c_longlong
-       desc - total number of read pairs
-              discarded and containing
-              dinucleotide runs
-    :: incalcreads
-       type - c_longlong
-       desc - total number of read pairs
-              discarded due to one or more
-              missing elements, and of
-              unknown origin (bad products)
-    :: liner
-       type - coroutine
-       desc - dynamic printing
+    TBD
     '''
 
-    # Open prepfile
-    prepfile = zf.ZipFile(
-        file=prepfile)
+    # Open indexfile
+    indexfile = zf.ZipFile(
+        file=indexfile)
 
-    # Load Models
-    wrmodel = ut.loadmodel(
-        archive=prepfile,
-        mfile='wr.model')
-    prmodel = ut.loadmodel(
-        archive=prepfile,
-        mfile='pr.model')
-    acmodel = ut.loadmodel(
-        archive=prepfile,
-        mfile='ac.model')
+    # Load Barcode Model
+    model = ut.loadmodel(
+        archive=indexfile,
+        mfile='barcode.model')
+
+    # Prime Barcode Model
+    model.prime(
+        t=barcodeerrors,
+        mode=maptype)
 
     # Load Maps
     metamap = ut.loaddict(
-        archive=prepfile,
+        archive=indexfile,
         dfile='meta.map')
-    sammap = ut.loaddict(
-        archive=prepfile,
-        dfile='sam.map')
+    associatedict = ut.loaddict(
+        archive=indexfile,
+        dfile='associate.map')
 
-    # Close prepfile
-    prepfile.close()
-
-    # Adjust Errors
-    amperrors = min(
-        metamap['actval'],
-        amperrors)
-    barerrors = min(
-        min(
-            metamap['prtval'],
-            metamap['wrtval']),
-        barerrors)
+    # Close indexfile
+    indexfile.close()
 
     # Define PhiX Spectrum
     phiXkval = 30
@@ -171,37 +82,31 @@ def count_engine(
         archive=packfile,
         dfile='packing.stat')
 
-    # Extract Sequencing Type
-    seqtype = packstat['seqtype']
-
     # Book-keeping Variables
-    c_analyzedreads   = 0
-    c_diagnosticreads = 0
-    c_phiXreads       = 0
-    c_mononukereads   = 0
-    c_dinukereads     = 0
-    c_trinukereads    = 0
-    c_incalcreads     = 0
+    cctrs = {
+        'analyzedreads'  : previousreads.value(),
+        'phiXreads'      : 0,
+        'lowcomplexreads': 0,
+        'incalcreads'    : 0,
+        'experimentreads': 0}
 
     # Compute Printing Lengths
     clen = len(str(ncores))
-    plen = ut.get_printlen(
-        value=packstat['packsize'])
     slen = plen = ut.get_printlen(
         value=packstat['survived'])
 
-    # Read Count Matrix (Storage)
-    countmatrix = np.zeros((
-        metamap['samsize'],
-        len(metamap['cfields'])),
-        dtype=np.float64)
+    # Read Count Storage
+    countdict = cx.Counter()
+    countpath = '{}/{}.{}.count'.format(
+        countdir, coreid, batchid)
 
     # Initial Update
     if packqueue.empty():
         liner.send(
-            ' Core {:{},d}: No Packs to Analyze ... Exiting'.format(
+            ' Core {:{},d}: Shutting Down\n'.format(
                 coreid,
                 clen))
+        shutdown.set()
 
     # Pack Counting Loop
     while not packqueue.empty():
@@ -211,6 +116,7 @@ def count_engine(
 
         # Exhaustion Token
         if cpath is None:
+            shutdown.set()
             break
 
         # Fetch Read Pack
@@ -228,11 +134,12 @@ def count_engine(
                          len(cpack) * 0.120)))
 
         readcount = 0
-
         packname  = cpath.rstrip('.pack')
 
         # Start Timer
         t0 = tt.time()
+
+        print(len(cpack))
 
         # Read Counting Loop
         while True:
@@ -240,65 +147,13 @@ def count_engine(
             # Exoneration Block
             if not exoread is None:
 
-                # Exoneration Flag
-                exonerated = False
-
-                # PhiX Match?
-                for kmer in ut.stream_spectrum(
-                    seq=exoread,
-                    k=phiXkval):
-
-                    if kmer in phiXspec:
-                        c_phiXreads += exofreq
-                        exonerated   = True
-                        break
-
-                # Nucleotide Composition
-                acount = exoread.count('A')
-                tcount = exoread.count('T')
-                gcount = exoread.count('G')
-                ccount = exoread.count('C')
-
-                # Dinucleotide Match?
-                if not exonerated:
-                    # Composition Largely Dinucleotide?
-                    dinukethresh = 0.75 * len(exoread)
-                    if (ccount + tcount >= dinukethresh) or \
-                       (acount + ccount >= dinukethresh) or \
-                       (ccount + gcount >= dinukethresh) or \
-                       (acount + gcount >= dinukethresh) or \
-                       (acount + tcount >= dinukethresh) or \
-                       (tcount + gcount >= dinukethresh):
-                        c_dinukereads += exofreq
-                        exonerated = True
-                        # print(exoread)
-
-                # Mononucleotide Match?
-                if not exonerated:
-                    # Composition Large Mononucleotide?
-                    mononukethresh = 0.50 * len(exoread)
-                    if ccount >= mononukethresh or \
-                       acount >= mononukethresh or \
-                       gcount >= mononukethresh or \
-                       tcount >= mononukethresh:
-                        c_mononukereads += exofreq
-                        exonerated = True
-
-                # Trinucleotide Match?
-                if not exonerated:
-                    # Composition Largely Dinucleotide?
-                    trinukethresh = 1.00 * len(exoread)
-                    if (ccount + acount + tcount >= trinukethresh) or \
-                       (ccount + acount + gcount >= trinukethresh) or \
-                       (acount + tcount + gcount >= trinukethresh) or \
-                       (tcount + ccount + gcount >= trinukethresh):
-                        c_dinukereads += exofreq
-                        exonerated = True
-                        # print(exoread)
-
-                # Uncategorized Discard
-                if not exonerated:
-                    c_incalcreads += exofreq
+                # Run Exoneration Procedure
+                cc.exoneration_procedure(
+                    exoread=exoread,
+                    exofreq=exofreq,
+                    phiXkval=phiXkval,
+                    phiXspec=phiXspec,
+                    cctrs=cctrs)
 
                 # Clear for Next Exoneration
                 exoread = None
@@ -312,7 +167,7 @@ def count_engine(
                     ' Core {:{},d}: Analyzed {:{},d} Reads in {:.2f} sec'.format(
                         coreid,
                         clen,
-                        c_analyzedreads,
+                        cctrs['analyzedreads'],
                         slen,
                         tt.time()-t0))
 
@@ -324,107 +179,133 @@ def count_engine(
                 break
 
             # Fetch Read and Frequency
-            # ((ampread,
-            # barread),
-            # crpfreq) = cpack.pop()
+            (read,
+            freq) = cpack.pop()
 
-            # Fetch Pack Entry
-            cpentry = cpack.pop()
+            # read = ut.get_revcomp(read)
 
-            # Parse Pack Entry
-            if seqtype == 2: # Paired-End Sequencing
-                ((ampread,
-                barread),
-                crpfreq) = cpentry
-            else:            # Single-End Sequencing
-                (fullread,
-                crpfreq) = cpentry
-                ampread  = fullread
-                barread  = ut.get_revcomp(
-                    seq=ampread)
+            # print('--------------')
+
+            # print(read)
 
             # Update Book-keeping
-            c_analyzedreads += crpfreq
-            verbagereach    += 1
-            readcount       += 1
+            cctrs['analyzedreads'] += freq
+            verbagereach += 1
+            readcount    += 1
 
-            # Locate revconst
-            aln = ed.align(
-                query=metamap['revconst'],
-                target=barread,
-                mode='HW',
-                task='locations',
-                k=2)
+            # Anchor Read
+            anchoredread, anchorstatus = cc.get_anchored_read(
+                read=read,
+                metamap=metamap,
+                cctrs=cctrs)
 
-            # revconst Absent
-            if aln['editDistance'] == -1:
-                exoread = ampread
-                exofreq = crpfreq
+            # Read References
+            barcoderead   = anchoredread
+            associateread = anchoredread
+
+            # print('Barcode Part')
+            # print(barcoderead)
+            # print(anchor)
+
+            # Anchor Absent
+            if not anchorstatus:
+                exoread = barcoderead
+                exofreq = freq
                 continue
 
-            # Determine PlateReverseBarcode ID
-            prend = aln['locations'][-1][+0] + 0
-            prstr = aln['locations'][+0][+0] + 0 - \
-                    metamap['prlen']
-            prid  = prmodel.predict(
-                x=barread[prstr:prend],
-                mx=barerrors)
+            # Trim Barcode Prefix
+            barcoderead, trimstatus = cc.get_trimmed_read(
+                read=barcoderead,
+                const=metamap['barcodeprefix'],
+                constype=0,
+                constval=metamap['bpxtval'])
 
-            # Plate Reverse Barcode Absent
-            if prid is None:
-                c_incalcreads += crpfreq
+            # print(barcoderead)
+            # print(barcodeprefix)
+
+            # Barcode Prefix Absent
+            if not trimstatus:
+                cctrs['incalcreads'] += freq
                 continue
 
-            # Determine Well Reverse Barcode
-            wrstr = aln['locations'][+0][-1] + 1
-            wrend = aln['locations'][-1][-1] + 1 + \
-                    metamap['wrlen']
-            wrid  = wrmodel.predict(
-                x=barread[wrstr:wrend],
-                mx=barerrors)
+            # Trim Barcode Suffix
+            barcoderead, trimstatus = cc.get_trimmed_read(
+                read=barcoderead,
+                const=metamap['barcodesuffix'],
+                constype=1,
+                constval=metamap['bsxtval'])
 
-            # Well Reverse Barcode Absent
-            if wrid is None:
-                c_incalcreads += crpfreq
+            # print(barcoderead)
+            # print(barcodesuffix)
+
+            # Barcode Suffix Absent
+            if not trimstatus:
+                cctrs['incalcreads'] += freq
                 continue
 
-            # (prid, wrid) Combination Absent
-            if not (prid, wrid) in sammap:
-                c_incalcreads += crpfreq
+            # Classify Barcode
+            idx,score = model.predict(
+                x=barcoderead)
+
+            # print(idx,score)
+
+            # Barcode Absent
+            if idx is None:
+                cctrs['incalcreads'] += freq
                 continue
 
-            # Determine Amplicon / Control
-            aid = acmodel.predict(
-                x=ampread,
-                mx=amperrors)
+            # print('Associate Part')
+            # print(associateread)
 
-            # Amplicon / Control Absent
-            if aid is None:
-                exoread = ampread
-                exofreq = crpfreq
+            # Trim Associate Prefix
+            associateread, trimstatus = cc.get_trimmed_read(
+                read=associateread,
+                const=metamap['associateprefix'],
+                constype=0,
+                constval=metamap['apxtval'])
+
+            # print(associateread)
+            # print(associateprefix)
+
+            # Associate Prefix Absent
+            if not trimstatus:
+                cctrs['incalcreads'] += freq
+                continue
+
+            # Trim Associate Suffix
+            associateread, trimstatus = cc.get_trimmed_read(
+                read=associateread,
+                const=metamap['associatesuffix'],
+                constype=1,
+                constval=metamap['asxtval'])
+
+            # print(associateread)
+            # print(associatesuffix)
+
+            # Associate Suffix Absent
+            if not trimstatus:
+                cctrs['incalcreads'] += freq
+                continue
+
+            # Match Associate
+            associate, associatetval = associatedict[idx]
+            if associateerrors < associatetval:
+                associatetval = associateerrors
+            associatematch = cc.get_associate_match(
+                read=associateread,
+                associate=associate,
+                associatetval=associatetval)
+
+            # print(associatematch)
+
+            # Associate Absent
+            if not associatematch:
+                cctrs['incalcreads'] += freq
                 continue
 
             # All Components Valid
-            sid = sammap[(prid, wrid)]
-            cid = metamap['cfields'][aid]
-            countmatrix[sid, cid] += crpfreq
-            c_diagnosticreads     += crpfreq
-
-            # # Time to show updates?
-            # if verbagereach >= verbagetarget:
-
-            #     # Show Update
-            #     liner.send(
-            #         ' Core {:{},d}: Counted Pack {} w/ {:{},d} Reads in {:.2f} sec'.format(
-            #             coreid,
-            #             clen,
-            #             packname,
-            #             readcount,
-            #             plen,
-            #             tt.time()-t0))
-
-            #     # Update Book-keeping
-            #     verbagereach = 0
+            countdict[idx]    += freq
+            cctrs['experimentreads'] += freq
 
         # Show Final Updates
         liner.send(
@@ -436,21 +317,61 @@ def count_engine(
                 plen,
                 tt.time()-t0))
 
+        # Free Memory
+        ut.free_mem()
+
+        # Release Control
+        tt.sleep(0)
+
+        # Need to Restart?
+        if ut.needs_restart(
+            memlimit=memlimit):
+            restart.set() # Enable Restart
+            break # Release, your Memory Real Estate, biatch!
+
     # Close packfile
     packfile.close()
 
-    # Update countqueue
-    countqueue.put(countmatrix)
-    countqueue.put(None)
+    # Restart, We Must!
+    if restart.is_set():
+        # Show Updates
+        liner.send(' Core {:{},d}: Restarting ...\n'.format(
+            coreid,
+            clen))
+    # Shutdown!
+    elif shutdown.is_set():
+        # Show Updates
+        liner.send(' Core {:{},d}: Shutting Down\n'.format(
+            coreid,
+            clen))
+
+    # Save Count Dictionary
+    ut.savecount(
+        cobj=countdict,
+        filepath=countpath)
+
+    # countdict = ut.loadcount(countpath)
+
+    print(len(countdict))
+
+    # Release Control
+    tt.sleep(0)
 
     # Update Read Counting Book-keeping
-    analyzedreads.increment(incr=c_analyzedreads)
-    diagnosticreads.increment(incr=c_diagnosticreads)
-    phiXreads.increment(incr=c_phiXreads)
-    mononukereads.increment(incr=c_mononukereads)
-    dinukereads.increment(incr=c_dinukereads)
-    trinukereads.increment(incr=c_trinukereads)
-    incalcreads.increment(incr=c_incalcreads)
+    previousreads.increment(incr=cctrs['analyzedreads'])
+    analyzedreads.increment(incr=cctrs['analyzedreads'])
+    phiXreads.increment(incr=cctrs['phiXreads'])
+    lowcomplexreads.increment(incr=cctrs['lowcomplexreads'])
+    incalcreads.increment(incr=cctrs['incalcreads'])
+    experimentreads.increment(incr=cctrs['experimentreads'])
+
+    # Counting Completed
+    countqueue.put(countpath)
+    if shutdown.is_set():
+        countqueue.put(None)
+
+    # Release Control
+    tt.sleep(0)
 
 def acount(
     indexfile,
@@ -524,8 +445,8 @@ def acount(
         category_pre_desc=' ',
         category_post_desc=' Classification',
         category_dict={
-            0: 'Terminus Optimized',
-            1: 'Spectrum Optimized'},
+            0: 'Fast / Near-Exact',
+            1: 'Slow / Sensitive'},
         liner=liner)
 
     # Full barcodeerrors Validation
@@ -556,7 +477,7 @@ def acount(
         ncores=ncores,
         core_field='       Num Cores ',
         default=packcount,
-        offset=2,
+        offset=3,
         liner=liner)
 
     # Full num_core Parsing and Validation
@@ -582,7 +503,33 @@ def acount(
         raise RuntimeError(
             'Invalid Argument Input(s).')
 
-    return
+    # Start Timer
+    t0 = tt.time()
+
+    # Compute Assembly Parameters
+    liner.send('\n[Step 1: Enqueing Read Packs]\n')
+
+    # Define Queing Sentinels
+    packqueue = ut.SafeQueue()
+    enqueuecomplete = mp.Event()
+
+    # Define Pack Enquer
+    packenqueuer = mp.Process(
+        target=cc.pack_loader,
+        args=(packfile,
+            packqueue,
+            enqueuecomplete,
+            ncores,
+            liner,))
+
+    # Start Enquer
+    packenqueuer.start()
+
+    # Setup Workspace
+    (countfile,
+    countdir) = ut.setup_workspace(
+        outfile=countfile,
+        outfile_suffix='.oligopool.acount.csv')
 
     # Schedule countfile deletion
     ctdeletion = ae.register(
@@ -590,33 +537,103 @@ def acount(
         countfile)
 
     # Adjust Errors
-    amperrors = round(amperrors)
-    barerrors = round(barerrors)
-
-    # Define packqueue
-    packqueue = mp.SimpleQueue()
-
-    # Load packqueue
-    archive = zf.ZipFile(
-        file=packfile)
-    for cpath in archive.namelist():
-        if cpath.endswith('.pack'):
-            packqueue.put(cpath)
-    archive.close()
-    for _ in range(ncores):
-        packqueue.put(None)
+    barcodeerrors   = round(barcodeerrors)
+    associateerrors = round(associateerrors)
 
     # Define countqueue
     countqueue = mp.SimpleQueue()
 
+    # Pack File Processing Book-keeping
+    restarts  = [
+        mp.Event() for _ in range(ncores)]
+    shutdowns = [
+        mp.Event() for _ in range(ncores)]
+
     # Read Counting Book-keeping
+    nactive         = ut.SafeCounter(initval=ncores)
     analyzedreads   = ut.SafeCounter()
-    diagnosticreads = ut.SafeCounter()
     phiXreads       = ut.SafeCounter()
-    mononukereads   = ut.SafeCounter()
-    dinukereads     = ut.SafeCounter()
-    trinukereads    = ut.SafeCounter()
+    lowcomplexreads = ut.SafeCounter()
     incalcreads     = ut.SafeCounter()
+    experimentreads = ut.SafeCounter()
+    batchids        = [0] * ncores
+    previousreads   = [
+        ut.SafeCounter() for _ in range(ncores)]
+
+    # Wait on Enqueuing
+    enqueuecomplete.wait()
+
+    # Launching Read Packing
+    liner.send('\n[Step 2: Computing Read Packs]\n')
+
+    # Define Packing Stats
+    stats = {
+        'status'  : False,
+        'basis'   : 'unsolved',
+        'step'    : 2,
+        'stepname': 'computing-read-packs',
+        'vars'    : {},
+        'warns'   : {}}
+
+    # Engine Timer
+    et = tt.time()
+
+    # Execute Counting
+    acount_engine(
+        indexfile,
+        packfile,
+        packqueue,
+        countdir,
+        countqueue,
+        maptype,
+        barcodeerrors,
+        associateerrors,
+        previousreads[0],
+        analyzedreads,
+        phiXreads,
+        lowcomplexreads,
+        incalcreads,
+        experimentreads,
+        0,
+        batchids[0],
+        ncores,
+        memlimit,
+        et,
+        restarts[0],
+        shutdowns[0],
+        liner)
+
+    pot = 1
+    while pot:
+        item = countqueue.get()
+        print(item, pot)
+        if item == None:
+            pot -= 1
+
+    # Join Enqueuer
+    packenqueuer.join()
+
+    print(analyzedreads.value())
+    print(phiXreads.value())
+    print(lowcomplexreads.value())
+    print(incalcreads.value())
+    print(experimentreads.value())
+
+    # Remove Workspace
+    ut.remove_directory(
+        dirpath=countdir)
+
+    # # Unschedule packfile deletion
+    # if countstatus == 'Successful':
+    #     ae.unregister(ctdeletion)
+
+    # Close Liner
+    liner.close()
+
+    # # Return Statistics
+    # return stats
+
+    return
 
     # Launching Read Counting
     liner.send('\n[Counting Read Packs]\n')

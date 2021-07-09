@@ -7,9 +7,8 @@ import collections as cx
 
 import numpy    as np
 import numba    as nb
-import edlib    as ed
-import psutil   as pu
 import parasail as ps
+import edlib    as ed
 
 import utils as ut
 
@@ -806,7 +805,7 @@ def stream_processed_fastq(
     clen             = len(str(ncores))
     truncable        = not r2file is None
     batchreach       = 0
-    batchsize        = 0.5 * (10**6)
+    batchsize        = 499979 # Largest Prime < 500k
     skipcount        = get_skipcount(
         previousreads=c_previousreads,
         coreid=coreid,
@@ -968,10 +967,9 @@ def stream_processed_fastq(
 
         # Did we complete a batch?
         if batchreach == batchsize:
-            # Check Memory Consumed So Far
-            memused = pu.Process(os.getpid()).memory_info().rss / 10**9
-            # Crossed Threshold?
-            if memused > memlimit:
+            # Need to Restart?
+            if ut.needs_restart(
+                memlimit=memlimit):
                 restart.set() # Enable Restart
                 break # Release, your Memory Real Estate, biatch!
             else:

@@ -422,7 +422,8 @@ def pack_engine(
 
     # Packing Completed
     nactive.decrement()
-    packqueue.put(None)
+    if shutdown.is_set():
+        packqueue.put(None)
 
     # Release Control
     tt.sleep(0)
@@ -655,6 +656,9 @@ def pack(
     else:
         # Nothing to see here ...
         assemblyparams = None
+
+    # Free Memory
+    ut.free_mem()
 
     # Setup Workspace
     (packfile,
@@ -1058,7 +1062,7 @@ def pack(
         metaqueue.close()
         packqueue.close()
 
-    # # Remove Workspace
+    # Remove Workspace
     ut.remove_directory(
         dirpath=packdir)
 

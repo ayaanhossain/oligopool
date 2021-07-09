@@ -9,6 +9,7 @@ import pickle  as pk
 import zipfile as zf
 import atexit  as ae
 
+import contextlib  as cl
 import collections as cx
 
 import ctypes          as ct
@@ -18,6 +19,7 @@ import multiprocessing.sharedctypes as mpsct
 import numpy   as np
 import numba   as nb
 import primer3 as p3
+import psutil  as pu
 
 import msgpack  as mg
 import pyfastx  as pf
@@ -204,6 +206,23 @@ class SafeQueue(object):
         return self
 
     @alivemethod
+    def multiput(self, iterable):
+        '''
+        Put multiple items in queue.
+
+        :: iterable
+           type - iterable
+           desc - iterable of items
+        '''
+        with self.lock:
+            itemcount = 0
+            for item in iterable:
+                self.queue.put(item)
+                itemcount += 1
+            self.counter.increment(
+                incr=itemcount)
+
+    @alivemethod
     def get(self):
         '''
         Remove and return an item
@@ -244,6 +263,16 @@ class SafeQueue(object):
         return status
 
     @alivemethod
+    def full(self):
+        '''
+        Return True if the queue is full,
+        False otherwise.
+        '''
+        with self.lock:
+            status = self.queue.full()
+        return status
+
+    @alivemethod
     def close(self):
         '''
         Close the queue and release internal
@@ -256,7 +285,7 @@ class SafeQueue(object):
             self.counter = None
             self.alive.value = False
 
-# Decorators
+# Decorators and Contexts
 
 def coroutine(func):
     '''
@@ -274,6 +303,18 @@ def coroutine(func):
         return _coroutine
 
     return online
+
+@cl.contextmanager
+def ignored(*exceptions):
+    '''
+    Raymond Hettinger's ignored
+    context. Internal use only.
+    '''
+
+    try:
+        yield
+    except exceptions:
+        pass
 
 # Printing / Logging
 
@@ -2421,7 +2462,7 @@ def get_tvalue(elementlen):
         return 1
     return ((elementlen - 1) // 5) - 1
 
-# FastQ IO Functions
+# System and IO Functions
 
 def stream_fastq_engine(
     filepath,
@@ -2573,6 +2614,31 @@ def stream_fastq_engine(
     # End-of-file Token
     yield None, None
 
+def needs_restart(memlimit):
+    '''
+    Determine if process needs be
+    restart given memory profile.
+    Internal use only.
+
+    :: memlimit
+       type - float
+       desc - maximum memory allowed
+              for process execution
+              before restarting
+    '''
+
+    # Check Memory Consumed So Far (in GBs)
+    memused = pu.Process(
+        os.getpid()).memory_info().rss / 10**9
+    # Check Memory Available (in GBs)
+    memleft = pu.virtual_memory().available / 10**9
+    # Compute Policy Status
+    policystatus = any((
+        memused >= memlimit,
+        memleft <= 2,))
+    # Return Results
+    return policystatus
+
 # Workspace Functions
 
 def get_adjusted_path(path, suffix):
@@ -2595,8 +2661,8 @@ def get_adjusted_path(path, suffix):
         return None
 
     # Adjust path
-    if path.endswith('/'):
-        path = path.rstrip('/')
+    path = path.strip()
+    path = path.removesuffix('/')
     if not suffix is None and \
        not path.endswith(suffix):
         path += str(suffix)
@@ -2803,7 +2869,7 @@ def remove_file(filepath):
         filepath = get_adjusted_path(
             path=filepath,
             suffix=None)
-        if os.path.exists(filepath):
+        with ignored(OSError):
             os.remove(filepath)
 
 def remove_directory(dirpath):
@@ -2821,7 +2887,7 @@ def remove_directory(dirpath):
         dirpath = get_adjusted_path(
             path=dirpath,
             suffix=None)
-        if os.path.exists(dirpath):
+        with ignored(OSError):
             su.rmtree(dirpath)
 
 # Data Saving / Loading Functions
@@ -2847,7 +2913,7 @@ def msgpacksave(obj, filepath):
         use_bin_type=True,
         strict_types=False)
 
-    # Check Previous FIle Non-Existent
+    # Check Previous File Non-Existent
     if os.path.exists(filepath):
         raise RuntimeError(
             '{} exists!'.format(filepath))
@@ -2889,6 +2955,26 @@ def sorteditems(dobj):
 
     return sorted(dobj.items())
 
+def saveitems(iobj, filepath):
+    '''
+    MSGPACK dump sorted items to filepath,
+    for downstream consumption.
+    Internal use only.
+
+    :: iobj
+       type - dict / cx.Counter
+       desc - read pack to persist to disk
+    :: filepath
+       type - string
+       desc - filepath to save read pack
+    '''
+
+    items = sorteditems(iobj)
+    msgpacksave(
+        obj=items,
+        filepath=filepath)
+    del items
+
 def savepack(pobj, filepath):
     '''
     MSGPACK dump a read pack to filepath.
@@ -2902,11 +2988,26 @@ def savepack(pobj, filepath):
        desc - filepath to save read pack
     '''
 
-    sortedpack = sorteditems(pobj)
-    msgpacksave(
-        obj=sortedpack,
+    return saveitems(
+        iobj=pobj,
         filepath=filepath)
-    del sortedpack
+
+def savecount(cobj, filepath):
+    '''
+    MSGPACK dump a count dict to filepath.
+    Internal use only.
+
+    :: cobj
+       type - dict
+       desc - count dict to persist to disk
+    :: filepath
+       type - string
+       desc - filepath to save read pack
+    '''
+
+    return saveitems(
+        iobj=cobj,
+        filepath=filepath)
 
 def picklesave(obj, filepath):
     '''
@@ -2975,7 +3076,7 @@ def msgpackload(incontent):
     stream. Internal use only.
 
     :: incontent
-       type - file-like object
+       type - bytes
        desc - input content stream
     '''
 
@@ -3025,6 +3126,22 @@ def loadpack(archive, pfile):
     del incontent
     return obj
 
+def loadcount(cfile):
+    '''
+    MSGPACK load count items from file.
+    Internal use only.
+
+    :: cfile
+       type - string
+       desc - filepath to stored
+              count items
+    '''
+
+    with open(cfile, 'rb') as infile:
+        obj = msgpackload(
+            incontent=infile.read())
+    return obj
+
 def loadmeta(filepath):
     '''
     Pickle load a meta read pack from filepath.
@@ -3057,12 +3174,25 @@ def loadmodel(archive, mfile):
 
     incontent = archive.read(mfile)
     obj = pk.loads(
-        data=incontent,
+        incontent,
         fix_imports=True)
     del incontent
     return obj
 
-# Archiving Functions
+# Archive Functions
+
+def get_archive(
+    arcfile):
+    '''
+    Open and return ZipFile archive.
+    Internal use only.
+
+    :: arcfile
+       type - string
+       desc - archive storing all objects
+    '''
+
+    return zf.ZipFile(arcfile)
 
 @coroutine
 def archive_engine(arcfile, mode='x'):

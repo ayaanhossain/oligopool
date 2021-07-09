@@ -310,6 +310,11 @@ def get_inzip_validity(
        desc - dynamic printing
     '''
 
+    fname = inzip.split('/')[-1]
+    liner.send(
+        '{}: Loading {} ...'.format(
+            inzip_field, fname))
+
     # zipfile exists and non-empty?
     inzip_exists = get_infile_validity(
         infile=inzip,
@@ -334,8 +339,8 @@ def get_inzip_validity(
     inzip_is_good = False
     archive = None
     if inzip_is_zipfile:
-        archive = zf.ZipFile(
-            file=inzip)
+        archive = ut.get_archive(
+            arcfile=inzip)
         inzip_is_good = True
         # inzip_is_good = archive.testzip() is None
         # if not inzip_is_good:
@@ -395,11 +400,13 @@ def get_indexfile_validity(
     if indexfile_ok_format:
         try:
             indexed = set([
+                'ID.map',
                 'barcode.model',
                 'meta.map'])
             if associated:
                 indexed.add('associate.map')
-            assert set(archive.namelist()) == indexed
+            if set(archive.namelist()) != indexed:
+                raise
             variantcount = ut.loaddict(
                 archive=archive,
                 dfile='meta.map')['variantcount']
@@ -2711,7 +2718,7 @@ def get_parsed_memory_info(
 
     # How much memory available in total?
     sys_mem = np.floor(
-        pu.virtual_memory().available / (10**9)) - 1.0
+        pu.virtual_memory().total / (10**9)) - 2.0
 
     # memlimit is non-integer?
     if not isinstance(memlimit, nu.Real):

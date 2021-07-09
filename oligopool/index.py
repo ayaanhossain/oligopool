@@ -89,10 +89,7 @@ def index_engine(
         'barcodesuffix'  : barcodesuffix,
         'association'    : len(associatedict) > 0,
         'associateprefix': associateprefix,
-        'associatesuffix': associatesuffix,
-        'IDmap'          : {
-            k:IDdict.pop(k) for k in range(len(IDdict))
-        }
+        'associatesuffix': associatesuffix
     }
 
     # Compute Barcode Set t-value
@@ -134,11 +131,11 @@ def index_engine(
                 ' Associate t-value: {:,} to {:,} Mismatch(es)\n'.format(
                     mintval,
                     maxtval))
-        metamap['associatetvaldict'] = associatetvaldict
-        metamap['associatetvalmin']  = mintval
-        metamap['associatetvalmax']  = maxtval
+        metamap['associatetvalmin'] = mintval
+        metamap['associatetvalmax'] = maxtval
     else:
-        metamap['associatetvaldict'] = None
+        metamap['associatetvalmin'] = None
+        metamap['associatetvalmax'] = None
 
     # Compute Barcode Prefix t-value
     if not barcodeprefix is None:
@@ -158,6 +155,28 @@ def index_engine(
     else:
         metamap['bsxtval'] = None
 
+    # Compute Trimming Policy
+    metamap['barcodetrimpolicy'] = None
+    if not barcodeprefix is None and \
+       not barcodesuffix is None:
+        metamap['barcodetrimpolicy'] = 3
+    elif not barcodeprefix is None:
+        metamap['barcodetrimpolicy'] = 1
+    elif not barcodesuffix is None:
+        metamap['barcodetrimpolicy'] = 2
+
+    # Compute Read Anchor Motif
+    if not barcodeprefix is None:
+        metamap['anchor']     = barcodeprefix
+        metamap['revanchor']  = ut.get_revcomp(
+            seq=barcodeprefix)
+        metamap['anchortval'] = bpxtval
+    else:
+        metamap['anchor']     = barcodesuffix
+        metamap['revanchor']  = ut.get_revcomp(
+            seq=barcodesuffix)
+        metamap['anchortval'] = bsxtval
+
     # Compute Associate Prefix t-value
     if not associateprefix is None:
         apxtval = ci.infer_tvalue(
@@ -176,11 +195,15 @@ def index_engine(
     else:
         metamap['asxtval'] = None
 
-    # Compute Read Anchor Motif
-    if not barcodeprefix is None:
-         metamap['anchor'] = barcodeprefix
-    else:
-         metamap['anchor'] = barcodesuffix
+    # Save and Delete ID Dict
+    liner.send(' Writing ID Map ...')
+    opath = indexdir+'ID.map'
+    ut.savedict(
+        dobj=IDdict,
+        filepath=opath)
+    indexqueue.put(opath)
+    del IDdict
+    liner.send(' Writing        ID Map  : Done\n')
 
     # Save and Delete metamap
     liner.send(' Writing Meta Map ...')
@@ -214,6 +237,14 @@ def index_engine(
     del barcodedict
     del barcodemodel
     liner.send(' Writing   Barcode Model: Done\n')
+
+    # Update Associate Dictionary
+    if associatedict:
+        liner.send(' Updating Associate Map ...')
+        for k in associatedict:
+            associatedict[k] = (
+                associatedict[k],
+                associatetvaldict.pop(k))
 
     # Save and Delete associatedict
     if associatedict:

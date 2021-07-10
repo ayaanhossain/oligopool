@@ -156,14 +156,14 @@ def index_engine(
         metamap['bsxtval'] = None
 
     # Compute Trimming Policy
-    metamap['barcodetrimpolicy'] = None
+    metamap['trimpolicy'] = None
     if not barcodeprefix is None and \
        not barcodesuffix is None:
-        metamap['barcodetrimpolicy'] = 3
+        metamap['trimpolicy'] = 1.5
     elif not barcodeprefix is None:
-        metamap['barcodetrimpolicy'] = 1
+        metamap['trimpolicy'] = 1
     elif not barcodesuffix is None:
-        metamap['barcodetrimpolicy'] = 2
+        metamap['trimpolicy'] = 2
 
     # Compute Read Anchor Motif
     if not barcodeprefix is None:

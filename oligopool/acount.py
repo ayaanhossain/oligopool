@@ -35,7 +35,6 @@ def acount_engine(
     batchid,
     ncores,
     memlimit,
-    launchtime,
     restart,
     shutdown,
     liner):
@@ -182,12 +181,6 @@ def acount_engine(
             (read,
             freq) = cpack.pop()
 
-            # read = ut.get_revcomp(read)
-
-            # print('--------------')
-
-            # print(read)
-
             # Update Book-keeping
             cctrs['analyzedreads'] += freq
             verbagereach += 1
@@ -199,104 +192,34 @@ def acount_engine(
                 metamap=metamap,
                 cctrs=cctrs)
 
-            # Read References
-            barcoderead   = anchoredread
-            associateread = anchoredread
-
-            # print('Barcode Part')
-            # print(barcoderead)
-            # print(anchor)
-
             # Anchor Absent
             if not anchorstatus:
-                exoread = barcoderead
+                exoread = read
                 exofreq = freq
                 continue
 
-            # Trim Barcode Prefix
-            barcoderead, trimstatus = cc.get_trimmed_read(
-                read=barcoderead,
-                const=metamap['barcodeprefix'],
-                constype=0,
-                constval=metamap['bpxtval'])
+            # Setup Read References
+            barcoderead   = anchoredread
+            associateread = anchoredread
 
-            # print(barcoderead)
-            # print(barcodeprefix)
-
-            # Barcode Prefix Absent
-            if not trimstatus:
-                cctrs['incalcreads'] += freq
-                continue
-
-            # Trim Barcode Suffix
-            barcoderead, trimstatus = cc.get_trimmed_read(
-                read=barcoderead,
-                const=metamap['barcodesuffix'],
-                constype=1,
-                constval=metamap['bsxtval'])
-
-            # print(barcoderead)
-            # print(barcodesuffix)
-
-            # Barcode Suffix Absent
-            if not trimstatus:
-                cctrs['incalcreads'] += freq
-                continue
-
-            # Classify Barcode
-            idx,score = model.predict(
-                x=barcoderead)
-
-            # print(idx,score)
+            # Compute Barcode Index
+            index = cc.get_barcode_index(
+                barcoderead=barcoderead,
+                metamap=metamap,
+                model=model)
 
             # Barcode Absent
-            if idx is None:
+            if index is None:
                 cctrs['incalcreads'] += freq
                 continue
 
-            # print('Associate Part')
-            # print(associateread)
-
-            # Trim Associate Prefix
-            associateread, trimstatus = cc.get_trimmed_read(
-                read=associateread,
-                const=metamap['associateprefix'],
-                constype=0,
-                constval=metamap['apxtval'])
-
-            # print(associateread)
-            # print(associateprefix)
-
-            # Associate Prefix Absent
-            if not trimstatus:
-                cctrs['incalcreads'] += freq
-                continue
-
-            # Trim Associate Suffix
-            associateread, trimstatus = cc.get_trimmed_read(
-                read=associateread,
-                const=metamap['associatesuffix'],
-                constype=1,
-                constval=metamap['asxtval'])
-
-            # print(associateread)
-            # print(associatesuffix)
-
-            # Associate Suffix Absent
-            if not trimstatus:
-                cctrs['incalcreads'] += freq
-                continue
-
-            # Match Associate
-            associate, associatetval = associatedict[idx]
-            if associateerrors < associatetval:
-                associatetval = associateerrors
+            # Compute Associate Match
             associatematch = cc.get_associate_match(
-                read=associateread,
-                associate=associate,
-                associatetval=associatetval)
-
-            # print(associatematch)
+                associateread=associateread,
+                index=index,
+                associateerrors=associateerrors,
+                metamap=metamap,
+                associatedict=associatedict)
 
             # Associate Absent
             if not associatematch:
@@ -304,7 +227,7 @@ def acount_engine(
                 continue
 
             # All Components Valid
-            countdict[idx]    += freq
+            countdict[index] += freq
             cctrs['experimentreads'] += freq
 
         # Show Final Updates
@@ -550,7 +473,6 @@ def acount(
         mp.Event() for _ in range(ncores)]
 
     # Read Counting Book-keeping
-    nactive         = ut.SafeCounter(initval=ncores)
     analyzedreads   = ut.SafeCounter()
     phiXreads       = ut.SafeCounter()
     lowcomplexreads = ut.SafeCounter()
@@ -598,7 +520,6 @@ def acount(
         batchids[0],
         ncores,
         memlimit,
-        et,
         restarts[0],
         shutdowns[0],
         liner)

@@ -308,7 +308,59 @@ def get_trimmed_read(
     extracted_seq = read[start:stop]
     return extracted_seq, True
 
-def get_associate_match(
+def get_barcode_index(
+    barcoderead,
+    metamap,
+    model):
+    '''
+    TBD
+    '''
+
+    # Book-keeping
+    trimpolicy   = metamap['trimpolicy']
+    pxtrimstatus = True
+    sxtrimstatus = True
+    trimstatus   = True
+
+    # Prefix Trim
+    if trimpolicy <= 1.5:
+        # Prefix Trim Read
+        barcoderead, pxtrimstatus = get_trimmed_read(
+            read=barcoderead,
+            const=metamap['barcodeprefix'],
+            constype=0,
+            constval=metamap['bpxtval'])
+        # Trim was Unsuccessful
+        if (trimpolicy == 1) and (pxtrimstatus is False):
+            return None
+
+    # Suffix Trim
+    if trimpolicy >= 1.5:
+        # Suffix Trim Read
+        barcoderead, sxtrimstatus = get_trimmed_read(
+            read=barcoderead,
+            const=metamap['barcodesuffix'],
+            constype=1,
+            constval=metamap['bsxtval'])
+        # Trim was Unsuccessful
+        if (trimpolicy == 2) and (sxtrimstatus is False):
+            return None
+
+    # Policy Trim
+    if trimpolicy == 1:
+        barcoderead = barcoderead[:+(metamap['barcodelen'] + metamap['barcodetval']) ]
+    if trimpolicy == 2:
+        barcoderead = barcoderead[ -(metamap['barcodelen'] + metamap['barcodetval']):]
+    if trimpolicy == 1.5:
+        trimstatus = pxtrimstatus and sxtrimstatus
+        if not trimstatus:
+            return None
+
+    # Compute Barcode Index
+    return model.predict(
+        x=barcoderead)[0]
+
+def is_associate_match(
     read,
     associate,
     associatetval):
@@ -340,6 +392,49 @@ def get_associate_match(
     if aln['editDistance'] == -1:
         return False
     return True
+
+def get_associate_match(
+    associateread,
+    index,
+    associateerrors,
+    metamap,
+    associatedict):
+    '''
+    TBD
+    '''
+
+    # Trim Associate Prefix
+    associateread, trimstatus = get_trimmed_read(
+        read=associateread,
+        const=metamap['associateprefix'],
+        constype=0,
+        constval=metamap['apxtval'])
+
+    # Associate Prefix Absent
+    if not trimstatus:
+        return False
+
+    # Trim Associate Suffix
+    associateread, trimstatus = get_trimmed_read(
+        read=associateread,
+        const=metamap['associatesuffix'],
+        constype=1,
+        constval=metamap['asxtval'])
+
+    # Associate Suffix Absent
+    if not trimstatus:
+        return False
+
+    # Match Associate
+    associate, associatetval = associatedict[index]
+    if associateerrors < associatetval:
+        associatetval = associateerrors
+
+    # Return Results
+    return is_associate_match(
+        read=associateread,
+        associate=associate,
+        associatetval=associatetval)
 
 def count_aggregator(
     prepfile,

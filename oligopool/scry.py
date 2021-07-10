@@ -11,6 +11,12 @@ class Scry(object):
     - Professor Sybill Trelawney
     '''
 
+    __slots__ = [
+        'c', 'C', 'd',
+        'n', 'k', 't', 'z',
+        'pt', 'pm',
+        'trained', 'primed']
+
     def __init__(self):
         '''
         Scry classifier constructor.

@@ -1,11 +1,11 @@
 import time as tt
 
-import collections as cx
-import zipfile     as zf
+import itertools as ix
+import zipfile   as zf
 
-import numpy  as np
-import numba  as nb
-import edlib  as ed
+import numpy   as np
+import edlib   as ed
+import leveldb as lv
 
 import utils as ut
 
@@ -56,8 +56,8 @@ def pack_loader(
     # Enque Read Packs
     packqueue.multiput(filter(
         lambda arcentry: arcentry.endswith('.pack'),
-        ('0.0.0.pack',)))
-        # archive.namelist()))
+        # ('0.0.0.pack',)))
+        archive.namelist()[:1]))
 
     # Show Final Updates
     liner.send(
@@ -437,69 +437,34 @@ def get_associate_match(
         associatetval=associatetval)
 
 def count_aggregator(
-    prepfile,
     countqueue,
-    countfile,
-    prodcount):
+    countdir,
+    prodcount,
+    prodactive,
+    liner):
     '''
-    Aggregate all count matrices stored in
-    countqueue in to a pandas DataFrame and
-    optionally write it out as countfile
-    CSV file. Internal use only.
-
-    :: prepfile
-       type - string
-       desc - path to compressed zipfile
-              storing prepared structures
-              and data models for amplicon
-              and sample data
-    :: countqueue
-       type - SimpleQueue
-       desc - queue storing count matrices
-              aggregating one or more read
-              packs processed by each core
-    :: countfile
-       type - string / None
-       desc - path to CSV file storing
-              amplicon read counts of
-              prepared samples; if None
-              then no CSV file is written
-              and only an in-memory pandas
-              DataFrame of read counts is
-              returned to the user
-    :: prodcount
-       type - integer
-       desc - total number of producers
-              scheduled to add to countqueue
+    TBD
     '''
 
-    # Define Aggregate Matrix and DataFrame
-    agmatrix = None
-    agdf     = None
+    # Define CountDB file
+    countdb = '{}/countdb'.format(
+        countdir)
 
-    # Open prepfile
-    prepfile = zf.ZipFile(
-        file=prepfile)
-
-    # Load Meta Map and Sample Features
-    metamap = ut.loaddict(
-        archive=prepfile,
-        dfile='meta.map')
-    samfeats = ut.loaddict(
-        archive=prepfile,
-        dfile='sam.feats')
-
-    # Close prepfile
-    prepfile.close()
+    # Open CountDB Instance
+    countdb = lv.LevelDB(
+        filename=countdb,
+        create_if_missing=True,
+        error_if_exists=True)
 
     # Waiting on Count Matrices
     while countqueue.empty():
+        tt.sleep(0)
         continue
 
-    # Count Matrix Aggregation Loop
+    # Count Dicionary Aggregation Loop
     while prodcount:
 
-        # Fetch Count Matrix / Token
+        # Fetch Count Path / Token
         cqtoken = countqueue.get()
 
         # Exhaustion Token
@@ -507,41 +472,128 @@ def count_aggregator(
             prodcount -= 1
             continue
 
-        # Update Aggregate Matrix
-        if not agmatrix is None:
-            agmatrix += cqtoken
-        else:
-            agmatrix  = cqtoken
+        # Load Count Dictionary
+        fname = cqtoken.split('/')[-1]
+        countlist = ut.loadcount(
+            cfile=cqtoken)
 
-    # Empty Aggregate Matrix?
-    if np.sum(agmatrix) == 0.:
-        agmatrix = None
+        # Show Updates
+        if prodactive and \
+           prodactive.value() == 0:
+            liner.send(
+                ' Aggregating: {}'.format(
+                    fname))
 
-    # Do we have Aggregate Matrix?
-    if not agmatrix is None:
+        # Create New Batch
+        batch = lv.WriteBatch()
 
-        # Build Aggregate DataFrame
-        agdf = pd.DataFrame(
-            data=agmatrix.astype(np.int64),
-            columns=metamap['headers'],
-            index=metamap['SampleID'])
-        agdf.index.name = 'SampleID'
+        # Update Batch
+        while countlist:
+            k,v = countlist.pop()
+            strk = str(k).encode()
+            try:
+                w = eval(countdb.Get(strk))
+            except:
+                w = 0
+            strv = str(w+v).encode()
+            batch.Put(strk, strv)
 
-        # Build Meta Feature DataFrame
-        ftdf = pd.DataFrame.from_dict(
-            data=samfeats,
-            orient='index')
-        ftdf.index.name = 'SampleID'
+        # Update CountDB
+        countdb.Write(batch, sync=True)
 
-        # Merge DataFrames
-        agdf = agdf.join(
-            ftdf, on='SampleID')
+        # Release Control
+        tt.sleep(0)
 
-        # Dump Aggregate DataFrame
-        if not countfile is None:
-            agdf.to_csv(
-                path_or_buf=countfile,
-                sep=',')
+def count_write(
+    indexfiles,
+    countdir,
+    countfile,
+    liner):
 
-    # Return Aggregate DataFrame
-    return agdf
+    # Book-keeping
+    IDdicts    = []
+    indexnames = []
+    t0 = tt.time()
+
+    # Show Update
+    liner.send(' Loading IDs ...')
+
+    # Load IDdicts
+    for indexfile in indexfiles:
+
+        # Update Index Names
+        indexnames.append(indexfile.split(
+            '/')[-1].removesuffix(
+                '.oligopool.index'))
+
+        # Open indexfile
+        indexfile = zf.ZipFile(
+            file=indexfile)
+
+        # Update IDdict
+        IDdicts.append(ut.loaddict(
+            archive=indexfile,
+            dfile='ID.map'))
+
+        # Close indexfile
+        indexfile.close()
+
+    # Show Update
+    liner.send(' Writing Count Matrix ...')
+
+    # Define CountDB file
+    countdb = '{}/countdb'.format(
+        countdir)
+
+    # Open CountDB Instance
+    countdb = lv.LevelDB(
+        filename=countdb,
+        create_if_missing=False,
+        error_if_exists=False)
+
+    # Count Matrix Loop
+    with open(countfile, 'w') as outfile:
+
+        # Write Header
+        outfile.write(','.join('{}.ID'.format(
+            idxname) for idxname in indexnames) + ',Counts\n')
+
+        # Book-keeping
+        entrycount = 0
+        batchsize  = 10**4
+        batchreach = 0
+
+        # Loop through CountDB Entries
+        for indextuple, count in countdb.RangeIter(
+            key_from=None, key_to=None):
+
+            # Update Book-keeping
+            entrycount += 1
+            batchreach += 1
+
+            # Build Entry
+            entries = []
+            for IDx, index in enumerate(eval(indextuple)):
+                if index == '-':
+                    entries.append('-')
+                else:
+                    entries.append(IDdicts[IDx][index])
+            entries.append(count.decode('ascii'))
+
+            # Write Entry to Count Matrix
+            outfile.write(','.join(entries) + '\n')
+
+            # Show Update
+            if batchreach == batchsize:
+                liner.send(
+                    ' Entries Written: {:,} ID Combination(s)'.format(
+                        entrycount))
+                batchreach = 0
+
+    # Final Updates
+    liner.send(
+        ' Entries Written: {:,} ID Combination(s)\n'.format(
+            entrycount))
+    liner.send(
+        '  Time Elapsed: {:.2f} sec\n'.format(
+            tt.time() - t0))

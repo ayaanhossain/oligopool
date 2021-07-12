@@ -34,6 +34,7 @@ def acount_engine(
     coreid,
     batchid,
     ncores,
+    nactive,
     memlimit,
     restart,
     shutdown,
@@ -138,8 +139,6 @@ def acount_engine(
         # Start Timer
         t0 = tt.time()
 
-        print(len(cpack))
-
         # Read Counting Loop
         while True:
 
@@ -227,7 +226,7 @@ def acount_engine(
                 continue
 
             # All Components Valid
-            countdict[index] += freq
+            countdict[(index,)] += freq
             cctrs['experimentreads'] += freq
 
         # Show Final Updates
@@ -268,17 +267,22 @@ def acount_engine(
             coreid,
             clen))
 
-    # Save Count Dictionary
-    ut.savecount(
-        cobj=countdict,
-        filepath=countpath)
+    # Do we have counts?
+    if countdict:
 
-    # countdict = ut.loadcount(countpath)
+        # Save Count Dictionary
+        ut.savecount(
+            cobj=countdict,
+            filepath=countpath)
 
-    print(len(countdict))
+        # Release Control
+        tt.sleep(0)
 
-    # Release Control
-    tt.sleep(0)
+        # Queue Count Dicionary Path
+        countqueue.put(countpath)
+
+        # Release Control
+        tt.sleep(0)
 
     # Update Read Counting Book-keeping
     previousreads.increment(incr=cctrs['analyzedreads'])
@@ -289,7 +293,7 @@ def acount_engine(
     experimentreads.increment(incr=cctrs['experimentreads'])
 
     # Counting Completed
-    countqueue.put(countpath)
+    nactive.decrement()
     if shutdown.is_set():
         countqueue.put(None)
 
@@ -473,6 +477,7 @@ def acount(
         mp.Event() for _ in range(ncores)]
 
     # Read Counting Book-keeping
+    nactive         = ut.SafeCounter(initval=ncores)
     analyzedreads   = ut.SafeCounter()
     phiXreads       = ut.SafeCounter()
     lowcomplexreads = ut.SafeCounter()
@@ -519,17 +524,18 @@ def acount(
         0,
         batchids[0],
         ncores,
+        nactive,
         memlimit,
         restarts[0],
         shutdowns[0],
         liner)
 
-    pot = 1
-    while pot:
-        item = countqueue.get()
-        print(item, pot)
-        if item == None:
-            pot -= 1
+    # pot = 1
+    # while pot:
+    #     item = countqueue.get()
+    #     print(item, pot)
+    #     if item == None:
+    #         pot -= 1
 
     # Join Enqueuer
     packenqueuer.join()
@@ -540,13 +546,26 @@ def acount(
     print(incalcreads.value())
     print(experimentreads.value())
 
+    cc.count_aggregator(
+        countqueue,
+        countdir,
+        1,
+        nactive,
+        liner)
+
+    cc.count_write(
+        (indexfile,),
+        countdir,
+        countfile,
+        liner)
+
     # Remove Workspace
     ut.remove_directory(
         dirpath=countdir)
 
-    # # Unschedule packfile deletion
+    # # Unschedule countfile deletion
     # if countstatus == 'Successful':
-    #     ae.unregister(ctdeletion)
+    ae.unregister(ctdeletion)
 
     # Close Liner
     liner.close()

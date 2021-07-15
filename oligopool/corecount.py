@@ -1,13 +1,11 @@
-import time as tt
+import time    as tt
 
-import itertools as ix
-import zipfile   as zf
+import zipfile as zf
 
-import numpy   as np
 import edlib   as ed
 import leveldb as lv
 
-import utils as ut
+import utils   as ut
 
 
 # Parser and Setup Functions
@@ -54,10 +52,9 @@ def pack_loader(
         arcfile=packfile)
 
     # Enque Read Packs
-    packqueue.multiput(filter(
-        lambda arcentry: arcentry.endswith('.pack'),
-        # ('0.0.0.pack',)))
-        archive.namelist()[:1]))
+    packqueue.multiput(map(lambda x: x.removesuffix('.pack'),
+        filter(lambda arcentry: arcentry.endswith('.pack'),
+            archive.namelist())))
 
     # Show Final Updates
     liner.send(
@@ -86,7 +83,23 @@ def exoneration_procedure(
     read and update core counters.
     Internal use only.
 
-    TBD
+    :: exoread
+       type - string
+       desc - read to be exonerated
+    :: exofreq
+       type - integer
+       desc - absolute frequency of
+              the read in given pack
+    :: phiXkval
+       type - integer
+       desc - k-value for phiX matching
+    :: phiXspec
+       type - set
+       desc - set of all possible phiX
+              k-mers (includes revcomp)
+    :: cctrs
+       type - dict
+       desc - dictionary of core counters
     '''
 
     # Adjust Read
@@ -153,10 +166,19 @@ def exoneration_procedure(
 
 def get_anchored_read(
     read,
-    metamap,
-    cctrs):
+    metamap):
     '''
-    TBD
+    Return orientation corrected reads,
+    in case the reads are flipped.
+    Internal use only.
+
+    :: read
+       type - string
+       desc - read to be anchored
+    :: metamap
+       type - dict
+       desc - ditionary containing index
+              meta information
     '''
 
     # Too Short of a Read!
@@ -167,12 +189,9 @@ def get_anchored_read(
     qcount = 0
     qtype  = None
     if metamap['anchor'] in read:
-        # cctrs['directcount'] += 1
         qcount += 1
         qtype   = 0
-        return read, True
     if metamap['revanchor'] in read:
-        # cctrs['inversioncount'] += 1
         qcount += 1
         qtype   = 1
 
@@ -180,7 +199,7 @@ def get_anchored_read(
     if qcount > 1:
         return read, False
 
-    # Anchor Resolved
+    # Resolve Anchor
     if qcount == 1:
         if qtype:
             return ut.get_revcomp(
@@ -206,7 +225,6 @@ def get_anchored_read(
 
     # Anchor Perfect Fit
     if alnfscore == 0:
-        # cctrs['directcount'] += 1
         return read, True
 
     # Define Reverse Score
@@ -227,7 +245,6 @@ def get_anchored_read(
 
     # Reverse Perfect Fit
     if alnrscore == 0:
-        # cctrs['inversioncount'] += 1
         return ut.get_revcomp(
             seq=read), True
 
@@ -235,12 +252,9 @@ def get_anchored_read(
     if alnfscore == alnrscore:
         return read, False
     elif alnfscore < alnrscore:
-        # cctrs['directcount'] += 1
         return read, True
-    else:
-        # cctrs['inversioncount'] += 1
-        return ut.get_revcomp(
-            seq=read), True
+    return ut.get_revcomp(
+        seq=read), True
 
 def get_trimmed_read(
     read,
@@ -248,7 +262,25 @@ def get_trimmed_read(
     constype,
     constval):
     '''
-    TBD
+    Return read after trimming
+    constant sequence.
+    Internal use only.
+
+    :: read
+       type - string
+       desc - read to be trimmed
+    :: const
+       type - string / None
+       desc - constant to trim
+    :: constype
+       type - integer
+       desc - constant type identifier
+              0 = prefix constant
+              1 = suffix constant
+    :: constval
+       type - integer / None
+       desc - constant t-value to be
+              tolerated for matching
     '''
 
     # Nothing to Trim!
@@ -305,15 +337,29 @@ def get_trimmed_read(
             start = 0
 
     # Compute and Return Trimmed Read
-    extracted_seq = read[start:stop]
-    return extracted_seq, True
+    return read[start:stop], True
 
 def get_barcode_index(
     barcoderead,
     metamap,
     model):
     '''
-    TBD
+    Determine and return barcode identifier
+    index in given anchored read.
+    Internal use only.
+
+    :: barcoderead
+       type - string
+       desc - read containing barcode
+              information
+    :: metamap
+       type - dict
+       desc - ditionary containing index
+              meta information
+    :: model
+       type - Scry
+       desc - Scry model for classifying
+              barcode
     '''
 
     # Book-keeping
@@ -361,20 +407,35 @@ def get_barcode_index(
         x=barcoderead)[0]
 
 def is_associate_match(
-    read,
     associate,
+    associateread,
     associatetval):
     '''
-    TBD
+    Determine if associate exists
+    in given anchored read.
+    Internal use only.
+
+    :: associate
+       type - string
+       desc - full associate sequence
+              to match
+    :: associateread
+       type - string
+       desc - read containing associate
+              information
+    :: associatetval
+       type - integer
+       desc - associate t-value to be
+              tolerated for matching
     '''
 
     # Query-Reference Adjustment
-    if len(read) < len(associate):
-        query  = read
+    if len(associateread) <= len(associate):
+        query  = associateread
         target = associate
     else:
         query  = associate
-        target = read
+        target = associateread
 
     # Quick Match!
     if query in target:
@@ -395,12 +456,35 @@ def is_associate_match(
 
 def get_associate_match(
     associateread,
-    index,
     associateerrors,
-    metamap,
-    associatedict):
+    associatedict,
+    index,
+    metamap):
     '''
-    TBD
+    Process associate read and determine if
+    it contains required associate.
+    Internal use only.
+
+    :: associateread
+       type - string
+       desc - read containing associate
+              information
+    :: associaterrors
+       type - integer
+       desc - maximum number of mismatches
+              between reference and read
+              associate
+    :: associatedict
+       type - dict
+       desc - dictionary containing associate
+              information from index
+    :: index
+       type - integer
+       desc - associate index identifier
+    :: metamap
+       type - dict
+       desc - ditionary containing index
+              meta information
     '''
 
     # Trim Associate Prefix
@@ -412,7 +496,7 @@ def get_associate_match(
 
     # Associate Prefix Absent
     if not trimstatus:
-        return False
+        return False, 0
 
     # Trim Associate Suffix
     associateread, trimstatus = get_trimmed_read(
@@ -423,18 +507,20 @@ def get_associate_match(
 
     # Associate Suffix Absent
     if not trimstatus:
-        return False
+        return False, 0
 
     # Match Associate
     associate, associatetval = associatedict[index]
-    if associateerrors < associatetval:
+    if (associateerrors > -1) and \
+       (associateerrors < associatetval):
         associatetval = associateerrors
 
     # Return Results
-    return is_associate_match(
-        read=associateread,
+    return (is_associate_match(
         associate=associate,
-        associatetval=associatetval)
+        associateread=associateread,
+        associatetval=associatetval),
+        1)
 
 def count_aggregator(
     countqueue,
@@ -472,10 +558,19 @@ def count_aggregator(
             prodcount -= 1
             continue
 
-        # Load Count Dictionary
-        fname = cqtoken.split('/')[-1]
+        # Build Count Path
+        cpath = '{}/{}'.format(
+            countdir,
+            cqtoken)
+
+        # Load Count List
+        fname = cqtoken
         countlist = ut.loadcount(
-            cfile=cqtoken)
+            cfile=cpath)
+
+        # Remove Count List
+        ut.remove_file(
+            filepath=cpath)
 
         # Show Updates
         if prodactive and \
@@ -489,7 +584,7 @@ def count_aggregator(
 
         # Update Batch
         while countlist:
-            k,v = countlist.pop()
+            k,v  = countlist.pop()
             strk = str(k).encode()
             try:
                 w = eval(countdb.Get(strk))
@@ -499,16 +594,21 @@ def count_aggregator(
             batch.Put(strk, strv)
 
         # Update CountDB
-        countdb.Write(batch, sync=True)
+        countdb.Write(
+            batch,
+            sync=True)
 
         # Release Control
         tt.sleep(0)
 
-def count_write(
+def write_count(
     indexfiles,
     countdir,
     countfile,
     liner):
+    '''
+    TBD
+    '''
 
     # Book-keeping
     IDdicts    = []
@@ -572,28 +672,28 @@ def count_write(
             batchreach += 1
 
             # Build Entry
-            entries = []
+            rows = []
             for IDx, index in enumerate(eval(indextuple)):
                 if index == '-':
-                    entries.append('-')
+                    rows.append('-')
                 else:
-                    entries.append(IDdicts[IDx][index])
-            entries.append(count.decode('ascii'))
+                    rows.append(IDdicts[IDx][index])
+            rows.append(count.decode('ascii'))
 
             # Write Entry to Count Matrix
-            outfile.write(','.join(entries) + '\n')
+            outfile.write(','.join(rows) + '\n')
 
             # Show Update
             if batchreach == batchsize:
                 liner.send(
-                    ' Entries Written: {:,} ID Combination(s)'.format(
+                    ' Rows Written: {:,} Unique ID / Combination(s)'.format(
                         entrycount))
                 batchreach = 0
 
     # Final Updates
     liner.send(
-        ' Entries Written: {:,} ID Combination(s)\n'.format(
+        ' Rows Written: {:,} Unique ID / Combination(s)\n'.format(
             entrycount))
     liner.send(
-        '  Time Elapsed: {:.2f} sec\n'.format(
+        ' Time Elapsed: {:.2f} sec\n'.format(
             tt.time() - t0))

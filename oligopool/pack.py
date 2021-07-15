@@ -206,9 +206,8 @@ def pack_engine(
         *map(round, (min_dump_target * 0.080 * verbagefactor,
                      min_dump_target * 0.120 * verbagefactor)))
 
-    clen = len(str(ncores))
-    plen = len(str(packsize)) + \
-        int(ut.safelog10(packsize) / 3)
+    clen = ut.get_printlen(value=ncores)
+    plen = ut.get_printlen(value=packsize)
 
     # Current and Meta Pack Storage
     cpack = cx.Counter()
@@ -269,11 +268,10 @@ def pack_engine(
 
             # Show Updates
             liner.send(
-                ' Core {:{},d}: Built Pack {:{},d}.{}.{} w/ {:{},d} Reads in {:.2f} sec\n'.format(
+                ' Core {:{},d}: Built Pack {}.{}.{} w/ {:{},d} Reads in {:.2f} sec\n'.format(
                     coreid,
                     clen,
                     coreid,
-                    clen,
                     c_packsbuilt,
                     batchid,
                     len(cpack),
@@ -329,11 +327,10 @@ def pack_engine(
 
             # Show Updates
             liner.send(
-                ' Core {:{},d}: Built Pack {:{},d}.{}.{} w/ {:{},d} Reads in {:05.2f} sec\n'.format(
+                ' Core {:{},d}: Built Pack {}.{}.{} w/ {:{},d} Reads in {:05.2f} sec\n'.format(
                     coreid,
                     clen,
                     coreid,
-                    clen,
                     c_packsbuilt,
                     batchid,
                     len(cpack),
@@ -723,7 +720,7 @@ def pack(
     # Engine Timer
     et = tt.time()
 
-    # Define Archiver for Non-Meta Read Packs
+    # Define Archiver (Non-Meta Read Packs)
     archiver = mp.Process(
         target=ut.archive,
         args=(packqueue,
@@ -741,6 +738,7 @@ def pack(
 
     # Fire-off Initial Read Packers
     coreid = 0
+    clen = ut.get_printlen(value=ncores)
     while coreid < ncores:
 
         # Define Packer
@@ -778,6 +776,12 @@ def pack(
                 restarts[coreid],
                 shutdowns[coreid],
                 liner,))
+
+        # Show Update
+        liner.send(
+            ' Core {:{},d}: Starting Up\n'.format(
+                coreid,
+                clen))
 
         # Start Packer
         readpacker.start()

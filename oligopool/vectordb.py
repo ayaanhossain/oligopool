@@ -32,7 +32,7 @@ class vectorDB(object):
         try:
 
             # Path Setup
-            self.PATH = path.rstrip('/') + '/'
+            self.PATH = path.removesuffix('/') + '/'
 
             # Create/Open LevelDB object
             self.DB = lv.LevelDB(

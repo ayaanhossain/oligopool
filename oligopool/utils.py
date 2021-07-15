@@ -346,7 +346,7 @@ def liner_engine(online=True):
             if online and printstr.startswith('\*'):
                 sys.stdout.write('\n')
                 clrlen   = 0
-                printstr = printstr.lstrip('\*')
+                printstr = printstr.removeprefix('\*')
 
             # Line String
             if online:

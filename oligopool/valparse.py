@@ -2560,7 +2560,7 @@ def get_errors_validity(
 
     # errors status?
     if error_numeric:
-        errors = int(errors)
+        errors = round(errors)
         # errors is default
         if errors < 0.:
             if indexfile_valid:
@@ -2573,7 +2573,7 @@ def get_errors_validity(
                     errors = metamap['associatetvalmax']
                 else:
                     errors = metamap['barcodetval']
-                errors = int(errors)
+                errors = round(errors)
                 archive.close()
                 liner.send(
                     '{}:{}{}{} (Auto-Inferred)\n'.format(
@@ -2594,7 +2594,8 @@ def get_errors_validity(
                 errors_post_desc))
 
     # Return errors validity
-    return int(error_numeric)
+    return (errors,
+        error_numeric)
 
 def get_parsed_core_info(
     ncores,

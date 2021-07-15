@@ -528,4 +528,4 @@ class Scry(object):
             return None, None
 
         # Final Result
-        return xidx[0], idxs / (xs if xs > idxs else idxs)
+        return int(xidx[0]), idxs / (xs if xs > idxs else idxs)

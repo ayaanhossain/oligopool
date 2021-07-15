@@ -1,14 +1,10 @@
-import os
 import time as tt
 
 import collections as cx
-import zipfile     as zf
 import random      as rn
 import atexit      as ae
 
 import multiprocessing as mp
-
-import psutil as pu
 
 import utils     as ut
 import valparse  as vp
@@ -29,6 +25,7 @@ def acount_engine(
     analyzedreads,
     phiXreads,
     lowcomplexreads,
+    misassocreads,
     incalcreads,
     experimentreads,
     coreid,
@@ -38,14 +35,15 @@ def acount_engine(
     memlimit,
     restart,
     shutdown,
+    launchtime,
     liner):
     '''
     TBD
     '''
 
     # Open indexfile
-    indexfile = zf.ZipFile(
-        file=indexfile)
+    indexfile = ut.get_archive(
+        arcfile=indexfile)
 
     # Load Barcode Model
     model = ut.loadmodel(
@@ -74,8 +72,8 @@ def acount_engine(
         k=phiXkval)
 
     # Open packfile
-    packfile = zf.ZipFile(
-        file=packfile)
+    packfile = ut.get_archive(
+        arcfile=packfile)
 
     # Load packing.stat
     packstat = ut.loaddict(
@@ -84,14 +82,16 @@ def acount_engine(
 
     # Book-keeping Variables
     cctrs = {
-        'analyzedreads'  : previousreads.value(),
+        'previousreads'  : previousreads.value(),
+        'analyzedreads'  : 0,
         'phiXreads'      : 0,
         'lowcomplexreads': 0,
+        'misassocreads'  : 0,
         'incalcreads'    : 0,
         'experimentreads': 0}
 
     # Compute Printing Lengths
-    clen = len(str(ncores))
+    clen = ut.get_printlen(value=ncores)
     slen = plen = ut.get_printlen(
         value=packstat['survived'])
 
@@ -111,30 +111,29 @@ def acount_engine(
     # Pack Counting Loop
     while not packqueue.empty():
 
-        # Fetch Pack Path / Token
-        cpath = packqueue.get()
+        # Fetch Pack Name / Token
+        packname = packqueue.get()
 
         # Exhaustion Token
-        if cpath is None:
+        if packname is None:
             shutdown.set()
             break
 
         # Fetch Read Pack
         cpack = ut.loadpack(
             archive=packfile,
-            pfile=cpath)
+            pfile='{}.pack'.format(
+                packname))
 
         # Book-keeping Variables
-        exoread = None
-        exofreq = None
+        exoread   = None
+        exofreq   = None
+        readcount = 0
 
         verbagereach  = 0
         verbagetarget = rn.randint(
             *map(round, (len(cpack) * 0.080,
                          len(cpack) * 0.120)))
-
-        readcount = 0
-        packname  = cpath.rstrip('.pack')
 
         # Start Timer
         t0 = tt.time()
@@ -165,9 +164,9 @@ def acount_engine(
                     ' Core {:{},d}: Analyzed {:{},d} Reads in {:.2f} sec'.format(
                         coreid,
                         clen,
-                        cctrs['analyzedreads'],
+                        cctrs['analyzedreads'] + cctrs['previousreads'],
                         slen,
-                        tt.time()-t0))
+                        tt.time()-launchtime))
 
                 # Update Book-keeping
                 verbagereach = 0
@@ -186,10 +185,10 @@ def acount_engine(
             readcount    += 1
 
             # Anchor Read
-            anchoredread, anchorstatus = cc.get_anchored_read(
+            (anchoredread,
+            anchorstatus) = cc.get_anchored_read(
                 read=read,
-                metamap=metamap,
-                cctrs=cctrs)
+                metamap=metamap)
 
             # Anchor Absent
             if not anchorstatus:
@@ -213,16 +212,22 @@ def acount_engine(
                 continue
 
             # Compute Associate Match
-            associatematch = cc.get_associate_match(
+            associatematch, basalmatch = cc.get_associate_match(
                 associateread=associateread,
-                index=index,
                 associateerrors=associateerrors,
-                metamap=metamap,
-                associatedict=associatedict)
+                associatedict=associatedict,
+                index=index,
+                metamap=metamap)
 
-            # Associate Absent
+            # Associate Absent / Incorrect
             if not associatematch:
-                cctrs['incalcreads'] += freq
+
+                # Associate Constants Missing
+                if not basalmatch:
+                    cctrs['incalcreads'] += freq
+                # Associate Mismatches Reference
+                else:
+                    cctrs['misassocreads'] += freq
                 continue
 
             # All Components Valid
@@ -279,7 +284,8 @@ def acount_engine(
         tt.sleep(0)
 
         # Queue Count Dicionary Path
-        countqueue.put(countpath)
+        countqueue.put(
+            countpath.split('/')[-1])
 
         # Release Control
         tt.sleep(0)
@@ -289,6 +295,7 @@ def acount_engine(
     analyzedreads.increment(incr=cctrs['analyzedreads'])
     phiXreads.increment(incr=cctrs['phiXreads'])
     lowcomplexreads.increment(incr=cctrs['lowcomplexreads'])
+    misassocreads.increment(incr=cctrs['misassocreads'])
     incalcreads.increment(incr=cctrs['incalcreads'])
     experimentreads.increment(incr=cctrs['experimentreads'])
 
@@ -377,7 +384,8 @@ def acount(
         liner=liner)
 
     # Full barcodeerrors Validation
-    barcodeerrors_valid = vp.get_errors_validity(
+    (barcodeerrors,
+    barcodeerrors_valid) = vp.get_errors_validity(
         errors=barcodeerrors,
         errors_field='   Barcode Errors',
         errors_pre_desc=' At most ',
@@ -388,7 +396,8 @@ def acount(
         liner=liner)
 
     # Full associateerrors Validation
-    associateerrors_valid = vp.get_errors_validity(
+    (associateerrors,
+    associateerrors_valid) = vp.get_errors_validity(
         errors=associateerrors,
         errors_field=' Associate Errors',
         errors_pre_desc=' At most ',
@@ -404,7 +413,7 @@ def acount(
         ncores=ncores,
         core_field='       Num Cores ',
         default=packcount,
-        offset=3,
+        offset=2,
         liner=liner)
 
     # Full num_core Parsing and Validation
@@ -481,6 +490,7 @@ def acount(
     analyzedreads   = ut.SafeCounter()
     phiXreads       = ut.SafeCounter()
     lowcomplexreads = ut.SafeCounter()
+    misassocreads   = ut.SafeCounter()
     incalcreads     = ut.SafeCounter()
     experimentreads = ut.SafeCounter()
     batchids        = [0] * ncores
@@ -499,227 +509,254 @@ def acount(
         'basis'   : 'unsolved',
         'step'    : 2,
         'stepname': 'computing-read-packs',
-        'vars'    : {},
+        'vars'    : {
+              'analyzed': int(analyzedreads.value()),
+                  'phiX': int(phiXreads.value()),
+            'lowcomplex': int(lowcomplexreads.value()),
+              'misassoc': int(misassocreads.value()),
+                'incalc': int(incalcreads.value()),
+            'experiment': int(experimentreads.value())},
         'warns'   : {}}
 
     # Engine Timer
     et = tt.time()
 
-    # Execute Counting
-    acount_engine(
-        indexfile,
-        packfile,
-        packqueue,
-        countdir,
-        countqueue,
-        maptype,
-        barcodeerrors,
-        associateerrors,
-        previousreads[0],
-        analyzedreads,
-        phiXreads,
-        lowcomplexreads,
-        incalcreads,
-        experimentreads,
-        0,
-        batchids[0],
-        ncores,
-        nactive,
-        memlimit,
-        restarts[0],
-        shutdowns[0],
-        liner)
+    # Define Aggregator
+    aggregator = mp.Process(
+        target=cc.count_aggregator,
+        args=(countqueue,
+            countdir,
+            ncores,
+            nactive,
+            liner,))
 
-    # pot = 1
-    # while pot:
-    #     item = countqueue.get()
-    #     print(item, pot)
-    #     if item == None:
-    #         pot -= 1
+    # Fire-off Aggregator
+    aggregator.start()
+
+    # Define Counter Process Store
+    readcounters = []
+
+    # Fire-off Initial Read Counters
+    coreid = 0
+    clen = ut.get_printlen(value=ncores)
+    while coreid < ncores:
+
+        # Define Packer
+        readcounter = mp.Process(
+            target=acount_engine,
+            args=(indexfile,
+                packfile,
+                packqueue,
+                countdir,
+                countqueue,
+                maptype,
+                barcodeerrors,
+                associateerrors,
+                previousreads[coreid],
+                analyzedreads,
+                phiXreads,
+                lowcomplexreads,
+                misassocreads,
+                incalcreads,
+                experimentreads,
+                coreid,
+                batchids[coreid],
+                ncores,
+                nactive,
+                memlimit,
+                restarts[coreid],
+                shutdowns[coreid],
+                et,
+                liner,))
+
+        # Show Update
+        liner.send(
+            ' Core {:{},d}: Starting Up\n'.format(
+                coreid,
+                clen))
+
+        # Start Packer
+        readcounter.start()
+
+        # Update Book-keeping
+        readcounters.append(readcounter)
+        coreid += 1
+
+    # Packer Management
+    coreid = 0
+    activepackers = ncores
+    while activepackers:
+
+        # Had Packer Finished?
+        if readcounters[coreid] is None:
+            pass
+
+        # Has Packer Shutdown?
+        elif shutdowns[coreid].is_set():
+            # Cleanup
+            readcounters[coreid].join()
+            readcounters[coreid].close()
+            # Update
+            readcounters[coreid] = None
+            activepackers -= 1
+            ut.free_mem()
+            # Reset
+            restarts[coreid].clear()
+            shutdowns[coreid].clear()
+
+        # Must Packer Restart?
+        elif restarts[coreid].is_set():
+            # Cleanup
+            readcounters[coreid].join()
+            readcounters[coreid].close()
+            # Update
+            readcounters[coreid] = None
+            batchids[coreid] += 1
+            ut.free_mem()
+            # Reset
+            restarts[coreid].clear()
+            shutdowns[coreid].clear()
+            readcounters[coreid] = mp.Process(
+                target=acount_engine,
+                args=(indexfile,
+                    packfile,
+                    packqueue,
+                    countdir,
+                    countqueue,
+                    maptype,
+                    barcodeerrors,
+                    associateerrors,
+                    previousreads[coreid],
+                    analyzedreads,
+                    phiXreads,
+                    lowcomplexreads,
+                    misassocreads,
+                    incalcreads,
+                    experimentreads,
+                    coreid,
+                    batchids[coreid],
+                    ncores,
+                    nactive,
+                    memlimit,
+                    restarts[coreid],
+                    shutdowns[coreid],
+                    et,
+                    liner,))
+            readcounters[coreid].start()
+
+        # Next Iteration
+        coreid = (coreid + 1) % ncores
+        tt.sleep(0)
 
     # Join Enqueuer
     packenqueuer.join()
 
-    print(analyzedreads.value())
-    print(phiXreads.value())
-    print(lowcomplexreads.value())
-    print(incalcreads.value())
-    print(experimentreads.value())
+    # Join Aggregator
+    aggregator.join()
+    aggregator.close()
 
-    cc.count_aggregator(
-        countqueue,
-        countdir,
-        1,
-        nactive,
-        liner)
+    # Free Memory
+    ut.free_mem()
 
-    cc.count_write(
-        (indexfile,),
-        countdir,
-        countfile,
-        liner)
+    # Compute Success Status
+    if experimentreads.value() > 0:
+        stats['status'] = True
+        stats['basis']  = 'solved'
 
-    # Remove Workspace
-    ut.remove_directory(
-        dirpath=countdir)
+    # Show Time Elapsed
+    liner.send(
+        ' Time Elapsed: {:.2f} sec\n'.format(
+            tt.time() - et))
 
-    # # Unschedule countfile deletion
-    # if countstatus == 'Successful':
-    ae.unregister(ctdeletion)
+    # Did we succeed?
+    if stats['status']:
 
-    # Close Liner
-    liner.close()
+        # Launching Read Packing
+        liner.send('\n[Step 3: Writing Count Matrix]\n')
 
-    # # Return Statistics
-    # return stats
-
-    return
-
-    # Launching Read Counting
-    liner.send('\n[Counting Read Packs]\n')
-
-    # Start Timer
-    t0 = tt.time()
-
-    # Counter Process Store
-    readcounters = []
-
-    # Fire off Single-Core Read Counter
-    if ncores == 1:
-        count_engine(
-            prepfile=prepfile,
-            packfile=packfile,
-            packqueue=packqueue,
-            countqueue=countqueue,
-            amperrors=amperrors,
-            barerrors=barerrors,
-            coreid=0,
-            ncores=ncores,
-            analyzedreads=analyzedreads,
-            diagnosticreads=diagnosticreads,
-            phiXreads=phiXreads,
-            mononukereads=mononukereads,
-            dinukereads=dinukereads,
-            trinukereads=trinukereads,
-            incalcreads=incalcreads,
+        # Aggregate Meta Read Packs
+        cc.write_count(
+            indexfiles=(indexfile,),
+            countdir=countdir,
+            countfile=countfile,
             liner=liner)
 
-    # Fire off Multi-Core Read Counters
+    # Update Stats
+    stats['vars']['analyzed']   = int(analyzedreads.value())
+    stats['vars']['phiX']       = int(phiXreads.value())
+    stats['vars']['lowcomplex'] = int(lowcomplexreads.value())
+    stats['vars']['misassoc']   = int(misassocreads.value())
+    stats['vars']['incalc']     = int(incalcreads.value())
+    stats['vars']['experiment'] = int(experimentreads.value())
+
+    # Packing Status
+    if stats['status']:
+        countstatus = 'Successful'
     else:
-
-        # Queue All Read Counters
-        coreid = 0
-        while coreid < ncores:
-
-            # Define Counter
-            readcounter = mp.Process(
-                target=count_engine,
-                args=(prepfile,
-                    packfile,
-                    packqueue,
-                    countqueue,
-                    amperrors,
-                    barerrors,
-                    coreid,
-                    ncores,
-                    analyzedreads,
-                    diagnosticreads,
-                    phiXreads,
-                    mononukereads,
-                    dinukereads,
-                    trinukereads,
-                    incalcreads,
-                    liner,))
-
-            # Start Counter
-            readcounter.start()
-
-            # Update Book-keeping
-            readcounters.append(readcounter)
-            coreid += 1
-
-    # Aggregate All Count Matrices
-    agdf = count_aggregator(
-        prepfile=prepfile,
-        countqueue=countqueue,
-        countfile=countfile,
-        prodcount=ncores)
-
-    # Join All Read Counters
-    for readcounter in readcounters:
-        readcounter.join()
-
-    # Counting Status
-    if diagnosticreads.value() > 0:
-        countstatus = (True,  'Successful')
-    else:
-        countstatus = (False, 'Failed')
+        countstatus = 'Failed'
 
     # Read Counting Stats
-    liner.send('\n[Counting Stats]\n')
+    liner.send('\n[Associate Counting Stats]\n')
 
     plen = ut.get_printlen(
         value=analyzedreads.value())
 
     liner.send(
-        '       Counting  Status: {}\n'.format(
-            countstatus[1]))
+        '       Counting Status: {}\n'.format(
+            countstatus))
     liner.send(
-        '       Analyzed   Reads: {:{},d}\n'.format(
+        '       Analyzed Reads : {:{},d}\n'.format(
             analyzedreads.value(),
             plen))
     liner.send(
-        '           PhiX   Reads: {:{},d} ({:6.2f} %)\n'.format(
+        '           PhiX Reads : {:{},d} ({:6.2f} %)\n'.format(
             phiXreads.value(),
             plen,
             ut.safediv(
                 A=100. * phiXreads.value(),
                 B=analyzedreads.value())))
     liner.send(
-        ' Mononucleotide   Reads: {:{},d} ({:6.2f} %)\n'.format(
-            mononukereads.value(),
+        ' Low-Complexity Reads : {:{},d} ({:6.2f} %)\n'.format(
+            lowcomplexreads.value(),
             plen,
             ut.safediv(
-                A=100. * mononukereads.value(),
+                A=100. * lowcomplexreads.value(),
                 B=analyzedreads.value())))
     liner.send(
-        '   Dinucleotide   Reads: {:{},d} ({:6.2f} %)\n'.format(
-            dinukereads.value(),
+        ' Mis-Associated Reads : {:{},d} ({:6.2f} %)\n'.format(
+            misassocreads.value(),
             plen,
             ut.safediv(
-                A=100. * dinukereads.value(),
+                A=100. * misassocreads.value(),
                 B=analyzedreads.value())))
     liner.send(
-        '  Trinucleotide   Reads: {:{},d} ({:6.2f} %)\n'.format(
-            trinukereads.value(),
-            plen,
-            ut.safediv(
-                A=100. * trinukereads.value(),
-                B=analyzedreads.value())))
-    liner.send(
-        '   Incalculable   Reads: {:{},d} ({:6.2f} %)\n'.format(
+        '   Incalculable Reads : {:{},d} ({:6.2f} %)\n'.format(
             incalcreads.value(),
             plen,
             ut.safediv(
                 A=100. * incalcreads.value(),
                 B=analyzedreads.value())))
     liner.send(
-        '     Diagnostic   Reads: {:{},d} ({:6.2f} %)\n'.format(
-            diagnosticreads.value(),
+        '     Experiment Reads : {:{},d} ({:6.2f} %)\n'.format(
+            experimentreads.value(),
             plen,
             ut.safediv(
-                A=(100. * diagnosticreads.value()),
+                A=(100. * experimentreads.value()),
                 B=analyzedreads.value())))
     liner.send(
-        '           Time Elapsed: {:.2f} sec\n'.format(
+        ' Time Elapsed: {:.2f} sec\n'.format(
             tt.time() - t0))
 
+    # Remove Workspace
+    ut.remove_directory(
+        dirpath=countdir)
+
     # Unschedule countfile deletion
-    if countstatus[0]:
+    if countstatus == 'Successful':
         ae.unregister(ctdeletion)
 
     # Close Liner
     liner.close()
 
-    # Return Aggregate DataFrame
-    return agdf
+    # # Return Statistics
+    return stats

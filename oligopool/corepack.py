@@ -802,7 +802,7 @@ def stream_processed_fastq(
     c_ambiguousreads = 0
     c_shortreads     = 0
     c_survivedreads  = 0
-    clen             = len(str(ncores))
+    clen             = ut.get_printlen(value=ncores)
     truncable        = not r2file is None
     batchreach       = 0
     batchsize        = 499979 # Largest Prime < 500k
@@ -1086,7 +1086,7 @@ def pack_aggregator(
         aggcount += 1
 
         # Show Update
-        cpackid = cpath.split('/')[-1].rstrip(
+        cpackid = cpath.split('/')[-1].removesuffix(
             '.meta')
         liner.send(
             ' Aggregating {} in Progress'.format(
@@ -1094,7 +1094,8 @@ def pack_aggregator(
 
         # Reduced Meta Pack
         npack = cx.Counter()
-        npath = cpath.rstrip('.meta')
+        npath = cpath.removesuffix(
+            '.meta')
 
         # Merge Fetched Meta Pack
         while cpack:
@@ -1135,14 +1136,15 @@ def pack_aggregator(
             packsbuilt.decrement()
 
     # Show Update
-    mpackid = mpath.split('/')[-1].rstrip(
+    mpackid = mpath.split('/')[-1].removesuffix(
         '.meta')
     liner.send(
         ' Aggregating {} in Progress'.format(
             mpackid))
 
     # First Meta Pack Path
-    mpath = mpath.rstrip('.meta')
+    mpath = mpath.removesuffix(
+        '.meta')
 
     # Dump First Meta Pack
     ut.savepack(

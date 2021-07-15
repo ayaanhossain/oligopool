@@ -34,6 +34,9 @@ index.py (same as prep.py)
 
 count.py
 
+* Support for discarded reads (optional if specified)
+* Support for callback function (optional from python interface only)
+
 * Counting is of three types:
     - Union Counting: Map and count all variants for each read,
       applied separately -- reads contain elements of one or more

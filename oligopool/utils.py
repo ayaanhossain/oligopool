@@ -236,6 +236,30 @@ class SafeQueue(object):
                 item = None
         return item
 
+    @alivemethod
+    def multiget(self, numitems=None):
+        '''
+        Get multiple items in queue.
+
+        :: numitems
+           type - integer
+           desc - total number of items
+                  to get from queue
+                  (default=None)
+        '''
+        with self.lock:
+            if numitems is None:
+                numitems = float('inf')
+            itemcount = 0
+            threshold = min(
+                self.counter.value(),
+                numitems)
+            while itemcount < threshold:
+                yield self.queue.get()
+                itemcount += 1
+            self.counter.decrement(
+                decr=itemcount)
+
     def length(self):
         '''
         Return the number of items
@@ -3032,7 +3056,7 @@ def picklesave(obj, filepath):
         pk.dump(
             obj=obj,
             file=outfile,
-            protocol=4,
+            protocol=5,
             fix_imports=True)
 
 def savemeta(pobj, filepath):
@@ -3068,6 +3092,23 @@ def savemodel(mobj, filepath):
 
     return picklesave(
         obj=mobj,
+        filepath=filepath)
+
+def savedump(dobj, filepath):
+    '''
+    Pickle dump a dictionary of counting
+    callback inputs. Internal use only.
+
+    :: dobj
+       type - dict
+       desc - dictionary to persist to disk
+    :: filepath
+       type - string
+       desc - filepath to save dictionary
+    '''
+
+    return picklesave(
+        obj=dobj,
         filepath=filepath)
 
 def msgpackload(incontent):
@@ -3142,14 +3183,14 @@ def loadcount(cfile):
             incontent=infile.read())
     return obj
 
-def loadmeta(filepath):
+def pickleload(filepath):
     '''
-    Pickle load a meta read pack from filepath.
+    Pickle load content from filepath.
     Internal use only.
 
     :: filepath
        type - string
-       desc - filepath to saved meta read pack
+       desc - filepath to saved content
     '''
 
     with open(filepath, 'rb') as infile:
@@ -3157,6 +3198,20 @@ def loadmeta(filepath):
             file=infile,
             fix_imports=True)
     return obj
+
+def loadmeta(mfile):
+    '''
+    Pickle load a meta read pack from
+    filepath. Internal use only.
+
+    :: mfile
+       type - string
+       desc - filepath to saved meta
+              read pack
+    '''
+
+    return pickleload(
+        filepath=mfile)
 
 def loadmodel(archive, mfile):
     '''
@@ -3178,6 +3233,20 @@ def loadmodel(archive, mfile):
         fix_imports=True)
     del incontent
     return obj
+
+def loaddump(dfile):
+    '''
+    Pickle load callback input dump
+    from file. Internal use only.
+
+    :: dfile
+       type - string
+       desc - filepath to stored
+              input dump
+    '''
+
+    return pickleload(
+        filepath=dfile)
 
 # Archive Functions
 

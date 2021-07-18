@@ -561,21 +561,26 @@ def get_parsed_packfile(
 
     # packfile content ok and non-empty?
     packfile_ok_content = False
+    packtype  = None
     packcount = 0
     packfile_nonempty = False
     if packfile_ok_format:
         try:
 
             for cpath in archive.namelist():
-                assert cpath.endswith('.pack') or \
-                       cpath.endswith('.stat')
+                if not (cpath.endswith('.pack') or \
+                        cpath.endswith('.stat')):
+                    raise
                 packcount += 1
 
             packcount -= 1 # Stat File isn't Pack
 
-            assert packcount == ut.loaddict(
+            packstat = ut.loaddict(
                 archive=archive,
-                dfile='packing.stat')['packcount']
+                dfile='packing.stat')
+
+            if packcount != packstat['packcount']:
+                raise
 
             packfile_nonempty = packcount > 0
 
@@ -2502,6 +2507,47 @@ def get_parsed_background(
                 background_field,
                 background))
         return None, False
+
+def get_callback_validity(
+    callback,
+    callback_field,
+    liner):
+    '''
+    Determine if callback function is valid.
+    Internal use only.
+
+    :: callback
+       type - function / None
+       desc - callback function specified
+    :: background_field
+       type - string
+       desc - callback function fieldname
+              used in printing
+    :: liner
+       type - coroutine
+       desc - dynamic printing
+    '''
+
+    # Is callback None?
+    if callback is None:
+        liner.send(
+            '{}: None Specified\n'.format(
+                callback_field))
+        return True
+
+    # Is callback callable?
+    if not callable(callback):
+        liner.send(
+            '{}: {} [INVALID FUNCTION]\n'.format(
+                callback_field,
+                callback))
+        return False
+    else:
+        liner.send(
+            '{}: Function w/ ID={}\n'.format(
+                callback_field,
+                id(callback)))
+        return True
 
 def get_errors_validity(
     errors,

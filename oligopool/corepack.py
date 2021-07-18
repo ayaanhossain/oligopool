@@ -999,16 +999,16 @@ def stream_processed_fastq(
                 c_previousreads + c_scannedreads,
                 tt.time()-t0))
 
-    # Restart, We Must!
-    if restart.is_set():
-        # Show Updates
-        liner.send(' Core {:{},d}: Restarting ...\n'.format(
-            coreid,
-            clen))
     # Shutdown!
-    elif shutdown.is_set():
+    if shutdown.is_set():
         # Show Updates
         liner.send(' Core {:{},d}: Shutting Down\n'.format(
+            coreid,
+            clen))
+    # Restart, We Must!
+    elif restart.is_set():
+        # Show Updates
+        liner.send(' Core {:{},d}: Restarting ...\n'.format(
             coreid,
             clen))
 
@@ -1082,7 +1082,7 @@ def pack_aggregator(
 
         # Load Meta Pack
         cpack = ut.loadmeta(
-            filepath=cpath)
+            mfile=cpath)
         aggcount += 1
 
         # Show Update

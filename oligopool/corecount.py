@@ -1,7 +1,10 @@
+import os
+
 import time    as tt
 
 import zipfile as zf
 
+import numpy   as np
 import edlib   as ed
 import leveldb as lv
 
@@ -9,6 +12,236 @@ import utils   as ut
 
 
 # Parser and Setup Functions
+
+def get_random_DNA(length):
+    '''
+    Return a random DNA sequence
+    of required length.
+    Internal use only.
+
+    :: length
+       type - integer
+       desc - length of required
+              DNA sequence
+    '''
+
+    return ''.join(np.random.choice(
+        ('A', 'T', 'G', 'C')) for _ in range(length))
+
+def stream_random_reads(count):
+    '''
+    Stream several random reads.
+    Internal use only.
+
+    :: count
+       type - integer
+       desc - total number of reads
+              to be streamed
+    '''
+
+    for _ in range(count):
+        yield get_random_DNA(
+            length=np.random.randint(
+                10, 1000))
+
+def stream_packed_reads(packfile, count):
+    '''
+    Stream several experiment reads.
+    Internal use only.
+
+    :: packfile
+       type - string
+       desc - path to packfile storing
+              read packs
+    :: count
+       type - integer
+       desc - total number of reads
+              to be streamed
+    '''
+
+    # Open Pack File
+    packfile = ut.get_archive(
+        arcfile=packfile)
+
+    # Load Header Pack
+    packzero = ut.loadpack(
+        archive=packfile,
+            pfile='0.0.0.pack')
+
+    # Close Packfile
+    packfile.close()
+
+    # Build Streaming Index Vector
+    indexvec = np.arange(len(packzero))
+    np.random.shuffle(indexvec)
+    indexvec = indexvec[:count]
+
+    # Read Streaming Loop
+    for readidx in indexvec:
+        yield packzero[readidx][0]
+
+def stream_IDs(indexfiles, count):
+    '''
+    Stream random ID combination.
+    Internal use only.
+
+    :: indexfiles
+       type - tuple
+       desc - tuple of file paths
+              to applied indices
+    :: count
+       type - integer
+       desc - total number of reads
+              to be streamed
+    '''
+
+    # Open Index Files
+    indexfiles = list(
+        ut.get_archive(idxfile) for idxfile in indexfiles)
+
+    # Load IDdics
+    IDdicts = [ut.loaddict(
+        archive=indexfile,
+        dfile='ID.map') for indexfile in indexfiles]
+
+    # Close Index Files
+    for indexfile in indexfiles:
+        indexfile.close()
+
+    # Stream Random ID Combination
+    for _ in range(count):
+
+        # Build ID Tuple
+        IDtuple = []
+        for IDdict in IDdicts:
+            if len(indexfiles) == 1:
+                entry = IDdict[
+                    np.random.randint(len(IDdict))]
+            else:
+                toss = np.random.randint(10)
+                if toss == 0:
+                    entry = '-'
+                else:
+                    entry = IDdict[
+                        np.random.randint(len(IDdict))]
+            IDtuple.append(entry)
+
+        # Stream ID Tuple
+        yield tuple(IDtuple)
+
+def get_parsed_callback(
+    indexfiles,
+    callback,
+    packfile,
+    ncores,
+    liner):
+    '''
+    Determine if given callback
+    function is valid.
+    Internal use only.
+
+    :: indexfiles
+       type - tuple
+       desc - tuple of file paths
+              to applied indices
+    :: callback
+       type - function
+       desc - callback function
+              specified
+    :: packfile
+       type - string
+       desc - path to packfile storing
+              read packs
+    :: ncores
+       type - integer
+       desc - total number of cores to
+              be used in counting
+    :: liner
+       type - coroutine
+       desc - dynamic printing
+    '''
+
+    # Start Timer
+    t0 = tt.time()
+
+    # Show Update
+    liner.send(' Loading Read Generators ...')
+
+    # Setup Streamers
+    randstreamer = stream_random_reads(
+        count=1000)
+    packstreamer = stream_packed_reads(
+        packfile=packfile,
+        count=1000)
+    streamers  = [randstreamer, packstreamer]
+    IDstreamer = stream_IDs(
+        indexfiles=indexfiles,
+        count=1000)
+
+    # Parsing Loop
+    pass_count    = 0
+    failedinputs = []
+    for readcount in range(1000):
+
+        # Get a Read!
+        read = next(streamers[np.random.randint(2)])
+
+        # Execute Callback
+        try:
+            callback_input = {
+                  'read': read,
+                    'ID': next(IDstreamer),
+                 'count': np.random.randint(1, 10001),
+                'coreid': np.random.randint(ncores)}
+            result = callback(**callback_input)
+            if not ((result is True) or \
+                    (result is False)):
+                raise
+        except:
+            failedinputs.append(callback_input)
+            iter_valid  = False
+        else:
+            iter_valid  = True
+            pass_count += 1
+
+        # Show Update
+        liner.send(
+            ' Callback Evaluation: {:,} / 1,000 {}'.format(
+                readcount,
+                ('Rejected', 'Accepted')[iter_valid]))
+
+    # Close Generators
+    randstreamer.close()
+    packstreamer.close()
+    IDstreamer.close()
+
+    # Final Update
+    plen = ut.get_printlen(
+        value=1000)
+    liner.send(
+        ' Callback Passed: {:{},} Input(s)\n'.format(
+            pass_count,
+            plen))
+    liner.send(
+        ' Callback Failed: {:{},} Input(s)\n'.format(
+            1000 - pass_count,
+            plen))
+    liner.send(
+        ' Time Elapsed: {:.2f} sec\n'.format(
+            tt.time() - t0))
+
+    # Show Final Verdict
+    parsestatus = len(failedinputs) == 0
+    if not parsestatus:
+        liner.send(
+            ' Verdict: Counting Infeasible due to Callback Function\n')
+    else:
+        liner.send(
+            ' Verdict: Counting Possibly Feasible\n')
+
+    # Return results
+    return (parsestatus,
+        failedinputs)
 
 def pack_loader(
     packfile,
@@ -103,8 +336,8 @@ def exoneration_procedure(
     '''
 
     # Adjust Read
-    if '-' in exoread:
-        exoread = exoread.replace('-', '')
+    if '-----' in exoread:
+        exoread = exoread.replace('-----', '')
 
     # Exoneration Flag
     exonerated = False
@@ -522,6 +755,51 @@ def get_associate_match(
         associatetval=associatetval),
         1)
 
+def callback_abort_procedure(
+    packqueue,
+    countdir,
+    liner):
+    '''
+    Empty packqueue and return failed inputs
+    for callback. Internal use only.
+
+    :: packqueue
+       type - SafeQueue
+       desc - queue storing read pack file
+              paths
+    :: countdir
+       type - string
+       desc - filepath to counting workspace
+              directory
+    :: liner
+       type - coroutine
+       desc - dynamic printing
+    '''
+
+    # Show Update
+    liner.send(
+        ' Emptying Pack Queue ...')
+
+    # Consume Pack Queue
+    for item in packqueue.multiget():
+        pass
+
+    # Show Update
+    liner.send(
+        ' Extracting Failed Input(s) ...')
+
+    # Aggregate Callback Dumps
+    failedinputs = []
+    for entry in os.listdir(countdir):
+        if entry.endswith('.callback.dump'):
+            failedinputs.append(
+                ut.loaddump(dfile='{}/{}'.format(
+                    countdir,
+                    entry)))
+
+    # Return Results
+    return failedinputs
+
 def count_aggregator(
     countqueue,
     countdir,
@@ -529,7 +807,32 @@ def count_aggregator(
     prodactive,
     liner):
     '''
-    TBD
+    Aggregate count dictionaries in
+    countqueue into a count database.
+    Internal use only.
+
+    :: countqueue
+       type - SafeQueue
+       desc - count queue storing
+              count dictionaries
+    :: countdir
+       type - string
+       desc - path to work space
+              count directory
+    :: prodcount
+       type - integer
+       desc - total number of producers
+              scheduled to add to
+              countqueue
+    :: prodactive
+       type - SafeCounter
+       desc - total number of producers
+              actively adding to
+              countqueue
+    :: liner
+       type - coroutine
+       desc - dynamic printing and
+              logging
     '''
 
     # Define CountDB file
@@ -607,7 +910,26 @@ def write_count(
     countfile,
     liner):
     '''
-    TBD
+    Write entries in count database
+    to a final count file / matrix.
+    Internal use only.
+
+    :: indexfiles
+       type - tuple
+       desc - tuple of index file
+              paths
+    :: countdir
+       type - string
+       desc - path to workspace
+              count directory
+    :: countfile
+       type - string
+       desc - path to CSV file storing
+              read counts for discovered
+              ID combinations
+    :: liner
+       type - coroutine
+       desc - dynamic printing
     '''
 
     # Book-keeping

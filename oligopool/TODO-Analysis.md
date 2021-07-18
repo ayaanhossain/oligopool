@@ -34,8 +34,14 @@ index.py (same as prep.py)
 
 count.py
 
-* Support for discarded reads (optional if specified)
-* Support for callback function (optional from python interface only)
+~~* Support for discarded reads (optional if specified)~~
+~~* Support for callback function (optional from python interface only)~~
+~~* Think about corecount policy for counting ... packcount should be fine?~~
+~~* Truncfile Event like setup for handling malfunctioning callback funcs~~
+  ~~-- Counters Shut Down Gracefully when callback errors
+~~* Discard reads are dumped to a read queue~~
+  ~~-- A separate process handles discard queue~~
+  ~~-- ???~~
 
 * Counting is of three types:
     - Union Counting: Map and count all variants for each read,
@@ -51,6 +57,7 @@ count.py
 
 * Unlike Dx-Seq, there is no input of errors for the barcodes to be
   counted -- it is inferred during indexing, and becomes fixed
+  -- NOT TRUE
 
 * Outputs
     - Union - one CSV file for each index

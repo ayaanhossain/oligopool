@@ -886,6 +886,7 @@ def pack(
             filepath=packfile)
         stats['vars']['r1truncated'] = True
 
+    # Packing Successful
     else:
         stats['status'] = True
         stats['basis']  = 'solved'
@@ -1033,8 +1034,7 @@ def pack(
             'packcount': int(packsbuilt.value()),
             'scanned'  : int(scannedreads.value()),
             'survived' : int(survivedreads.value()),
-            'packed'   : int(packedreads.value())
-        }
+            'packed'   : int(packedreads.value())}
 
         # Prepare Archiving Sentinels
         statpath = '{}/packing.stat'.format(

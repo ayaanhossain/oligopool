@@ -16,6 +16,8 @@ def index_engine(
     barcodelen,
     barcodeprefix,
     barcodesuffix,
+    barcodepregap,
+    barcodepostgap,
     associatedict,
     associateprefix,
     associatesuffix,
@@ -49,6 +51,12 @@ def index_engine(
     :: barcodesuffix
        type - string / None
        desc - constant barcode suffix
+    :: barcodepregap
+       type - integer
+       desc - gap between prefix and barcode
+    :: barcodepostgap
+       type - integer
+       desc - gap between barcode and suffix
     :: associatedict
        type - dict
        desc - complete associate sequence
@@ -87,6 +95,9 @@ def index_engine(
         'barcodelen'     : barcodelen,
         'barcodeprefix'  : barcodeprefix,
         'barcodesuffix'  : barcodesuffix,
+        'barcodepregap'  : barcodepregap,
+        'barcodepostgap' : barcodepostgap,
+        'barcodegapped'  : any((barcodepregap, barcodepostgap)),
         'association'    : len(associatedict) > 0,
         'associateprefix': associateprefix,
         'associatesuffix': associatesuffix
@@ -271,6 +282,8 @@ def index(
     indexfile,
     barcodeprefix=None,
     barcodesuffix=None,
+    barcodepregap=0,
+    barcodepostgap=0,
     associatedata=None,
     associatecol=None,
     associateprefix=None,
@@ -293,7 +306,7 @@ def index(
     (bardf,
     barcodedata_valid) = vp.get_parsed_indata_info(
         indata=barcodedata,
-        indata_field='   Barcode Data  ',
+        indata_field='   Barcode Data   ',
         required_fields=('ID',),
         precheck=False,
         liner=liner)
@@ -308,7 +321,7 @@ def index(
     barcodecol_valid) = vp.get_parsed_column_info(
         col=barcodecol,
         df=bardf,
-        col_field='   Barcode Column',
+        col_field='   Barcode Column ',
         col_desc='Input from Column',
         col_type=0,
         adjcol=None,
@@ -321,7 +334,7 @@ def index(
     indexfile_valid = vp.get_outfile_validity(
         outfile=indexfile,
         outfile_suffix='.oligopool.index',
-        outfile_field='     Index File  ',
+        outfile_field='     Index File   ',
         liner=liner)
 
     # Adjust indexfile Suffix
@@ -337,7 +350,7 @@ def index(
     barcodeprefix_valid) = vp.get_parsed_column_info(
         col=barcodeprefix,
         df=bardf,
-        col_field='   Barcode Prefix',
+        col_field='   Barcode Prefix ',
         col_desc='Input from Column',
         col_type=0,
         adjcol=barcodecol,
@@ -351,7 +364,7 @@ def index(
     barcodesuffix_valid) = vp.get_parsed_column_info(
         col=barcodesuffix,
         df=bardf,
-        col_field='   Barcode Suffix',
+        col_field='   Barcode Suffix ',
         col_desc='Input from Column',
         col_type=0,
         adjcol=barcodecol,
@@ -360,11 +373,33 @@ def index(
         typecontext=None,
         liner=liner)
 
+    # Full barcodepregap Validation
+    barcodepregap_valid = vp.get_numeric_validity(
+        numeric=barcodepregap,
+        numeric_field='   Barcode Pregap ',
+        numeric_pre_desc=' Allow Exactly ',
+        numeric_post_desc=' bp Gap b/w Prefix and Barcode',
+        minval=0,
+        maxval=float('inf'),
+        precheck=False,
+        liner=liner)
+
+    # Full barcodepostgap Validation
+    barcodepostgap_valid = vp.get_numeric_validity(
+        numeric=barcodepostgap,
+        numeric_field='   Barcode Postgap',
+        numeric_pre_desc=' Allow Exactly ',
+        numeric_post_desc=' bp Gap b/w Barcode and Suffix',
+        minval=0,
+        maxval=float('inf'),
+        precheck=False,
+        liner=liner)
+
     # First Pass associatedata Parsing and Validation
     (assdf,
     associatedata_valid) = vp.get_parsed_associatedata_info(
         associatedata=associatedata,
-        associatedata_field=' Associate Data  ',
+        associatedata_field=' Associate Data   ',
         required_fields=('ID',),
         bardf=bardf,
         barcodedata_valid=barcodedata_valid,
@@ -375,7 +410,7 @@ def index(
     associatecol_valid) = vp.get_parsed_column_info(
         col=associatecol,
         df=assdf,
-        col_field=' Associate Column',
+        col_field=' Associate Column ',
         col_desc='Input from Column',
         col_type=0,
         adjcol=None,
@@ -389,7 +424,7 @@ def index(
     associateprefix_valid) = vp.get_parsed_column_info(
         col=associateprefix,
         df=assdf,
-        col_field=' Associate Prefix',
+        col_field=' Associate Prefix ',
         col_desc='Input from Column',
         col_type=0,
         adjcol=associatecol,
@@ -403,7 +438,7 @@ def index(
     associatesuffix_valid) = vp.get_parsed_column_info(
         col=associatesuffix,
         df=assdf,
-        col_field=' Associate Suffix',
+        col_field=' Associate Suffix ',
         col_desc='Input from Column',
         col_type=0,
         adjcol=associatecol,
@@ -419,6 +454,8 @@ def index(
         indexfile_valid,
         barcodeprefix_valid,
         barcodesuffix_valid,
+        barcodepregap_valid,
+        barcodepostgap_valid,
         associatedata_valid,
         associatecol_valid,
         associateprefix_valid,
@@ -617,6 +654,8 @@ def index(
         barcodelen=barcodelen,
         barcodeprefix=barcodeprefix,
         barcodesuffix=barcodesuffix,
+        barcodepregap=barcodepregap,
+        barcodepostgap=barcodepostgap,
         associatedict=associatedict,
         associateprefix=associateprefix,
         associatesuffix=associatesuffix,

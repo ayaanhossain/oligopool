@@ -1,4 +1,5 @@
 import os
+import sys
 
 import time    as tt
 
@@ -635,6 +636,21 @@ def get_barcode_index(
         if not trimstatus:
             return None
 
+    # Gap Trim
+    if metamap['barcodegapped']:
+        # Localise Gap Lengths
+        pregap, postgap = (metamap['barcodepregap'],
+            metamap['barcodepostgap'])
+        # Pregap Trim
+        if pregap:
+            barcoderead = barcoderead[ +pregap:]
+        # Postgap Trim
+        if postgap:
+            barcoderead = barcoderead[:-postgap]
+        # Nothing Remains after Gap Trim
+        if not barcoderead:
+            return None
+
     # Compute Barcode Index
     return model.predict(
         x=barcoderead)[0]
@@ -755,7 +771,7 @@ def get_associate_match(
         associatetval=associatetval),
         1)
 
-def callback_abort_procedure(
+def get_failed_reads(
     packqueue,
     countdir,
     liner):

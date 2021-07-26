@@ -149,7 +149,6 @@ def acount_engine(
             if not callback is None:
                 if callbackerror.is_set():
                     callbackabort = True
-                    shutdown.set()
                     break
 
             # Exoneration Block
@@ -768,7 +767,7 @@ def acount(
 
     # Handle Callback Error
     if callbackerror.is_set():
-        failedinputs = cc.callback_abort_procedure(
+        failedinputs = cc.get_failed_reads(
             packqueue=packqueue,
             countdir=countdir,
             liner=liner)

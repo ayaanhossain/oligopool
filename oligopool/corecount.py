@@ -771,7 +771,7 @@ def get_associate_match(
         associatetval=associatetval),
         1)
 
-def get_failed_reads(
+def get_failed_inputs(
     packqueue,
     countdir,
     liner):

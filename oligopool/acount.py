@@ -279,7 +279,7 @@ def acount_engine(
                         continue
 
             # All Components Valid
-            countdict[(index,)] += freq
+            countdict[(index,)]      += freq
             cctrs['experimentreads'] += freq
 
         # Show Final Updates
@@ -376,10 +376,9 @@ def acount(
     maptype=0,
     barcodeerrors=-1,
     associateerrors=-1,
+    callback=None,
     ncores=0,
     memlimit=0,
-    callback=None,
-    discardfile=None,
     verbose=True):
     '''
     TBD
@@ -449,8 +448,8 @@ def acount(
         errors_pre_desc=' At most ',
         errors_post_desc=' Mutations per Barcode',
         errors_base='B',
-        indexfile_valid=indexfile_valid,
-        indexfile=indexfile,
+        indexfiles_valid=indexfile_valid,
+        indexfiles=(indexfile,),
         liner=liner)
 
     # Full associateerrors Validation
@@ -461,8 +460,8 @@ def acount(
         errors_pre_desc=' At most ',
         errors_post_desc=' Mutations per Associate',
         errors_base='A',
-        indexfile_valid=indexfile_valid,
-        indexfile=indexfile,
+        indexfiles_valid=indexfile_valid,
+        indexfiles=(indexfile,),
         liner=liner)
 
     # Full callback Validation
@@ -767,7 +766,7 @@ def acount(
 
     # Handle Callback Error
     if callbackerror.is_set():
-        failedinputs = cc.get_failed_reads(
+        failedinputs = cc.get_failed_inputs(
             packqueue=packqueue,
             countdir=countdir,
             liner=liner)

@@ -405,7 +405,7 @@ def get_indexfile_validity(
                 'meta.map'])
             if associated:
                 indexed.add('associate.map')
-            if set(archive.namelist()) != indexed:
+            if set(archive.namelist()) <= indexed:
                 raise
             variantcount = ut.loaddict(
                 archive=archive,
@@ -2555,8 +2555,8 @@ def get_errors_validity(
     errors_pre_desc,
     errors_post_desc,
     errors_base,
-    indexfile_valid,
-    indexfile,
+    indexfiles_valid,
+    indexfiles,
     liner):
     '''
     Determine if numeric is a None or a
@@ -2582,11 +2582,11 @@ def get_errors_validity(
        desc - either 'A' or 'B'
     :: indexfile_valid
        type - boolean
-       desc - True if indexfile is valid,
+       desc - True if indexfiles are valid,
               False otherwise
     :: indexfile
-       type - string
-       desc - filename storing prepared
+       type - iterable
+       desc - filenames storing prepared
               indexes and models
     :: liner
        type - coroutine
@@ -2609,18 +2609,24 @@ def get_errors_validity(
         errors = round(errors)
         # errors is default
         if errors < 0.:
-            if indexfile_valid:
-                archive = zf.ZipFile(
-                    file=indexfile)
-                metamap = ut.loaddict(
-                    archive=archive,
-                    dfile='meta.map')
-                if errors_base == 'A':
-                    errors = metamap['associatetvalmax']
-                else:
-                    errors = metamap['barcodetval']
-                errors = round(errors)
-                archive.close()
+            if indexfiles_valid:
+                errors = float('-inf')
+                for indexfile in indexfiles:
+                    archive = zf.ZipFile(
+                        file=indexfile)
+                    metamap = ut.loaddict(
+                        archive=archive,
+                        dfile='meta.map')
+                    if errors_base == 'A':
+                        errors = max(
+                            errors,
+                            metamap['associatetvalmax'])
+                    else:
+                        errors = max(
+                            errors,
+                            metamap['barcodetval'])
+                    errors = round(errors)
+                    archive.close()
                 liner.send(
                     '{}:{}{}{} (Auto-Inferred)\n'.format(
                         errors_field,

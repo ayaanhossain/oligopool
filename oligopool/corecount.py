@@ -1015,7 +1015,7 @@ def write_count(
                 if index == '-':
                     rows.append('-')
                 else:
-                    rows.append(IDdicts[IDx][index])
+                    rows.append(IDdicts[IDx][int(index)])
             rows.append(count.decode('ascii'))
 
             # Write Entry to Count Matrix

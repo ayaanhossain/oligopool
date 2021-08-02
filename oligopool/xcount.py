@@ -229,6 +229,10 @@ def xcount_engine(
                     indextuple.append('-')
                     continue
 
+                # Found a Barcode!
+                indextuple.append(
+                    index)
+
                 # Mapping Successful
                 partialmap = True
 
@@ -811,7 +815,7 @@ def xcount(
         countstatus = 'Failed'
 
     # Read Counting Stats
-    liner.send('\n[Associate Counting Stats]\n')
+    liner.send('\n[Combinatorial Counting Stats]\n')
 
     plen = ut.get_printlen(
         value=analyzedreads.value())

@@ -1063,7 +1063,7 @@ def pack_aggregator(
 
     # Load First Meta Pack
     mpack = ut.loadmeta(
-        filepath=mpath)
+        mfile=mpath)
     aggcount += 1
 
     # Merge Remaining Meta Packs

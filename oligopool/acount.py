@@ -279,7 +279,7 @@ def acount_engine(
                         continue
 
             # All Components Valid
-            countdict[(index,)]      += freq
+            countdict[((index),)]      += freq
             cctrs['experimentreads'] += freq
 
         # Show Final Updates

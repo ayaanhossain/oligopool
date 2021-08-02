@@ -2979,7 +2979,21 @@ def sorteditems(dobj):
 
     return sorted(dobj.items())
 
-def saveitems(iobj, filepath):
+def sortedcounts(cobj):
+    '''
+    Return a list of count dictionary items
+    sorted by keys. Internal use only.
+
+    :: cobj
+       type - dict
+       desc - a count dictionary to sort
+    '''
+
+    return sorted(map(
+        lambda x: ([str(_x) for _x in x[0]], x[1]),
+        cobj.items()))
+
+def saveitems(iobj, filepath, sortfn):
     '''
     MSGPACK dump sorted items to filepath,
     for downstream consumption.
@@ -2991,9 +3005,12 @@ def saveitems(iobj, filepath):
     :: filepath
        type - string
        desc - filepath to save read pack
+    :: sortfn
+       type - function
+       desc - sorting function used
     '''
 
-    items = sorteditems(iobj)
+    items = sortfn(iobj)
     msgpacksave(
         obj=items,
         filepath=filepath)
@@ -3014,7 +3031,8 @@ def savepack(pobj, filepath):
 
     return saveitems(
         iobj=pobj,
-        filepath=filepath)
+        filepath=filepath,
+        sortfn=sorteditems)
 
 def savecount(cobj, filepath):
     '''
@@ -3031,7 +3049,8 @@ def savecount(cobj, filepath):
 
     return saveitems(
         iobj=cobj,
-        filepath=filepath)
+        filepath=filepath,
+        sortfn=sortedcounts)
 
 def picklesave(obj, filepath):
     '''

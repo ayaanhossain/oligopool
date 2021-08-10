@@ -878,7 +878,6 @@ def pack(
         ut.remove_file(
             filepath=packfile)
         stats['vars']['r1truncated'] = True
-
     elif r2truncfile.is_set():
         liner.send(
             ' R2 File Truncated or Incompatible with R1 File\n')

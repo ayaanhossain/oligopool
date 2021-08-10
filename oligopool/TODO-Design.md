@@ -31,7 +31,7 @@ spacer     -- done
 split      -- done
 pad        -- done
 lenstat    -- done
-finalize   -- done
+final      -- done
 
 Refactoring
 ~~* Build exmotif partition and inverse partition into

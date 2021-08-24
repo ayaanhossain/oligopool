@@ -12,10 +12,10 @@ class Scry(object):
     '''
 
     __slots__ = [
-        'c', 'C', 'd',
-        'n', 'k', 't', 'z',
-        'pt', 'pm',
-        'trained', 'primed']
+        'c',  'C',  'd',
+        'n',  'k',  't', 'z',
+        'st', 'pt', 'pm',
+        'trained',  'primed']
 
     def __init__(self):
         '''
@@ -34,7 +34,8 @@ class Scry(object):
         self.z = None # Corpus count
 
         # Priming Status Variables
-        self.pt = None # Primed t-value
+        self.st = None # Primer t-value for Fast Mode
+        self.pt = None # Primed t-value for Slow Mode
         self.pm = None # Primed mode
 
         # Sentinels
@@ -161,6 +162,9 @@ class Scry(object):
            type - iterable
            desc - iterable of labels of all
                   indexed sequences
+        :: n
+           type - integer
+           desc - length of each sequence
         :: k
            type - integer
            desc - length of k-mers
@@ -221,6 +225,27 @@ class Scry(object):
                 # Sort Current Record
                 d[kmer].sort()
 
+                '''
+                Note: The following block merges index ranges
+                Initially,
+                d[kmer] = [(0, 85), (0, 40), (0, 35), (1, 11), (2, 999), ..., (16, 5479)]
+                Post processing,
+                d[kmer] = (
+                    [85, 40, 35, 11, 999, ..., 5479],
+                                          # iv stores sequence's index in X, i.e. X[p] = sequence
+                                          #    that contains kmer inside it at region q..q+k
+                    (                     # ig stores merged ranges into iv at index q
+                                          #    such that X[p][q..q+k] = kmer for p ∈ iv
+                        (0, 3), # X[p] for p in iv[0:3] has kmer at region q=0..k
+                        (3, 4), # X[p] for p in iv[3:4] has kmer at region q=1..1+k
+                        (4, 5), # X[p] for p in iv[4:5] has kmer at region q=2..2+k
+                        ...
+                        (7, 9)  # X[p] for p in iv[7:9] has kmer at region q=n..n+k
+                    ))
+                In this format, ig has exactly n-k+1 entries, since the kmer of length k
+                must start at locations 0 to n-k+1 in a sequence of length n.
+                '''
+
                 # Process All Entries
                 idxgroup = [None]*(n-k+1)
                 ygroup   = []
@@ -260,12 +285,17 @@ class Scry(object):
            desc - k-value for sequences
         :: t
            type - integer
-           desc - maximum mismatches in
+           desc - maximum errors in
                   sequence variants
         :: liner
            type - coroutine / None
            desc - dynamic printing
         '''
+
+        if t >= (0.5 * n):
+            raise ValueError(
+                'Sequence errors (t={}) >= 0.5 * sequence length (n={})'.format(
+                    t, n))
 
         X = list(X)
         Y = list(Y)
@@ -289,7 +319,7 @@ class Scry(object):
         :: t
            type - integer
            desc - considered number of
-                  mismatches in variants
+                  errors in variants
                   (default=0)
         :: mode
            type - integer
@@ -310,11 +340,13 @@ class Scry(object):
                 'Invalid Scry prediction mode: {}'.format(
                     mode))
 
-        # How many mismatches allowed?
-        t = self.t if t > self.t else t if t >= 0 else 0
+        # # How many errors allowed?
+        st = self.t      if t >  self.t         else t if t >= 0 else 0
+        pt = self.n // 2 if t >= (0.5 * self.n) else t if t >= 0 else 0
 
         # Store Primed Records
-        self.pt = t
+        self.st = st
+        self.pt = pt
         self.pm = mode
         self.primed = True
 
@@ -382,10 +414,11 @@ class Scry(object):
         # Localize instance attributes
         # for speed (Python is weird!)
         sn = self.n
-        st = self.pt
+        st = self.st
+        pt = self.pt
 
         # Query unresolvable?
-        if (n < (sn - st)) or (n > (sn + st)):
+        if (n < (sn - pt)) or (n > (sn + pt)):
             return None, None # Too Many Indels!
 
         # Case 1: Near Exact Matches
@@ -404,7 +437,7 @@ class Scry(object):
 
         # Analyze Substrings in Decreasing
         # Length Order, Left to Right
-        sl = sn if sn < n else n-1 # (n-1 -> |x| = n was no hit)
+        sl = sn if sn < n else n-1 # (n-1 since |x| = n was not hit)
         ys = set()
         pl = sl
         for sx,l in Scry.stream_substrings(
@@ -449,9 +482,9 @@ class Scry(object):
         z  = self.z
 
         # Book-keeping
-        sv = np.zeros(z)
-        xs = 0.
-        u  = sn-sk
+        sv = np.zeros(z) # Score Vector
+        xs = 0.          # Max Score
+        u  = sn-sk       # Last sk-mer start location
 
         # Resolve k-mers
         for kmer,idx in Scry.stream_kmers(
@@ -462,9 +495,9 @@ class Scry(object):
 
                 # Find Index Range Bounds
                 iv,ig = sd[kmer]
-                mi = idx - st
+                mi = idx - pt
                 si = mi if mi > 0 else 0
-                xi = idx + st
+                xi = idx + pt
                 ei = xi if xi < u else u
 
                 # Refine Index Range Bounds
@@ -482,7 +515,7 @@ class Scry(object):
                     kk += 1
 
                 # Range Valid?
-                if not st is None:
+                if not (sr is None):
                     # Update Scores
                     xs += sk
                     Scry.update_scorevector(
@@ -509,7 +542,7 @@ class Scry(object):
                 target=sC[idx],
                 mode='NW',
                 task='distance',
-                k=st)['editDistance']
+                k=pt)['editDistance']
             if alns == -1:
                 continue
             else:

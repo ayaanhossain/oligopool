@@ -536,7 +536,7 @@ def motif_objectives(
             0,
             len(motif)-1)
 
-    # Objective 6: Edge Feasibility (Edge-Effects)
+    # Objective 2: Edge Feasibility (Edge-Effects)
     obj2, dxmotifs, traceloc = is_edge_feasible(
         motif=motif,
         motiflen=motiflen,
@@ -546,7 +546,7 @@ def motif_objectives(
         prefixforbidden=prefixforbidden,
         suffixforbidden=suffixforbidden)
 
-    # Objective 6 Failed
+    # Objective 2 Failed
     if not obj2:
 
         # Show Update

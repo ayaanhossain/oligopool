@@ -388,7 +388,7 @@ def infer_tvalue(
     :: elementlen
        type - integer
        desc - length of element
-    :: minimum
+    :: maximum
        type - integer
        desc - maximum t-value
     '''

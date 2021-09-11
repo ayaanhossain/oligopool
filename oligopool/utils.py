@@ -21,9 +21,11 @@ import numba   as nb
 import primer3 as p3
 import psutil  as pu
 
-import msgpack  as mg
-import pyfastx  as pf
-import edlib    as ed
+import msgpack as mg
+import pyfastx as pf
+import edlib   as ed
+import dinopy  as dp
+import bounter as bt
 
 import scry as sy
 
@@ -514,6 +516,8 @@ def get_sample(value, lf, uf):
               of value
     '''
 
+    if value <= 10:
+        return round(value / 2)
     return np.random.randint(
         *map(np.round, (value * lf,
                         value * uf)))
@@ -674,6 +678,7 @@ def get_store_hdist(
     idx,
     i=0,
     j=None,
+    t=None,
     direction=0):
     '''
     Return the minimum pairwise hamming
@@ -690,10 +695,13 @@ def get_store_hdist(
               being compared
     :: i
        type - integer
-       desc - starting index of comparison
+       desc - starting col index of comparison
     :: j
        type - integer
-       desc - ending   index of comparison
+       desc - ending   col index of comparison
+    :: t
+       type - np.array / None
+       desc - fancy row index for taking
     :: direction
        type - integer
        desc - direction flag;
@@ -706,6 +714,12 @@ def get_store_hdist(
     hdist = store.shape[1]
     if i >= 0 and not j is None:
         hdist = j-i
+
+    # Specific Coordinates
+    if not t is None:
+        return min(
+            hdist,
+            (store[t, i:j] != store[idx, i:j]).sum(1).min())
 
     # Something to compare against?
     if idx > 0:
@@ -1031,7 +1045,12 @@ def get_parsed_oligopool_repeats(
     '''
 
     # Book-keeping
-    oligorepeats = {}
+    if not merge:
+        oligorepeats = {}
+    else:
+        oligorepeats = bt.bounter(
+            need_iteration=False, # Static Checks Only
+            size_mb=4096)         # 4 GB Spectrum Cap
     t0           = tt.time()
     kmerspace    = ((4**(maxreplen+1)) // 2)
     fillcount    = None
@@ -1065,23 +1084,36 @@ def get_parsed_oligopool_repeats(
     liner.send(' Extracting Repeats ...')
 
     for idx,oligo in enumerate(
-            get_df_concat(df=df)):
-        oligorepeats[idx] = set(
-            stream_canon_spectrum(
-                seq=oligo,
-                k=maxreplen+1))
-        repeatcount = max(
-            repeatcount,
-            len(oligorepeats[idx]))
+        get_df_concat(df=df)):
 
-    # Merge Repeats
+        # Show Update
+        if (idx+1) % 1000 == 0:
+            liner.send(
+                ' Extracting Repeats: Processed {:,} Sequences'.format(
+                    idx+1))
+
+        # Store Repeats
+        if not merge:
+            transformation = set(map(
+                lambda x: dp.conversion.encode_twobit(
+                    seq=x,
+                    sentinel=False),
+                stream_canon_spectrum(
+                    seq=oligo,
+                    k=maxreplen+1)))
+            oligorepeats[idx] = tuple(
+                sorted(transformation))
+            repeatcount = max(
+                repeatcount,
+                len(oligorepeats[idx]))
+        else:
+            transformation = stream_canon_spectrum(
+                seq=oligo,
+                k=maxreplen+1)
+            oligorepeats.update(
+                transformation)
     if merge:
-        liner.send(' Merging Repeats ...')
-        mergedoligorepeats = set()
-        for repeats in oligorepeats.values():
-            mergedoligorepeats.update(repeats)
-        repeatcount  = len(mergedoligorepeats)
-        oligorepeats = mergedoligorepeats
+        repeatcount = oligorepeats.cardinality()
 
     # Compute Feasibility
     fillcount   = min(kmerspace, repeatcount)
@@ -1706,10 +1738,11 @@ def get_extracted_context(
                     edgeeffectlength=edgeeffectlength)
 
                 # Show Update
-                liner.send(
-                    ' Extracting {} Context: Processed {:,} Sequences'.format(
-                        ['Left', 'Right'][position],
-                        idx+1))
+                if (idx+1) % 1000 == 0:
+                    liner.send(
+                        ' Extracting {} Context: Processed {:,} Sequences'.format(
+                            ['Left', 'Right'][position],
+                            idx+1))
 
                 # Store Edge Sequence
                 uniques.add(edgeseq)
@@ -2392,6 +2425,28 @@ def stream_canon_spectrum(seq, k):
     return map(
         lambda x: min(x, get_revcomp(x)),
         stream_spectrum(seq=seq, k=k))
+
+def stream_contigs(seq, scheme):
+    '''
+    Stream the k-mer contigs of seq.
+    Internal use only.
+
+    :: seq
+       type - string
+       desc - a string in alphabet
+              {A, T, G, C}
+    :: scheme
+       type - integer
+       desc - contig break scheme
+    '''
+
+    i = 0
+    j = 0
+    while i < len(seq):
+        k = scheme[j]
+        yield (seq[i:i+k],j)
+        i += k
+        j += 1
 
 def get_hdist(seq1, seq2, max_hd=None):
     '''

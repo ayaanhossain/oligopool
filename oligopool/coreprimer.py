@@ -1,8 +1,10 @@
+from os import sendfile
 import time  as tt
 
 import collections as cx
 
 import numpy       as np
+import dinopy      as dp
 
 import nrpcalc     as nr
 
@@ -1026,7 +1028,7 @@ def is_oligopool_feasible(
         primer[-maxreplen+1:],
         ut.get_revcomp(
             seq=primer[-maxreplen+1:]))
-    if canonkmer in oligorepeats:
+    if oligorepeats[canonkmer] > 0:
         return False, len(primer)-1 # Conflict
 
     # No Conflict

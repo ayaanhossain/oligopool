@@ -1,4 +1,4 @@
-import time as tt2
+import time as tt
 
 import collections as cx
 import numpy       as np

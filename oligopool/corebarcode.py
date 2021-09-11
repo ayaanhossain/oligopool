@@ -1,10 +1,13 @@
 import time  as tt
 
 import collections as cx
-import numpy       as np
-import numba       as nb
 
-import utils as ut
+import bisect as bs
+import dinopy as dp
+import numpy  as np
+from numpy.lib.function_base import percentile
+
+import utils  as ut
 
 
 # Barcode Conversion Dictionary
@@ -132,11 +135,9 @@ def get_jumper(barcodelen):
     Return jumper based on jumper type.
     Internal use only.
 
-    :; jtp
+    :: barcodelen
        type - integer
-       desc - jumper type identifier
-              1 = finite   jumper
-              2 = infinite jumper
+       desc - barcode length
     '''
 
     # Compute Upperbound
@@ -264,16 +265,45 @@ def get_barcodeseq(barcode):
         lambda x: decoder[x],
         barcode))
 
+def get_contigsize_scheme(
+    barcodelen,
+    minhdist):
+    '''
+    Return optimal barcode contig parition
+    scheme for coordinate checking.
+    Internal use only.
+
+    :: barcodelen
+       type - integer
+       desc - barcode length
+    :: minhdist
+       type - integer
+       desc - minimum pairiwise hamming
+              distance between barcodes
+    '''
+
+    contigsize = np.zeros(minhdist, dtype=np.int32) + (barcodelen // minhdist)
+    covered = np.sum(contigsize)
+    if covered < barcodelen:
+        contigsize[:barcodelen-covered] += 1
+    return contigsize
+
 def is_hamming_feasible(
+    barcodeseq,
     store,
     count,
-    minhdist):
+    minhdist,
+    contigsize,
+    coocache):
     '''
     Determine if the minimum distance between
     barcode and store is greater or equal to
     given minhdist (hamming feasibility).
     Internal use only.
 
+    :: barcodeseq
+       type - string
+       desc - decoded barcode sequence
     :: store
        type - np.array
        desc - vectorized storage of numeric
@@ -286,12 +316,48 @@ def is_hamming_feasible(
        desc - minimum pairwise hamming
               distance between a pair
               of barcodes
+    :: contigsize
+       type - array
+       desc - optimized barcode contig
+              size scheme
+    :: coocache
+       type - dict
+       desc - dictionary of k-mer contig
+              coordinates
     '''
 
-    return ut.get_store_hdist(
+    # Bound Targets
+    targets = set()
+    coordinates = []
+    maxsize = store.shape[1]
+    bounded = True
+    for contig,index in ut.stream_contigs(
+        seq=barcodeseq,
+        scheme=contigsize):
+        if contig in coocache:
+            targets.update(
+                coocache[contig][index])
+        if len(targets) == maxsize:
+            bounded = False
+        coordinates.append((contig,index))
+    targets = tuple(targets)
+
+    # Did we match coordinates?
+    if not targets:
+        return (True,coordinates)
+    else:
+        if bounded:
+            targets = np.array(targets)
+        else:
+            targets = None
+
+    # Compute Distance
+    return (ut.get_store_hdist(
         store=store,
         idx=count,
-        direction=0) >= minhdist
+        t=targets,
+        direction=0) >= minhdist,
+        coordinates)
 
 def is_exmotif_feasible(
     barcodeseq,
@@ -475,10 +541,18 @@ def is_nonrepetitive(
               by context id
     '''
 
+    corpus = oligorepeats[index]
     for kmer in ut.stream_canon_spectrum(
         seq=barcodeseq,
         k=maxreplen+1):
-        if kmer in oligorepeats[index]:
+        kmer = dp.conversion.encode_twobit(
+            seq=kmer,
+            sentinel=False)
+        idxk = bs.bisect_left(
+            corpus,
+            kmer)
+        if (idxk < len(corpus)) and \
+           (corpus[idxk] == kmer):
             return False
     return True
 
@@ -506,7 +580,7 @@ def is_composition_feasible(
     for substring in ut.stream_spectrum(
         seq=barcodeseq,
         k=substringlen):
-        if substring in substringcache:
+        if substringcache[substring] > 0:
             return False, None
         subset.append(substring)
     return True, subset
@@ -519,6 +593,8 @@ def barcode_objectives(
     substringlen,
     substringcache,
     minhdist,
+    contigsize,
+    coocache,
     maxreplen,
     oligorepeats,
     exmotifs,
@@ -556,6 +632,14 @@ def barcode_objectives(
        desc - minimum pairwise hamming
               distance between a pair
               of barcodes
+    :: contigsize
+       type - array
+       desc - optimized barcode contig
+              size scheme
+    :: coocache
+       type - dict
+       desc - dictionary of k-mer contig
+              coordinates
     :: maxreplen
        type - integer
        desc - maximum shared repeat length
@@ -595,14 +679,17 @@ def barcode_objectives(
     '''
 
     # Objective 1: Hamming Distance
-    obj1 = is_hamming_feasible(
+    obj1,coordinates = is_hamming_feasible(
+        barcodeseq=barcodeseq,
         store=store,
         count=count,
-        minhdist=minhdist)
+        minhdist=minhdist,
+        contigsize=contigsize,
+        coocache=coocache)
 
     # Objective 1 Failed
     if not obj1:
-        return (False, 1, None, None, None)         # Hamming Failure
+        return (False, 1, None, None, None, None)         # Hamming Failure
 
     # Objective 2: Motif Embedding
     obj2, exmotif = is_exmotif_feasible(
@@ -612,7 +699,7 @@ def barcode_objectives(
 
     # Objective 2 Failed
     if not obj2:
-        return (False, 2, None, {exmotif: 1}, None) # Motif Failure
+        return (False, 2, None, {exmotif: 1}, None, None) # Motif Failure
 
     # Objective 3: Edge Feasibility (Edge-Effects)
     obj3, aidx, afails = is_edge_feasible(
@@ -626,7 +713,7 @@ def barcode_objectives(
 
     # Objective 3 Failed
     if not obj3:
-        return (False, 3, None, afails, None)       # Edge Failure
+        return (False, 3, None, afails, None, None)       # Edge Failure
 
     # Objective 4: Contextual Non-Repetitiveness
     obj4 = is_nonrepetitive(
@@ -642,7 +729,7 @@ def barcode_objectives(
         #                 Followed by Infinite Loop
         #                 (Critical Bug)
         contextarray.append(aidx)
-        return (False, 4, None, None, None)         # Repeat Failure
+        return (False, 4, None, None, None, None)         # Repeat Failure
 
     # Objective 5: Composition Objective
     subset = None
@@ -659,14 +746,13 @@ def barcode_objectives(
             #                 Followed by Infinite Loop
             #                 (Critical Bug)
             contextarray.append(aidx)
-            return (False, 5, None, None, None)     # Repeat Failure
+            return (False, 5, None, None, None, None)     # Repeat Failure
 
     # All conditions met!
-    return (True, 0, aidx, None, subset)
+    return (True, 0, aidx, None, subset, coordinates)
 
 def get_distro(
     store,
-    codes,
     liner):
     '''
     Compute and return the hamming
@@ -678,10 +764,6 @@ def get_distro(
        desc - vectorized storage of numeric
               encoding of all previous
               barcodes
-    :: codes
-       type - list
-       desc - list storage of all barcodes
-              decoded from store
     :: liner
        type - coroutine
        desc - dynamic printing
@@ -690,30 +772,52 @@ def get_distro(
     # Book-keeping
     t0 = tt.time()
     hammingdistro = cx.Counter()
-    plen = ut.get_printlen(
-        value=len(codes))
+    count     = store.shape[0]
+    threshold = min(min(50000, count // 10), count)
+    plen      = ut.get_printlen(
+        value=count)
+
+    # Show Update
+    liner.send(' Selecting Samples ...')
+
+    # Select Samples
+    if threshold < count:
+        # store = store[np.lexsort(np.rot90(store))]
+        idxsample = sorted(np.random.permutation(
+            count)[:threshold])
+        store = store[idxsample, :]
+    else:
+        idxsample = np.arange(count)
 
     # Compute DIstribution - Half per Edge
-    for idx in range(len(codes)):
+    for idx in np.arange(store.shape[0]):
 
         # Upward Distance
         hdist = ut.get_store_hdist(
             store=store,
             idx=idx,
-            direction=2)
+            direction=0)
 
         # Show Update
         liner.send(
             ' Candidate {:{},d}: Pairwise Distance ≥ {:,} Mismatches'.format(
-                idx+1, plen, hdist))
+                idxsample[idx]+1, plen, hdist))
 
         # Add to Distribution
         hammingdistro[hdist] += 1
 
+    # Normalize Distribution
+    liner.send('\* Normalizing Distribution ...')
+    normhammingdistro = []
+    for hdist in hammingdistro:
+        percentage = (100. * hammingdistro[hdist]) / threshold
+        normhammingdistro.append((percentage, hdist))
+    normhammingdistro.sort()
+
     # Final Update
     liner.send(
-        '\* Time Elapsed: {:.2f} sec\n'.format(
+        ' Time Elapsed: {:.2f} sec\n'.format(
             tt.time()-t0))
 
     # Return Distribution
-    return hammingdistro
+    return normhammingdistro

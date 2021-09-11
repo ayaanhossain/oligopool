@@ -3,6 +3,7 @@ import time  as tt
 import collections as cx
 import numpy       as np
 import atexit      as ae
+import bounter     as bt
 
 import utils       as ut
 import valparse    as vp
@@ -79,6 +80,13 @@ def barcode_engine(
         dtype=np.float64)
     codes = []                   # Store Decoded Barcodes
     assignmentarray = []         # Assignment Array
+    coocache = {}                # Coorindate Dictionary
+    count    = 0                 # Barcode Count
+
+    # Optimized Contig Break
+    contigsize = cb.get_contigsize_scheme(
+        barcodelen=barcodelen,
+        minhdist=minhdist)
 
     # Spectral Uniquness
     minstringlen = int(np.ceil(ut.safelog(
@@ -99,7 +107,9 @@ def barcode_engine(
         else:
             substringlen = minstringlen
         liner.send(' Type Optimization: Activated\n')
-    substringcache = set()
+    substringcache = bt.bounter(
+            need_iteration=False, # Static Checks Only
+            size_mb=1024)         # 1 GB Spectrum Cap
 
     # Context Setup
     contextarray   = cx.deque(range(targetcount))  # Context Array
@@ -161,7 +171,7 @@ def barcode_engine(
                 stats)
 
         # Update Barcode Store
-        store[stats['vars']['barcodecount'], :] = barcode
+        store[count, :] = barcode
 
         # Decode Barcode Sequence
         barcodeseq = cb.get_barcodeseq(
@@ -172,14 +182,17 @@ def barcode_engine(
         optstate,
         aidx,
         emcounter,
-        subset) = cb.barcode_objectives(
+        subset,
+        cooridnates) = cb.barcode_objectives(
             store=store,
-            count=stats['vars']['barcodecount'],
+            count=count,
             barcodeseq=barcodeseq,
             barcodelen=barcodelen,
             substringlen=substringlen,
             substringcache=substringcache,
             minhdist=minhdist,
+            contigsize=contigsize,
+            coocache=coocache,
             maxreplen=maxreplen,
             oligorepeats=oligorepeats,
             exmotifs=exmotifs,
@@ -198,10 +211,11 @@ def barcode_engine(
 
             # Update Store Fill Count
             stats['vars']['barcodecount'] += 1
+            count += 1
 
             # Show Update on Success
             cb.show_update(
-                count=stats['vars']['barcodecount'],
+                count=count,
                 plen=plen,
                 barcodeseq=barcodeseq,
                 optstatus=optstatus,
@@ -216,9 +230,18 @@ def barcode_engine(
             # Update Codes
             codes.append(barcodeseq)
 
-            # Update Cache
+            # Update Substring Cache
             if barcodelen - substringlen > 0:
                 substringcache.update(subset)
+
+            # Update Coordinate Cache
+            for contig,index in cooridnates:
+                if not contig in coocache:
+                    coocache[contig] = []
+                    for _ in range(minhdist):
+                        coocache[contig].append([])
+                    coocache[contig] = tuple(coocache[contig])
+                coocache[contig][index].append(count-1)
 
             # Update Last Accounted Barcode
             acccodeseq = barcodeseq
@@ -260,7 +283,7 @@ def barcode_engine(
         # Verbage Book-keeping
         if verbage_reach >= verbage_target:
             cb.show_update(
-                count=stats['vars']['barcodecount'],
+                count=count,
                 plen=plen,
                 barcodeseq=barcodeseq,
                 optstatus=optstatus,
@@ -272,7 +295,7 @@ def barcode_engine(
         verbage_reach += 1
 
         # Target Reached?
-        if stats['vars']['barcodecount'] == targetcount:
+        if count == targetcount:
 
             # Construct the Sorted Barcodes
             codes = [code for aidx,code in sorted(
@@ -284,7 +307,7 @@ def barcode_engine(
 
             # Final Update
             cb.show_update(
-                count=stats['vars']['barcodecount'],
+                count=count,
                 plen=plen,
                 barcodeseq=codes[-1],
                 optstatus=True,
@@ -761,7 +784,7 @@ def barcode(
     oligorepeats) = ut.get_parsed_oligopool_repeats(
         df=indf,
         maxreplen=maxreplen,
-        element='Primer',
+        element='Barcode',
         merge=False,
         liner=liner)
 
@@ -835,7 +858,6 @@ def barcode(
         # Compute Hamming Distance Distribution
         stats['vars']['distancedistro'] = cb.get_distro(
             store=store,
-            codes=codes,
             liner=liner)
 
     # Barcode Status
@@ -892,18 +914,16 @@ def barcode(
         if stats['vars']['distancedistro']:
 
             dlen = ut.get_printlen(
-                value=max(stats['vars']['distancedistro'].keys()))
-
-            clen = ut.get_printlen(
-                value=max(stats['vars']['distancedistro'].values()))
+                value=max(map(
+                    lambda x: x[1],
+                    stats['vars']['distancedistro'])))
 
             liner.send('   Pair-wise Distance Distribution\n')
 
-            for distance,count in stats['vars']['distancedistro'].most_common():
+            for percentage,distance in stats['vars']['distancedistro']:
                 liner.send(
-                    '     - {:{},d} Barcode(s) w/ Distance ≥ {:{},d} Mismatch(es)\n'.format(
-                        count,
-                        clen,
+                    '     - {:6.2f} % Barcode(s) w/ Distance ≥ {:{},d} Mismatch(es)\n'.format(
+                        percentage,
                         distance,
                         dlen))
 

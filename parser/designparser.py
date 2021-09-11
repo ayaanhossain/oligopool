@@ -70,7 +70,8 @@ def setup_background(
 
     # Build Background
     status = False
-    if not background_spec is None:
+    if (not (background_spec is None)) and \
+       (len(background_spec) > 0):
 
         # Define Background Name
         backgroundname = workspacename + '/oligopool_background'
@@ -197,6 +198,7 @@ def get_primer_order(
     return order
 
 def insert_primers(
+    element_names,
     background,
     dataframe,
     elements_spec,
@@ -206,7 +208,9 @@ def insert_primers(
     status = False
     incomplete = False
     order = get_primer_order(elements_spec=elements_spec)
-    print(dataframe.columns)
+    # print(order)
+    # print(dataframe.columns)
+    # print(element_names)
     while order:
         element_name = order.popleft()
         try:
@@ -215,6 +219,16 @@ def insert_primers(
             pairedcol = elements_spec[element_name]['pairedprimer']
             if pairedcol in order:
                 pairedcol = None # element_name is a Predecessor
+            # Left Context is Sensitive
+            if elements_spec[element_name]['leftcontext'] in stats_dict:
+                leftcontext = elements_spec[element_name]['leftcontext']
+            else:
+                leftcontext = None
+            # Right Context is Sensitive
+            if elements_spec[element_name]['rightcontext'] in stats_dict:
+                rightcontext = elements_spec[element_name]['rightcontext']
+            else:
+                rightcontext = None
             dataframe, stats = primer.primer(
                 indata=dataframe,
                 oligolimit=elements_spec[element_name]['oligolimit'],
@@ -226,10 +240,20 @@ def insert_primers(
                 primercol=element_name,
                 outfile=None,
                 pairedcol=pairedcol,
-                leftcontext=elements_spec[element_name]['leftcontext'],
-                rightcontext=elements_spec[element_name]['rightcontext'],
+                leftcontext=leftcontext,
+                rightcontext=rightcontext,
                 exmotifs=elements_spec[element_name]['exmotifs'],
-                background=background)
+                background=background,
+                verbose=True)
+            # print(dataframe)
+            # print(dataframe.columns)
+            for col in element_names:
+                if not col in dataframe.columns:
+                    # print(col)
+                    dataframe[col] = '-'
+            # print(dataframe.columns)
+            dataframe = dataframe[element_names]
+            # print(dataframe)
             stats_dict['oligopool'][element_name] = stats
             status = True
             if stats['status'] is False:
@@ -281,7 +305,8 @@ def insert_barcodes(
                 if stats['status'] is False:
                     incomplete = True
                     break
-            except:
+            except Exception as E:
+                raise E
                 dataframe = None
                 stats_dict['oligopool'][element_name] = {
                     'status'  : False,
@@ -558,24 +583,29 @@ def designparser(
     print(dataframe)
 
     # Setup Background
-    (status,
-    backgroundname,
-    stats_dict) = setup_background(
-        workspacename=workspacename,
-        background_spec=background_spec,
-        stats_dict=stats_dict)
-    if status is False:
-        return {
-              'step': 1,
-              'desc': 'Step 1: Background Input Error',
-            'output': output,
-        'stats_dict': stats_dict}
-    elif stats_dict['background']['status'] is False:
-        return {
-              'step': 1,
-         'step_name': 'Step 1: Background Unsuccessful',
-            'output': output,
-        'stats_dict': stats_dict}
+    if ((background_spec is None) or \
+        (len(background_spec) <= 0)):
+        backgroundname = None
+        print()
+    else:
+        (status,
+        backgroundname,
+        stats_dict) = setup_background(
+            workspacename=workspacename,
+            background_spec=background_spec,
+            stats_dict=stats_dict)
+        if status is False:
+            return {
+                'step': 1,
+                'desc': 'Step 1: Background Input Error',
+                'output': output,
+            'stats_dict': stats_dict}
+        elif stats_dict['background']['status'] is False:
+            return {
+                'step': 1,
+            'step_name': 'Step 1: Background Unsuccessful',
+                'output': output,
+            'stats_dict': stats_dict}
 
     # Insert Core Variants
     (status,
@@ -617,6 +647,7 @@ def designparser(
     incomplete,
     dataframe,
     stats_dict) = insert_primers(
+        element_names=element_names,
         background=backgroundname,
         dataframe=dataframe,
         elements_spec=elements_spec,
@@ -686,7 +717,8 @@ def designparser(
 
     # Split Oligos
     split_dataframe = None
-    if not split_spec is None:
+    if (not (split_spec is None)) or \
+       (len(split_spec) > 0):
         (status,
         incomplete,
         split_dataframe,
@@ -709,8 +741,10 @@ def designparser(
 
     # Pad Oligos
     padded_dataframes = None
-    if not split_spec is None and \
-       not padding_spec is None:
+    if ((not (split_spec is None)) and \
+        (len(split_spec) > 0)) and \
+       ((not (padding_spec is None)) and \
+        (len(padding_spec) > 0)):
         (status,
         incomplete,
         padded_dataframes,

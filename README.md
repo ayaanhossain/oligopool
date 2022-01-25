@@ -12,3 +12,5 @@
   <a href="https://github.com/ayaanhossain/oligopool/blob/master/docs/DOCS.md">DOCS</a> •
   <a href="#Oligopool-Calculator-in-Action">Oligopool Calculator in Action!</a>
 </p>
+
+A suite of tools to design and analyze oligopool libraries for massively parallel assays.

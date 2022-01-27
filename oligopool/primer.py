@@ -281,12 +281,13 @@ def primer(
     '''
     The primer function designs constrained primers, at desired
     melting temperature, with desired non-repetitiveness, that
-    works optimally for all variants in the oligopool, without
+    work optimally for all variants in the oligopool, without
     any excluded motifs inside or introducing new ones at the
     primer edges. Additional constraints are enforced to ensure
-    compatibility with a paired primer. The generated DataFrame
-    containing designed primer is returned, and optionally also
-    written out to <outfile> (CSV) if specified.
+    compatibility with a paired primer, and minimal formation
+    of dimers of duplexes. The generated DataFrame containing
+    designed primer is returned, and optionally also written
+    out to <outfile> (CSV) if specified.
 
     :: indata
        type - string / pd.DataFrame
@@ -294,7 +295,8 @@ def primer(
               annotated oligopool variants and their parts
     :: oligolimit
        type - integer
-       desc - maximum oligo length allowed in the oligopool
+       desc - maximum oligo length allowed in the oligopool,
+              must be 4 or greater
     :: primerseq
        type - integer
        desc - an IUPAC degenerate primer sequence constraint
@@ -314,8 +316,8 @@ def primer(
     :: maxreplen
        type - integer
        desc - maximum shared repeat length between the
-              primers and flanking regions, must be between
-              6 and 20
+              primers and flanking regions, must be 6 or
+              greater
     :: primercol
        type - string
        desc - name of the column to store designed primer
@@ -361,8 +363,8 @@ def primer(
               (default=True)
 
     Output: A file named <outfile> with '.oligoool.primer.csv'
-            suffix if specified; otherwise a pandas DataFrame
-            is returned.
+            suffix if specified; otherwise a pandas DataFrame is
+            returned, along with design or warning statistics.
 
     Note 1. Specified <indata> must contain a column named 'ID',
             that uniquely identifies variants in a pool. Values
@@ -373,8 +375,10 @@ def primer(
     Note 2. Column names in <indata> must be unique, without
             <primercol> as a pre-existing column name.
 
-    Note 3. The columns <leftcontext> and <rightcontext> must
-            be adjacent to each other and in order.
+    Note 3. Either <leftcontext> or <rightcontext> or both must
+            be specified. If both are specified then they must
+            be adjacent to each other and in order. Designed
+            primers would be inserted next to or between them.
 
     Note 4. The paired primer type is automatically inferred
             based on current primer type, i.e. if a forward
@@ -399,6 +403,13 @@ def primer(
             it must contain both an 'ID' and an 'Exmotif'
             column, with 'Exmotif' containing all of the
             excluded motif sequences.
+
+    Note 8. Constant motifs or bases in input primer sequence
+            constraint may sometimes make it impossible to
+            optimize for excluded motifs, edge-effects or prevent
+            favorable favorable thermodynamic properties. In such
+            cases, a sub-optimal primer is designed and returned,
+            along with any warnings.
     '''
 
     # Start Liner

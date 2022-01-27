@@ -130,7 +130,8 @@ def background(
               6 to 20
     :: outdir
        type - string
-       desc - path to store the generated k-mer database
+       desc - path to store the generated background k-mer
+              database
     :: verbose
        type - boolean
        desc - if True will log updates to stdout

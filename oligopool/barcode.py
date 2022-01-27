@@ -364,7 +364,8 @@ def barcode(
               annotated oligopool variants and their parts
     :: oligolimit
        type - integer
-       desc - maximum oligo length allowed in the oligopool
+       desc - maximum oligo length allowed in the oligopool,
+              must be 4 or greater
     :: barcodelen
        type - integer
        desc - the length of the barcodes to be designed,
@@ -377,8 +378,8 @@ def barcode(
     :: maxreplen
        type - integer
        desc - maximum shared repeat length between the
-              primers and flanking regions, must be between
-              6 and 20
+              barcodes and flanking regions, must be 4 or
+              greater
     :: barcodecol
        type - string
        desc - name of the column to store designed barcodes
@@ -423,7 +424,7 @@ def barcode(
 
     Output: A file named <outfile> with '.oligoool.barcode.csv'
             suffix if specified; otherwise a pandas DataFrame is
-            returned.
+            returned, along with design or warning statistics.
 
     Note 1. Specified <indata> must contain a column named 'ID',
             that uniquely identifies variants in a pool. Values
@@ -434,13 +435,26 @@ def barcode(
     Note 2. Column names in <indata> must be unique, without
             <barcodecol> as a pre-existing column name.
 
-    Note 3. The columns <leftcontext> and <rightcontext> must
-            be adjacent to each other and in order.
+    Note 3. Either <leftcontext> or <rightcontext> or both must
+            be specified. If both are specified then they must
+            be adjacent to each other and in order. Designed
+            barcodes would be inserted next to or between them.
 
-    Note 4. If <exmotifs> points to a CSV file or DataFrame,
+    Note 4. The <maxreplen> parameter here controls the level
+            of non-repetitiveness in designed barcodes with
+            respect to sequences in <indata> only. Background
+            k-mers are not factored into design.
+
+    Note 5. If <exmotifs> points to a CSV file or DataFrame,
             it must contain both an 'ID' and an 'Exmotif'
             column, with 'Exmotif' containing all of the
             excluded motif sequences.
+
+    Note 6. In case there is difficulty in designing enough
+            barcodes, increasing barcodelen, decreasing
+            minhdist, switching to terminus optimized barcodes,
+            increasing maxreplen, or reducing exmotifs may
+            help relax the design constraints.
     '''
 
     # Start Liner

@@ -435,7 +435,7 @@ def barcode(
     Note 2. Column names in <indata> must be unique, without
             <barcodecol> as a pre-existing column name.
 
-    Note 3. Either <leftcontext> or <rightcontext> or both must
+    Note 3. Either <leftcontext> or <rightcontext> or both may
             be specified. If both are specified then they must
             be adjacent to each other and in order. Designed
             barcodes would be inserted next to or between them.

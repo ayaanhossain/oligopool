@@ -1086,16 +1086,20 @@ def pack_aggregator(
         aggcount += 1
 
         # Show Update
-        cpackid = cpath.split('/')[-1].removesuffix(
-            '.meta')
+        cpackid = ut.removestarfix(
+            string=cpath.split('/')[-1],
+            fix='.meta',
+            loc=1)
         liner.send(
             ' Aggregating {} in Progress'.format(
                 cpackid))
 
         # Reduced Meta Pack
         npack = cx.Counter()
-        npath = cpath.removesuffix(
-            '.meta')
+        npath = ut.removestarfix(
+            string=cpath,
+            fix='.meta',
+            loc=1)
 
         # Merge Fetched Meta Pack
         while cpack:
@@ -1136,15 +1140,19 @@ def pack_aggregator(
             packsbuilt.decrement()
 
     # Show Update
-    mpackid = mpath.split('/')[-1].removesuffix(
-        '.meta')
+    mpackid = ut.removestarfix(
+        string=mpath.split('/')[-1],
+        fix='.meta',
+        loc=1)
     liner.send(
         ' Aggregating {} in Progress'.format(
             mpackid))
 
     # First Meta Pack Path
-    mpath = mpath.removesuffix(
-        '.meta')
+    mpath = ut.removestarfix(
+        string=mpath,
+        fix='.meta',
+        loc=1)
 
     # Dump First Meta Pack
     ut.savepack(

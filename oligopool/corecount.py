@@ -286,8 +286,13 @@ def pack_loader(
         arcfile=packfile)
 
     # Enque Read Packs
-    packqueue.multiput(map(lambda x: x.removesuffix('.pack'),
-        filter(lambda arcentry: arcentry.endswith('.pack'),
+    packqueue.multiput(map(
+        lambda x: ut.removestarfix(
+            string=x,
+            fix='.pack',
+            loc=1),
+        filter(
+            lambda arcentry: arcentry.endswith('.pack'),
             archive.namelist())))
 
     # Show Final Updates
@@ -960,9 +965,10 @@ def write_count(
     for indexfile in indexfiles:
 
         # Update Index Names
-        indexnames.append(indexfile.split(
-            '/')[-1].removesuffix(
-                '.oligopool.index'))
+        indexnames.append(ut.removestarfix(
+            string=indexfile.split('/')[-1],
+            fix='.oligopool.index',
+            loc=1))
 
         # Open indexfile
         indexfile = zf.ZipFile(

@@ -344,6 +344,39 @@ def ignored(*exceptions):
 
 # Printing / Logging
 
+def removestarfix(string, fix, loc):
+    '''
+    Remove prefix or suffix from string.
+    Because Manifold Bio doesn't believe
+    in Python 3.9 :'). Internal use only.
+
+    :: string
+       type - string
+       desc - some string of interest
+    :: fix
+       type - string
+       desc - some prefix or suffix of
+              interest to be trimmed
+              from given string
+    :: loc
+       type - integer
+       desc - prefix / suffix identifier
+              <= 0 <-- remove prefix
+              >  0 <-- remove suffix
+
+    '''
+
+    # Remove prefix: str.removeprefix(...)
+    if loc <= 0:
+        if string.startswith(fix):
+            return string[len(fix):]
+    # Remove suffix: str.removesuffix(...)
+    elif loc > 0:
+        if string.endswith(fix):
+            return string[:-len(fix)]
+    # Default case
+    return string
+
 @coroutine
 def liner_engine(online=True):
     '''
@@ -372,7 +405,10 @@ def liner_engine(online=True):
             if online and printstr.startswith('\*'):
                 sys.stdout.write('\n')
                 clrlen   = 0
-                printstr = printstr.removeprefix('\*')
+                printstr = removestarfix(
+                    string=printstr,
+                    fix='\*',
+                    loc=-1)
 
             # Line String
             if online:
@@ -2741,7 +2777,10 @@ def get_adjusted_path(path, suffix):
 
     # Adjust path
     path = path.strip()
-    path = path.removesuffix('/')
+    path = removestarfix(
+        string=path,
+        fix='/',
+        loc=1)
     if not suffix is None and \
        not path.endswith(suffix):
         path += str(suffix)

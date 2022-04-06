@@ -599,6 +599,8 @@ def acount(
 
     # Wait on Enqueuing
     enqueuecomplete.wait()
+    packenqueuer.join()
+    packenqueuer.close()
 
     # Launching Read Counting
     liner.send('\n[Step 3: Counting Read Packs]\n')

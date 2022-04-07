@@ -592,8 +592,6 @@ def xcount(
 
     # Wait on Enqueuing
     enqueuecomplete.wait()
-    packenqueuer.join()
-    packenqueuer.close()
 
     # Launching Read Counting
     liner.send('\n[Step 3: Counting Read Packs]\n')
@@ -779,6 +777,7 @@ def xcount(
 
     # Join Enqueuer
     packenqueuer.join()
+    packenqueuer.close()
 
     # Show Time Elapsed
     liner.send(

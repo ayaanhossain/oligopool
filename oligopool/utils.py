@@ -304,6 +304,8 @@ class SafeQueue(object):
         Close the queue and release internal
         resources.
         '''
+        for x in self.multiget():
+            pass
         with self.lock:
             self.queue.close()
             self.queue.join_thread()

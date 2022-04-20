@@ -539,7 +539,7 @@ def get_parsed_packfile(
        type - string
        desc - path to compressed zipfile
               storing read packs
-              (suffix='.dxseq.pack')
+              (suffix='.oligopool.pack')
     :: packfile_field
        type - string
        desc - packfile fieldname used in

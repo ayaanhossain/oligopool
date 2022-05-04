@@ -408,6 +408,10 @@ def xcount(
         associated=False,
         liner=liner)
 
+    # Normalize indexfiles for Combinatorial + Regular Usecases
+    if isinstance(indexfiles,str):
+        indexfiles = [indexfiles]
+
     # Adjust indexfile Suffix
     if indexfiles_valid:
         indexfiles = [ut.get_adjusted_path(

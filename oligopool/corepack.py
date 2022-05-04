@@ -906,21 +906,21 @@ def stream_processed_fastq(
         if filterpass:
 
             # Filter II on R1
-            if   (r1qual > 0) and \
-                 (not qualpass(
+            if  (r1qual > 0) and \
+                (not qualpass(
                     qvec=qv1,
                     threshold=r1qual)):
                 c_ambiguousreads += 1 # Update Ambiguous Read Count based on R1
                 filterpass = False    # This Read will be Skipped
 
             # Filter II on R2
-            elif (not r2 is None) and \
-                 (r2qual > 0) and \
-                 (not qualpass(
-                    qvec=qv2,
-                    threshold=r2qual)):
-                c_ambiguousreads += 1 # Update Ambiguous Read Count based on R2
-                filterpass = False    # This Read will be Skipped
+            elif (not r2 is None):
+                if  (r2qual > 0) and \
+                    (not qualpass(
+                        qvec=qv2,
+                        threshold=r2qual)):
+                        c_ambiguousreads += 1 # Update Ambiguous Read Count based on R2
+                        filterpass = False    # This Read will be Skipped
 
         # Read(-Pair) Operation
         if filterpass:

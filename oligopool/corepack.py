@@ -914,8 +914,8 @@ def stream_processed_fastq(
                 filterpass = False    # This Read will be Skipped
 
             # Filter II on R2
-            elif (r2qual > 0) and \
-                 (not r2 is None) and \
+            elif (not r2 is None) and \
+                 (r2qual > 0) and \
                  (not qualpass(
                     qvec=qv2,
                     threshold=r2qual)):

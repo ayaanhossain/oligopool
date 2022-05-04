@@ -180,7 +180,7 @@ def get_parsed_callback(
         count=1000)
 
     # Parsing Loop
-    pass_count    = 0
+    pass_count   = 0
     failedinputs = []
     for readcount in range(1000):
 

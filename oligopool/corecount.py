@@ -29,6 +29,37 @@ def get_random_DNA(length):
     return ''.join(np.random.choice(
         ('A', 'T', 'G', 'C')) for _ in range(length))
 
+def get_meta_info(packfile):
+    '''
+    Compute the number of reads to
+    stream for callback parsing, and
+    extract the meta read pack.
+
+    :: packfile
+       type - string
+       desc - path to packfile storing
+              read packs
+    '''
+
+    # Open Pack File
+    packfile = ut.get_archive(
+        arcfile=packfile)
+
+    # Load Header Pack
+    packzero = ut.loadpack(
+        archive=packfile,
+            pfile='0.0.0.pack')
+
+    # Close Packfile
+    packfile.close()
+
+    # Determine Stream Count
+    count = min(1000, len(packzero))
+
+    # Return Results
+    return (packzero,
+        count)
+
 def stream_random_reads(count):
     '''
     Stream several random reads.
@@ -45,32 +76,20 @@ def stream_random_reads(count):
             length=np.random.randint(
                 10, 1000))
 
-def stream_packed_reads(packfile, count):
+def stream_packed_reads(packzero, count):
     '''
     Stream several experiment reads.
     Internal use only.
 
     :: packfile
        type - string
-       desc - path to packfile storing
-              read packs
+       desc - meta read pack containing
+              most frequent reads
     :: count
        type - integer
        desc - total number of reads
               to be streamed
     '''
-
-    # Open Pack File
-    packfile = ut.get_archive(
-        arcfile=packfile)
-
-    # Load Header Pack
-    packzero = ut.loadpack(
-        archive=packfile,
-            pfile='0.0.0.pack')
-
-    # Close Packfile
-    packfile.close()
 
     # Build Streaming Index Vector
     indexvec = np.arange(len(packzero))
@@ -168,16 +187,21 @@ def get_parsed_callback(
     # Show Update
     liner.send(' Loading Read Generators ...')
 
+    # Get Meta Information
+    (packzero,
+    count) = get_meta_info(
+        packfile=packfile)
+
     # Setup Streamers
     randstreamer = stream_random_reads(
-        count=1000)
+        count=count)
     packstreamer = stream_packed_reads(
-        packfile=packfile,
-        count=1000)
+        packzero=packzero,
+        count=count)
     streamers  = [randstreamer, packstreamer]
     IDstreamer = stream_IDs(
         indexfiles=indexfiles,
-        count=1000)
+        count=count)
 
     # Parsing Loop
     pass_count   = 0
@@ -239,6 +263,9 @@ def get_parsed_callback(
     else:
         liner.send(
             ' Verdict: Counting Possibly Feasible\n')
+
+    # Cleanup
+    del packzero
 
     # Return results
     return (parsestatus,

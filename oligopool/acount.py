@@ -531,7 +531,7 @@ def acount(
                 'status'  : False,
                 'basis'   : 'infeasible',
                 'step'    : 1,
-                'stepname': 'parsing-oligo-limit',
+                'stepname': 'parsing-callback-method',
                 'vars'    : {
                     'failedinputs': failedinputs},
                 'warns'   : warns}

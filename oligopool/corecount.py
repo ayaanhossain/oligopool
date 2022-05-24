@@ -45,10 +45,14 @@ def get_meta_info(packfile):
     packfile = ut.get_archive(
         arcfile=packfile)
 
+    # List all packs
+    allpacknames = [pkname for pkname in packfile.namelist() \
+        if pkname != 'packing.stat']
+
     # Load Header Pack
     packzero = ut.loadpack(
         archive=packfile,
-            pfile='0.0.0.pack')
+            pfile=allpacknames[0])
 
     # Close Packfile
     packfile.close()

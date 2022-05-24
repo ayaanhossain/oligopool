@@ -375,7 +375,7 @@ def primer(
     Note 2. Column names in <indata> must be unique, without
             <primercol> as a pre-existing column name.
 
-    Note 3. Either <leftcontext> or <rightcontext> or both may
+    Note 3. Either <leftcontext> or <rightcontext> or both must
             be specified. If both are specified then they must
             be adjacent to each other and in order. Designed
             primers would be inserted next to or between them.
@@ -407,8 +407,8 @@ def primer(
     Note 8. Constant motifs or bases in input primer sequence
             constraint may sometimes make it impossible to
             optimize for excluded motifs, edge-effects or prevent
-            favorable favorable thermodynamic properties. In such
-            cases, a sub-optimal primer is designed and returned,
+            favorable thermodynamic properties. In such cases,
+            a sub-optimal primer is designed and returned,
             along with any warnings.
     '''
 

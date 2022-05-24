@@ -206,7 +206,7 @@ def get_parsed_callback(
     # Parsing Loop
     pass_count   = 0
     failedinputs = []
-    for readcount in range(1000):
+    for readcount in range(count):
 
         # Get a Read!
         read = next(streamers[np.random.randint(2)])
@@ -219,8 +219,7 @@ def get_parsed_callback(
                  'count': np.random.randint(1, 10001),
                 'coreid': np.random.randint(ncores)}
             result = callback(**callback_input)
-            if not ((result is True) or \
-                    (result is False)):
+            if not isinstance(result,bool):
                 raise
         except:
             failedinputs.append(callback_input)
@@ -242,14 +241,14 @@ def get_parsed_callback(
 
     # Final Update
     plen = ut.get_printlen(
-        value=1000)
+        value=count)
     liner.send(
         ' Callback Passed: {:{},} Input(s)\n'.format(
             pass_count,
             plen))
     liner.send(
         ' Callback Failed: {:{},} Input(s)\n'.format(
-            1000 - pass_count,
+            count - pass_count,
             plen))
     liner.send(
         ' Time Elapsed: {:.2f} sec\n'.format(

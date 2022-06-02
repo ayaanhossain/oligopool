@@ -1055,7 +1055,7 @@ def write_count(
             rows.append(count.decode('ascii'))
 
             # Write Entry to Count Matrix
-            outfile.write(','.join(rows) + '\n')
+            outfile.write(','.join(map(str,rows)) + '\n')
 
             # Show Update
             if batchreach == batchsize:

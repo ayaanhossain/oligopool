@@ -405,7 +405,7 @@ def get_indexfile_validity(
                 'meta.map'])
             if associated:
                 indexed.add('associate.map')
-            if not (set(archive.namelist()) <= indexed):
+            if not (indexed <= set(archive.namelist())):
                 raise
             variantcount = ut.loaddict(
                 archive=archive,

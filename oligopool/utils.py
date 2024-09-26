@@ -554,7 +554,7 @@ def get_sample(value, lf, uf):
               of value
     '''
 
-    if value <= 10:
+    if min(lf*value, uf*value) <= 10:
         return round(value / 2)
     return np.random.randint(
         *map(np.round, (value * lf,
@@ -764,18 +764,20 @@ def get_store_hdist(
 
         # Upward / All-Pair Comparison
         if direction == 0 or direction == 2:
-            hdist = min(
-                hdist,
-                (store[:idx, i:j] != store[idx, i:j]).sum(1).min())
+            for k in nb.prange(idx):
+                hdist = min(
+                    hdist,
+                    (store[k, i:j] != store[idx, i:j]).sum())
 
     # Something to compare against?
     if idx < store.shape[0] - 1:
 
         # Downward / All-Pair Comparison
         if direction == 1 or direction == 2:
-            hdist = min(
-                hdist,
-                (store[idx+1:, i:j] != store[idx, i:j]).sum(1).min())
+            for k in nb.prange(idx+1, store.shape[0]):
+                hdist = min(
+                    hdist,
+                    (store[k, i:j] != store[idx, i:j]).sum())
 
     # Return Result
     return hdist

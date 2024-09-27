@@ -27,7 +27,7 @@ import edlib   as ed
 import dinopy  as dp
 import bounter as bt
 
-import scry as sy
+from . import scry as sy
 
 
 # Global Lookups

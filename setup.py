@@ -17,7 +17,7 @@ setup(
     # Link: https://www.python.org/dev/peps/pep-0440/#version-scheme
     version='0.0.0',
 
-    description='Oligopool Calculator - Automated design and analysis of oligopools for characterizing non-repetitive genetic parts',
+    description='Oligopool Calculator - Automated design and analysis of oligopool libraries',
 
     long_description=long_description,
 
@@ -83,15 +83,18 @@ setup(
     python_requires='>=3.6, <4',
 
     install_requires=[
-        'numpy>=1.19.0',
-        'biopython>=1.77',
+        'biopython>=1.84',
+        'primer3-py>=2.0.3',
+        'msgpack>=1.1.0',
+        'pyfastx>=2.1.0',
+        'edlib>=1.3.9.post1',
+        'dinopy>=3.0.0',
+        'bounter>=1.2.0',
+        'parasail>=1.3.4',
+        'nrpcalc>=1.7.0',
         'plyvel>=1.5.1',
-        'scipy>=1.5.1',
-        'networkx>=2.4',
-        'jupyter>=1.0.0',
-        'scikit-learn>=0.23.1',
-        'seaborn>=0.10.1',
-        'statsmodels>=0.11.0'],
+        'numba>=0.60.0',
+    ],
 
     project_urls={  # Optional
         'Bug Reports': 'https://github.com/ayaanhossain/oligopool/issues',

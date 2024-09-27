@@ -10,7 +10,7 @@ import numba    as nb
 import parasail as ps
 import edlib    as ed
 
-import utils as ut
+from . import utils as ut
 
 
 # Edit Distance Matrix

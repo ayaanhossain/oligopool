@@ -10,8 +10,8 @@ import numpy    as np
 import pandas   as pd
 import psutil   as pu
 
-import vectordb as db
-import utils    as ut
+from . import vectordb as db
+from . import utils    as ut
 
 
 def get_infile_validity(

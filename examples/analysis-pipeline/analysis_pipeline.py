@@ -1,28 +1,19 @@
 import sys
 import os
-​
-sys.path.append(
-    os.path.abspath(
-        os.path.join('..', 'oligopool')))
-​
-import index
-import pack
-import xcount
-​
-​
+
+from oligopool import index, pack, xcount
+
+
 def main():
-​
     '''
     Step 1: Index all Barcodes to be Mapped
     '''
-​
+
     # Some Vars we Reuse in this Example
     indexfiles = ('Ribozymes-BC1','Ribozymes-BC2')
     conditions = ('MB', 'CB')
     replicates = (1, 2)
-​
-​
-​
+
     # Index the First Barcode - BC1
     index.index(
         barcodedata='Ribozymes.csv', # File Name Storing Barcode Information [Required]
@@ -37,7 +28,7 @@ def main():
         associateprefix=None,        # Column Name for Assocaite Prefix Constant [if Assicate]
         associatesuffix=None,        # Column Name for Associate Suffix Constant [Data Present]
         verbose=True)                # Verbosity Control
-​
+
     # Index the Second Barcode - BC2
     index.index(
         barcodedata='Ribozymes.csv', # File Name Storing Barcode Information [Required]
@@ -52,20 +43,20 @@ def main():
         associateprefix=None,        # Column Name for Assocaite Prefix Constant [if Assicate]
         associatesuffix=None,        # Column Name for Associate Suffix Constant [Data Present]
         verbose=True)                # Verbosity Control
-​
+
     '''
     Step 2: Pack all FASTQ Files to be Counted
     '''
-​
+
     # Serially Pack Each Experiment
     for condition in conditions:
         for replicate in replicates:
-​
+
             # Build out File Names
             r1file   = f'Reads/{condition}{replicate}_R1_001.fastq.gz'
             r2file   = f'Reads/{condition}{replicate}_R2_001.fastq.gz'
             packfile = f'Packs/{condition}{replicate}'
-​
+
             # Execute Packing
             pack.pack(
                 r1file=r1file,     # File Name Storing R1 Reads [Reqd]
@@ -82,11 +73,11 @@ def main():
                 ncores=0,          # No. of Cores to be Used, 0=Auto [Opt]
                 memlimit=0,        # Max. Amount of RAM per Core in GBs, 0=Auto [Opt]
                 verbose=True)      # Verbosity Control
-​
+
     '''
     Step 3: Count all Packed Reads (Step 2) using Index (Step 1)
     '''
-​
+
     # Custom Analysis Function
     def myfunc(read, ID, count, coreid):
         '''
@@ -95,15 +86,15 @@ def main():
         performs additional analysis, and returns
         a boolean indicating whether a read should
         be accepted or not.
-​
+
         These functions are useful when one needs
         to extract additional information from the
         reads being counted, or specify additional
         criteria for accepting a read for counting.
-​
+
         All custom counting functions must at least
         accept the following arguments.
-​
+
         :: read
            type - string
            desc - the read being counted / analyzed
@@ -130,15 +121,15 @@ def main():
                   processed this read
         '''
         return True # Accept everything, for now.
-​
+
     # Serially Count Each Experiment
     for condition in conditions:
         for replicate in replicates:
-​
+
             # Build File Names
             packfile  = f'Packs/{condition}{replicate}'
             countfile = f'Count/{condition}{replicate}'
-​
+
             # Execute Counting
             xcount.xcount(
                 indexfiles=indexfiles, # Tuple of Index Files for Mapping [Reqd]
@@ -150,6 +141,6 @@ def main():
                 ncores=10,             # No. of Cores to be Used, 0=Auto [Opt]
                 memlimit=0,            # Max. Amount of RAM per Core in GBs, 0=Auto [Opt]
                 verbose=True)          # Verbosity Control
-​
+
 if __name__ == '__main__':
     main()

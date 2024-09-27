@@ -6,9 +6,9 @@ import atexit      as ae
 
 import multiprocessing as mp
 
-import utils    as ut
-import valparse as vp
-import corepack as cp
+from . import utils    as ut
+from . import valparse as vp
+from . import corepack as cp
 
 
 def pack_engine(

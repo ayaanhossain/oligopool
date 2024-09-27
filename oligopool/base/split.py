@@ -6,9 +6,9 @@ import atexit      as ae
 import numpy  as np
 import pandas as pd
 
-import utils     as ut
-import valparse  as vp
-import coresplit as cs
+from . import utils     as ut
+from . import valparse  as vp
+from . import coresplit as cs
 
 
 def split_engine(

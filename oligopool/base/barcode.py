@@ -5,9 +5,9 @@ import numpy       as np
 import atexit      as ae
 import bounter     as bt
 
-import utils       as ut
-import valparse    as vp
-import corebarcode as cb
+from . import utils       as ut
+from . import valparse    as vp
+from . import corebarcode as cb
 
 
 def barcode_engine(

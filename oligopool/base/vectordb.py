@@ -1,11 +1,11 @@
 import sys
 
-import time    as tt
-import shutil  as sh
+import time   as tt
+import shutil as sh
 
 import plyvel
 
-import utils   as ut
+from . import utils as ut
 
 
 class vectorDB(object):

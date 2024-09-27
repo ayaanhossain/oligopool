@@ -3,7 +3,7 @@ import time as tt
 import collections as cx
 import itertools   as ix
 
-import utils as ut
+from . import utils as ut
 
 
 # Parser and Setup Functions

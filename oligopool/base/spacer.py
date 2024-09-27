@@ -1,14 +1,14 @@
 import time  as tt
 
 import collections as cx
-import numpy       as np
-import atexit      as ae
+import numpy  as np
+import atexit as ae
 
-import nrpcalc     as nr
+import nrpcalc as nr
 
-import utils       as ut
-import valparse    as vp
-import coremotif   as cm
+from . import utils     as ut
+from . import valparse  as vp
+from . import coremotif as cm
 
 
 def spacer_engine(

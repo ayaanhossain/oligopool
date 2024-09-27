@@ -1,14 +1,10 @@
-import sys
-import time     as tt
-import shutil   as sh
+import time as tt
 
-import leveldb  as lv
-import nrpcalc  as nr
-import atexit   as ae
+import atexit as ae
 
-import utils    as ut
-import vectordb as db
-import valparse as vp
+from . import utils    as ut
+from . import vectordb as db
+from . import valparse as vp
 
 
 def background_engine(

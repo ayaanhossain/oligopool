@@ -856,7 +856,7 @@ def get_tmelt(
        desc - oligo conc. (nM)
               (default=50.0 nM)
     '''
-    return p3.bindings.calcTm(
+    return p3.bindings.calc_tm(
         seq=seq[i:j],
         mv_conc=mvc,
         dv_conc=dvc,

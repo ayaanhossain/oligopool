@@ -18,5 +18,3 @@ Oligopool synthesis and next-generation sequencing enable the construction and c
 We present the Oligopool Calculator, an end-to-end suite of algorithms and data structures, that rapidly designs many thousands of oligonucleotides within an oligopool and rapidly analyzes many billions of barcoded sequencing reads. We introduce several novel concepts that greatly increase the design and analysis throughput, including orthogonally symmetric barcode design, adaptive decision trees for primer design, a Scry barcode classifier, and efficient read packing.
 
 We demonstrate the Oligopool Calculator’s capabilities across computational benchmarks and real-data projects, including the design of over four million highly unique and compact barcodes in 1.2 hours, the design of universal primer binding sites for million 200-mer oligos in 15 minutes, and the analysis of about 500 million sequencing reads per hour, all on an 8-core desktop computer.
-
-Overall, the Oligopool Calculator accelerates the creative use of massively parallel experiments by eliminating the computational complexity of their design and analysis.

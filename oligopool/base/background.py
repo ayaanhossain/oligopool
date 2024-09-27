@@ -86,7 +86,7 @@ def background_engine(
 
     # If Successful Update and Close DB
     if stats['status']:
-        vDB.DB.Put(
+        vDB.DB.put(
             b'LEN',
             str(fillcount).encode())
         vDB.close()
@@ -109,7 +109,7 @@ def background(
     is then specified during primer design, to generate primers
     which are non-repetitive to background thus minimizing any
     off-target amplification. Non-repetitiveness is controlled
-    via the maximum shared repeat length (replength) parameter.
+    via the maximum shared repeat length (maxreplen) parameter.
     Generated database is stored in <outdir>.
 
     :: indata

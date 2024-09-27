@@ -3,33 +3,18 @@ An Example of an Automated Design Mode Parser.
 Useful, if you want to create Oligopool Calculator
 Design Mode Web-Interfaces.
 
-Look into test_designparser.py for an example of
+Look into test_design_parser.py for an example of
 how to use this parser.
 '''
 
-import sys
-import os
-
-sys.path.append(
-    os.path.abspath(
-        os.path.join('../', 'oligopool')))
-
 import collections
-
-import background
-import motif
-import primer
-import barcode
-import spacer
-import split
-import pad
-import final
-
-import utils
 
 import uuid
 import atexit
 import pandas
+
+from oligopool import background, motif, primer, barcode, spacer, split, pad, final
+from oligopool import utils
 
 def setup_workspace(workspacename):
 
@@ -134,8 +119,9 @@ def insert_variants(
                 break
 
     # Show Update
-    print('[Oligopool Calculator: Design Mode - Variants]\n')
+    print('[Oligopool Calculator: Design Mode - Inserting Variants]\n')
     print(dataframe)
+    print()
 
     # Return Results
     return status, dataframe, stats_dict
@@ -184,7 +170,7 @@ def insert_motifs(
 
 def get_primer_order(
     elements_spec):
-
+    '''What is the optimal order of designing the primers?'''
     order = collections.deque()
     for element_name in elements_spec:
         if elements_spec[element_name]['type'] == 'primer':
@@ -440,7 +426,7 @@ def pad_oligos(
     # Return Results
     return status, incomplete, paddedframes, stats_dict
 
-def designparser(
+def design_parser(
     pool_size,
     element_names,
     elements_spec,
@@ -581,6 +567,7 @@ def designparser(
         element_names=element_names)
     print('\n[Oligopool Calculator: Design Mode - Initialized DataFrame]\n')
     print(dataframe)
+    print()
 
     # Setup Background
     if ((background_spec is None) or \

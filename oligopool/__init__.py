@@ -19,10 +19,14 @@ from .base import pack
 from .base import acount
 from .base import xcount
 
+# Utilities
+from .base import utils
+
 __author__ = 'ah'
 __version__ = '0.0.0'
 __all__ = [
     background, barcode, primer, motif, spacer,
     split, pad, lenstat, final,
-    index, pack, acount, xcount
+    index, pack, acount, xcount,
+    utils
 ]

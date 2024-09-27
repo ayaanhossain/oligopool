@@ -1,4 +1,4 @@
-import utils as ut
+from . import utils as ut
 
 def get_phiX_spectrum(k):
     '''

@@ -6,10 +6,10 @@ import atexit      as ae
 
 import multiprocessing as mp
 
-import utils     as ut
-import valparse  as vp
-import phiX      as px
-import corecount as cc
+from . import utils     as ut
+from . import valparse  as vp
+from . import phiX      as px
+from . import corecount as cc
 
 
 def acount_engine(

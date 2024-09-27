@@ -13,7 +13,7 @@
   <a href="#Oligopool-Calculator-in-Action">Oligopool Calculator in Action!</a>
 </p>
 
-#### Overview
+# Overview
 
 Oligopool synthesis and next-generation sequencing enable the construction and characterization of large libraries of designed genetic parts and systems. As library sizes grow, it becomes computationally challenging to optimally design large numbers of primer binding sites, barcode sequences, and overlap regions to obtain efficient assemblies and precise measurements.
 

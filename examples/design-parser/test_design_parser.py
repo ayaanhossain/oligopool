@@ -1,10 +1,4 @@
-import sys
-import os
-
-import time    as tt
-import pandas  as pd
-
-import designparser as dp
+import design_parser as dp
 
 import pprint  as pp
 
@@ -17,7 +11,7 @@ def main():
 
     plist = get_promoter_list()
 
-    output = dp.designparser(
+    output = dp.design_parser(
 
         pool_size=len(plist),
 
@@ -34,7 +28,7 @@ def main():
         elements_spec={
             'Primer1': {
                         'type': 'primer',
-                  'oligolimit': 170,
+                  'oligolimit': 250,
                    'primerseq': 'NNNNNNNNNNNNNNNNNNNNNN',
                   'primertype': 0,
                     'mintmelt': 53,
@@ -59,7 +53,7 @@ def main():
 
             'Barcode': {
                         'type': 'barcode',
-                  'oligolimit': 170,
+                  'oligolimit': 250,
                   'barcodelen': 15,
                     'minhdist': 3,
                    'maxreplen': 5,
@@ -70,7 +64,7 @@ def main():
 
             'Primer2': {
                         'type': 'primer',
-                  'oligolimit': 170,
+                  'oligolimit': 250,
                    'primerseq': 'NNNNNNNNNNNNNNNNNNNNNN',
                   'primertype': 0,
                     'mintmelt': 53,
@@ -91,7 +85,7 @@ def main():
 
             'Primer3': {
                         'type': 'primer',
-                  'oligolimit': 170,
+                  'oligolimit': 250,
                    'primerseq': 'NNNNNNNNNNNNNNNNNNNNNN',
                   'primertype': 1,
                     'mintmelt': 53,
@@ -104,7 +98,7 @@ def main():
 
             'Filler': {
                         'type': 'spacer',
-                  'oligolimit': 170,
+                  'oligolimit': 250,
                    'spacerlen': None,
                  'leftcontext': 'Primer3',
                 'rightcontext': None,
@@ -116,7 +110,7 @@ def main():
             'maxreplen': 12},
 
         split_spec={
-            'splitlimit':100,
+            'splitlimit':170,
               'mintmelt':40,
               'minhdist':1,
             'minoverlap':20,
@@ -124,7 +118,7 @@ def main():
 
         padding_spec={
                'typeIIS': 'bsaI',
-            'oligolimit': 170,
+            'oligolimit': 200,
               'mintmelt': 40,
               'maxtmelt': 80,
              'maxreplen': 15,}

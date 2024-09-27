@@ -13,22 +13,22 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
 
 setup(
     name='oligopool',
-    
+
     # Link: https://www.python.org/dev/peps/pep-0440/#version-scheme
     version='0.0.0',
-    
+
     description='Oligopool Calculator - Automated design and analysis of oligopools for characterizing non-repetitive genetic parts',
-    
+
     long_description=long_description,
-    
+
     long_description_content_type='text/markdown',
-    
+
     url='https://github.com/ayaanhossain/oligopool',
-    
-    author='Ayaan Hossain and Howard Salis',
-    
-    author_email='auh57@psu.edu, salis@psu.edu',  # Optional
-    
+
+    author='Ayaan Hossain',
+
+    author_email='ain.hoss07@gmail.com',  # Optional
+
     classifiers=[  # Optional
         # How mature is this project? Common values are
         #   3 - Alpha
@@ -79,26 +79,13 @@ setup(
     package_dir={
         'oligopool': './oligopool'
     },
-    
-    package_data={
-        'oligopool': ['base/*.par']
-    },
 
-    python_requires=', '.join([
-        '!=2.7',
-        '!=3.0.*',
-        '!=3.1.*',
-        '!=3.2.*',
-        '!=3.3.*',
-        '!=3.4.*',
-        '!=3.5.*',
-        '>=3.6.*',
-        '<4.0.*']),
+    python_requires='>=3.6, <4',
 
     install_requires=[
         'numpy>=1.19.0',
         'biopython>=1.77',
-        'leveldb>=0.201',
+        'plyvel>=1.5.1',
         'scipy>=1.5.1',
         'networkx>=2.4',
         'jupyter>=1.0.0',

@@ -3,7 +3,7 @@ import sys
 import time    as tt
 import shutil  as sh
 
-import leveldb as lv
+import plyvel
 
 import utils   as ut
 
@@ -38,24 +38,24 @@ class vectorDB(object):
                 loc=1) + '/'
 
             # Create/Open LevelDB object
-            self.DB = lv.LevelDB(
-                filename=self.PATH,
+            self.DB = plyvel.DB(
+                self.PATH,
                 create_if_missing=mode==0, # Mode 0 = Write Mode
                 error_if_exists=mode==0)   # Mode 1 = Read Mode
 
             # Length Setup
             try:
-                self.LEN = int(self.DB.Get(b'LEN'))
+                self.LEN = int(self.DB.get(b'LEN'))
             except:
                 self.LEN = 0
-                self.DB.Put(b'LEN', b'0')
+                self.DB.put(b'LEN', b'0')
 
             # K Setup
             try:
-                self.K = int(self.DB.Get(b'K'))
+                self.K = int(self.DB.get(b'K'))
             except:
                 self.K = int(maxreplen+1)
-                self.DB.Put(b'K', str(maxreplen+1).encode())
+                self.DB.put(b'K', str(maxreplen+1).encode())
 
             # Verbosity Setup
             self.VERB = False
@@ -129,11 +129,10 @@ class vectorDB(object):
            type - string
            desc - key to fetch from instance
         '''
-        try:
-            val = self.DB.Get(key)
-            return str(val)
-        except:
+        val = self.DB.get(key)
+        if val is None:
             return None
+        return str(val)
 
     @alivemethod
     def add(self, seq, rna=True):
@@ -156,9 +155,9 @@ class vectorDB(object):
                     seq=seq, k=self.K):
                     kmer = kmer.encode()
                     if self._get(kmer) is None:
-                        self.DB.Put(kmer, b'1')
+                        self.DB.put(kmer, b'1')
                         self.LEN += 1
-            self.DB.Put(b'LEN', str(self.LEN).encode())
+            self.DB.put(b'LEN', str(self.LEN).encode())
         except Exception as E:
             raise E
 
@@ -179,7 +178,7 @@ class vectorDB(object):
         try:
             t0 = tt.time()
             pt = False
-            WB = lv.WriteBatch()
+            WB = self.DB.write_batch(transaction=True)
             index = 0
             for seq in seq_list:
                 if not pt and self.VERB:
@@ -197,10 +196,10 @@ class vectorDB(object):
                         seq=seq, k=self.K):
                         kmer = kmer.encode()
                         if self._get(kmer) is None:
-                            WB.Put(kmer, b'1')
+                            WB.put(kmer, b'1')
                             self.LEN += 1
-            WB.Put(b'LEN', str(self.LEN).encode())
-            self.DB.Write(WB, sync=True)
+            WB.put(b'LEN', str(self.LEN).encode())
+            WB.write()
             if self.VERB:
                 print('\n Time Elapsed: {:.2f} sec'.format(tt.time()-t0))
         except Exception as E:
@@ -265,8 +264,7 @@ class vectorDB(object):
         User fuction to iterate over k-mers stored in
         vectorDB.
         '''
-        for key, _ in self.DB.RangeIter(
-            key_from=None, key_to=None):
+        for key, _ in self.DB:
             if not key in [b'K', b'LEN']:
                 yield str(key.decode('ascii'))
 
@@ -300,9 +298,9 @@ class vectorDB(object):
                     seq=seq, k=self.K):
                     kmer = kmer.encode()
                     if self._get(kmer):
-                        self.DB.Delete(kmer)
+                        self.DB.delete(kmer)
                         self.LEN -= 1
-                self.DB.Put(b'LEN', str(self.LEN).encode())
+                self.DB.put(b'LEN', str(self.LEN).encode())
         except Exception as E:
             raise E
 
@@ -325,7 +323,7 @@ class vectorDB(object):
         try:
             t0 = tt.time()
             pt = False
-            WB = lv.WriteBatch()
+            WB = self.DB.write_batch(transaction=True)
             index = 0
             for seq in seq_list:
                 if not pt and self.VERB:
@@ -343,14 +341,14 @@ class vectorDB(object):
                         seq=seq, k=self.K):
                         kmer = kmer.encode()
                         if clear:
-                            WB.Delete(kmer)
+                            WB.delete(kmer)
                             self.LEN -= 1
                         else:
                             if self._get(kmer):
-                                WB.Delete(kmer)
+                                WB.delete(kmer)
                                 self.LEN -= 1
-            self.DB.Write(WB, sync=False)
-            self.DB.Put(b'LEN', str(self.LEN).encode())
+            WB.write()
+            self.DB.put(b'LEN', str(self.LEN).encode())
             if self.VERB:
                 print('\n Time Elapsed: {:.2f} sec'.format(tt.time()-t0))
         except Exception as E:
@@ -367,14 +365,14 @@ class vectorDB(object):
                   to consider for future operations
         '''
         self.drop()
-        self.DB = lv.LevelDB(
-            filename=self.PATH,
+        self.DB = plyvel.DB(
+            self.PATH,
             create_if_missing=True,
             error_if_exists=False)
         self.LEN = 0
-        self.DB.Put(b'LEN', b'0')
+        self.DB.put(b'LEN', b'0')
         if maxreplen is None:
-            self.DB.Put(b'K', str(self.K).encode())
+            self.DB.put(b'K', str(self.K).encode())
         else:
             if not maxreplen is None:
                 if not isinstance(maxreplen, int):
@@ -388,7 +386,7 @@ class vectorDB(object):
                         maxreplen))
                     print(' [SOLUTION] Try correcting maxreplen\n')
                     raise ValueError
-            self.DB.Put(b'K', str(self.K).encode())
+            self.DB.put(b'K', str(self.K).encode())
         self.ALIVE = True
 
     def close(self):

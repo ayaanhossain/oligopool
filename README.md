@@ -9,8 +9,7 @@
   <a href="#Installation">Installation</a> •
   <a href="#License">License</a> •
   <a href="#Citation">Citation</a> •
-  <a href="https://github.com/ayaanhossain/oligopool/blob/master/docs/DOCS.md">DOCS</a> •
-  <a href="#Oligopool-Calculator-in-Action">Oligopool Calculator in Action!</a>
+  <a href="https://github.com/ayaanhossain/oligopool/blob/master/docs/DOCS.md">Documentation</a> •
 </p>
 
 ## Overview

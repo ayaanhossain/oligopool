@@ -9,7 +9,7 @@
   <a href="#Installation">Installation</a> •
   <a href="#License">License</a> •
   <a href="#Citation">Citation</a> •
-  <a href="https://github.com/ayaanhossain/oligopool/blob/master/docs/DOCS.md">Documentation</a> •
+  <a href="https://github.com/ayaanhossain/oligopool/blob/master/docs/DOCS.md">Documentation</a>
 </p>
 
 ## Overview

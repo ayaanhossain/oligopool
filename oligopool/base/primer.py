@@ -1,13 +1,13 @@
-import time  as tt
+import time as tt
 
 import collections as cx
-import atexit      as ae
+import atexit as ae
 
-import nrpcalc     as nr
+import nrpcalc as nr
 
-import utils       as ut
-import valparse    as vp
-import coreprimer  as cp
+from . import utils       as ut
+from . import valparse    as vp
+from . import coreprimer  as cp
 
 
 def primer_engine(

@@ -5,9 +5,8 @@ import collections as cx
 import bisect as bs
 import dinopy as dp
 import numpy  as np
-from numpy.lib.function_base import percentile
 
-import utils  as ut
+from . import utils  as ut
 
 
 # Barcode Conversion Dictionary

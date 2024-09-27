@@ -4,7 +4,7 @@ import collections as cx
 
 import numpy as np
 
-import utils as ut
+from . import utils as ut
 
 
 # Parser and Setup Functions

@@ -4,8 +4,8 @@ import numpy    as np
 import pandas   as pd
 import atexit   as ae
 
-import utils    as ut
-import valparse as vp
+from . import utils    as ut
+from . import valparse as vp
 
 
 def final(

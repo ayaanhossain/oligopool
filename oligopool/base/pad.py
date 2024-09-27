@@ -5,10 +5,10 @@ import atexit      as ae
 
 import nrpcalc     as nr
 
-import utils       as ut
-import valparse    as vp
-import coreprimer  as cp
-import primer      as pr
+from . import utils       as ut
+from . import valparse    as vp
+from . import coreprimer  as cp
+from . import primer      as pr
 
 
 def pad(

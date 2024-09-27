@@ -7,9 +7,9 @@ import zipfile as zf
 
 import numpy   as np
 import edlib   as ed
-import leveldb as lv
+import plyvel
 
-import utils   as ut
+from . import utils as ut
 
 
 # Parser and Setup Functions
@@ -891,8 +891,8 @@ def count_aggregator(
         countdir)
 
     # Open CountDB Instance
-    countdb = lv.LevelDB(
-        filename=countdb,
+    countdb = plyvel.DB(
+        countdb,
         create_if_missing=True,
         error_if_exists=True)
 
@@ -934,23 +934,20 @@ def count_aggregator(
                     fname))
 
         # Create New Batch
-        batch = lv.WriteBatch()
+        batch = countdb.write_batch(transaction=True)
 
         # Update Batch
         while countlist:
             k,v  = countlist.pop()
             strk = str(k).encode()
-            try:
-                w = eval(countdb.Get(strk))
-            except:
+            w = eval(countdb.get(strk))
+            if w is None:
                 w = 0
             strv = str(w+v).encode()
-            batch.Put(strk, strv)
+            batch.put(strk, strv)
 
         # Update CountDB
-        countdb.Write(
-            batch,
-            sync=True)
+        batch.write()
 
         # Release Control
         tt.sleep(0)
@@ -1020,8 +1017,8 @@ def write_count(
         countdir)
 
     # Open CountDB Instance
-    countdb = lv.LevelDB(
-        filename=countdb,
+    countdb = plyvel.DB(
+        countdb,
         create_if_missing=False,
         error_if_exists=False)
 
@@ -1038,8 +1035,7 @@ def write_count(
         batchreach = 0
 
         # Loop through CountDB Entries
-        for indextuple, count in countdb.RangeIter(
-            key_from=None, key_to=None):
+        for indextuple,count in countdb:
 
             # Update Book-keeping
             entrycount += 1

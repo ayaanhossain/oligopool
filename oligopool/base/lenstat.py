@@ -4,8 +4,8 @@ import collections as cx
 import numpy       as np
 import pandas      as pd
 
-import utils       as ut
-import valparse    as vp
+from . import utils       as ut
+from . import valparse    as vp
 
 
 def lenstat_engine(

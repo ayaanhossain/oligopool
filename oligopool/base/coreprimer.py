@@ -3,14 +3,14 @@ import time  as tt
 
 import collections as cx
 
-import numpy       as np
-import dinopy      as dp
+import numpy  as np
+import dinopy as dp
 
-import nrpcalc     as nr
+import nrpcalc as nr
 
-import background  as bk
-import vectordb    as db
-import utils       as ut
+from . import background  as bk
+from . import vectordb    as db
+from . import utils       as ut
 
 
 # NRPCalc Fold Object
@@ -1752,4 +1752,3 @@ def primer_objectives(
 
     # All Objectives OK!
     return True
-

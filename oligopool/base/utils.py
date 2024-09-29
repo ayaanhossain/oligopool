@@ -1079,6 +1079,10 @@ def get_parsed_oligopool_repeats(
     :: element
        type - string
        desc - element being designed
+    :: merge
+       type - boolean
+       desc - if True, merge all repeats
+              into a single bounter
     :: liner
        type - coroutine
        desc - dyanamic printing

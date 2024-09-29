@@ -411,19 +411,13 @@ def is_edge_feasible(
     :: contextarray
        type - np.array
        desc - context assignment array
-    :: leftcontexttype
-       type - integer
-       desc - inferred left context type
-              1 = list
-              2 = string
-              3 = None
     :: leftselector
        type - lambda
        desc - selector for the left
               sequence context
-    :: rightcontexttype
+    :: leftcontexttype
        type - integer
-       desc - inferred right context type
+       desc - inferred left context type
               1 = list
               2 = string
               3 = None
@@ -431,6 +425,12 @@ def is_edge_feasible(
        type - lambda
        desc - selector for the right
               sequence context
+    :: rightcontexttype
+       type - integer
+       desc - inferred right context type
+              1 = list
+              2 = string
+              3 = None
     '''
 
     # Book-keeping
@@ -516,6 +516,8 @@ def is_edge_feasible(
 
 def is_nonrepetitive(
     barcodeseq,
+    leftselector,
+    rightselector,
     maxreplen,
     index,
     oligorepeats):
@@ -526,6 +528,14 @@ def is_nonrepetitive(
     :: barcodeseq
        type - string
        desc - decoded barcode sequence
+    :: leftselector
+       type - lambda
+       desc - selector for the left
+              sequence context
+    :: rightselector
+       type - lambda
+       desc - selector for the right
+              sequence context
     :: maxreplen
        type - integer
        desc - maximum shared repeat length
@@ -540,9 +550,23 @@ def is_nonrepetitive(
               by context id
     '''
 
+    # Fetch Corpus
     corpus = oligorepeats[index]
+
+    # Build Context Sequence
+    incntxseq = barcodeseq
+    lcntx =  leftselector(index)
+    rcntx = rightselector(index)
+    if lcntx is None:
+        lcntx = ''
+    if rcntx is None:
+        rcntx = ''
+    offset = 0
+    incntxseq = lcntx[-(maxreplen-offset):] + barcodeseq + rcntx[:maxreplen-offset]
+
+    # Compute Feasibility
     for kmer in ut.stream_canon_spectrum(
-        seq=barcodeseq,
+        seq=incntxseq,
         k=maxreplen+1):
         kmer = dp.conversion.encode_twobit(
             seq=kmer,
@@ -705,10 +729,10 @@ def barcode_objectives(
         barcodeseq=barcodeseq,
         exmotifs=exmotifs,
         contextarray=contextarray,
-        leftcontexttype=leftcontexttype,
         leftselector=leftselector,
-        rightcontexttype=rightcontexttype,
-        rightselector=rightselector)
+        leftcontexttype=leftcontexttype,
+        rightselector=rightselector,
+        rightcontexttype=rightcontexttype,)
 
     # Objective 3 Failed
     if not obj3:
@@ -717,6 +741,8 @@ def barcode_objectives(
     # Objective 4: Contextual Non-Repetitiveness
     obj4 = is_nonrepetitive(
         barcodeseq=barcodeseq,
+        leftselector=leftselector,
+        rightselector=rightselector,
         maxreplen=maxreplen,
         index=aidx,
         oligorepeats=oligorepeats)

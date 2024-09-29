@@ -1,32 +1,36 @@
 # Core Design Functions
-from .base import background
-from .base import barcode
-from .base import primer
-from .base import motif
-from .base import spacer
+from .base.background import background
+from .base.barcode import barcode
+from .base.primer import primer
+from .base.motif import motif
+from .base.spacer import spacer
 
 # Assembly Design Functions
-from .base import split
-from .base import pad
+from .base.split import split
+from .base.pad import pad
 
 # Auxiliary Design Functions
-from .base import lenstat
-from .base import final
+from .base.lenstat import lenstat
+from .base.final import final
 
 # Analysis Functions
-from .base import index
-from .base import pack
-from .base import acount
-from .base import xcount
+from .base.index import index
+from .base.pack import pack
+from .base.acount import acount
+from .base.xcount import xcount
 
 # Utilities
 from .base import utils
 
-__author__ = 'ah'
+__author__ = 'Ayaan Hossain'
+
 __version__ = '0.0.0'
+
 __all__ = [
     background, barcode, primer, motif, spacer,
     split, pad, lenstat, final,
     index, pack, acount, xcount,
     utils
 ]
+
+__doc__ = 'TBW'

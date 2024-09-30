@@ -14,11 +14,11 @@
 
 ## Overview
 
-Oligopool synthesis and next-generation sequencing enable the construction and characterization of large libraries of designed genetic parts and systems. As library sizes grow, it becomes computationally challenging to optimally design large numbers of primer binding sites, barcode sequences, and overlap regions to obtain efficient assemblies and precise measurements.
+Massively parallel reporter assays enable the simultaneous construction and characterization of large libraries of designed genetic parts and systems, combining oligopool synthesis with next-generation sequencing. As library sizes grow, it becomes computationally challenging to optimally design oligopool sequences and to rapidly analyze sequencing results.
 
-We present the `Oligopool Calculator`, an *end-to-end suite of algorithms and data structures*, that rapidly designs many thousands of oligonucleotides within an oligopool and rapidly analyzes many billions of barcoded sequencing reads. We introduce several novel concepts that greatly increase the design and analysis throughput, including orthogonally symmetric `barcode` design, adaptive decision trees for `primer` design, a `Scry` barcode classifier, and efficient read packing.
+We present the `Oligopool Calculator`, an end-to-end suite of algorithms, that automates the design and analysis of massively parallel reporter assays with millions of defined variants. New algorithms and data structures enable the scalable design of orthogonal primer sets and unique barcodes, the splitting of long constructs into multiple oligos, and the rapid packing and counting of reads -- all on a regular 8-core desktop computer. We demonstrate the Oligopool Calculator across several projects to build and characterize thousands of promoters, ribozymes, and mRNA stability elements, illustrating how to use a flexible grammar to add multiple barcodes, cut sites, excluded sequences, model-based constraints, read filters, and read processing functions.
 
-We demonstrated the `Oligopool Calculator`’s capabilities across computational benchmarks and real-data projects, including the design of over four million highly unique and compact barcodes in 1.2 hours, the design of universal primer binding sites for million 200-mer oligos in 15 minutes, and the analysis of about 500 million sequencing reads per hour, all on an 8-core desktop computer.
+The `Oligopool Calculator` facilitates the creative design and application of massively parallel reporter assays by automating solutions to its computational complexities.
 
 <h1 align="center">
     <a href="https://github.com/ayaanhossain/oligopool/">

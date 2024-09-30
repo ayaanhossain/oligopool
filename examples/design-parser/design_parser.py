@@ -63,7 +63,7 @@ def setup_background(
 
         # Build Background
         try:
-            stats = background.background(
+            stats = background(
                 indata=background_spec['indata'],
                 maxreplen=background_spec['maxreplen'],
                 outdir=backgroundname)
@@ -139,7 +139,7 @@ def insert_motifs(
             try:
                 if element_name in dataframe.columns:
                     dataframe.drop(element_name, inplace=True, axis=1)
-                dataframe, stats = motif.motif(
+                dataframe, stats = motif(
                     indata=dataframe,
                     oligolimit=elements_spec[element_name]['oligolimit'],
                     motifseq=elements_spec[element_name]['motifseq'],
@@ -215,7 +215,7 @@ def insert_primers(
                 rightcontext = elements_spec[element_name]['rightcontext']
             else:
                 rightcontext = None
-            dataframe, stats = primer.primer(
+            dataframe, stats = primer(
                 indata=dataframe,
                 oligolimit=elements_spec[element_name]['oligolimit'],
                 primerseq=elements_spec[element_name]['primerseq'],
@@ -274,7 +274,7 @@ def insert_barcodes(
             try:
                 if element_name in dataframe.columns:
                     dataframe.drop(element_name, inplace=True, axis=1)
-                dataframe, stats = barcode.barcode(
+                dataframe, stats = barcode(
                     indata=dataframe,
                     oligolimit=elements_spec[element_name]['oligolimit'],
                     barcodelen=elements_spec[element_name]['barcodelen'],
@@ -320,7 +320,7 @@ def insert_spacers(
             try:
                 if element_name in dataframe.columns:
                     dataframe.drop(element_name, inplace=True, axis=1)
-                dataframe, stats = spacer.spacer(
+                dataframe, stats = spacer(
                     indata=dataframe,
                     oligolimit=elements_spec[element_name]['oligolimit'],
                     spacercol=element_name,
@@ -358,7 +358,7 @@ def split_oligos(
     status = False
     incomplete = False
     try:
-        dataframe, stats = split.split(
+        dataframe, stats = split(
             indata=dataframe,
             splitlimit=split_spec['splitlimit'],
             mintmelt=split_spec['mintmelt'],
@@ -396,7 +396,7 @@ def pad_oligos(
     stats_dict['padding'] = {}
     for splitcol in dataframe.columns:
         try:
-            paddedframe, stats = pad.pad(
+            paddedframe, stats = pad(
                 indata=dataframe,
                 splitcol=splitcol,
                 typeIIS=padding_spec['typeIIS'],

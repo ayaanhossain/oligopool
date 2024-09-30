@@ -60,7 +60,7 @@ $ pip install .
 ```
 which will also install all dependencies.
 
-> **Note** The GitHub version will always be the most updated version with all recent fixes prior to publication on PyPI.
+> **Note** This GitHub version will always be the most updated version with all recent fixes.
 
 
 **Verifying Installation**

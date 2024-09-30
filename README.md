@@ -85,7 +85,7 @@ $ pip uninstall oligopool
 
 **Reporting Installation Issues**
 
-If you encounter any problems during installation, please feel free to [open an issue](https://github.com/ayaanhossain/oligopool/issues) describing your problem along with your OS details, output that shows the error.
+If you encounter any problems during installation, please feel free to [open an issue](https://github.com/ayaanhossain/oligopool/issues) describing your problem along with your OS details, and any console output that shows the error.
 
 
 ## License

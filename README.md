@@ -1,6 +1,6 @@
 <h1 align="center">
     <a href="https://github.com/ayaanhossain/oligopool/">
-        <img src="https://raw.githubusercontent.com/ayaanhossain/repfmt/main/oligopool/img/logo.svg"  alt="Non-Repetitive Parts Calculator" width="460" class="center"/>
+        <img src="https://raw.githubusercontent.com/ayaanhossain/repfmt/main/oligopool/img/logo.svg"  alt="Oligopool Calculator" width="460" class="center"/>
     </a>
 </h1>
 
@@ -19,3 +19,11 @@ Oligopool synthesis and next-generation sequencing enable the construction and c
 We present the `Oligopool Calculator`, an *end-to-end suite of algorithms and data structures*, that rapidly designs many thousands of oligonucleotides within an oligopool and rapidly analyzes many billions of barcoded sequencing reads. We introduce several novel concepts that greatly increase the design and analysis throughput, including orthogonally symmetric `barcode` design, adaptive decision trees for `primer` design, a `Scry` barcode classifier, and efficient read packing.
 
 We demonstrated the `Oligopool Calculator`’s capabilities across computational benchmarks and real-data projects, including the design of over four million highly unique and compact barcodes in 1.2 hours, the design of universal primer binding sites for million 200-mer oligos in 15 minutes, and the analysis of about 500 million sequencing reads per hour, all on an 8-core desktop computer.
+
+<h1 align="center">
+    <a href="https://github.com/ayaanhossain/oligopool/">
+        <img src="https://raw.githubusercontent.com/ayaanhossain/repfmt/main/oligopool/img/logo.svg"  alt="Oligopool Calculator Workflow" width="460" class="center"/>
+    </a>
+</h1>
+
+**Design and analysis of oligopool variants using Oligopool Calculator.** **(a)** In `Design Mode`, `Oligopool Calculator` can be used to design optimized `barcode`s, `primer`s, `spacer`s, `motif`s and `split` large oligos into shorter `pad`ded fragments for downstream synthesis and assembly. **(b)** Once the genetic part variants are assembled and cloned inside a chassis or activated in vitro, barcoded amplicon libraries are sequenced as readout, and the resulting data is processed via `Analysis Mode` to generate count matrices of barcode abundance which serve as a proxy for genetic part activity. `Analysis Mode` proceeds by first `index`ing one or more sets of barcodes, `pack`ing reads to pre-count and collapse the readouts, and then producing the count matrices either using `acount` (association counting) or `xcount` (combinatorial counting).

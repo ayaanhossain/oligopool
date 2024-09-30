@@ -12,6 +12,7 @@
   <a href="https://github.com/ayaanhossain/oligopool/blob/master/docs/DOCS.md">Documentation</a>
 </p>
 
+
 ## Overview
 
 Massively parallel reporter assays enable the simultaneous construction and characterization of large libraries of designed genetic parts and systems, combining oligopool synthesis with next-generation sequencing. As library sizes grow, it becomes computationally challenging to optimally design oligopool sequences and to rapidly analyze sequencing results.
@@ -27,6 +28,7 @@ The `Oligopool Calculator` facilitates the creative design and application of ma
 </h1>
 
 **Design and analysis of oligopool variants using Oligopool Calculator.** **(a)** In `Design Mode`, `Oligopool Calculator` can be used to design optimized `barcode`s, `primer`s, `spacer`s, `motif`s and `split` large oligos into shorter `pad`ded fragments for downstream synthesis and assembly. **(b)** Once the genetic part variants are assembled and cloned inside a chassis or activated in vitro, barcoded amplicon libraries are sequenced as readout, and the resulting data is processed via `Analysis Mode` to generate count matrices of barcode abundance which serve as a proxy for genetic part activity. `Analysis Mode` proceeds by first `index`ing one or more sets of barcodes, `pack`ing reads to pre-count and collapse the readouts, and then producing the count matrices either using `acount` (association counting) or `xcount` (combinatorial counting).
+
 
 ## Installation
 
@@ -56,7 +58,9 @@ and install using `pip`
 ```bash
 $ pip install .
 ```
-which will also install all dependencies. The GitHub version will always be the most updated version.
+which will also install all dependencies.
+
+> **Note** The GitHub version will always be the most updated version with all recent fixes prior to publication on PyPI.
 
 
 **Verifying Installation**
@@ -78,3 +82,16 @@ You can easily remove the package with
 ```bash
 $ pip uninstall oligopool
 ```
+
+**Reporting Installation Issues**
+
+If you encounter any problems during installation, please feel free to [open an issue](https://github.com/ayaanhossain/oligopool/issues) describing your problem along with your OS details, output that shows the error.
+
+
+## License
+
+`Oligpool Calculator` (c) 2024 Ayaan Hossain.
+
+`Oligpool Calculator` is an **open-source software** under [GPLv3](https://opensource.org/license/gpl-3-0) License.
+
+See [LICENSE](https://github.com/ayaanhossain/oligopool/blob/master/LICENSE) file for more details.

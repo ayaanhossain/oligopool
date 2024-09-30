@@ -1,8 +1,4 @@
-import sys
-import os
-
 from oligopool import index, pack, xcount
-
 
 def main():
     '''

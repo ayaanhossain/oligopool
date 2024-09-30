@@ -52,11 +52,11 @@ Once downloaded, navigate into the `oligopool` directory with
 ```bash
 $ cd oligopool
 ```
-and install `NRP Calculator` using `pip`
+and install `Oligopool Calculator` using `pip`
 ```bash
 $ pip install .
 ```
-which will also install all dependencies.
+which will also install all dependencies. The GitHub version will always be the most updated version.
 
 
 **Verifying Installation**

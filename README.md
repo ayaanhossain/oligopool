@@ -52,7 +52,7 @@ Once downloaded, navigate into the `oligopool` directory with
 ```bash
 $ cd oligopool
 ```
-and install `Oligopool Calculator` using `pip`
+and install using `pip`
 ```bash
 $ pip install .
 ```
@@ -74,7 +74,7 @@ Type "help", "copyright", "credits" or "license" for more information.
 
 **Uninstalling `Oligopool Calculator`**
 
-You can easily remove `Oligopool Calculator` with
+You can easily remove the package with
 ```bash
 $ pip uninstall oligopool
 ```

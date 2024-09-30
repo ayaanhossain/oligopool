@@ -22,7 +22,7 @@ We demonstrated the `Oligopool Calculator`’s capabilities across computational
 
 <h1 align="center">
     <a href="https://github.com/ayaanhossain/oligopool/">
-        <img src="https://raw.githubusercontent.com/ayaanhossain/repfmt/refs/heads/main/oligopool/img/workflow.svg"  alt="Oligopool Calculator Workflow" width="1080" class="center"/>
+        <img src="https://raw.githubusercontent.com/ayaanhossain/repfmt/refs/heads/main/oligopool/img/workflow.svg"  alt="Oligopool Calculator Workflow" width="3840" class="center"/>
     </a>
 </h1>
 

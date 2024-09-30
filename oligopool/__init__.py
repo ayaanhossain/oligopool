@@ -40,7 +40,7 @@ xcount = xcount.xcount
 # Setup
 __author__ = 'Ayaan Hossain'
 
-__version__ = '0.0.0'
+__version__ = '2024.09.29'
 
 __all__ = [
     background, barcode, primer, motif, spacer,

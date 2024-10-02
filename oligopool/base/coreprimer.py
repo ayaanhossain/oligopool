@@ -1,16 +1,11 @@
-from os import sendfile
 import time  as tt
-
 import collections as cx
 
 import numpy  as np
-import dinopy as dp
 
 import nrpcalc as nr
 
-from . import background  as bk
-from . import vectordb    as db
-from . import utils       as ut
+from . import utils as ut
 
 
 # NRPCalc Fold Object
@@ -959,7 +954,7 @@ def show_update(
         ' due to Heterodimer'][optstate]))
 
     if terminal:
-        liner.send('\* Time Elapsed: {:.2f} sec\n'.format(
+        liner.send('|* Time Elapsed: {:.2f} sec\n'.format(
             tt.time() - inittime))
 
 def is_background_feasible(
@@ -1524,7 +1519,7 @@ def primer_objectives(
             liner=liner)
 
         # Update Stats
-        stats['vars']['repeatfail'] += 1
+        stats['vars']['repeat_fail'] += 1
 
         # Return Traceback
         return False, traceloc
@@ -1550,7 +1545,7 @@ def primer_objectives(
             liner=liner)
 
         # Update Stats
-        stats['vars']['repeatfail'] += 1
+        stats['vars']['repeat_fail'] += 1
 
         # Return Traceback
         return False, traceloc
@@ -1575,7 +1570,7 @@ def primer_objectives(
             liner=liner)
 
         # Update Stats
-        stats['vars']['repeatfail'] += 1
+        stats['vars']['repeat_fail'] += 1
 
         # Return Traceback
         return False, traceloc
@@ -1600,8 +1595,8 @@ def primer_objectives(
             liner=liner)
 
         # Update Stats
-        stats['vars']['exmotiffail'] += 1
-        stats['vars']['exmotifcounter'][exmotif] += 1
+        stats['vars']['exmotif_fail'] += 1
+        stats['vars']['exmotif_counter'][exmotif] += 1
 
         # Return Traceback
         return False, max(
@@ -1630,8 +1625,8 @@ def primer_objectives(
             liner=liner)
 
         # Update Stats
-        stats['vars']['edgefail'] += len(dxmotifs)
-        stats['vars']['exmotifcounter'].update(dxmotifs)
+        stats['vars']['edge_fail'] += len(dxmotifs)
+        stats['vars']['exmotif_counter'].update(dxmotifs)
 
         # Return Traceback
         return False, traceloc
@@ -1675,7 +1670,7 @@ def primer_objectives(
                 fixedbaseindex=fixedbaseindex)
 
             # Update Stats
-            stats['vars']['Tmfail'] += 1
+            stats['vars']['Tm_fail'] += 1
 
             # Return Traceback
             return False, traceloc
@@ -1707,7 +1702,7 @@ def primer_objectives(
                 liner=liner)
 
             # Update Stats
-            stats['vars']['homodimerfail'] += 1
+            stats['vars']['homodimer_fail'] += 1
 
             # Return Traceback
             return False, traceloc
@@ -1735,7 +1730,7 @@ def primer_objectives(
                 liner=liner)
 
             # Update Stats
-            stats['vars']['heterodimerfail'] += 1
+            stats['vars']['heterodimer_fail'] += 1
 
             # Return Traceback
             return False, traceloc

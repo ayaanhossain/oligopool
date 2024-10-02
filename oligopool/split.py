@@ -1,14 +1,11 @@
 import time  as tt
-
-import collections as cx
 import atexit      as ae
 
-import numpy  as np
 import pandas as pd
 
-from . import utils     as ut
-from . import valparse  as vp
-from . import coresplit as cs
+from .base import utils     as ut
+from .base import valparse  as vp
+from .base import coresplit as cs
 
 
 def split_engine(

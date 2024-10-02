@@ -246,7 +246,7 @@ def show_update(
         ' due to Composition'][optstate]))
 
     if terminal:
-        liner.send('\* Time Elapsed: {:.2f} sec\n'.format(
+        liner.send('|* Time Elapsed: {:.2f} sec\n'.format(
             tt.time() - inittime))
 
 def get_barcodeseq(barcode):
@@ -832,7 +832,7 @@ def get_distro(
         hammingdistro[hdist] += 1
 
     # Normalize Distribution
-    liner.send('\* Normalizing Distribution ...')
+    liner.send('|* Normalizing Distribution ...')
     normhammingdistro = []
     for hdist in hammingdistro:
         percentage = (100. * hammingdistro[hdist]) / threshold

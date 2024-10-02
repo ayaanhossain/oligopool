@@ -4,8 +4,8 @@ import collections as cx
 import numpy       as np
 import pandas      as pd
 
-from . import utils       as ut
-from . import valparse    as vp
+from .base import utils    as ut
+from .base import valparse as vp
 
 
 def lenstat_engine(
@@ -68,7 +68,7 @@ def lenstat_engine(
 
     # Show Time Elapsed
     liner.send(
-        '\* Time Elapsed: {:.2f} sec\n'.format(
+        '|* Time Elapsed: {:.2f} sec\n'.format(
             tt.time()-t0))
 
     # Return Results

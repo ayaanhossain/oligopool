@@ -77,7 +77,7 @@ If you encounter any problems during installation, please feel free to [open an 
 Using `Oligopool Calculator` is as easy as importing the library and starting to use the various functions and tools either in a script or in a `jupyter` `notebook` environment. Just use `help(...)` to read the docs as necessary and you should be good to go!
 
 ```python
- >> python
+$ python
 Python 3.12.6 | packaged by conda-forge | (main, Sep 30 2024, 18:08:52) [GCC 13.3.0] on linux
 Type "help", "copyright", "credits" or "license" for more information.
 >>> import oligopool as op
@@ -99,7 +99,7 @@ DESCRIPTION
     scripts for design and analysis pipelines on the cloud.
 
     Oligopool Calculator offers two modes of operation
-        -   Design Mode for designing oligopool library
+        -   Design Mode for designing oligopool libraries
         - Analysis Mode for analyzing oligopool datasets
 
     Design Mode workflow

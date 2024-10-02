@@ -248,7 +248,7 @@ def get_extracted_spacerlen(
                 spacerlen[idx]))
 
     # Show Time Elapsed
-    liner.send('\* Time Elapsed: {:.2f} sec\n'.format(
+    liner.send('|* Time Elapsed: {:.2f} sec\n'.format(
         tt.time()-t0))
 
     # Return Results
@@ -291,7 +291,7 @@ def get_grouped_spacerlen(
                 len(spacergroup[sl])))
 
     # Show Time Elapsed
-    liner.send('\* Time Elapsed: {:.2f} sec\n'.format(
+    liner.send('|* Time Elapsed: {:.2f} sec\n'.format(
         tt.time()-t0))
 
     # Return Result
@@ -355,7 +355,7 @@ def show_update(
         ' due to Edge Effect'][optstate]))
 
     if terminal:
-        liner.send('\* Time Elapsed: {:.2f} sec\n'.format(
+        liner.send('|* Time Elapsed: {:.2f} sec\n'.format(
             tt.time() - inittime))
 
 def is_exmotif_feasible(

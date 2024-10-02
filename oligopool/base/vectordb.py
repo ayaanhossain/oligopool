@@ -3,12 +3,14 @@ import sys
 import time   as tt
 import shutil as sh
 
+from functools import wraps
+
 import plyvel
 
 from . import utils as ut
 
 
-class vectorDB(object):
+class vectorDB:
     '''
     LevelDB based scalable on disk vectorDB for k-mer storage.
     '''
@@ -89,6 +91,7 @@ class vectorDB(object):
            type - function
            desc - function to gate
         '''
+        @wraps(method)
         def wrapper(self, *args, **kwargs):
             if self.ALIVE:
                 return method(self, *args, **kwargs)

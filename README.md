@@ -32,7 +32,7 @@ The `Oligopool Calculator` facilitates the creative design and application of ma
 
 ## Installation
 
-`Oligopool Calculator` is `Linux`-based software, and it is a `Python3.6+`-exclusive library.
+`Oligopool Calculator` is `Linux`-based software, and it is a `Python3.10+`-exclusive library.
 
 You can install `Oligopool Calculator` from PyPI, where it is published as the `oligopool` package.
 ```bash
@@ -44,7 +44,7 @@ $ pip install git+https://github.com/ayaanhossain/oligopool.git
 ```
 Both approaches should install all dependencies automatically.
 
-> **Note** This GitHub version will always be the most updated version with all recent fixes. The pyPI version will always be the most stable one.
+> **Note** This GitHub version will always be the most updated version with all recent fixes. The PyPI version will always be the most stable one.
 
 
 **Verifying Installation**

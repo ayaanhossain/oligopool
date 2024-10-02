@@ -3,12 +3,10 @@ import time  as tt
 import collections as cx
 import atexit      as ae
 
-import nrpcalc     as nr
-
-from . import utils       as ut
-from . import valparse    as vp
-from . import coreprimer  as cp
-from . import primer      as pr
+from .base import utils       as ut
+from .base import valparse    as vp
+from .base import coreprimer  as cp
+from . import primer as pr
 
 
 def pad(

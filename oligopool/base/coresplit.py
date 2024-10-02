@@ -919,7 +919,7 @@ def get_split(
                 # Unresolvable
                 if (not condol) or (r < p):
                     liner.send(
-                        '\*      Current Split Region Infeasible for Sequence {:,} ... Skipping\n'.format(idx))
+                        '|*      Current Split Region Infeasible for Sequence {:,} ... Skipping\n'.format(idx))
                     r = None # No solution to current split
                     break    # Try Next Split Region ..
 
@@ -930,7 +930,7 @@ def get_split(
         # Do we have a solution?
         if not r is None:
             liner.send(
-                '\*      Current Split Region Optimized for All {:,} Sequences\n'.format(idx))
+                '|*      Current Split Region Optimized for All {:,} Sequences\n'.format(idx))
             state  = True  # Solution Found!
             break # We're done!
 
@@ -1049,7 +1049,7 @@ def aggregate_stats(
         int, np.round(overlapHDtotals / HDDenom)))
 
     # Show Time Elapsed
-    liner.send('\* Time Elapsed: {:.2f} sec\n'.format(
+    liner.send('|* Time Elapsed: {:.2f} sec\n'.format(
         tt.time()-t0))
 
     # Return Results

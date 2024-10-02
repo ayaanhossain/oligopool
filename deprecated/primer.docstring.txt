@@ -1,0 +1,133 @@
+
+
+    The primer function designs constrained primers, at desired
+    melting temperature, with desired non-repetitiveness, that
+    work optimally for all variants in the oligopool, without
+    any excluded motifs inside or introducing new ones at the
+    primer edges. Additional constraints are enforced to ensure
+    compatibility with a paired primer, and minimal formation
+    of dimers of duplexes. The generated DataFrame containing
+    designed primer is returned, and optionally also written
+    out to <outfile> (CSV) if specified.
+
+    :: input_data
+       type - string / pd.DataFrame
+       desc - path to CSV file or a pandas DataFrame storing
+              annotated oligopool variants and their parts
+    :: oligo_length_limit
+       type - integer
+       desc - maximum oligo length allowed in the oligopool,
+              must be 4 or greater
+    :: primer_sequence_constraint
+       type - integer
+       desc - an IUPAC degenerate primer sequence constraint
+    :: primer_type
+       type - integer
+       desc - primer design type identifier
+              0 = a forward primer is designed
+              1 = a reverse primer is designed
+    :: minimum_melting_temperature
+       type - float
+       desc - minimum allowed primer melting temperature in
+              degree celsius, must be 25 or greater
+    :: maximum_melting_temperature
+       type - float
+       desc - maximum allowed primer melting temperature in
+              degree celsius, must be 95 or lesser
+    :: maximum_shared_repeat_length
+       type - integer
+       desc - maximum shared repeat length between the
+              primers and flanking regions, must be 6 or
+              greater
+    :: primer_column
+       type - string
+       desc - name of the column to store designed primer
+    :: output_file
+       type - string
+       desc - filename to save ouput DataFrame with primers
+              (suffix='.oligopool.primer.csv')
+              (default=None)
+    :: paired_primer_column
+       type - string / None
+              name of the column containing the full primer
+              sequence to be paired with the designed primer
+              (default=None)
+    :: left_context_column
+       type - string / None
+       desc - name of the column containing DNA sequences
+              to the left of the primer sequence
+              (default=None)
+    :: right_context_column
+       type - string / None
+       desc - name of the column containing DNA sequences
+              placed right of the primer sequence
+              (default=None)
+    :: excluded_motifs
+       type - iterable / string / pd.DataFrame / None
+       desc - iterable of DNA string motifs to be excluded
+              within and at the edges of the primer when
+              placed between context sequences; optionally,
+              this can be a path to a CSV file containing
+              uniquely identified excluded motifs or an
+              equivalent pandas DataFrame
+              (default=None)
+    :: background
+       type - string / None
+       desc - path to directory storing the background
+              sequence k-mers, against which the designed
+              primer is to be non-repetitive
+              (suffix='.oligopool.background')
+              (default=None)
+    :: verbose
+       type - boolean
+       desc - if True will log updates to stdout
+              (default=True)
+
+    Output: A file named <outfile> with '.oligoool.primer.csv'
+            suffix if specified; otherwise a pandas DataFrame is
+            returned, along with design or warning statistics.
+
+    Note 1. Specified <indata> must contain a column named 'ID',
+            that uniquely identifies variants in a pool. Values
+            in <indata> except 'ID' must be DNA strings. All
+            rows and columns in <indata> must be non-empty,
+            i.e. none of the cells must be empty.
+
+    Note 2. Column names in <indata> must be unique, without
+            <primercol> as a pre-existing column name.
+
+    Note 3. Either <leftcontext> or <rightcontext> or both must
+            be specified. If both are specified then they must
+            be adjacent to each other and in order. Designed
+            primers would be inserted next to or between them.
+
+    Note 4. The paired primer type is automatically inferred
+            based on current primer type, i.e. if a forward
+            primer is being designed, the paired primer is
+            assumed to be a reverse primer, and optimization
+            parameters are adjusted accordingly.
+
+    Note 5. If a paired primer is specified, then the melting
+            temperature of the designed primer is considered
+            within 1 °C of the paired primer Tm. E.g. If input
+            Tm range is 53 to 57 °C, and the paired primer has
+            a Tm of 59 °C, the designed primer is optimized
+            to have a Tm between 58 to 60 °C.
+
+    Note 6. The <maxreplen> parameter here controls the level
+            of non-repetitiveness in designed primers with
+            respect to sequences in <indata> and as such is
+            independent of the <maxreplen> used to specify
+            the background.
+
+    Note 7. If <exmotifs> points to a CSV file or DataFrame,
+            it must contain both an 'ID' and an 'Exmotif'
+            column, with 'Exmotif' containing all of the
+            excluded motif sequences.
+
+    Note 8. Constant motifs or bases in input primer sequence
+            constraint may sometimes make it impossible to
+            optimize for excluded motifs, edge-effects or prevent
+            favorable thermodynamic properties. In such cases,
+            a sub-optimal primer is designed and returned,
+            along with any warnings.

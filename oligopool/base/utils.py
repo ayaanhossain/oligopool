@@ -1,8 +1,8 @@
 import sys
 import os
 import gc
-import shutil  as su
-import time    as tt
+import shutil as su
+import time   as tt
 
 import uuid    as uu
 import pickle  as pk
@@ -100,13 +100,13 @@ trimflag = sys.platform.lower(
 
 # Shared Classes
 
-class SafeCounter(object):
+class SafeCounter:
     '''
     Because mp.Value is a lie.
     Internal use only.
     '''
 
-    def __init__(self, initval=0):
+    def __init__(self, initval=0, real=False):
         '''
         Initialize SafeCounter instance with
         initval for storing integer counters.
@@ -115,9 +115,27 @@ class SafeCounter(object):
            type - integer
            desc - initialization value
         '''
-        self.counter = mpsct.RawValue(
-            ct.c_longlong, initval)
+        if not real:
+            self.counter = mpsct.RawValue(
+                ct.c_longlong, initval)
+        else:
+            self.counter = mpsct.RawValue(
+                ct.c_longdouble, initval)
         self.lock = mp.Lock()
+
+    def __str__(self):
+        '''
+        Print the current value of instance.
+        '''
+        with self.lock:
+            pval = f'SafeCounter = {self.counter.value}'
+        return pval
+
+    def __repr__(self):
+        '''
+        Represent the current value of instance.
+        '''
+        return self.__str__()
 
     def increment(self, incr=1):
         '''
@@ -153,7 +171,7 @@ class SafeCounter(object):
             val = self.counter.value
         return val
 
-class SafeQueue(object):
+class SafeQueue:
     '''
     Because mp.Queue is a lie.
     Internal use only.
@@ -179,6 +197,20 @@ class SafeQueue(object):
         self.lock    = mp.Lock()
         self.alive   = mpsct.RawValue(
             ct.c_bool, True)
+
+    def __str__(self):
+        '''
+        Print the current state of instance.
+        '''
+        with self.lock:
+            pval = f'SafeQueue with {self.counter.value()} objects'
+        return pval
+
+    def __repr__(self):
+        '''
+        Represent the current state of instance.
+        '''
+        return self.__str__()
 
     def alivemethod(func):
         '''
@@ -262,6 +294,7 @@ class SafeQueue(object):
             self.counter.decrement(
                 decr=itemcount)
 
+    @alivemethod
     def length(self):
         '''
         Return the number of items
@@ -404,12 +437,12 @@ def liner_engine(online=True):
             printstr = (yield)
 
             # Line Preservation
-            if online and printstr.startswith('\*'):
+            if online and printstr.startswith('|*'):
                 sys.stdout.write('\n')
                 clrlen   = 0
                 printstr = removestarfix(
                     string=printstr,
-                    fix='\*',
+                    fix='|*',
                     loc=-1)
 
             # Line String
@@ -1402,39 +1435,39 @@ def get_parsed_exmotifs(
 
         # Setup Warning Variables
         warn['vars'] = {
-            'exmotifprefixgroup': set(),
-            'exmotifsuffixgroup': set()}
+            'exmotif_prefix_group': set(),
+            'exmotif_suffix_group': set()}
 
         # Detect Potentially Blocked Left Exmotifs
         if not leftcontext is None:
             liner.send(' Detecting Blocked Excluded Motif Prefix(es) ...')
             for prefix,suffixes in leftpartition.items():
                 if is_right_blocked(suffixes=suffixes):
-                    warn['vars']['exmotifprefixgroup'].add(prefix)
+                    warn['vars']['exmotif_prefix_group'].add(prefix)
 
         # Detect Potentially Blocked Right Exmotifs
         if not rightcontext is None:
             liner.send(' Detecting Blocked Excluded Motif Suffix(es) ...')
             for suffix,prefixes in rightpartition.items():
                 if is_left_blocked(prefixes=prefixes):
-                    warn['vars']['exmotifsuffixgroup'].add(suffix)
+                    warn['vars']['exmotif_suffix_group'].add(suffix)
 
         # Update Warning Counts
-        warn['warncount'] += len(warn['vars']['exmotifprefixgroup'])
-        warn['warncount'] += len(warn['vars']['exmotifsuffixgroup'])
+        warn['warn_count'] += len(warn['vars']['exmotif_prefix_group'])
+        warn['warn_count'] += len(warn['vars']['exmotif_suffix_group'])
 
         # Show Blocked Motifs
-        if warn['warncount']:
+        if warn['warn_count']:
             liner.send(
                 ' Found {:,} Problematic Excluded Motif Group(s)\n'.format(
-                    warn['warncount']))
+                    warn['warn_count']))
             plen = max(map(
                 len,
-                warn['vars']['exmotifprefixgroup'] | \
-                warn['vars']['exmotifsuffixgroup'])) + 2 + 1
+                warn['vars']['exmotif_prefix_group'] | \
+                warn['vars']['exmotif_suffix_group'])) + 2 + 1
 
             # Show Prefix Updates
-            for prefix in sorted(warn['vars']['exmotifprefixgroup'], key=len):
+            for prefix in sorted(warn['vars']['exmotif_prefix_group'], key=len):
                 prefix = '\'' + prefix + '.'*(plen-len(prefix)-2) + '\''
                 liner.send(
                     '   - Motif(s) starting with {:<{}} [WARNING] (Prefix Prevents All 4 Bases After It)\n'.format(
@@ -1442,7 +1475,7 @@ def get_parsed_exmotifs(
                         plen))
 
             # Show Suffix Updates
-            for suffix in sorted(warn['vars']['exmotifsuffixgroup'], key=len):
+            for suffix in sorted(warn['vars']['exmotif_suffix_group'], key=len):
                 suffix = '\'' + '.'*(plen-len(suffix)-2) + suffix + '\''
                 liner.send(
                     '   - Motif(s)   ending with {:>{}} [WARNING] (Suffix Prevents All 4 Bases Before It)\n'.format(
@@ -1450,12 +1483,12 @@ def get_parsed_exmotifs(
                         plen))
 
             # Finalize Left Partition Warning
-            if not warn['vars']['exmotifprefixgroup']:
-                warn['vars']['exmotifprefixgroup'] = None
+            if not warn['vars']['exmotif_prefix_group']:
+                warn['vars']['exmotif_prefix_group'] = None
 
             # Finalize Left Partition Warning
-            if not warn['vars']['exmotifsuffixgroup']:
-                warn['vars']['exmotifsuffixgroup'] = None
+            if not warn['vars']['exmotif_suffix_group']:
+                warn['vars']['exmotif_suffix_group'] = None
 
     # No Partition Required
     else:
@@ -1474,7 +1507,7 @@ def get_parsed_exmotifs(
     else:
 
         # Warnings Incurred
-        if warn['warncount']:
+        if warn['warn_count']:
             liner.send(
                 ' Verdict: {} Design Potentially Infeasible\n'.format(
                     element))
@@ -2012,7 +2045,7 @@ def get_parsed_edgeeffects(
                     len(prefixdict[lcseq])))
 
         # Retain Last Update
-        liner.send('\*')
+        liner.send('|*')
 
     # Assess Right Edge Effects
     if rightcontext:
@@ -2090,7 +2123,7 @@ def get_parsed_edgeeffects(
                     len(suffixdict[rcseq])))
 
         # Retain Last Update
-        liner.send('\*')
+        liner.send('|*')
 
     # Merge Dictionaries
     if merge:
@@ -2256,7 +2289,7 @@ def get_parsed_edgeeffects(
                 element))
 
     # Update Warning
-    warn['warncount'] = len(lcwarncount) + \
+    warn['warn_count'] = len(lcwarncount) + \
                         len(rcwarncount) + \
                         (1 if not constantprefix is None else 0) + \
                         (1 if not constantsuffix is None else 0)

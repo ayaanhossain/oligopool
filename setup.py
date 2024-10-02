@@ -85,7 +85,7 @@ setup(
         'oligopool': './oligopool'
     },
 
-    python_requires='>=3.6, <4',
+    python_requires='>=3.10, <4',
 
     install_requires=[
         'biopython>=1.84',
@@ -99,6 +99,7 @@ setup(
         'nrpcalc>=1.7.0',
         'plyvel>=1.5.1',
         'numba>=0.60.0',
+        'seaborn>=0.13.2',
     ],
 
     project_urls={  # Optional

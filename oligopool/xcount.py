@@ -6,26 +6,24 @@ import atexit      as ae
 
 import multiprocessing as mp
 
-from . import utils     as ut
-from . import valparse  as vp
-from . import phiX      as px
-from . import corecount as cc
+from .base import utils     as ut
+from .base import valparse  as vp
+from .base import phiX      as px
+from .base import corecount as cc
 
 
-def acount_engine(
-    indexfile,
+def xcount_engine(
+    indexfiles,
     packfile,
     packqueue,
     countdir,
     countqueue,
     maptype,
     barcodeerrors,
-    associateerrors,
     previousreads,
     analyzedreads,
     phiXreads,
     lowcomplexreads,
-    misassocreads,
     falsereads,
     incalcreads,
     experimentreads,
@@ -44,30 +42,37 @@ def acount_engine(
     TBD
     '''
 
-    # Open indexfile
-    indexfile = ut.get_archive(
-        arcfile=indexfile)
+    # Aggregate Index Files
+    models   = []
+    metamaps = []
+    numindex = len(indexfiles)
+    for indexfile in indexfiles:
 
-    # Load Barcode Model
-    model = ut.loadmodel(
-        archive=indexfile,
-        mfile='barcode.model')
+        # Open indexfile
+        indexfile = ut.get_archive(
+            arcfile=indexfile)
 
-    # Prime Barcode Model
-    model.prime(
-        t=barcodeerrors,
-        mode=maptype)
+        # Load Barcode Model
+        model = ut.loadmodel(
+            archive=indexfile,
+            mfile='barcode.model')
 
-    # Load Maps
-    metamap = ut.loaddict(
-        archive=indexfile,
-        dfile='meta.map')
-    associatedict = ut.loaddict(
-        archive=indexfile,
-        dfile='associate.map')
+        # Prime Barcode Model
+        model.prime(
+            t=barcodeerrors,
+            mode=maptype)
 
-    # Close indexfile
-    indexfile.close()
+        # Load Maps
+        metamap = ut.loaddict(
+            archive=indexfile,
+            dfile='meta.map')
+
+        # Close indexfile
+        indexfile.close()
+
+        # Append Index Objects
+        models.append(model)
+        metamaps.append(metamap)
 
     # Define PhiX Spectrum
     phiXkval = 30
@@ -89,7 +94,6 @@ def acount_engine(
         'analyzedreads'  : 0,
         'phiXreads'      : 0,
         'lowcomplexreads': 0,
-        'misassocreads'  : 0,
         'falsereads'     : 0,
         'incalcreads'    : 0,
         'experimentreads': 0}
@@ -194,51 +198,57 @@ def acount_engine(
             verbagereach += 1
             readcount    += 1
 
-            # Anchor Read
-            (anchoredread,
-            anchorstatus) = cc.get_anchored_read(
-                read=read,
-                metamap=metamap)
+            # Barcode Mapping Loop
+            indextuple = []
+            partialanc = False
+            partialmap = False
+            for idx in range(numindex):
 
-            # Anchor Absent
-            if not anchorstatus:
+                # Anchor Read
+                (anchoredread,
+                anchorstatus) = cc.get_anchored_read(
+                    read=read,
+                    metamap=metamaps[idx])
+
+                # Anchor Absent
+                if not anchorstatus:
+                    indextuple.append('-')
+                    continue
+
+                # Anchoring Successful
+                partialanc = True
+
+                # Compute Barcode Index
+                index = cc.get_barcode_index(
+                    barcoderead=anchoredread,
+                    metamap=metamaps[idx],
+                    model=models[idx])
+
+                # Barcode Absent
+                if index is None:
+                    indextuple.append('-')
+                    continue
+
+                # Found a Barcode!
+                indextuple.append(
+                    index)
+
+                # Mapping Successful
+                partialmap = True
+
+            # All Anchors Absent
+            if not partialanc:
                 exoread = read
                 exofreq = freq
                 continue
 
-            # Setup Read References
-            barcoderead   = anchoredread
-            associateread = anchoredread
-
-            # Compute Barcode Index
-            index = cc.get_barcode_index(
-                barcoderead=barcoderead,
-                metamap=metamap,
-                model=model)
-
-            # Barcode Absent
-            if index is None:
+            # All Barcodes Absent
+            if not partialmap:
                 cctrs['incalcreads'] += freq
                 continue
 
-            # Compute Associate Match
-            associatematch, basalmatch = cc.get_associate_match(
-                associateread=associateread,
-                associateerrors=associateerrors,
-                associatedict=associatedict,
-                index=index,
-                metamap=metamap)
-
-            # Associate Absent / Incorrect
-            if not associatematch:
-
-                # Associate Constants Missing
-                if not basalmatch:
-                    cctrs['incalcreads'] += freq
-                # Associate Mismatches with Reference
-                else:
-                    cctrs['misassocreads'] += freq
-                continue
+            # Convert Tuples to Indexes
+            indextuple = tuple(indextuple)
 
             # Compute Callback Evaluation
             if not callback is None:
@@ -246,7 +256,7 @@ def acount_engine(
                     # Execute Callback
                     evaluation = callback(
                         read=anchoredread,
-                        ID=(index,),
+                        ID=indextuple,
                         count=freq,
                         coreid=coreid)
 
@@ -262,7 +272,7 @@ def acount_engine(
                     # Dump input for Stats
                     ut.savedump(dobj={
                           'read': anchoredread,
-                            'ID': (index,),
+                            'ID': indextuple,
                          'count': freq,
                         'coreid': coreid},
                         filepath='{}/{}.callback.dump'.format(
@@ -279,7 +289,7 @@ def acount_engine(
                         continue
 
             # All Components Valid
-            countdict[((index),)]    += freq
+            countdict[indextuple]    += freq
             cctrs['experimentreads'] += freq
 
         # Show Final Updates
@@ -356,7 +366,6 @@ def acount_engine(
     analyzedreads.increment(incr=cctrs['analyzedreads'])
     phiXreads.increment(incr=cctrs['phiXreads'])
     lowcomplexreads.increment(incr=cctrs['lowcomplexreads'])
-    misassocreads.increment(incr=cctrs['misassocreads'])
     falsereads.increment(incr=cctrs['falsereads'])
     incalcreads.increment(incr=cctrs['incalcreads'])
     experimentreads.increment(incr=cctrs['experimentreads'])
@@ -369,13 +378,12 @@ def acount_engine(
     # Release Control
     tt.sleep(0)
 
-def acount(
-    indexfile,
+def xcount(
+    indexfiles,
     packfile,
     countfile,
     maptype=0,
     barcodeerrors=-1,
-    associateerrors=-1,
     callback=None,
     ncores=0,
     memlimit=0,
@@ -388,29 +396,33 @@ def acount(
     liner = ut.liner_engine(online=verbose)
 
     # Counting Verbage Print
-    liner.send('\n[Oligopool Calculator: Analysis Mode - Associate Count]\n')
+    liner.send('\n[Oligopool Calculator: Analysis Mode - Combinatorial Count]\n')
 
     # Required Argument Parsing
     liner.send('\n Required Arguments\n')
 
     # Full indexfile Validation
-    indexfile_valid = vp.get_indexfile_validity(
-        indexfile=indexfile,
-        indexfile_field='     Index File  ',
-        associated=True,
+    indexfiles_valid = vp.get_indexfiles_validity(
+        indexfiles=indexfiles,
+        indexfiles_field='     Index File(s)',
+        associated=False,
         liner=liner)
 
+    # Normalize indexfiles for Combinatorial + Regular Usecases
+    if isinstance(indexfiles,str):
+        indexfiles = [indexfiles]
+
     # Adjust indexfile Suffix
-    if indexfile_valid:
-        indexfile = ut.get_adjusted_path(
+    if indexfiles_valid:
+        indexfiles = [ut.get_adjusted_path(
             path=indexfile,
-            suffix='.oligopool.index')
+            suffix='.oligopool.index') for indexfile in indexfiles]
 
     # Full packfile Validation
     (packfile_valid,
     packcount) = vp.get_parsed_packfile(
         packfile=packfile,
-        packfile_field='      Pack File  ',
+        packfile_field='      Pack File   ',
         liner=liner)
 
     # Adjust packfile Suffix
@@ -422,8 +434,8 @@ def acount(
     # Full countfile Validation
     countfile_valid = vp.get_outfile_validity(
         outfile=countfile,
-        outfile_suffix='.oligopool.acount.csv',
-        outfile_field='     Count File  ',
+        outfile_suffix='.oligopool.xcount.csv',
+        outfile_field='     Count File   ',
         liner=liner)
 
     # Optional Argument Parsing
@@ -432,7 +444,7 @@ def acount(
     # Full maptype Validation
     maptype_valid = vp.get_categorical_validity(
         category=maptype,
-        category_field='   Mapping Type  ',
+        category_field='   Mapping Type   ',
         category_pre_desc=' ',
         category_post_desc=' Classification',
         category_dict={
@@ -444,37 +456,25 @@ def acount(
     (barcodeerrors,
     barcodeerrors_valid) = vp.get_errors_validity(
         errors=barcodeerrors,
-        errors_field='   Barcode Errors',
+        errors_field='   Barcode Errors ',
         errors_pre_desc=' At most ',
         errors_post_desc=' Mutations per Barcode',
         errors_base='B',
-        indexfiles_valid=indexfile_valid,
-        indexfiles=(indexfile,),
-        liner=liner)
-
-    # Full associateerrors Validation
-    (associateerrors,
-    associateerrors_valid) = vp.get_errors_validity(
-        errors=associateerrors,
-        errors_field=' Associate Errors',
-        errors_pre_desc=' At most ',
-        errors_post_desc=' Mutations per Associate',
-        errors_base='A',
-        indexfiles_valid=indexfile_valid,
-        indexfiles=(indexfile,),
+        indexfiles_valid=indexfiles_valid,
+        indexfiles=indexfiles,
         liner=liner)
 
     # Full callback Validation
     callback_valid = vp.get_callback_validity(
         callback=callback,
-        callback_field='  Callback Method',
+        callback_field='  Callback Method ',
         liner=liner)
 
     # Full num_core Parsing and Validation
     (ncores,
     ncores_valid) = vp.get_parsed_core_info(
         ncores=ncores,
-        core_field='       Num Cores ',
+        core_field='       Num Cores  ',
         default=packcount,
         offset=2,
         liner=liner)
@@ -483,19 +483,18 @@ def acount(
     (memlimit,
     memlimit_valid) = vp.get_parsed_memory_info(
         memlimit=memlimit,
-        memlimit_field='       Mem Limit ',
+        memlimit_field='       Mem Limit  ',
         ncores=ncores,
         ncores_valid=ncores_valid,
         liner=liner)
 
     # First Pass Validation
     if not all([
-        indexfile_valid,
+        indexfiles_valid,
         packfile_valid,
         countfile_valid,
         maptype_valid,
         barcodeerrors_valid,
-        associateerrors_valid,
         callback_valid,
         ncores_valid,
         memlimit_valid]):
@@ -517,7 +516,7 @@ def acount(
         # Parse callback
         (parsestatus,
         failedinputs) = cc.get_parsed_callback(
-            indexfiles=(indexfile,),
+            indexfiles=indexfiles,
             callback=callback,
             packfile=packfile,
             ncores=ncores,
@@ -563,7 +562,7 @@ def acount(
     (countfile,
     countdir) = ut.setup_workspace(
         outfile=countfile,
-        outfile_suffix='.oligopool.acount.csv')
+        outfile_suffix='.oligopool.xcount.csv')
 
     # Schedule countfile deletion
     ctdeletion = ae.register(
@@ -571,8 +570,7 @@ def acount(
         countfile)
 
     # Adjust Errors
-    barcodeerrors   = round(barcodeerrors)
-    associateerrors = round(associateerrors)
+    barcodeerrors = round(barcodeerrors)
 
     # Define countqueue
     countqueue = mp.SimpleQueue()
@@ -589,7 +587,6 @@ def acount(
     analyzedreads   = ut.SafeCounter()
     phiXreads       = ut.SafeCounter()
     lowcomplexreads = ut.SafeCounter()
-    misassocreads   = ut.SafeCounter()
     falsereads      = ut.SafeCounter()
     incalcreads     = ut.SafeCounter()
     experimentreads = ut.SafeCounter()
@@ -615,7 +612,6 @@ def acount(
                  'analyzed': int(analyzedreads.value()),
                      'phiX': int(phiXreads.value()),
                'lowcomplex': int(lowcomplexreads.value()),
-                 'misassoc': int(misassocreads.value()),
             'callbackfalse': int(falsereads.value()),
                    'incalc': int(incalcreads.value()),
                'experiment': int(experimentreads.value())},
@@ -646,20 +642,18 @@ def acount(
 
         # Define Counter
         readcounter = mp.Process(
-            target=acount_engine,
-            args=(indexfile,
+            target=xcount_engine,
+            args=(indexfiles,
                 packfile,
                 packqueue,
                 countdir,
                 countqueue,
                 maptype,
                 barcodeerrors,
-                associateerrors,
                 previousreads[coreid],
                 analyzedreads,
                 phiXreads,
                 lowcomplexreads,
-                misassocreads,
                 falsereads,
                 incalcreads,
                 experimentreads,
@@ -723,20 +717,18 @@ def acount(
             restarts[coreid].clear()
             shutdowns[coreid].clear()
             readcounters[coreid] = mp.Process(
-                target=acount_engine,
-                args=(indexfile,
+                target=xcount_engine,
+                args=(indexfiles,
                     packfile,
                     packqueue,
                     countdir,
                     countqueue,
                     maptype,
                     barcodeerrors,
-                    associateerrors,
                     previousreads[coreid],
                     analyzedreads,
                     phiXreads,
                     lowcomplexreads,
-                    misassocreads,
                     falsereads,
                     incalcreads,
                     experimentreads,
@@ -804,7 +796,7 @@ def acount(
 
         # Write Count Matrix
         cc.write_count(
-            indexfiles=(indexfile,),
+            indexfiles=indexfiles,
             countdir=countdir,
             countfile=countfile,
             liner=liner)
@@ -817,7 +809,6 @@ def acount(
     stats['vars']['analyzed']      = int(analyzedreads.value())
     stats['vars']['phiX']          = int(phiXreads.value())
     stats['vars']['lowcomplex']    = int(lowcomplexreads.value())
-    stats['vars']['misassoc']      = int(misassocreads.value())
     stats['vars']['callbackfalse'] = int(falsereads.value())
     stats['vars']['incalc']        = int(incalcreads.value())
     stats['vars']['experiment']    = int(experimentreads.value())
@@ -829,7 +820,7 @@ def acount(
         countstatus = 'Failed'
 
     # Read Counting Stats
-    liner.send('\n[Associate Counting Stats]\n')
+    liner.send('\n[Combinatorial Counting Stats]\n')
 
     plen = ut.get_printlen(
         value=analyzedreads.value())
@@ -854,13 +845,6 @@ def acount(
             plen,
             ut.safediv(
                 A=100. * lowcomplexreads.value(),
-                B=analyzedreads.value())))
-    liner.send(
-        ' Mis-Associated Reads : {:{},d} ({:6.2f} %)\n'.format(
-            misassocreads.value(),
-            plen,
-            ut.safediv(
-                A=100. * misassocreads.value(),
                 B=analyzedreads.value())))
     liner.send(
         ' Callback-False Reads : {:{},d} ({:6.2f} %)\n'.format(
@@ -898,5 +882,5 @@ def acount(
     # Close Liner
     liner.close()
 
-    # # Return Statistics
+    # Return Statistics
     return stats

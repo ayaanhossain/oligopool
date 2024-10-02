@@ -3,11 +3,14 @@ import time as tt
 import collections as cx
 import atexit as ae
 
+import pandas as pd
 import nrpcalc as nr
 
-from . import utils       as ut
-from . import valparse    as vp
-from . import coreprimer  as cp
+from .base import utils    as ut
+from .base import valparse as vp
+from .base import coreprimer as cp
+
+from typing import Tuple
 
 
 def primer_engine(
@@ -225,27 +228,27 @@ def primer_engine(
             seq=primer) if primertype == 1 else primer
 
         # Update Tm
-        stats['vars']['primerTm'] = ut.get_tmelt(
+        stats['vars']['primer_Tm'] = ut.get_tmelt(
             seq=cprimer)
 
         # Update GC Percentage
-        stats['vars']['primerGC'] = (cprimer.count('G') + \
+        stats['vars']['primer_GC'] = (cprimer.count('G') + \
                                      cprimer.count('C')) \
                                         / (len(cprimer) * 0.01)
 
         # Update Hairpin Free Energy
-        stats['vars']['hairpinMFE'] = cp.folder.evaluate_mfe(
+        stats['vars']['hairpin_MFE'] = cp.folder.evaluate_mfe(
             seq=cprimer,
             dg=True)[-1]
 
         # Update Heterodimer Free Energy
-        stats['vars']['homodimerMFE'] = cp.folder.evaluate_mfe_dimer(
+        stats['vars']['homodimer_MFE'] = cp.folder.evaluate_mfe_dimer(
             seq1=cprimer,
             seq2=cprimer)[-1]
 
         # Update Homodimer Free Energy
         if not pairedprimer is None:
-            stats['vars']['heterodimerMFE'] = cp.folder.evaluate_mfe_dimer(
+            stats['vars']['heterodimer_MFE'] = cp.folder.evaluate_mfe_dimer(
                 seq1=cprimer,
                 seq2=pairedprimer)[-1]
 
@@ -256,161 +259,86 @@ def primer_engine(
     else:
 
         # Final Update
-        liner.send('\* Time Elapsed: {:.2f} sec\n'.format(
+        liner.send('|* Time Elapsed: {:.2f} sec\n'.format(
             tt.time() - t0))
 
         # Return Results
         return (None, stats)
 
 def primer(
-    indata,
-    oligolimit,
-    primerseq,
-    primertype,
-    mintmelt,
-    maxtmelt,
-    maxreplen,
-    primercol,
-    outfile=None,
-    pairedcol=None,
-    leftcontext=None,
-    rightcontext=None,
-    exmotifs=None,
-    background=None,
-    verbose=True):
+    input_data:str|pd.DataFrame,
+    oligo_length_limit:int,
+    primer_sequence_constraint:str,
+    primer_type:int,
+    minimum_melting_temperature:float,
+    maximum_melting_temperature:float,
+    maximum_repeat_length:int,
+    primer_column:str,
+    output_file:str|None=None,
+    paired_primer_column:str|None=None,
+    left_context_column:str|None=None,
+    right_context_column:str|None=None,
+    excluded_motifs:list|str|pd.DataFrame|None=None,
+    background_directory:str|None=None,
+    verbose:bool=True) -> Tuple[pd.DataFrame, dict]:
     '''
-    The primer function designs constrained primers, at desired
-    melting temperature, with desired non-repetitiveness, that
-    work optimally for all variants in the oligopool, without
-    any excluded motifs inside or introducing new ones at the
-    primer edges. Additional constraints are enforced to ensure
-    compatibility with a paired primer, and minimal formation
-    of dimers of duplexes. The generated DataFrame containing
-    designed primer is returned, and optionally also written
-    out to <outfile> (CSV) if specified.
+    Designs constrained primers with specified melting temperature and non-repetitiveness
+    for all variants in the oligopool. Ensures compatibility with paired primers and minimizes
+    dimer formation. Returns a DataFrame of designed primers, optionally saving to <output_file>
+    in CSV format.
 
-    :: indata
-       type - string / pd.DataFrame
-       desc - path to CSV file or a pandas DataFrame storing
-              annotated oligopool variants and their parts
-    :: oligolimit
-       type - integer
-       desc - maximum oligo length allowed in the oligopool,
-              must be 4 or greater
-    :: primerseq
-       type - integer
-       desc - an IUPAC degenerate primer sequence constraint
-    :: primertype
-       type - integer
-       desc - primer design type identifier
-              0 = a forward primer is designed
-              1 = a reverse primer is designed
-    :: mintmelt
-       type - float
-       desc - minimum allowed primer melting temperature in
-              degree celsius, must be 25 or greater
-    :: maxtmelt
-       type - float
-       desc - maximum allowed primer melting temperature in
-              degree celsius, must be 95 or lesser
-    :: maxreplen
-       type - integer
-       desc - maximum shared repeat length between the
-              primers and flanking regions, must be 6 or
-              greater
-    :: primercol
-       type - string
-       desc - name of the column to store designed primer
-    :: outfile
-       type - string
-       desc - filename to save ouput DataFrame with primers
-              (suffix='.oligopool.primer.csv')
-              (default=None)
-    :: pairedcol
-       type - string / None
-              name of the column containing the full primer
-              sequence to be paired with the designed primer
-              (default=None)
-    :: leftcontext
-       type - string / None
-       desc - name of the column containing DNA sequences
-              to the left of the primer sequence
-              (default=None)
-    :: rightcontext
-       type - string / None
-       desc - name of the column containing DNA sequences
-              placed right of the primer sequence
-              (default=None)
-    :: exmotifs
-       type - iterable / string / pd.DataFrame / None
-       desc - iterable of DNA string motifs to be excluded
-              within and at the edges of the primer when
-              placed between context sequences; optionally,
-              this can be a path to a CSV file containing
-              uniquely identified excluded motifs or an
-              equivalent pandas DataFrame
-              (default=None)
-    :: background
-       type - string / None
-       desc - path to directory storing the background
-              sequence k-mers, against which the designed
-              primer is to be non-repetitive
-              (suffix='.oligopool.background')
-              (default=None)
-    :: verbose
-       type - boolean
-       desc - if True will log updates to stdout
-              (default=True)
+    Required Parameters:
+        - input_data (str / pd.DataFrame): Path to a CSV file or DataFrame with annotated oligopool variants.
+        - oligo_length_limit (int): Maximum allowed oligo length (≥ 4).
+        - primer_sequence_constraint (int): IUPAC degenerate sequence constraint.
+        - primer_type (int): Primer type (0 for forward, 1 for reverse).
+        - minimum_melting_temperature (float): Minimum Tm (≥ 25°C).
+        - maximum_melting_temperature (float): Maximum Tm (≤ 95°C).
+        - maximum_repeat_length (int): Max shared repeat length with oligos (≥ 6).
+        - primer_column (str): Column name for the designed primer.
 
-    Output: A file named <outfile> with '.oligoool.primer.csv'
-            suffix if specified; otherwise a pandas DataFrame is
-            returned, along with design or warning statistics.
+    Optional Parameters:
+        - output_file (str / None): Filename for output DataFrame (default: None).
+        - paired_primer_column (str / None): Column for paired primer sequence (default: None).
+        - left_context_column (str / None): Column for left DNA context (default: None).
+        - right_context_column (str / None): Column for right DNA context (default: None).
+        - excluded_motifs (list / str / pd.DataFrame / None): Motifs to exclude;
+            can be a CSV path or DataFrame (default: None).
+        - background_directory (str / None): Directory for background k-mer sequences (default: None).
+        - verbose (bool): If True, logs updates to stdout (default: True).
 
-    Note 1. Specified <indata> must contain a column named 'ID',
-            that uniquely identifies variants in a pool. Values
-            in <indata> except 'ID' must be DNA strings. All
-            rows and columns in <indata> must be non-empty,
-            i.e. none of the cells must be empty.
+    Returns:
+        - A pandas DataFrame of designed primers; saves to <output_file> if specified.
+        - A dictionary of stats from pipeline steps.
 
-    Note 2. Column names in <indata> must be unique, without
-            <primercol> as a pre-existing column name.
-
-    Note 3. Either <leftcontext> or <rightcontext> or both must
-            be specified. If both are specified then they must
-            be adjacent to each other and in order. Designed
-            primers would be inserted next to or between them.
-
-    Note 4. The paired primer type is automatically inferred
-            based on current primer type, i.e. if a forward
-            primer is being designed, the paired primer is
-            assumed to be a reverse primer, and optimization
-            parameters are adjusted accordingly.
-
-    Note 5. If a paired primer is specified, then the melting
-            temperature of the designed primer is considered
-            within 1 °C of the paired primer Tm. E.g. If input
-            Tm range is 53 to 57 °C, and the paired primer has
-            a Tm of 59 °C, the designed primer is optimized
-            to have a Tm between 58 to 60 °C.
-
-    Note 6. The <maxreplen> parameter here controls the level
-            of non-repetitiveness in designed primers with
-            respect to sequences in <indata> and as such is
-            independent of the <maxreplen> used to specify
-            the background.
-
-    Note 7. If <exmotifs> points to a CSV file or DataFrame,
-            it must contain both an 'ID' and an 'Exmotif'
-            column, with 'Exmotif' containing all of the
-            excluded motif sequences.
-
-    Note 8. Constant motifs or bases in input primer sequence
-            constraint may sometimes make it impossible to
-            optimize for excluded motifs, edge-effects or prevent
-            favorable thermodynamic properties. In such cases,
-            a sub-optimal primer is designed and returned,
-            along with any warnings.
+    Notes:
+        - <input_data> must contain a unique 'ID' column.
+        - All other columns be non-empty DNA strings or a single dash ('-').
+        - Column names in <input_data> must be unique, excluding <primer_column>.
+        - At least one of <left_context_column> or <right_context_column> must be specified.
+        - The paired primer type is inferred based on the current primer type.
+        - If a paired primer is specified, Tm of the designed primer is optimized within 1°C of it.
+        - <maximum_repeat_length> controls non-repetitiveness against <input_data> only, not <background>.
+        - If <excluded_motifs> is a CSV or DataFrame, it must have 'ID' and 'Exmotif' columns.
+        - Constant motifs in sequence constraint may lead to sub-optimal primers.
     '''
+
+    # Argument Aliasing
+    indata       = input_data
+    oligolimit   = oligo_length_limit
+    primerseq    = primer_sequence_constraint
+    primertype   = primer_type
+    mintmelt     = minimum_melting_temperature
+    maxtmelt     = maximum_melting_temperature
+    maxreplen    = maximum_repeat_length
+    primercol    = primer_column
+    outfile      = output_file
+    pairedcol    = paired_primer_column
+    leftcontext  = left_context_column
+    rightcontext = right_context_column
+    exmotifs     = excluded_motifs
+    background   = background_directory
+    verbose      = verbose
 
     # Start Liner
     liner = ut.liner_engine(verbose)
@@ -627,19 +555,19 @@ def primer(
 
         # Prepare stats
         stats = {
-            'status'  : False,
-            'basis'   : 'infeasible',
-            'step'    : 1,
-            'stepname': 'parsing-oligo-limit',
-            'vars'    : {
-                   'oligolimit': oligolimit,
-                'limitoverflow': True,
-                'minvariantlen': minvariantlen,
-                'maxvariantlen': maxvariantlen,
-                'minelementlen': minelementlen,
-                'maxelementlen': maxelementlen,
-                'minspaceavail': minspaceavail,
-                'maxspaceavail': maxspaceavail},
+            'status'   : False,
+            'basis'    : 'infeasible',
+            'step'     : 1,
+            'step_name': 'parsing-oligo-limit',
+            'vars'     : {
+                   'oligo_limit': oligolimit,
+                'limit_overflow': True,
+                'min_variant_len': minvariantlen,
+                'max_variant_len': maxvariantlen,
+                'min_element_len': minelementlen,
+                'max_element_len': maxelementlen,
+                'min_space_avail': minspaceavail,
+                'max_space_avail': maxspaceavail},
             'warns'   : warns}
 
         # Return results
@@ -654,8 +582,8 @@ def primer(
 
         # Update Step 2 Warning
         warns[2] = {
-            'warncount': 0,
-            'stepname' : 'parsing-excluded-motifs',
+            'warn_count': 0,
+            'step_name': 'parsing-excluded-motifs',
             'vars': None}
 
         # Parse exmotifs
@@ -673,7 +601,7 @@ def primer(
             liner=liner)
 
         # Remove Step 2 Warning
-        if not warns[2]['warncount']:
+        if not warns[2]['warn_count']:
             warns.pop(2)
 
         # exmotifs infeasible
@@ -684,10 +612,10 @@ def primer(
                 'status'  : False,
                 'basis'   : 'infeasible',
                 'step'    : 2,
-                'stepname': 'parsing-excluded-motifs',
+                'step_name': 'parsing-excluded-motifs',
                 'vars'    : {
-                     'problens': problens,
-                    'probcount': tuple(list(
+                     'prob_lens': problens,
+                    'prob_count': tuple(list(
                         4**pl for pl in problens))},
                 'warns'   : warns}
 
@@ -704,8 +632,8 @@ def primer(
 
     # Update Step 3 Warning
     warns[3] = {
-        'warncount': 0,
-        'stepname' : 'parsing-primer-sequence',
+        'warn_count': 0,
+        'step_name' : 'parsing-primer-sequence',
         'vars': None}
 
     # Parse primerseq
@@ -724,7 +652,7 @@ def primer(
         liner=liner)
 
     # Remove Step 3 Warning
-    if not warns[3]['warncount']:
+    if not warns[3]['warn_count']:
         warns.pop(3)
 
     # primerseq infeasible
@@ -735,11 +663,11 @@ def primer(
             'status'  : False,
             'basis'   : 'infeasible',
             'step'    : 3,
-            'stepname': 'parsing-primer-sequence',
+            'step_name': 'parsing-primer-sequence',
             'vars'    : {
-                    'designspace': designspace,
-                'internalrepeats': internalrepeats,
-                  'pairedrepeats': pairedrepeats},
+                    'design_space': designspace,
+                'internal_repeats': internalrepeats,
+                  'paired_repeats': pairedrepeats},
             'warns'   : warns}
 
         # Return results
@@ -780,12 +708,12 @@ def primer(
             'status'  : False,
             'basis'   : 'infeasible',
             'step'    : 4,
-            'stepname': 'parsing-melting-temperature',
+            'step_name': 'parsing-melting-temperature',
             'vars'    : {
-                'estimatedminTm': estimatedminTm,
-                'estimatedmaxTm': estimatedmaxTm,
-                   'higherminTm': higherminTm,
-                    'lowermaxTm': lowermaxTm},
+                'estimated_min_Tm': estimatedminTm,
+                'estimated_max_Tm': estimatedmaxTm,
+                   'higher_min_Tm': higherminTm,
+                    'lower_max_Tm': lowermaxTm},
             'warns'   : warns}
 
         # Return results
@@ -814,8 +742,8 @@ def primer(
 
         # Update Step 6 Warning
         warns[6] = {
-            'warncount': 0,
-            'stepname' : 'parsing-edge-effects',
+            'warn_count': 0,
+            'step_name' : 'parsing-edge-effects',
             'vars': None}
 
         # Compute Forbidden Prefixes and Suffixes
@@ -832,7 +760,7 @@ def primer(
             liner=liner)
 
         # Remove Step 6 Warning
-        if not warns[6]['warncount']:
+        if not warns[6]['warn_count']:
             warns.pop(6)
 
     else:
@@ -863,12 +791,12 @@ def primer(
             'status'  : False,
             'basis'   : 'infeasible',
             'step'    : 7,
-            'stepname': 'parsing-oligopool-repeats',
+            'step_name': 'parsing-oligopool-repeats',
             'vars'    : {
-                'sourcecontext': sourcecontext,
-                'kmerspace'    : kmerspace,
-                'fillcount'    : fillcount,
-                'freecount'    : freecount},
+                'source_context': sourcecontext,
+                'kmer_space'    : kmerspace,
+                'fill_count'    : fillcount,
+                'free_count'    : freecount},
             'warns'   : warns}
 
         # Return results
@@ -883,20 +811,20 @@ def primer(
         'status'  : False,
         'basis'   : 'unsolved',
         'step'    : 8,
-        'stepname': 'computing-primer',
+        'step_name': 'computing-primer',
         'vars'    : {
-                   'primerTm': None,          # Primer Melting Temperature
-                   'primerGC': None,          # Primer GC Content
-                 'hairpinMFE': None,          # Primer Hairpin Free Energy
-               'homodimerMFE': None,          # Homodimer Free Energy
-             'heterodimerMFE': None,          # Heterodimer Free Energy
-                     'Tmfail': 0,             # Melting Temperature Fail Count
-                 'repeatfail': 0,             # Repeat Fail Count
-              'homodimerfail': 0,             # Homodimer Fail Count
-            'heterodimerfail': 0,             # Heterodimer Fail Count
-                'exmotiffail': 0,             # Exmotif Elimination Fail Count
-                   'edgefail': 0,             # Edge Effect Fail Count
-             'exmotifcounter': cx.Counter()}, # Exmotif Encounter Counter
+                   'primer_Tm': None,          # Primer Melting Temperature
+                   'primer_GC': None,          # Primer GC Content
+                 'hairpin_MFE': None,          # Primer Hairpin Free Energy
+               'homodimer_MFE': None,          # Homodimer Free Energy
+             'heterodimer_MFE': None,          # Heterodimer Free Energy
+                     'Tm_fail': 0,             # Melting Temperature Fail Count
+                 'repeat_fail': 0,             # Repeat Fail Count
+              'homodimer_fail': 0,             # Homodimer Fail Count
+            'heterodimer_fail': 0,             # Heterodimer Fail Count
+                'exmotif_fail': 0,             # Exmotif Elimination Fail Count
+                   'edge_fail': 0,             # Edge Effect Fail Count
+             'exmotif_counter': cx.Counter()}, # Exmotif Encounter Counter
         'warns'   : warns}
 
     # Schedule outfile deletion
@@ -966,106 +894,106 @@ def primer(
 
         liner.send(
             '     Melting Temperature: {:6.2f} °C\n'.format(
-                stats['vars']['primerTm']))
+                stats['vars']['primer_Tm']))
         liner.send(
             '          GC Content    : {:6.2f} %\n'.format(
-                stats['vars']['primerGC']))
+                stats['vars']['primer_GC']))
         liner.send(
             '     Hairpin MFE        : {:6.2f} kcal/mol\n'.format(
-                stats['vars']['hairpinMFE']))
+                stats['vars']['hairpin_MFE']))
         liner.send(
             '   Homodimer MFE        : {:6.2f} kcal/mol\n'.format(
-                stats['vars']['homodimerMFE']))
+                stats['vars']['homodimer_MFE']))
 
         if not pairedprimer is None:
             liner.send(
                 ' Heterodimer MFE        : {:6.2f} kcal/mol\n'.format(
-                    stats['vars']['heterodimerMFE']))
+                    stats['vars']['heterodimer_MFE']))
 
     # Failure Relavant Stats
     else:
         maxval = max(stats['vars'][field] for field in (
-            'Tmfail',
-            'repeatfail',
-            'homodimerfail',
-            'heterodimerfail',
-            'exmotiffail',
-            'edgefail'))
+            'Tm_fail',
+            'repeat_fail',
+            'homodimer_fail',
+            'heterodimer_fail',
+            'exmotif_fail',
+            'edge_fail'))
 
         sntn, plen = ut.get_notelen(
             printlen=ut.get_printlen(
                 value=maxval))
 
-        total_conflicts = stats['vars']['Tmfail']          + \
-                          stats['vars']['repeatfail']      + \
-                          stats['vars']['homodimerfail']   + \
-                          stats['vars']['heterodimerfail'] + \
-                          stats['vars']['exmotiffail']     + \
-                          stats['vars']['edgefail']
+        total_conflicts = stats['vars']['Tm_fail']          + \
+                          stats['vars']['repeat_fail']      + \
+                          stats['vars']['homodimer_fail']   + \
+                          stats['vars']['heterodimer_fail'] + \
+                          stats['vars']['exmotif_fail']     + \
+                          stats['vars']['edge_fail']
 
         liner.send(
             ' Melt. Temp. Conflicts  : {:{},{}} Event(s) ({:6.2f} %)\n'.format(
-                stats['vars']['Tmfail'],
+                stats['vars']['Tm_fail'],
                 plen,
                 sntn,
                 ut.safediv(
-                    A=stats['vars']['Tmfail'] * 100.,
+                    A=stats['vars']['Tm_fail'] * 100.,
                     B=total_conflicts)))
         liner.send(
             '      Repeat Conflicts  : {:{},{}} Event(s) ({:6.2f} %)\n'.format(
-                stats['vars']['repeatfail'],
+                stats['vars']['repeat_fail'],
                 plen,
                 sntn,
                 ut.safediv(
-                    A=stats['vars']['repeatfail'] * 100.,
+                    A=stats['vars']['repeat_fail'] * 100.,
                     B=total_conflicts)))
         liner.send(
             '   Homodimer Conflicts  : {:{},{}} Event(s) ({:6.2f} %)\n'.format(
-                stats['vars']['homodimerfail'],
+                stats['vars']['homodimer_fail'],
                 plen,
                 sntn,
                 ut.safediv(
-                    A=stats['vars']['homodimerfail'] * 100.,
+                    A=stats['vars']['homodimer_fail'] * 100.,
                     B=total_conflicts)))
         liner.send(
             ' Heterodimer Conflicts  : {:{},{}} Event(s) ({:6.2f} %)\n'.format(
-                stats['vars']['heterodimerfail'],
+                stats['vars']['heterodimer_fail'],
                 plen,
                 sntn,
                 ut.safediv(
-                    A=stats['vars']['heterodimerfail'] * 100.,
+                    A=stats['vars']['heterodimer_fail'] * 100.,
                     B=total_conflicts)))
         liner.send(
             '     Exmotif Conflicts  : {:{},{}} Event(s) ({:6.2f} %)\n'.format(
-                stats['vars']['exmotiffail'],
+                stats['vars']['exmotif_fail'],
                 plen,
                 sntn,
                 ut.safediv(
-                    A=stats['vars']['exmotiffail'] * 100.,
+                    A=stats['vars']['exmotif_fail'] * 100.,
                     B=total_conflicts)))
         liner.send(
             '        Edge Conflicts  : {:{},{}} Event(s) ({:6.2f} %)\n'.format(
-                stats['vars']['edgefail'],
+                stats['vars']['edge_fail'],
                 plen,
                 sntn,
                 ut.safediv(
-                    A=stats['vars']['edgefail'] * 100.,
+                    A=stats['vars']['edge_fail'] * 100.,
                     B=total_conflicts)))
 
         # Enumerate Motif-wise Fail Counts
-        if stats['vars']['exmotifcounter']:
+        if stats['vars']['exmotif_counter']:
 
             qlen = max(len(motif) \
-                for motif in stats['vars']['exmotifcounter'].keys()) + 2
+                for motif in stats['vars']['exmotif_counter'].keys()) + 2
 
             sntn, vlen = ut.get_notelen(
                 printlen=ut.get_printlen(
                     value=max(
-                        stats['vars']['exmotifcounter'].values())))
+                        stats['vars']['exmotif_counter'].values())))
 
             liner.send('   Exmotif-wise Conflict Distribution\n')
 
-            for exmotif,count in stats['vars']['exmotifcounter'].most_common():
+            for exmotif,count in stats['vars']['exmotif_counter'].most_common():
                 exmotif = '\'{}\''.format(exmotif)
                 liner.send(
                     '     - Exmotif {:>{}} Triggered {:{},{}} Event(s)\n'.format(

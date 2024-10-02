@@ -1,13 +1,13 @@
 import time  as tt
 
 import collections as cx
-import numpy       as np
-import atexit      as ae
-import bounter     as bt
+import numpy   as np
+import atexit  as ae
+import bounter as bt
 
-from . import utils       as ut
-from . import valparse    as vp
-from . import corebarcode as cb
+from .base import utils    as ut
+from .base import valparse as vp
+from .base import corebarcode as cb
 
 
 def barcode_engine(
@@ -162,7 +162,7 @@ def barcode_engine(
 
             # Final Update
             liner.send(
-                '\* Time Elapsed: {:.2f} sec\n'.format(
+                '|* Time Elapsed: {:.2f} sec\n'.format(
                     tt.time() - t0))
 
             # No Solution
@@ -327,7 +327,7 @@ def barcode_engine(
 
                 # Final Update
                 liner.send(
-                    '\* Time Elapsed: {:.2f} sec\n'.format(
+                    '|* Time Elapsed: {:.2f} sec\n'.format(
                         tt.time() - t0))
 
                 # No Solution

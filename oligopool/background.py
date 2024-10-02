@@ -2,9 +2,11 @@ import time as tt
 
 import atexit as ae
 
-from . import utils    as ut
-from . import vectordb as db
-from . import valparse as vp
+import pandas as pd
+
+from .base import utils    as ut
+from .base import vectordb as db
+from .base import valparse as vp
 
 
 def background_engine(
@@ -74,21 +76,21 @@ def background_engine(
         tt.time()-t0))
 
     # Populate Stats
-    kmerspace = ((4**(maxreplen+1)) // 2)
-    fillcount = min(kmerspace, len(vDB))
-    leftcount = kmerspace - fillcount
+    kmer_space = ((4**(maxreplen+1)) // 2)
+    fill_count = min(kmer_space, len(vDB))
+    left_count = kmer_space - fill_count
 
-    stats['status'] = (leftcount * 1.) / kmerspace > .01
+    stats['status'] = (left_count * 1.) / kmer_space > .01
     stats['basis']  = 'solved' if stats['status'] else 'infeasible'
-    stats['vars']['kmerspace'] = kmerspace
-    stats['vars']['fillcount'] = fillcount
-    stats['vars']['leftcount'] = leftcount
+    stats['vars']['kmer_space'] = kmer_space
+    stats['vars']['fill_count'] = fill_count
+    stats['vars']['left_count'] = left_count
 
     # If Successful Update and Close DB
     if stats['status']:
         vDB.DB.put(
             b'LEN',
-            str(fillcount).encode())
+            str(fill_count).encode())
         vDB.close()
 
     # Otherwise Drop DB
@@ -99,59 +101,36 @@ def background_engine(
     return stats
 
 def background(
-    indata,
-    maxreplen,
-    outdir,
-    verbose=True):
+    input_data:list|str|pd.DataFrame,
+    maximum_repeat_length:int,
+    output_directory:str,
+    verbose=True) -> dict:
     '''
-    The background function builds a database of k-mers from
-    a list or a CSV file of background sequences. This database
-    is then specified during primer design, to generate primers
-    which are non-repetitive to background thus minimizing any
-    off-target amplification. Non-repetitiveness is controlled
-    via the maximum shared repeat length (maxreplen) parameter.
-    Generated database is stored in <outdir>.
+    The background function creates a k-mer database from a list or CSV file of background sequences.
+    This database is used during primer design to ensure primers are non-repetitive to the background,
+    minimizing off-target amplification. Non-repetitiveness is regulated by the maximum shared repeat
+    length parameter. The generated database is saved in the specified <output_directory>.
 
-    :: indata
-       type - iterable / string / pd.DataFrame
-       desc - iterable of DNA strings against which designed
-              primers are ensured to be non-repetitive;
-              optionally, this can be a path to a CSV file
-              containing uniquely identified background
-              sequences or an equivalent pandas DataFrame
-    :: maxreplen
-       type - integer
-       desc - maximum shared repeat length between the primers
-              and the background sequences, must be between
-              6 to 20
-    :: outdir
-       type - string
-       desc - path to store the generated background k-mer
-              database
-    :: verbose
-       type - boolean
-       desc - if True will log updates to stdout
-              (default=True)
+    Required Parameters:
+        - input_data (list / str / pd.DataFrame): background for primers; can be a CSV file or a DataFrame.
+        - maximum_repeat_length (int): Max repeat length between primers and background (between 6 and 20).
+        - output_directory (str): Directory to store the generated background k-mer database.
+        - verbose (bool): If True, logs updates to stdout (default: True).
 
-    Output: A directory <outdir> with '.oligoool.background'
-            suffix.
+    Returns:
+        - A dictionary of stats from pipeline steps.
 
-    Note 1. If <indata> points to a CSV file or a DataFrame,it
-            must contain a column named 'ID', that uniquely
-            identifies each background sequence, listed in a
-            'Sequence' column. Values in <indata> except 'ID'
-            must be DNA strings. All rows and columns in the
-            <indata> must be non-empty, i.e. none of the cells
-            must be empty.
-
-    Note 2. The <maxreplen> parameter here controls the level
-            of non-repetitiveness in designed primers with
-            respect to a background sequences such as a genome
-            or a plasmid, and as such is independent of the
-            <maxreplen> used in primer design which controls
-            the non-repetitiveness of the primers against the
-            core oligopool variants.
+    Notes:
+        - If <input_data> is a CSV or DataFrame, must contain 'ID' and a 'Sequence' column with DNA strings.
+        - <maximum_repeat_length> here controls non-repetitiveness of primers to <background> only.
+        - For manipulation, use vectorDB to operate on the background (see help(oligopool.vectorDB)).
     '''
+
+    # Argument Aliasing
+    indata    = input_data
+    maxreplen = maximum_repeat_length
+    outdir    = output_directory
+    verbose   = verbose
 
     # Start Liner
     liner = ut.liner_engine(verbose)
@@ -220,11 +199,11 @@ def background(
         'status'  : False,
         'basis'   : 'infeasible',
         'step'    : 1,
-        'stepname': 'computing-background',
+        'step_name': 'computing-background',
         'vars'    : {
-            'kmerspace': 0,  # kmer Space
-            'fillcount': 0,  # kmer Fill Count
-            'leftcount': 0}, # kmer Left Count
+            'kmer_space': 0,  # kmer Space
+            'fill_count': 0,  # kmer Fill Count
+            'left_count': 0}, # kmer Left Count
         'warns'   : {}}
 
     # Start Timer
@@ -249,9 +228,9 @@ def background(
 
     plen = ut.get_printlen(
         value=max(stats['vars'][field] for field in (
-            'kmerspace',
-            'fillcount',
-            'leftcount')))
+            'kmer_space',
+            'fill_count',
+            'left_count')))
 
     sntn = 'e' if plen > 15 else 'd'
 
@@ -260,28 +239,28 @@ def background(
             backgroundstatus))
     liner.send(
         '      k-mer  Space: {:{},{}} Unique {:,}-mers\n'.format(
-            stats['vars']['kmerspace'],
+            stats['vars']['kmer_space'],
             plen,
             sntn,
             maxreplen+1))
     liner.send(
         '       Fill  Count: {:{},{}} Unique {:,}-mers ({:6.2f} %)\n'.format(
-            stats['vars']['fillcount'],
+            stats['vars']['fill_count'],
             plen,
             sntn,
             maxreplen+1,
             ut.safediv(
-                A=stats['vars']['fillcount'] * 100.,
-                B=stats['vars']['kmerspace'])))
+                A=stats['vars']['fill_count'] * 100.,
+                B=stats['vars']['kmer_space'])))
     liner.send(
         '       Left  Count: {:{},{}} Unique {:,}-mers ({:6.2f} %)\n'.format(
-            stats['vars']['leftcount'],
+            stats['vars']['left_count'],
             plen,
             sntn,
             maxreplen+1,
             ut.safediv(
-                A=stats['vars']['leftcount'] * 100.,
-                B=stats['vars']['kmerspace'])))
+                A=stats['vars']['left_count'] * 100.,
+                B=stats['vars']['kmer_space'])))
 
     liner.send(' Time Elapsed: {:.2f} sec\n'.format(tt.time()-t0))
 

@@ -1,11 +1,10 @@
 import time as tt
+import atexit as ae
 
-import atexit    as ae
-
-from . import utils     as ut
-from . import valparse  as vp
-from . import scry      as sy
-from . import coreindex as ci
+from .base import utils     as ut
+from .base import valparse  as vp
+from .base import scry      as sy
+from .base import coreindex as ci
 
 
 def index_engine(

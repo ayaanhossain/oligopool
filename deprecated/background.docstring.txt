@@ -1,0 +1,47 @@
+The background function builds a database of k-mers from
+    a list or a CSV file of background sequences. This database
+    is then specified during primer design, to generate primers
+    which are non-repetitive to background thus minimizing any
+    off-target amplification. Non-repetitiveness is controlled
+    via the maximum shared repeat length (maxreplen) parameter.
+    Generated database is stored in <outdir>.
+
+    :: indata
+       type - iterable / string / pd.DataFrame
+       desc - iterable of DNA strings against which designed
+              primers are ensured to be non-repetitive;
+              optionally, this can be a path to a CSV file
+              containing uniquely identified background
+              sequences or an equivalent pandas DataFrame
+    :: maxreplen
+       type - integer
+       desc - maximum shared repeat length between the primers
+              and the background sequences, must be between
+              6 to 20
+    :: outdir
+       type - string
+       desc - path to store the generated background k-mer
+              database
+    :: verbose
+       type - boolean
+       desc - if True will log updates to stdout
+              (default=True)
+
+    Output: A directory <outdir> with '.oligoool.background'
+            suffix.
+
+    Note 1. If <indata> points to a CSV file or a DataFrame,it
+            must contain a column named 'ID', that uniquely
+            identifies each background sequence, listed in a
+            'Sequence' column. Values in <indata> except 'ID'
+            must be DNA strings. All rows and columns in the
+            <indata> must be non-empty, i.e. none of the cells
+            must be empty.
+
+    Note 2. The <maxreplen> parameter here controls the level
+            of non-repetitiveness in designed primers with
+            respect to a background sequences such as a genome
+            or a plasmid, and as such is independent of the
+            <maxreplen> used in primer design which controls
+            the non-repetitiveness of the primers against the
+            core oligopool variants.

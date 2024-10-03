@@ -169,7 +169,7 @@ Type "help", "copyright", "credits" or "license" for more information.
             - acount
             - xcount
 
-        Anamysis Mode worfklow example sketch
+        Analysis Mode worfklow example sketch
 
         >>> import pandas as pd
         >>> import oligopool as op

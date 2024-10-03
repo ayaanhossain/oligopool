@@ -30,7 +30,7 @@
 
 ## Installation
 
-`Oligopool Calculator` is a `Linux`-based software, and it is a `Python3.10+`-exclusive.
+`Oligopool Calculator` is a `Linux`-based `Python3.10+`-exclusive library software.
 
 You can install it from PyPI, where it is published as the `oligopool` package.
 ```bash

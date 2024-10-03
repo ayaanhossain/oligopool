@@ -67,7 +67,7 @@ $ pip uninstall oligopool
 
 ## Getting Started
 
-`Oligopool Calculator` is very simple and easy to use. Import the library and start using the various functions either in a script or in a `jupyter` `notebook` environment. Just use `help(...)` to read the docs as necessary and you should be good to go!
+`Oligopool Calculator` is very simple and easy to use. Import the library and start using the various functions either in a script or in a `jupyter` `notebook` environment. Just use `help(...)` to read the docs as necessary and follow along!
 
 There are example scripts of a (1) design parser and an (2) analysis pipleine inside the [`examples`](https://github.com/ayaanhossain/oligopool/tree/master/examples) directory with this repository. A detailed walkthrough of [`Oligopool Calculator` in action](https://github.com/ayaanhossain/oligopool/blob/master/examples/OligopoolCalculatorInAction.ipynb) inside a `jupyter` `notebook` is provided there as well.
 

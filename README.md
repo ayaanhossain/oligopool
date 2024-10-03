@@ -136,8 +136,8 @@ Type "help", "copyright", "credits" or "license" for more information.
         >>> init_df = pd.read_csv('initial_library.csv')
         >>>
         >>> # Add oligo elements one by one
-        >>> barcode_df, stats = op.barcode(input_data=init_df, ...)
-        >>> primer_df,  stats = op.primer(input_data=barcode_df, ...)
+        >>> primer_df,  stats = op.primer(input_data=init_df, ...)
+        >>> barcode_df, stats = op.barcode(input_data=primer_df, ...)
         ...
         >>> # Check length statistics when needed
         >>> op.lenstat(input_data=further_along_df)

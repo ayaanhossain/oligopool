@@ -6,8 +6,8 @@
 
 <p align="center">
   <a href="#Overview">Overview</a> •
-  <a href="#Getting Started">Getting Started</a> •
   <a href="#Installation">Installation</a> •
+  <a href="#Getting-Started">Getting Started</a> •
   <a href="#License">License</a> •
   <a href="#Citation">Citation</a> •
 </p>

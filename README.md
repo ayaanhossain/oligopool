@@ -86,7 +86,6 @@ Type "help", "copyright", "credits" or "license" for more information.
 >>>
 >>> import oligopool as op
 >>> help(op)
-
 ...
     oligopool v2024.09.29
     by ah

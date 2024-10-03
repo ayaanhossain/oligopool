@@ -32,7 +32,7 @@
 
 `Oligopool Calculator` is a `Linux`-based `Python3.10+`-exclusive library.
 
-You can install it from PyPI, where it is published as the `oligopool` package
+You can install it from [PyPI](https://pypi.org/project/oligopool/), where it is published as the `oligopool` package
 ```bash
 $ pip install oligopool
 ```

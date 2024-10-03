@@ -30,13 +30,13 @@
 
 ## Installation
 
-`Oligopool Calculator` is a `Linux`-based `Python3.10+`-exclusive library software.
+`Oligopool Calculator` is a `Linux`-based `Python3.10+`-exclusive library.
 
-You can install it from PyPI, where it is published as the `oligopool` package.
+You can install it from PyPI, where it is published as the `oligopool` package
 ```bash
 $ pip install oligopool
 ```
-Alternatively, you can install directly from GitHub.
+or install it directly from GitHub.
 ```bash
 $ pip install git+https://github.com/ayaanhossain/oligopool.git
 ```
@@ -47,7 +47,7 @@ Both approaches should install all dependencies automatically.
 
 **Verifying Installation**
 
-Successful installation will look like the following.
+Successful installation will look like this.
 ```python
 $ python
 Python 3.10.9 | packaged by conda-forge | (main, Feb  2 2023, 20:20:04) [GCC 11.3.0] on linux
@@ -60,7 +60,7 @@ Type "help", "copyright", "credits" or "license" for more information.
 
 **Uninstalling `Oligopool Calculator`**
 
-You can easily remove the package with
+You can easily remove the package via
 ```bash
 $ pip uninstall oligopool
 ```

@@ -15,11 +15,9 @@
 
 ## Overview
 
-Massively parallel reporter assays enable the simultaneous construction and characterization of large libraries of designed genetic parts and systems, combining oligopool synthesis with next-generation sequencing. As library sizes grow, it becomes computationally challenging to optimally design oligopool sequences and to rapidly analyze sequencing results.
+`Oligopool Calculator` is an end-to-end suite of algorithms for automated design and analysis of oligopool libraries. It contains algorithms and data structures that enable the scalable design of orthogonal primer sets and unique barcodes, the splitting of long constructs into multiple oligos, and the rapid packing and counting of barcoded reads -- all on a regular 8-core desktop computer. We have demonstrated `Oligopool Calculator` across several projects to build and characterize thousands of promoters, ribozymes, and mRNA stability elements, illustrating the use of a flexible grammar to add multiple barcodes, cut sites, excluded sequences, model-based constraints, read filters, and read processing functions.
 
-We present the `Oligopool Calculator`, an end-to-end suite of algorithms, that automates the design and analysis of massively parallel reporter assays with millions of defined variants. New algorithms and data structures enable the scalable design of orthogonal primer sets and unique barcodes, the splitting of long constructs into multiple oligos, and the rapid packing and counting of reads -- all on a regular 8-core desktop computer. We demonstrate the Oligopool Calculator across several projects to build and characterize thousands of promoters, ribozymes, and mRNA stability elements, illustrating how to use a flexible grammar to add multiple barcodes, cut sites, excluded sequences, model-based constraints, read filters, and read processing functions.
-
-The `Oligopool Calculator` facilitates the creative design and application of massively parallel reporter assays by automating solutions to its computational complexities.
+Overall, it facilitates the creative design and application of massively parallel reporter assays by automating solutions to its computational complexities.
 
 <h1 align="center">
     <a href="https://github.com/ayaanhossain/oligopool/">

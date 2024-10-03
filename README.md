@@ -32,24 +32,24 @@ The `Oligopool Calculator` facilitates the creative design and application of ma
 
 ## Installation
 
-`Oligopool Calculator` is `Linux`-based software, and it is a `Python3.10+`-exclusive.
+`Oligopool Calculator` is a `Linux`-based software, and it is a `Python3.10+`-exclusive.
 
-You can install `Oligopool Calculator` from PyPI, where it is published as the `oligopool` package.
+You can install it from PyPI, where it is published as the `oligopool` package.
 ```bash
 $ pip install oligopool
 ```
-Alternatively, you can install `Oligopool Calculator` from GitHub.
+Alternatively, you can install directly from GitHub.
 ```bash
 $ pip install git+https://github.com/ayaanhossain/oligopool.git
 ```
 Both approaches should install all dependencies automatically.
 
-> **Note** This GitHub version will always be the most updated version with all recent fixes. The PyPI version will always be the most stable one.
+> **Note** This GitHub version will always be the most updated version with all recent fixes. The PyPI version is aimed to be the most stable one.
 
 
 **Verifying Installation**
 
-If everything went well, `Oligopool Calculator` is now available in your environment under the `oligopool` package. You may verify it like so:
+Successful installation will look like the following.
 ```python
 $ python
 Python 3.10.9 | packaged by conda-forge | (main, Feb  2 2023, 20:20:04) [GCC 11.3.0] on linux
@@ -67,28 +67,21 @@ You can easily remove the package with
 $ pip uninstall oligopool
 ```
 
-**Reporting Installation Issues**
-
-If you encounter any problems during installation, please feel free to [open an issue](https://github.com/ayaanhossain/oligopool/issues) describing your problem along with your OS details, and any console output that shows the error.
-
-
 ## Getting Started
 
-Using `Oligopool Calculator` is as easy as importing the library and starting to use the various functions and tools either in a script or in a `jupyter` `notebook` environment. Just use `help(...)` to read the docs as necessary and you should be good to go!
+`Oligopool Calculator` is very simple and easy to use. Import the library and start using the various functions either in a script or in a `jupyter` `notebook` environment. Just use `help(...)` to read the docs as necessary and you should be good to go!
+
+There are example scripts of a (1) design parser and an (2) analysis pipleine inside the [`examples`](https://github.com/ayaanhossain/oligopool/tree/master/examples) directory with this repository. A detailed walkthrough of [`Oligopool Calculator` in action](https://github.com/ayaanhossain/oligopool/blob/master/examples/OligopoolCalculatorInAction.ipynb) inside a `jupyter` `notebook` is provided there as well.
 
 ```python
 $ python
 Python 3.12.6 | packaged by conda-forge | (main, Sep 30 2024, 18:08:52) [GCC 13.3.0] on linux
 Type "help", "copyright", "credits" or "license" for more information.
+>>>
 >>> import oligopool as op
 >>> help(op)
 
-Help on package oligopool:
-
-NAME
-    oligopool
-
-DESCRIPTION
+...
     oligopool v2024.09.29
     by ah
 
@@ -108,35 +101,14 @@ DESCRIPTION
             a. The DataFrame must contain a unique 'ID' column serving as primary key
             b. All other columns in the DataFrame must be DNA sequences or a - (dash)
         2. Next, define any optional background sequences via the background module
-        3. Add necessary oligopool elements with constraints via design modules
+        3. Add necessary oligopool elements with constraints via element modules
         4. Optionally, split long oligos and pad them via assembly modules
         5. Perform length checks as needed and finalize library via auxiliary modules
-
-        Example:
-        >>> import oligopool as op
-        >>>
-        >>> # Read initial library
-        >>> init_df = pd.read_csv('initial_library.csv')
-        >>>
-        >>> # Add oligo elements
-        >>> barcode_df, barcod_stats = op.barcode(input_data=init_df, ...)
-        >>> primer_df,  primer_stats = op.primer(input_data=barcode_df, ...)
-        >>>
-        >>> # Check length statistics
-        >>> op.lenstat(input_data=primer_df)
-        >>>
-        >>> # Split and pad longer oligos if needed
-        >>> split_df, split_stats = op.split(input_data=primer_df, ...)
-        >>> pad_df, pad_stats     = op.pad(input_data=split_df, ...)
-        >>>
-        >>> # Finalize and export library
-        >>> final_df, final_stats = op.final(input_data=split_df, ...)
-        >>> final_df.to_csv('final_library.csv')
 
         Background module available
             - background
 
-        Design modules available
+        Element modules available
             - primer
             - barcode
             - spacer
@@ -150,31 +122,37 @@ DESCRIPTION
             - lenstat
             - final
 
+        Worfklow example sketch
+
+        >>> import pandas as pd
+        >>> import oligopool as op
+        >>>
+        >>> # Read initial library
+        >>> df = pd.read_csv('initial_library.csv')
+        >>>
+        >>> # Add oligo elements
+        >>> barcode_df, stats = op.barcode(input_data=df, ...)
+        >>> primer_df,  stats = op.primer(input_data=barcode_df, ...)
+        ...
+        >>> # Check length statistics
+        >>> op.lenstat(input_data=primer_df)
+        >>>
+        >>> # Finalize the library
+        >>> final_df, stats = op.final(input_data=primer_df, ...)
+        >>>
+        >>> # Split and pad longer oligos if needed
+        >>> split_df, stats = op.split(input_data=final_df, ...)
+        >>> first_pad_df,  stats = op.pad(input_data=split_df, ...)
+        >>> second_pad_df, stats = op.pad(input_data=split_df, ...)
+        ...
+
+    Analysis Mode workflow
+
+        1. Index one or more CSVs containing the barcode and anchor information
         2. Pack all NGS FastQ files, optionally merging them if required
         3. If a barcode and its association with the core variant is to be counted use acount
         4. If multiple barcode combinations are to be counted use xcount
         5. Combine count matrices and perform stats and ML as necessary
-
-        Example:
-        >>> import oligopool as op
-        >>>
-        >>> # Read marked up library
-        >>> final_df = pd.read_csv('final_library.csv')
-        >>>
-        >>> # Index the barcodes and save the indexes
-        >>> bc1_index_stats = op.index(input_data=final_df, barcode_column='BC1', ...)
-        >>> bc2_index_stats = op.index(input_data=final_df, barcode_column='BC2', ...)
-        >>>
-        >>> # Pack the FastQ files
-        >>> sam1_pack_stats = op.pack(r1_file='sample_1_R1.fq.gz', ...)
-        >>> sam2_pack_stats = op.pack(r1_file='sample_2_R1.fq.gz', ...)
-        >>>
-        >>> # Compute and write the barcode combination count matrix
-        >>> xount_stats = op.xcount(index_files=['bc1_index', 'bc2_index'],
-        ...                         pack_file='sample_1_pack', ...)
-        >>>
-        >>> # Read the count matrix and continue analysis
-        >>> count_df = pd.read_csv('library_count_matrix...', ...)
 
         Indexing module available
             - index
@@ -186,6 +164,30 @@ DESCRIPTION
             - acount
             - xcount
 
+        Anamysis Mode worfklow example sketch
+
+        >>> import pandas as pd
+        >>> import oligopool as op
+        >>>
+        >>> # Read marked up library
+        >>> df = pd.read_csv('oligo_library.csv')
+        >>>
+        >>> # Index the barcodes and save the indexes
+        >>> bc1_index_stats = op.index(input_data=df, barcode_column='BC1', ...)
+        >>> bc2_index_stats = op.index(input_data=df, barcode_column='BC2', ...)
+        ...
+        >>> # Pack the FastQ files
+        >>> sam1_pack_stats = op.pack(r1_file='sample_1_R1.fq.gz', ...)
+        >>> sam2_pack_stats = op.pack(r1_file='sample_2_R1.fq.gz', ...)
+        ...
+        >>> # Compute and write the barcode combination count matrix
+        >>> xcount_stats = op.xcount(index_files=['bc1_index', 'bc2_index'],
+        ...                          pack_file='sample_1_pack', ...)
+        ...
+        >>> # Read the count matrix and continue analysis
+        >>> count_df = pd.read_csv('sample_1_counts.csv')
+        ...
+
     You can learn more about each module using help.
     >>> import oligopool as op
     >>>
@@ -194,6 +196,8 @@ DESCRIPTION
     >>> help(op.barcode)
     ...
     >>> help(op.xcount)
+...
+
 ```
 
 ## License

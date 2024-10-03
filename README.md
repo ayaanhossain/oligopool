@@ -25,7 +25,7 @@
     </a>
 </h1>
 
-**Design and analysis of oligopool variants using `Oligopool Calculator`.** **(a)** In `Design Mode`, `Oligopool Calculator` can be used to design optimized `barcode`s, `primer`s, `spacer`s, `motif`s and `split` large oligos into shorter `pad`ded fragments for downstream synthesis and assembly. **(b)** Once the genetic part variants are assembled and cloned inside a chassis or activated in vitro, barcoded amplicon libraries are sequenced as readout, and the resulting data is processed via `Analysis Mode` to generate count matrices of barcode abundance which serve as a proxy for genetic part activity. `Analysis Mode` proceeds by first `index`ing one or more sets of barcodes, `pack`ing reads to pre-count and collapse the readouts, and then producing the count matrices either using `acount` (association counting) or `xcount` (combinatorial counting).
+**Design and analysis of oligopool variants using `Oligopool Calculator`.** **(a)** In `Design Mode`, `Oligopool Calculator` can be used to design optimized `barcode`s, `primer`s, `spacer`s, `motif`s and `split` large oligos into shorter `pad`ded fragments for downstream synthesis and assembly. **(b)** Once the genetic part variants are assembled and cloned inside a chassis or activated in vitro, barcoded amplicon libraries are sequenced as readout, and the resulting data is processed via `Analysis Mode` to generate count matrices of barcode abundance which serve as a proxy for genetic part activity. `Analysis Mode` proceeds by first `index`ing one or more sets of barcodes, `pack`ing the reads, and then producing the count matrices either using `acount` (association counting) or `xcount` (combinatorial counting) functions.
 
 
 ## Installation

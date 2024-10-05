@@ -12,16 +12,15 @@
   <a style="text-decoration: none" href="#Citation">Citation</a>
 </p>
 
-
 ## Overview
 
 `Oligopool Calculator` is an end-to-end suite of algorithms for automated design and analysis of oligopool libraries.
 
 It enables the scalable design of orthogonal primer sets and unique barcodes, the splitting of long constructs into multiple oligos, and the rapid packing and counting of barcoded reads -- all on a regular 8-core desktop computer.
 
-We have demonstrated `Oligopool Calculator` across several projects to build oligopool libraries spanning thousands of promoters, ribozymes, and mRNA stability elements, illustrating the use of a flexible grammar to add multiple barcodes, cut sites, avoid excluded sequences, optimize constraints, and characterized those libraries using highly efficient barcoded read counting functions.
+We have used `Oligopool Calculator` across several projects to build oligopool libraries spanning thousands of promoters, ribozymes, and mRNA stability elements, illustrating the use of a flexible grammar to add multiple barcodes, cut sites, avoid excluded sequences, optimize constraints, and characterized those libraries using highly efficient barcoded read counting functions.
 
-`Oligopool Calculator` facilitates the creative design and application of massively parallel reporter assays by automating solutions to its computational complexities. It can be applied to libraries containing millions of defined variants. To learn more read our paper, out now in ACS Synthetic Biology.
+`Oligopool Calculator` facilitates the creative design and application of massively parallel reporter assays by automating solutions to its computational complexities. It can be applied to libraries containing millions of defined variants. To learn more, read our paper published in ACS Synthetic Biology.
 
 <h1 align="center">
     <a href="https://github.com/ayaanhossain/oligopool/">

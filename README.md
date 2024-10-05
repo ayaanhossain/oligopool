@@ -203,6 +203,10 @@ Type "help", "copyright", "credits" or "license" for more information.
     >>> help(op.barcode)
     ...
     >>> help(op.xcount)
+
+    For advanced use cases, the following classes are also available.
+        - vectorDB
+        - Scry
 ...
 
 ```

@@ -39,8 +39,7 @@ def background_engine(
     # Open vectorDB instance
     vDB = db.vectorDB(
         path=outdir,
-        maxreplen=maxreplen,
-        mode=0)
+        maximum_repeat_length=maxreplen)
 
     # Book-keeping
     t0   = tt.time()
@@ -109,21 +108,21 @@ def background(
     The background function creates a k-mer database from a list or CSV file of background sequences.
     This database is used during primer design to ensure primers are non-repetitive to the background,
     minimizing off-target amplification. Non-repetitiveness is regulated by the maximum shared repeat
-    length parameter. The generated database is saved in the specified <output_directory>.
+    length parameter. The generated database is saved in the specified `output_directory`.
 
     Required Parameters:
-        - input_data (list / str / pd.DataFrame): background for primers; can be a CSV file or a DataFrame.
-        - maximum_repeat_length (int): Max repeat length between primers and background (between 6 and 20).
-        - output_directory (str): Directory to store the generated background k-mer database.
-        - verbose (bool): If True, logs updates to stdout (default: True).
+        - `input_data` (`list` / `str` / `pd.DataFrame`): background for primers; can be a CSV file or a DataFrame.
+        - `maximum_repeat_length` (`int`): Max repeat length between primers and background (between 6 and 20).
+        - `output_directory` (`str`): Directory to store the generated background k-mer database.
+        - `verbose` (`bool`): If `True`, logs updates to stdout (default: `True`).
 
     Returns:
-        - A dictionary of stats from pipeline steps.
+        - A dictionary of stats from the last step in pipeline.
 
     Notes:
-        - If <input_data> is a CSV or DataFrame, must contain 'ID' and a 'Sequence' column with DNA strings.
-        - <maximum_repeat_length> here controls non-repetitiveness of primers to <background> only.
-        - For manipulation, use vectorDB to operate on the background (see help(oligopool.vectorDB)).
+        - If `input_data` is a CSV or DataFrame, must contain 'ID' and a 'Sequence' column with DNA strings.
+        - `maximum_repeat_length` here controls non-repetitiveness of primers to `background` only.
+        - For manipulation, use `vectorDB` to operate on the background (see `help(oligopool.vectorDB)`).
     '''
 
     # Argument Aliasing

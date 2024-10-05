@@ -2443,7 +2443,7 @@ def get_parsed_background(
         liner.send(
             '{}: None Specified\n'.format(
                 background_field))
-        return None, True
+        return True, None
 
     # Is background a vectorDB instance?
     if isinstance(background, db.vectorDB):
@@ -2452,7 +2452,7 @@ def get_parsed_background(
                 background_field,
                 len(background),
                 background.K))
-        return background, True
+        return True, 'instance'
 
     # Is background a string?
     if isinstance(background, str):
@@ -2471,7 +2471,7 @@ def get_parsed_background(
 
         # Non-existent background
         if not background_exists:
-            return None, False
+            return False, None
 
         # Is background a valid vectorDB storage?
         else:
@@ -2480,8 +2480,7 @@ def get_parsed_background(
             try:
                 vDB = db.vectorDB(
                     path=indir,
-                    maxreplen=None,
-                    mode=1)
+                    maximum_repeat_length=None)
 
             # Invalid attempt
             except Exception as E:
@@ -2489,7 +2488,7 @@ def get_parsed_background(
                     '{}: {} [INVALID OR PRE-OPENED BACKGROUND OBJECT]\n'.format(
                         background_field,
                         indir))
-                return None, False
+                return False, None
 
             # Valid attempt
             else:
@@ -2498,7 +2497,8 @@ def get_parsed_background(
                         background_field,
                         len(vDB),
                         vDB.K))
-                return vDB, True
+                vDB.close()
+                return True, 'path'
 
     # Invalid input type
     else:
@@ -2506,7 +2506,7 @@ def get_parsed_background(
             '{}: {} [INPUT TYPE IS INVALID]\n'.format(
                 background_field,
                 background))
-        return None, False
+        return False, None
 
 def get_callback_validity(
     callback,

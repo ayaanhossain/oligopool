@@ -5,11 +5,11 @@
 </h1>
 
 <p align="center">
-  <a href="#Overview">Overview</a> •
-  <a href="#Installation">Installation</a> •
-  <a href="#Getting-Started">Getting Started</a> •
-  <a href="#License">License</a> •
-  <a href="#Citation">Citation</a>
+  <a style="text-decoration: none" href="#Overview">Overview</a> •
+  <a style="text-decoration: none" href="#Installation">Installation</a> •
+  <a style="text-decoration: none" href="#Getting-Started">Getting Started</a> •
+  <a style="text-decoration: none" href="#License">License</a> •
+  <a style="text-decoration: none" href="#Citation">Citation</a>
 </p>
 
 

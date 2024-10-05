@@ -104,7 +104,7 @@ Type "help", "copyright", "credits" or "license" for more information.
 
         1. Initialize a pandas DataFrame with core library elements
             a. The DataFrame must contain a unique 'ID' column serving as primary key
-            b. All other columns in the DataFrame must be DNA sequences or a - (dash)
+            b. All other columns in the DataFrame must be DNA sequences
         2. Next, define any optional background sequences via the background module
         3. Add necessary oligopool elements with constraints via element modules
         4. Optionally, split long oligos and pad them via assembly modules
@@ -136,8 +136,8 @@ Type "help", "copyright", "credits" or "license" for more information.
         >>> init_df = pd.read_csv('initial_library.csv')
         >>>
         >>> # Add oligo elements one by one
-        >>> primer_df,  stats = op.primer(input_data=init_df, ...)
-        >>> barcode_df, stats = op.barcode(input_data=primer_df, ...)
+        >>> barcode_df, stats = op.barcode(input_data=init_df, ...)
+        >>> primer_df,  stats = op.primer(input_data=barcode_df, ...)
         ...
         >>> # Check length statistics when needed
         >>> op.lenstat(input_data=further_along_df)
@@ -155,7 +155,7 @@ Type "help", "copyright", "credits" or "license" for more information.
 
         1. Index one or more CSVs containing the barcode information
         2. Pack all NGS FastQ files, optionally merging them if required
-        3. If a barcode and its association with the core variant is to be counted use acount
+        3. Use acount for association counting of variants and barcodes
         4. If multiple barcode combinations are to be counted use xcount
         5. Combine count DataFrames and perform stats and ML as necessary
 

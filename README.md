@@ -63,7 +63,7 @@ Type "help", "copyright", "credits" or "license" for more information.
 
 **Uninstalling `Oligopool Calculator`**
 
-You can easily remove the package via
+You can easily remove the package easily.
 ```bash
 $ pip uninstall oligopool
 ```

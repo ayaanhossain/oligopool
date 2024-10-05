@@ -9,7 +9,7 @@
   <a href="#Installation">Installation</a> •
   <a href="#Getting-Started">Getting Started</a> •
   <a href="#License">License</a> •
-  <a href="#Citation">Citation</a> •
+  <a href="#Citation">Citation</a>
 </p>
 
 

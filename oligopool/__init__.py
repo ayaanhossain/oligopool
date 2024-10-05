@@ -5,22 +5,23 @@ from .primer import primer
 from .motif import motif
 from .spacer import spacer
 
-# Alias VectorDB
-from .base.vectordb import vectorDB
+# Auxiliary Design Functions
+from .lenstat import lenstat
+from .final import final
 
 # Assembly Design Functions
 from .split import split
 from .pad import pad
-
-# Auxiliary Design Functions
-from .lenstat import lenstat
-from .final import final
 
 # Analysis Functions
 from .index import index
 from .pack import pack
 from .acount import acount
 from .xcount import xcount
+
+# Other goodies
+from .base.vectordb import vectorDB
+from .base.scry import Scry
 
 
 # Setup
@@ -46,7 +47,7 @@ Design Mode workflow
 
     1. Initialize a pandas DataFrame with core library elements
         a. The DataFrame must contain a unique 'ID' column serving as primary key
-        b. All other columns in the DataFrame must be DNA sequences or a - (dash)
+        b. All other columns in the DataFrame must be DNA sequences
     2. Next, define any optional background sequences via the background module
     3. Add necessary oligopool elements with constraints via element modules
     4. Optionally, split long oligos and pad them via assembly modules
@@ -61,13 +62,13 @@ Design Mode workflow
         - spacer
         - motif
 
-    Assembly modules available
-        - split
-        - pad
-
     Auxiliary modules available
         - lenstat
         - final
+
+    Assembly modules available
+        - split
+        - pad
 
     Worfklow example sketch
 
@@ -75,17 +76,17 @@ Design Mode workflow
     >>> import oligopool as op
     >>>
     >>> # Read initial library
-    >>> df = pd.read_csv('initial_library.csv')
+    >>> init_df = pd.read_csv('initial_library.csv')
     >>>
-    >>> # Add oligo elements
-    >>> barcode_df, stats = op.barcode(input_data=df, ...)
+    >>> # Add oligo elements one by one
+    >>> barcode_df, stats = op.barcode(input_data=init_df, ...)
     >>> primer_df,  stats = op.primer(input_data=barcode_df, ...)
     ...
-    >>> # Check length statistics
-    >>> op.lenstat(input_data=primer_df)
-    >>>
+    >>> # Check length statistics when needed
+    >>> op.lenstat(input_data=further_along_df)
+    ...
     >>> # Finalize the library
-    >>> final_df, stats = op.final(input_data=primer_df, ...)
+    >>> final_df, stats = op.final(input_data=ready_to_go_df, ...)
     >>>
     >>> # Split and pad longer oligos if needed
     >>> split_df, stats = op.split(input_data=final_df, ...)
@@ -95,11 +96,11 @@ Design Mode workflow
 
 Analysis Mode workflow
 
-    1. Index one or more CSVs containing the barcode and anchor information
+    1. Index one or more CSVs containing the barcode information
     2. Pack all NGS FastQ files, optionally merging them if required
-    3. If a barcode and its association with the core variant is to be counted use acount
+    3. Use acount for association counting of variants and barcodes
     4. If multiple barcode combinations are to be counted use xcount
-    5. Combine count matrices and perform stats and ML as necessary
+    5. Combine count DataFrames and perform stats and ML as necessary
 
     Indexing module available
         - index
@@ -111,7 +112,7 @@ Analysis Mode workflow
         - acount
         - xcount
 
-    Anamysis Mode worfklow example sketch
+    Analysis Mode worfklow example sketch
 
     >>> import pandas as pd
     >>> import oligopool as op
@@ -146,4 +147,8 @@ You can learn more about each module using help.
 >>> help(op.barcode)
 ...
 >>> help(op.xcount)
+
+For advanced use cases, the following classes are also available.
+    - vectorDB
+    - Scry
 '''

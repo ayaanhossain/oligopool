@@ -13,15 +13,25 @@ def lenstat_engine(
     oligolimit,
     liner):
     '''
-    TBW
+    Compute the length statistics of the
+    elements and the resulting oligos.
+
+    :: indf
+       type - pd.DataFrame
+       desc - a pandas DataFrame storing
+              annotated oligopool variants and their parts
+    :: oligolimit
+       type - integer
+       desc - maximum oligo length allowed in the oligopool,
+              must be 4 or greater
     '''
 
     # Book-keeping
     t0       = tt.time()        # Start Timer
     intstats = cx.OrderedDict() # Stats Storage
     fraglens = None             # Running Column  Lengths
-    minvariantlen = 0           # Running Minimum Length
-    maxvariantlen = 0           # Running Maximum Length
+    minoligolength = 0          # Running Minimum Length
+    maxoligolength = 0          # Running Maximum Length
     minspaceavail = None        # Minimum Free Space Available
     maxspaceavail = None        # Maximum Free Space Available
 
@@ -38,17 +48,17 @@ def lenstat_engine(
         else:
             fraglens += collens
 
-        minvariantlen = np.min(fraglens)
-        maxvariantlen = np.max(fraglens)
+        minoligolength = np.min(fraglens)
+        maxoligolength = np.max(fraglens)
 
         # Update Stats
         intstats[idx] = [
             col,
             minelementlen,
             maxelementlen,
-            minvariantlen,
-            maxvariantlen,
-            ('Yes', 'No')[maxvariantlen <= oligolimit]]
+            minoligolength,
+            maxoligolength,
+            ('Yes', 'No')[maxoligolength <= oligolimit]]
 
         # Show Update
         if minelementlen == maxelementlen:
@@ -63,8 +73,8 @@ def lenstat_engine(
                     minelementlen,
                     maxelementlen))
 
-    minspaceavail = oligolimit - maxvariantlen
-    maxspaceavail = oligolimit - minvariantlen
+    minspaceavail = oligolimit - maxoligolength
+    maxspaceavail = oligolimit - minoligolength
 
     # Show Time Elapsed
     liner.send(
@@ -153,9 +163,9 @@ def lenstat(
                 for k,u in intstats.items()},
             orient='index',
             columns=pd.MultiIndex.from_arrays(
-                [('Variant', 'Minimum', 'Maximum', 'Minimum', 'Maximum', '   Oligo'),
-                 ('Element', 'Element', 'Element', 'Variant', 'Variant', '   Limit'),
-                 ('   Name', ' Length', ' Length', ' Length', ' Length', 'Overflow')]
+                [('', '    Min', '    Max', '   Min', '   Max', '   Oligo'),
+                 ('', 'Element', 'Element', ' Oligo', ' Oligo', '   Limit'),
+                 ('', ' Length', ' Length', 'Length', 'Length', 'Overflow')]
                 )).to_string(index=False).split('\n'))
 
     # Show Stats String
@@ -167,17 +177,17 @@ def lenstat(
         'status'  : True,
         'basis'   : 'solved',
         'step'    : 1,
-        'stepname': 'computing-length-statistics',
+        'step_name': 'computing-length-statistics',
         'vars'    : {
-            'lenstat'     : cx.OrderedDict({v[0]: { # Store Element-wise Length Stats
-                'minelementlen': v[1],
-                'maxelementlen': v[2],
-                'minvariantlen': v[3],
-                'maxvariantlen': v[4],
-                'limitoverflow': v[5] == 'Yes'} for k,v in intstats.items()}),
-            'oligolimit'   : oligolimit,            # Specified Oligo Limit
-            'minspaceavail': minspaceavail,         # Minimum Space Available
-            'maxspaceavail': maxspaceavail},        # Maximum Space Available
+            'len_stat'     : cx.OrderedDict({v[0]: { # Store Element-wise Length Stats
+                'min_element_len':  v[1],
+                'max_element_len':  v[2],
+                'min_oligo_length': v[3],
+                'max_oligo_length': v[4],
+                'limit_overflow':   v[5] == 'Yes'} for k,v in intstats.items()}),
+            'oligo_limit'    : oligolimit,            # Specified Oligo Limit
+            'min_space_avail': minspaceavail,         # Minimum Space Available
+            'max_space_avail': maxspaceavail},        # Maximum Space Available
         'warns'   : warns}
 
     # Show Free Space Available

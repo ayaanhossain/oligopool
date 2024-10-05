@@ -8,7 +8,8 @@ import nrpcalc as nr
 
 from .base import utils    as ut
 from .base import valparse as vp
-from .base import coreprimer as cp
+from .base import core_primer as cp
+from .base import vectordb as db
 
 from typing import Tuple
 
@@ -284,42 +285,41 @@ def primer(
     '''
     Designs constrained primers with specified melting temperature and non-repetitiveness
     for all variants in the oligopool. Ensures compatibility with paired primers and minimizes
-    dimer formation. Returns a DataFrame of designed primers, optionally saving to <output_file>
+    dimer formation. Returns a DataFrame of designed primers, optionally saving to `output_file`
     in CSV format.
 
     Required Parameters:
-        - input_data (str / pd.DataFrame): Path to a CSV file or DataFrame with annotated oligopool variants.
-        - oligo_length_limit (int): Maximum allowed oligo length (≥ 4).
-        - primer_sequence_constraint (int): IUPAC degenerate sequence constraint.
-        - primer_type (int): Primer type (0 for forward, 1 for reverse).
-        - minimum_melting_temperature (float): Minimum Tm (≥ 25°C).
-        - maximum_melting_temperature (float): Maximum Tm (≤ 95°C).
-        - maximum_repeat_length (int): Max shared repeat length with oligos (≥ 6).
-        - primer_column (str): Column name for the designed primer.
+        - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated oligopool variants.
+        - `oligo_length_limit` (`int`): Maximum allowed oligo length (≥ 4).
+        - `primer_sequence_constraint` (`int`): IUPAC degenerate sequence constraint.
+        - `primer_type` (`int`): Primer type (0 for forward, 1 for reverse).
+        - `minimum_melting_temperature` (`float`): Minimum Tm (≥ 25°C).
+        - `maximum_melting_temperature` (`float`): Maximum Tm (≤ 95°C).
+        - `maximum_repeat_length` (`int`): Max shared repeat length with oligos (≥ 6).
+        - `primer_column` (`str`): Column name for the designed primer.
 
     Optional Parameters:
-        - output_file (str / None): Filename for output DataFrame (default: None).
-        - paired_primer_column (str / None): Column for paired primer sequence (default: None).
-        - left_context_column (str / None): Column for left DNA context (default: None).
-        - right_context_column (str / None): Column for right DNA context (default: None).
-        - excluded_motifs (list / str / pd.DataFrame / None): Motifs to exclude;
-            can be a CSV path or DataFrame (default: None).
-        - background_directory (str / None): Directory for background k-mer sequences (default: None).
-        - verbose (bool): If True, logs updates to stdout (default: True).
+        - `output_file` (`str` / `None`): Filename for output DataFrame (default: `None`).
+        - `paired_primer_column` (`str` / `None`): Column for paired primer sequence (default: `None`).
+        - `left_context_column` (`str` / `None`): Column for left DNA context (default: `None`).
+        - `right_context_column` (`str` / `None`): Column for right DNA context (default: `None`).
+        - `excluded_motifs` (`list` / `str` / `pd.DataFrame` / `None`): Motifs to exclude;
+            can be a CSV path or DataFrame (default: `None`).
+        - `background_directory` (`str` / `None`): Directory for background k-mer sequences (default: `None`).
+        - `verbose` (`bool`): If `True`, logs updates to stdout (default: `True`).
 
     Returns:
-        - A pandas DataFrame of designed primers; saves to <output_file> if specified.
-        - A dictionary of stats from pipeline steps.
+        - A pandas DataFrame of designed primers; saves to `output_file` if specified.
+        - A dictionary of stats from the last step in pipeline.
 
     Notes:
-        - <input_data> must contain a unique 'ID' column.
-        - All other columns be non-empty DNA strings or a single dash ('-').
-        - Column names in <input_data> must be unique, excluding <primer_column>.
-        - At least one of <left_context_column> or <right_context_column> must be specified.
+        - `input_data` must contain a unique 'ID' column, all other columns must be non-empty DNA strings.
+        - Column names in `input_data` must be unique, and exclude `primer_column`.
+        - At least one of `left_context_column` or `right_context_column` must be specified.
         - The paired primer type is inferred based on the current primer type.
         - If a paired primer is specified, Tm of the designed primer is optimized within 1°C of it.
-        - <maximum_repeat_length> controls non-repetitiveness against <input_data> only, not <background>.
-        - If <excluded_motifs> is a CSV or DataFrame, it must have 'ID' and 'Exmotif' columns.
+        - `maximum_repeat_length` controls non-repetitiveness against `input_data` only, not `background`.
+        - If `excluded_motifs` is a CSV or DataFrame, it must have 'ID' and 'Exmotif' columns.
         - Constant motifs in sequence constraint may lead to sub-optimal primers.
     '''
 
@@ -491,8 +491,8 @@ def primer(
         liner=liner)
 
     # Full background Parsing and Validation
-    (background,
-    background_valid) = vp.get_parsed_background(
+    (background_valid,
+    background_type) = vp.get_parsed_background(
         background=background,
         background_field=' Background Database   ',
         liner=liner)
@@ -515,6 +515,15 @@ def primer(
         liner.send('\n')
         raise RuntimeError(
             'Invalid Argument Input(s).')
+
+    # Open Background
+    if background_type == 'path':
+        background = ut.get_adjusted_path(
+            path=background,
+            suffix='.oligopool.background')
+        background = db.vectorDB(
+            path=background,
+            maximum_repeat_length=None)
 
     # Start Timer
     t0 = tt.time()
@@ -1007,6 +1016,10 @@ def primer(
     # Unschedule outfile deletion
     if primerstatus == 'Successful':
         ae.unregister(ofdeletion)
+
+    # Close Background
+    if background_type == 'path':
+        background.close()
 
     # Close Liner
     liner.close()

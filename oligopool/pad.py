@@ -3,9 +3,9 @@ import time  as tt
 import collections as cx
 import atexit      as ae
 
-from .base import utils       as ut
-from .base import valparse    as vp
-from .base import coreprimer  as cp
+from .base import utils    as ut
+from .base import valparse as vp
+from .base import core_primer as cp
 from . import primer as pr
 
 

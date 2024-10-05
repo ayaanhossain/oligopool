@@ -1,13 +1,17 @@
 import time  as tt
 
 import collections as cx
-import numpy   as np
 import atexit  as ae
+
+import numpy   as np
+import pandas  as pd
 import bounter as bt
 
 from .base import utils    as ut
 from .base import valparse as vp
 from .base import corebarcode as cb
+
+from typing import Tuple
 
 
 def barcode_engine(
@@ -210,7 +214,7 @@ def barcode_engine(
         if optstatus:
 
             # Update Store Fill Count
-            stats['vars']['barcodecount'] += 1
+            stats['vars']['barcode_count'] += 1
             count += 1
 
             # Show Update on Success
@@ -261,16 +265,16 @@ def barcode_engine(
 
             # Update Fail Counts
             if optstate == 1:
-                stats['vars']['distancefail'] += 1
+                stats['vars']['distance_fail'] += 1
             if optstate == 2:
-                stats['vars']['exmotiffail']  += 1
+                stats['vars']['exmotif_fail']  += 1
             if optstate == 3:
-                stats['vars']['edgefail']     += sum(
+                stats['vars']['edge_fail']     += sum(
                     emcounter.values())
             if optstate == 4:
-                stats['vars']['repeatfail']   += 1
+                stats['vars']['repeat_fail']   += 1
             if optstate == 5:
-                stats['vars']['typefail']     += 1
+                stats['vars']['type_fail']     += 1
 
             # Inifinite Jumper Book-keeping Update
             if jtp == 2:
@@ -278,7 +282,7 @@ def barcode_engine(
 
             # Record Context Failure Motifs
             if not emcounter is None:
-                stats['vars']['exmotifcounter'] += emcounter
+                stats['vars']['exmotif_counter'] += emcounter
 
         # Verbage Book-keeping
         if verbage_reach >= verbage_target:
@@ -336,126 +340,73 @@ def barcode_engine(
                     stats)
 
 def barcode(
-    indata,
-    oligolimit,
-    barcodelen,
-    minhdist,
-    maxreplen,
-    barcodecol,
-    outfile=None,
-    barcodetype=0,
-    leftcontext=None,
-    rightcontext=None,
-    exmotifs=None,
-    verbose=True):
+    input_data:str|pd.DataFrame,
+    oligo_length_limit:int,
+    barcode_length:int,
+    minimum_hamming_distance:int,
+    maximum_repeat_length:int,
+    barcode_column:str,
+    output_file:str|None=None,
+    barcode_type:int=0,
+    left_context_column:str|None=None,
+    right_context_column:str|None=None,
+    excluded_motifs:list|str|pd.DataFrame|None=None,
+    verbose:bool=True) -> Tuple[pd.DataFrame, dict]:
     '''
-    The barcode function designs constrained barcodes, such that
-    the minimum hamming distance between every pair of barcodes
-    in the set is guaranteed to be greater than or equal to the
-    specified minimum hamming distance. Additionally, the set of
-    barcodes are free of all excluded motifs, even when placed
-    between a left and a right context sequence. The generated
-    DataFrame containing designed barcodes is returned to user
-    and optionally written out to <outfile> (CSV) if specified.
+    Generates constrained barcodes, ensuring a minimum Hamming distance between each pair
+    and excluding specified motifs, even when flanked by context sequences. The output is a
+    DataFrame of designed barcodes, which can be saved as a CSV file if specified.
 
-    :: indata
-       type - string / pd.DataFrame
-       desc - path to CSV file or a pandas DataFrame storing
-              annotated oligopool variants and their parts
-    :: oligolimit
-       type - integer
-       desc - maximum oligo length allowed in the oligopool,
-              must be 4 or greater
-    :: barcodelen
-       type - integer
-       desc - the length of the barcodes to be designed,
-              must be 4 or greater
-    :: minhdist
-       type - integer
-       desc - minimum required hamming distance between every
-              pair of barcodes in the designed set, must be 1
-              or greater
-    :: maxreplen
-       type - integer
-       desc - maximum shared repeat length between the
-              barcodes and flanking regions, must be 4 or
-              greater
-    :: barcodecol
-       type - string
-       desc - name of the column to store designed barcodes
-    :: outfile
-       type - string
-       desc - filename to save updated DataFrame with barcodes
-              (suffix='.oligopool.barcode.csv')
-              (default=None)
-    :: barcodetype
-       type - integer
-       desc - barcode design type identifier
-              0 = terminus optimized barcodes are designed
-                  (k-mer uniqueness at minimum threshold)
-                  (barcode design is fast)
-              1 = spectrum optimized barcodes are designed
-                  (k-mer uniqueness at maximum threshold)
-                  (barcode design is slow)
-              (default=0)
-    :: leftcontext
-       type - string / None
-       desc - name of the column containing DNA sequences
-              to the left of the barcode sequence
-              (default=None)
-    :: rightcontext
-       type - string / None
-       desc - name of the column containing DNA sequences
-              placed right of the barcode sequence
-              (default=None)
-    :: exmotifs
-       type - iterable / string / pd.DataFrame / None
-       desc - iterable of DNA string motifs to be excluded
-              within and at the edges of the barcodes when
-              placed between context sequences; optionally,
-              this can be a path to a CSV file containing
-              uniquely identified excluded motifs or an
-              equivalent pandas DataFrame
-              (default=None)
-    :: verbose
-       type - boolean
-       desc - if True will log updates to stdout
-              (default=True)
+    Required Parameters:
+        - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated oligopool variants.
+        - `oligo_length_limit` (`int`): Maximum allowed oligo length (≥ 4).
+        - `barcode_length` (`int`): Length of the designed barcodes (≥ 4).
+        - `minimum_hamming_distance` (`int`): Minimum pairwise Hamming distance (≥ 1).
+        - `maximum_repeat_length` (`int`): Max shared repeat length with oligos (≥ 6).
+        - `barcode_column` (`str`): Column name for the designed barcodes.
 
-    Output: A file named <outfile> with '.oligoool.barcode.csv'
-            suffix if specified; otherwise a pandas DataFrame is
-            returned, along with design or warning statistics.
+    Optional Parameters:
+        - `output_file` (`str` / `None`): Filename for output DataFrame (default: `None`).
+        - `barcode_type` (`int`): Barcode design type
+            0 for fast terminus optimized,
+            1 for slow spectrum optimized.
+            (default: 0)
+        - `left_context_column` (`str` / `None`): Column for left DNA context (default: `None`).
+        - `right_context_column` (`str` / `None`): Column for right DNA context (default: `None`).
+        - `excluded_motifs` (`list` / `str` / `pd.DataFrame` / `None`): Motifs to exclude;
+            can be a CSV path or DataFrame (default: `None`).
+        - `verbose` (`bool`): If `True`, logs updates to stdout (default: `True`).
 
-    Note 1. Specified <indata> must contain a column named 'ID',
-            that uniquely identifies variants in a pool. Values
-            in <indata> except 'ID' must be DNA strings. All
-            rows and columns in <indata> must be non-empty,
-            i.e. none of the cells must be empty.
+    Returns:
+        - A pandas DataFrame of designed barcodes; saves to `output_file` if specified.
+        - A dictionary of stats from the last step in pipeline.
 
-    Note 2. Column names in <indata> must be unique, without
-            <barcodecol> as a pre-existing column name.
-
-    Note 3. Either <leftcontext> or <rightcontext> or both may
-            be specified. If both are specified then they must
-            be adjacent to each other and in order. Designed
-            barcodes would be inserted next to or between them.
-
-    Note 4. The <maxreplen> parameter here controls the level
-            of non-repetitiveness in designed barcodes with
-            respect to sequences in <indata> only. Background
-            k-mers are not factored into design.
-
-    Note 5. If <exmotifs> points to a CSV file or DataFrame,
-            it must contain both an 'ID' and an 'Exmotif'
-            column, with 'Exmotif' containing all of the
-            excluded motif sequences.
-
-    Note 6. In case there is difficulty in designing enough
-            barcodes, increasing barcodelen, decreasing
-            minhdist, switching to terminus optimized barcodes,
-            increasing maxreplen, or reducing exmotifs may
-            help relax the design constraints.
+    Notes:
+        - `input_data` must contain a unique 'ID' column, all other columns must be non-empty DNA strings.
+        - Column names in `input_data` must be unique, and exclude `barcode_column`.
+        - At least one of `left_context_column` or `right_context_column` must be specified.
+        - If `excluded_motifs` is a CSV or DataFrame, it must have 'ID' and 'Exmotif' columns.
+        - If barcode design is challenging, consider
+            * altering `barcode_length`, or
+            * reducing `minimum_hamming_distance`, or
+            * switching to terminus optimized barcodes, or
+            * increasing `maximum_repeat_length`, or
+            * reducing `excluded_motifs` to relax the constraints.
     '''
+
+    # Argument Aliasing
+    indata       = input_data
+    oligolimit   = oligo_length_limit
+    barcodelen   = barcode_length
+    minhdist     = minimum_hamming_distance
+    maxreplen    = maximum_repeat_length
+    barcodecol   = barcode_column
+    outfile      = output_file
+    barcodetype  = barcode_type
+    leftcontext  = left_context_column
+    rightcontext = right_context_column
+    exmotifs     = excluded_motifs
+    verbose      = verbose
 
     # Start Liner
     liner = ut.liner_engine(verbose)
@@ -663,16 +614,16 @@ def barcode(
             'status'  : False,
             'basis'   : 'infeasible',
             'step'    : 1,
-            'stepname': 'parsing-oligo-limit',
+            'step_name': 'parsing-oligo-limit',
             'vars'    : {
-                   'oligolimit': oligolimit,
-                'limitoverflow': True,
-                'minvariantlen': minvariantlen,
-                'maxvariantlen': maxvariantlen,
-                'minelementlen': minelementlen,
-                'maxelementlen': maxelementlen,
-                'minspaceavail': minspaceavail,
-                'maxspaceavail': maxspaceavail},
+                   'oligo_limit': oligolimit,
+                'limit_overflow': True,
+                'min_variant_len': minvariantlen,
+                'max_variant_len': maxvariantlen,
+                'min_element_len': minelementlen,
+                'max_element_len': maxelementlen,
+                'min_space_avail': minspaceavail,
+                'max_space_avail': maxspaceavail},
             'warns'   : warns}
 
         # Return results
@@ -698,11 +649,11 @@ def barcode(
             'status'  : False,
             'basis'   : 'infeasible',
             'step'    : 2,
-            'stepname': 'parsing-barcode-length',
+            'step_name': 'parsing-barcode-length',
             'vars'    : {
-                 'barcodelen': barcodelen,
-                'designspace': designspace,
-                'targetcount': targetcount},
+                 'barcode_len': barcodelen,
+                'design_space': designspace,
+                'target_count': targetcount},
             'warns'   : warns}
 
         # Return results
@@ -717,8 +668,8 @@ def barcode(
 
         # Update Step 3 Warning
         warns[3] = {
-            'warncount': 0,
-            'stepname' : 'parsing-excluded-motifs',
+            'warn_count': 0,
+            'step_name' : 'parsing-excluded-motifs',
             'vars': None}
 
         # Parse exmotifs
@@ -736,7 +687,7 @@ def barcode(
             liner=liner)
 
         # Remove Step 3 Warning
-        if not warns[3]['warncount']:
+        if not warns[3]['warn_count']:
             warns.pop(3)
 
         # exmotifs infeasible
@@ -747,10 +698,10 @@ def barcode(
                 'status'  : False,
                 'basis'   : 'infeasible',
                 'step'    : 3,
-                'stepname': 'parsing-excluded-motifs',
+                'step_name': 'parsing-excluded-motifs',
                 'vars'    : {
-                     'problens': problens,
-                    'probcount': tuple(list(
+                     'prob_lens': problens,
+                    'prob_count': tuple(list(
                         4**pl for pl in problens))},
                 'warns'   : warns}
 
@@ -811,10 +762,10 @@ def barcode(
             'basis' : 'infeasible',
             'step'  : 5,
             'vars'  : {
-                'sourcecontext': sourcecontext,
-                'kmerspace'    : kmerspace,
-                'fillcount'    : fillcount,
-                'freecount'    : freecount},
+                'source_context': sourcecontext,
+                'kmer_space'    : kmerspace,
+                'fill_count'    : fillcount,
+                'free_count'    : freecount},
             'warns' : warns}
 
         # Return results
@@ -829,17 +780,17 @@ def barcode(
         'status'  : False,
         'basis'   : 'unsolved',
         'step'    : 6,
-        'stepname': 'computing-barcodes',
+        'step_name': 'computing-barcodes',
         'vars'    : {
-               'targetcount': targetcount,   # Required Number of Barcodes
-              'barcodecount': 0,             # Barcode Design Count
-                  'typefail': 0,             # Barcode Tyoe Failure Count
-              'distancefail': 0,             # Hamming Distance Fail Count
-                'repeatfail': 0,             # Repeat Fail Count
-               'exmotiffail': 0,             # Exmotif Elimination Fail Count
-                  'edgefail': 0,             # Edge Effect Fail Count
-            'distancedistro': None,          # Hamming Distance Distribution
-            'exmotifcounter': cx.Counter()}, # Exmotif Encounter Counter
+               'target_count': targetcount,   # Required Number of Barcodes
+              'barcode_count': 0,             # Barcode Design Count
+                  'type_fail': 0,             # Barcode Tyoe Failure Count
+              'distance_fail': 0,             # Hamming Distance Fail Count
+                'repeat_fail': 0,             # Repeat Fail Count
+               'exmotif_fail': 0,             # Exmotif Elimination Fail Count
+                  'edge_fail': 0,             # Edge Effect Fail Count
+            'distance_distro': None,          # Hamming Distance Distribution
+            'exmotif_counter': cx.Counter()}, # Exmotif Encounter Counter
         'warns'   : warns}
 
     # Schedule outfile deletion
@@ -870,7 +821,7 @@ def barcode(
         liner.send('\n[Step 7: Computing Distance Distribution]\n')
 
         # Compute Hamming Distance Distribution
-        stats['vars']['distancedistro'] = cb.get_distro(
+        stats['vars']['distance_distro'] = cb.get_distro(
             store=store,
             liner=liner)
 
@@ -905,36 +856,36 @@ def barcode(
 
     plen = ut.get_printlen(
         value=max(stats['vars'][field] for field in (
-            'targetcount',
-            'barcodecount')))
+            'target_count',
+            'barcode_count')))
 
     liner.send(
         '   Design Status   : {}\n'.format(
             barcodestatus))
     liner.send(
         '   Target Count    : {:{},d} Barcode(s)\n'.format(
-            stats['vars']['targetcount'],
+            stats['vars']['target_count'],
             plen))
     liner.send(
         '  Barcode Count    : {:{},d} Barcode(s) ({:6.2f} %)\n'.format(
-            stats['vars']['barcodecount'],
+            stats['vars']['barcode_count'],
             plen,
             ut.safediv(
-                A=stats['vars']['barcodecount'] * 100.,
+                A=stats['vars']['barcode_count'] * 100.,
                 B=targetcount)))
 
     # Success Relevant Stats
     if stats['status']:
-        if stats['vars']['distancedistro']:
+        if stats['vars']['distance_distro']:
 
             dlen = ut.get_printlen(
                 value=max(map(
                     lambda x: x[1],
-                    stats['vars']['distancedistro'])))
+                    stats['vars']['distance_distro'])))
 
             liner.send('   Pair-wise Distance Distribution\n')
 
-            for percentage,distance in stats['vars']['distancedistro']:
+            for percentage,distance in stats['vars']['distance_distro']:
                 liner.send(
                     '     - {:6.2f} % Barcode(s) w/ Distance ≥ {:{},d} Mismatch(es)\n'.format(
                         percentage,
@@ -944,66 +895,66 @@ def barcode(
     # Failure Relavant Stats
     else:
         maxval = max(stats['vars'][field] for field in (
-            'distancefail',
-            'repeatfail',
-            'exmotiffail',
-            'edgefail'))
+            'distance_fail',
+            'repeat_fail',
+            'exmotif_fail',
+            'edge_fail'))
 
         sntn, plen = ut.get_notelen(
             printlen=ut.get_printlen(
                 value=maxval))
 
-        total_conflicts = stats['vars']['distancefail'] + \
-                          stats['vars']['repeatfail']   + \
-                          stats['vars']['exmotiffail']  + \
-                          stats['vars']['edgefail']
+        total_conflicts = stats['vars']['distance_fail'] + \
+                          stats['vars']['repeat_fail']   + \
+                          stats['vars']['exmotif_fail']  + \
+                          stats['vars']['edge_fail']
         liner.send(
             ' Distance Conflicts: {:{},{}} Event(s) ({:6.2f} %)\n'.format(
-                stats['vars']['distancefail'],
+                stats['vars']['distance_fail'],
                 plen,
                 sntn,
                 ut.safediv(
-                    A=stats['vars']['distancefail'] * 100.,
+                    A=stats['vars']['distance_fail'] * 100.,
                     B=total_conflicts)))
         liner.send(
             '   Repeat Conflicts: {:{},{}} Event(s) ({:6.2f} %)\n'.format(
-                stats['vars']['repeatfail'],
+                stats['vars']['repeat_fail'],
                 plen,
                 sntn,
                 ut.safediv(
-                    A=stats['vars']['repeatfail'] * 100.,
+                    A=stats['vars']['repeat_fail'] * 100.,
                     B=total_conflicts)))
         liner.send(
             '  Exmotif Conflicts: {:{},{}} Event(s) ({:6.2f} %)\n'.format(
-                stats['vars']['exmotiffail'],
+                stats['vars']['exmotif_fail'],
                 plen,
                 sntn,
                 ut.safediv(
-                    A=stats['vars']['exmotiffail'] * 100.,
+                    A=stats['vars']['exmotif_fail'] * 100.,
                     B=total_conflicts)))
         liner.send(
             '     Edge Conflicts: {:{},{}} Event(s) ({:6.2f} %)\n'.format(
-                stats['vars']['edgefail'],
+                stats['vars']['edge_fail'],
                 plen,
                 sntn,
                 ut.safediv(
-                    A=stats['vars']['edgefail'] * 100.,
+                    A=stats['vars']['edge_fail'] * 100.,
                     B=total_conflicts)))
 
         # Enumerate Motif-wise Fail Counts
-        if stats['vars']['exmotifcounter']:
+        if stats['vars']['exmotif_counter']:
 
             qlen = max(len(motif) \
-                for motif in stats['vars']['exmotifcounter'].keys()) + 2
+                for motif in stats['vars']['exmotif_counter'].keys()) + 2
 
             sntn, vlen = ut.get_notelen(
                 printlen=ut.get_printlen(
                     value=max(
-                        stats['vars']['exmotifcounter'].values())))
+                        stats['vars']['exmotif_counter'].values())))
 
             liner.send('   Exmotif-wise Conflict Distribution\n')
 
-            for exmotif,count in stats['vars']['exmotifcounter'].most_common():
+            for exmotif,count in stats['vars']['exmotif_counter'].most_common():
                 exmotif = '\'{}\''.format(exmotif)
                 liner.send(
                     '     - Motif {:>{}} Triggered {:{},{}} Event(s)\n'.format(

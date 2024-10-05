@@ -1,3 +1,10 @@
+2024.10.02
+1. Updated `__init__.py`
+2. Updated `OligopoolCalculatorInAction.ipynb`.
+3. Updated `README.md`.
+4. Mitigated `background` open issue on error in `primer`.
+5. Updated docstrings in `barcode`, `primer`, and `background`.
+
 2024.09.30
 1. Updated `README.md`.
 2. Started `OligopoolCalculatorInAction.ipynb`.

@@ -15,58 +15,52 @@ class vectorDB:
     LevelDB based scalable on disk vectorDB for k-mer storage.
     '''
 
-    def __init__(self, path, maxreplen, mode):
+    def __init__(self, path, maximum_repeat_length):
         '''
         vectorDB constructor.
 
         :: path
            type - string
            desc - path to store vectorDB instance
-        :: maxreplen
+        :: maximum_repeat_length
            type - integer
            desc - maximum shared repeat length
-        :: mode
-           type - integer
-           desc - vectorDB operation mode
-                  0 = Write Mode
-                  1 =  Read Mode
         '''
+
+        # Aliasing
+        maxreplen = maximum_repeat_length
+
+        # Path Setup
+        self.PATH = ut.removestarfix(
+            string=path,
+            fix='/',
+            loc=1) + '/'
+
+        # Create/Open LevelDB object
+        self.DB = plyvel.DB(
+            self.PATH,
+            create_if_missing=True,
+            error_if_exists=False)
+
+        # Length Setup
         try:
-
-            # Path Setup
-            self.PATH = ut.removestarfix(
-                string=path,
-                fix='/',
-                loc=1) + '/'
-
-            # Create/Open LevelDB object
-            self.DB = plyvel.DB(
-                self.PATH,
-                create_if_missing=mode==0, # Mode 0 = Write Mode
-                error_if_exists=mode==0)   # Mode 1 = Read Mode
-
-            # Length Setup
-            try:
-                self.LEN = int(self.DB.get(b'LEN'))
-            except:
-                self.LEN = 0
-                self.DB.put(b'LEN', b'0')
-
-            # K Setup
-            try:
-                self.K = int(self.DB.get(b'K'))
-            except:
-                self.K = int(maxreplen+1)
-                self.DB.put(b'K', str(maxreplen+1).encode())
-
-            # Verbosity Setup
-            self.VERB = False
-
-            # Object ALIVE status
-            self.ALIVE = True
-
+            self.LEN = int(self.DB.get(b'LEN'))
         except:
-            raise IOError('vectorDB instance missing or already opened')
+            self.LEN = 0
+            self.DB.put(b'LEN', b'0')
+
+        # K Setup
+        try:
+            self.K = int(self.DB.get(b'K'))
+        except:
+            self.K = int(maxreplen+1)
+            self.DB.put(b'K', str(maxreplen+1).encode())
+
+        # Verbosity Setup
+        self.VERB = False
+
+        # Object ALIVE status
+        self.ALIVE = True
 
     def __repr__(self):
         '''

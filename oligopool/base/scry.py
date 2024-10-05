@@ -1,14 +1,38 @@
-import collections as cx
 import numpy as np
 import numba as nb
 import edlib as ed
 
-
-class Scry(object):
-
-    '''
-    "The Inner Eye does not See upon command!"
+'''
+"The Inner Eye does not See upon command!"
     - Professor Sybill Trelawney
+'''
+
+class Scry:
+
+    __version__ = '2024.10.03'
+    __author__ = 'ah'
+
+    __doc__ = f'''
+    Scry v{__version__}
+    by {__author__}
+
+    Scry is a 1-nearest neighbor classifier for
+    DNA barcodes. It can also be used generally
+    for any set of fixed length strings.
+
+    Operation:
+    1. Train a model using .train(...)
+    2. Switch prediction modes using .prime(...)
+    3. Predict using .predict(...)
+
+    To learn more use help(...).
+
+    Example:
+    >>> model = Scry()
+    >>> model.train(...)
+    >>> help(model.prime)
+    >>> model.prime(...)
+    >>> model.predict(...)
     '''
 
     __slots__ = [
@@ -20,7 +44,6 @@ class Scry(object):
     def __init__(self):
         '''
         Scry classifier constructor.
-        Internal use only.
         '''
 
         # Corpus Variables
@@ -43,7 +66,7 @@ class Scry(object):
         self.primed  = False
 
     @staticmethod
-    def absorb(map1, map2):
+    def __absorb(map1, map2):
         '''
         Absorb map1 into map2.
         Internal use only.
@@ -62,7 +85,7 @@ class Scry(object):
         return map2
 
     @staticmethod
-    def stream_kmers(x, n, k, locations=False):
+    def __stream_kmers(x, n, k, locations=False):
         '''
         Stream all k-mers from sequence x.
         Internal use only.
@@ -88,7 +111,7 @@ class Scry(object):
         return (x[i:i+k] for i in range(n-k+1))
 
     @staticmethod
-    def stream_reduced(store):
+    def __stream_reduced(store):
         '''
         Stream all substrings reduced by length
         of 1 from store. Internal use only.
@@ -106,7 +129,7 @@ class Scry(object):
             i += 1
 
     @staticmethod
-    def stream_substrings(x, p, q):
+    def __stream_substrings(x, p, q):
         '''
         Stream all substrings of length
         p through q from sequence x.
@@ -132,7 +155,7 @@ class Scry(object):
 
         # Stream Initial Substrings
         store = []
-        for kmer in Scry.stream_kmers(
+        for kmer in Scry.__stream_kmers(
             x=x, n=len(x), k=p):
             yield kmer, p
             store.append(kmer)
@@ -141,7 +164,7 @@ class Scry(object):
         l = p-1
         while l >= q:
             _store = []
-            for reduced in Scry.stream_reduced(
+            for reduced in Scry.__stream_reduced(
                 store=store):
                 yield reduced, l
                 _store.append(reduced)
@@ -149,7 +172,7 @@ class Scry(object):
             l -= 1
 
     @staticmethod
-    def index(X, Y, n, k, t, liner=None):
+    def __index(X, Y, n, k, t, liner=None):
         '''
         Index given sequences and labels
         in iterables. Internal use only.
@@ -188,12 +211,12 @@ class Scry(object):
             # Show Update
             if not liner is None:
                 liner.send(
-                    ' Barcode Model: Phase 1 on {}'.format(
+                    ' Scry Model: Phase 1 on {}'.format(
                         'Barcode {:,}'.format(
                             y)))
 
             # Store Substrings in Corpus Map
-            for ss,_ in Scry.stream_substrings(
+            for ss,_ in Scry.__stream_substrings(
                 x=x, p=n, q=n-t):
                 if not ss in c:
                     c[ss] = y
@@ -205,7 +228,7 @@ class Scry(object):
 
             # Store k-mers in Spectrum Dictionary
             if t > 0: # Mutation Expected in Query
-                for kmer,idx in Scry.stream_kmers(
+                for kmer,idx in Scry.__stream_kmers(
                     x=x, n=n, k=k, locations=True):
                     if not kmer in d:
                         d[kmer] = []
@@ -218,7 +241,7 @@ class Scry(object):
                 # Show Update
                 if not liner is None:
                     liner.send(
-                        ' Barcode Model: Phase 2 on {}'.format(
+                        ' Scry Model: Phase 2 on {}'.format(
                             'k-mer {:,}'.format(
                                 kcnt)))
 
@@ -275,14 +298,15 @@ class Scry(object):
            desc - iterable of all sequences
                   to fit
         :: Y
-           type - iterable of labels of all
+           type - iterable
+           desc - iterable of labels of all
                   trained sequences
         :: n
            type - integer
            desc - length of each sequence
         :: k
            type - integer
-           desc - k-value for sequences
+           desc - k-mer length for sequences
         :: t
            type - integer
            desc - maximum errors in
@@ -299,17 +323,18 @@ class Scry(object):
 
         X = list(X)
         Y = list(Y)
-        c,C,d = self.index(
+        c,C,d = self.__index(
             X=X, Y=Y, n=n, k=k, t=t,
             liner=liner)
         self.C = C
-        self.c = self.absorb(c, {})
-        self.d = self.absorb(d, {})
+        self.c = self.__absorb(c, {})
+        self.d = self.__absorb(d, {})
         self.n = n
         self.k = k
         self.t = t
         self.z = len(X)
         self.trained = True
+        self.primed = False
         return self
 
     def prime(self, t=0, mode=0):
@@ -340,7 +365,7 @@ class Scry(object):
                 'Invalid Scry prediction mode: {}'.format(
                     mode))
 
-        # # How many errors allowed?
+        # How many errors allowed?
         st = self.t      if t >  self.t         else t if t >= 0 else 0
         pt = self.n // 2 if t >= (0.5 * self.n) else t if t >= 0 else 0
 
@@ -354,7 +379,7 @@ class Scry(object):
 
     @staticmethod
     @nb.njit
-    def update_scorevector(sv, iv, sr, en, sk):
+    def __update_scorevector(sv, iv, sr, en, sk):
         '''
         Update scorevector indices by sk.
         Internal use only.
@@ -380,7 +405,7 @@ class Scry(object):
 
     @staticmethod
     @nb.njit
-    def select_maxindices(sv):
+    def __select_maxindices(sv):
         '''
         Select index with maximum score.
         Internal use only.
@@ -440,7 +465,7 @@ class Scry(object):
         sl = sn if sn < n else n-1 # (n-1 since |x| = n was not hit)
         ys = set()
         pl = sl
-        for sx,l in Scry.stream_substrings(
+        for sx,l in Scry.__stream_substrings(
             x=x, p=sl, q=sn-st):
             # Same Length Substrings Analyzed
             if l < pl:
@@ -487,7 +512,7 @@ class Scry(object):
         u  = sn-sk       # Last sk-mer start location
 
         # Resolve k-mers
-        for kmer,idx in Scry.stream_kmers(
+        for kmer,idx in Scry.__stream_kmers(
             x=x, n=n, k=sk, locations=True):
 
             # Have we seen this k-mer?
@@ -518,7 +543,7 @@ class Scry(object):
                 if not (sr is None):
                     # Update Scores
                     xs += sk
-                    Scry.update_scorevector(
+                    Scry.__update_scorevector(
                         sv=sv, iv=iv, sr=sr, en=en, sk=sk)
 
         # Did we get any matches?
@@ -527,7 +552,7 @@ class Scry(object):
             return None, None
 
         # Get Best Matches
-        idxv,idxs = Scry.select_maxindices(
+        idxv,idxs = Scry.__select_maxindices(
             sv=sv)
 
         # Localize Corpus Dictionary

@@ -206,7 +206,7 @@ Type "help", "copyright", "credits" or "license" for more information.
     For advanced use cases, the following classes are also available.
         - vectorDB
         - Scry
-
+...
 ```
 
 ## License

@@ -174,7 +174,7 @@ Type "help", "copyright", "credits" or "license" for more information.
             >>> import oligopool as op
             >>>
             >>> # Read annotated library
-            >>> df = pd.read_csv('oligo_library.csv')
+            >>> df = pd.read_csv('annotated_final_library.csv')
             >>>
             >>> # Index the barcodes and save the indexes
             >>> bc1_index_stats = op.index(input_data=df, barcode_column='BC1', ...)

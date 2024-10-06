@@ -139,7 +139,7 @@ Type "help", "copyright", "credits" or "license" for more information.
             >>> primer_df,  stats = op.primer(input_data=barcode_df, ...)
             ...
             >>> # Check length statistics as needed
-            >>> op.lenstat(input_data=further_along_df)
+            >>> stats = op.lenstat(input_data=further_along_df)
             ...
             >>> # Finalize the library
             >>> final_df, stats = op.final(input_data=ready_to_go_df, ...)

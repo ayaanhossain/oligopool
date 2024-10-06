@@ -173,7 +173,7 @@ Type "help", "copyright", "credits" or "license" for more information.
             >>> import pandas as pd
             >>> import oligopool as op
             >>>
-            >>> # Read marked up library
+            >>> # Read annotated library
             >>> df = pd.read_csv('oligo_library.csv')
             >>>
             >>> # Index the barcodes and save the indexes

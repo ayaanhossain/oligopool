@@ -6,7 +6,7 @@ import pandas as pd
 
 from .base import utils    as ut
 from .base import vectordb as db
-from .base import valparse as vp
+from .base import validation_parsing as vp
 
 
 def background_engine(

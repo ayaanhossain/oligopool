@@ -1,11 +1,12 @@
 import time as tt
 
 import collections as cx
-import numpy       as np
-import pandas      as pd
 
-from .base import utils    as ut
-from .base import valparse as vp
+import numpy  as np
+import pandas as pd
+
+from .base import utils as ut
+from .base import validation_parsing as vp
 
 
 def lenstat_engine(
@@ -87,12 +88,29 @@ def lenstat_engine(
         maxspaceavail)
 
 def lenstat(
-    indata,
-    oligolimit,
-    verbose=True):
+    input_data:str|pd.DataFrame,
+    oligo_length_limit:int,
+    verbose:bool=True) -> dict:
     '''
-    TBW
+    Computes the length statistics of the elements and the resulting oligos in `input_data`.
+    Returns only the stats dictionary.
+
+    Required Parameters:
+        - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated oligopool variants.
+        - `oligo_length_limit` (`int`): Maximum allowed oligo length (≥ 4).
+
+    Returns:
+        - A dictionary of stats from the last step in pipeline.
+
+    Notes:
+        - `input_data` must contain a unique 'ID' column, all other columns must be non-empty DNA strings.
+        - `lenstat` module does not add anything to `input_data`, so there is no `output_file` required.
     '''
+
+    # Argument Aliasing
+    indata     = input_data
+    oligolimit = oligo_length_limit
+    verbose    = verbose
 
     # Start Liner
     liner = ut.liner_engine(verbose)

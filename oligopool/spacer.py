@@ -1,250 +1,70 @@
 import time  as tt
 
 import collections as cx
-import numpy  as np
 import atexit as ae
 
-import nrpcalc as nr
+import numpy  as np
+import pandas as pd
 
-from .base import utils     as ut
-from .base import valparse  as vp
-from .base import coremotif as cm
+from .base import utils as ut
+from .base import validation_parsing as vp
+from .base import core_motif as cm
 
+from typing import Tuple
 
-def spacer_engine(
-    spacergroup,
-    leftcontext,
-    rightcontext,
-    exmotifs,
-    edgeeffectlength,
-    prefixdict,
-    suffixdict,
-    targetcount,
-    stats,
-    liner):
-    '''
-    TBW
-    '''
-
-    # Book-keeping
-    t0      = tt.time()          # Start Timer
-    spacers = [None]*targetcount # Store Spacers
-    plen    = ut.get_printlen(   # Target Print Length
-        value=targetcount)
-    abort   = False              # Abortion Flag
-
-    # Context Setup
-    contextarray   = cx.deque(range(targetcount))  # Context Array
-    (_,
-    leftselector)  = ut.get_context_type_selector( # Left  Context Selector
-        context=leftcontext)
-    (_,
-    rightselector) = ut.get_context_type_selector( # Right Context Selector
-        context=rightcontext)
-
-    # Optimize exmotifs
-    if not exmotifs is None:
-        exmotifs = ut.get_grouped_sequences(
-            sequences=exmotifs)
-
-    # Define Maker Instance
-    maker = nr.base.maker.NRPMaker(
-        part_type='DNA',
-        seed=None)
-
-    # Core Design Outer Loop
-    while spacergroup:
-
-        # Fetch Context Array
-        (spacerlen,
-        contextarray) = spacergroup.popitem()
-
-        # Core Design Inner Loop
-        while contextarray:
-
-            # Case 1: Zero Length Spacer
-            if spacerlen == 0:
-
-                # Assign Gap to Entire Group
-                while contextarray:
-
-                    # Fetch Context Index
-                    idx = contextarray.popleft()
-
-                    # Assign Gap
-                    spacers[idx] = '-'
-                    stats['vars']['spacercount'] += 1
-
-                    # Show Update
-                    cm.show_update(
-                        idx=idx+1,
-                        plen=plen,
-                        element='Spacer',
-                        motif='*GAP*',
-                        optstatus=2,
-                        optstate=0,
-                        inittime=None,
-                        terminal=False,
-                        liner=liner)
-
-                # Zero Spacers Completed
-                break # Jump to Next Group
-
-            # Case 2: Non-Zero Length Spacer
-            #         (this requires computation)
-            else:
-
-                # Fetch Context Index
-                idx = contextarray.popleft()
-
-                # Fetch Context Sequences
-                lcseq =  leftselector(idx)
-                rcseq = rightselector(idx)
-
-                # Define Forbidden Prefix and Suffix
-                prefixforbidden = prefixdict[lcseq] if not lcseq is None else None
-                suffixforbidden = suffixdict[rcseq] if not rcseq is None else None
-
-                # Define Objective Function
-                objectivefunction = lambda spacer: cm.motif_objectives(
-                    motif=spacer,
-                    motiflen=spacerlen,
-                    exmotifs=exmotifs,
-                    exmotifindex=None,
-                    lcseq=lcseq,
-                    rcseq=rcseq,
-                    edgeeffectlength=edgeeffectlength,
-                    prefixforbidden=prefixforbidden,
-                    suffixforbidden=suffixforbidden,
-                    inittime=t0,
-                    stats=stats,
-                    idx=idx+1,
-                    plen=plen,
-                    element='Spacer',
-                    liner=liner)
-
-                # Design Spacer via Maker
-                spacer = maker.nrp_maker(
-                    homology=min(spacerlen, 6),
-                    seq_constr='N'*spacerlen,
-                    struct_constr='.'*spacerlen,
-                    target_size=1,
-                    background=None,
-                    struct_type=None,
-                    synth_opt=False,
-                    local_model_fn=objectivefunction,
-                    jump_count=100,
-                    fail_count=100,
-                    output_file=None,
-                    verbose=False,
-                    abortion=True,
-                    allow_internal_repeat=True,
-                    check_constraints=False)
-
-                # Did we succeed? No ..
-                if len(spacer) == 0:
-
-                    # Terminate Design Loop
-                    abort = True
-                    break # RIP .. We failed!
-
-                # A spacer was designed!
-                else:
-
-                    # Extract Spacer
-                    spacer = spacer[0]
-
-                    # Record Designed Motif
-                    spacers[idx] = spacer
-                    stats['vars']['spacercount'] += 1
-
-                    # Show Update
-                    cm.show_update(
-                        idx=idx+1,
-                        plen=plen,
-                        element='Spacer',
-                        motif=spacers[idx],
-                        optstatus=2,
-                        optstate=0,
-                        inittime=None,
-                        terminal=False,
-                        liner=liner)
-
-                    cm.extra_assign_motif(
-                        motif=spacer,
-                        contextarray=contextarray,
-                        leftselector=leftselector,
-                        rightselector=rightselector,
-                        edgeeffectlength=edgeeffectlength,
-                        prefixdict=prefixdict,
-                        suffixdict=suffixdict,
-                        storage=spacers,
-                        stats=stats,
-                        plen=plen,
-                        element='Spacer',
-                        element_key='spacercount',
-                        liner=liner)
-
-        # Continue Outer Loop?
-        if abort:
-            break
-
-    # Check Status and Return Solution
-    if not abort and \
-       stats['vars']['spacercount'] == targetcount:
-
-        # We solved this!
-        stats['status'] = True
-        stats['basis']  = 'solved'
-
-         # Determine Last Known Motif
-        if spacers[-1] != '-':
-            lastmotif = spacers[-1]
-        else:
-            lastmotif = '*GAP*'
-
-        # Final Update
-        cm.show_update(
-            idx=targetcount,
-            plen=plen,
-            element='Spacer',
-            motif=lastmotif,
-            optstatus=2,
-            optstate=0,
-            inittime=t0,
-            terminal=True,
-            liner=liner)
-
-        # Return Results
-        return (spacers, stats)
-
-    # Design Unsuccessful
-    else:
-
-        # This was a miscarriage
-        stats['status'] = False
-        stats['basis']  = 'unsolved'
-
-        # Final Update
-        liner.send('|* Time Elapsed: {:.2f} sec\n'.format(
-            tt.time()-t0))
-
-        # Return Results
-        return (None, stats)
 
 def spacer(
-    indata,
-    oligolimit,
-    spacercol,
-    outfile,
-    spacerlen=None,
-    leftcontext=None,
-    rightcontext=None,
-    exmotifs=None,
-    verbose=True):
+    input_data:str|pd.DataFrame,
+    oligo_length_limit:int,
+    spacer_column:str,
+    output_file:str|None=None,
+    spacer_length:int|None=None,
+    left_context_column:str|None=None,
+    right_context_column:str|None=None,
+    excluded_motifs:list|str|pd.DataFrame|None=None,
+    verbose:bool=True) -> Tuple[pd.DataFrame, dict]:
     '''
-    TBW
+    Inserts a fixed or variable length neutral spacer free from excluded motifs. If the spacer length
+    is not specified, then the spacer per oligo is such that the final length of the oligo matches
+    specified `oligo_length_limit`. Returned DataFrame can be written as a CSV file.
+
+    Required Parameters:
+        - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated oligopool variants.
+        - `oligo_length_limit` (`int`): Maximum allowed oligo length (≥ 4).
+        - `spacer_column` (`str`): Column name for inserting the designed spacers.
+
+    Optional Parameters:
+        - `output_file` (`str` / `None`): Filename for output DataFrame (default: `None`).
+        - `spacer_length` (`int` / `None`): Length of the inserted spacers,
+            if `None` automatically determine this length per oligo (default: `None`).
+        - `left_context_column` (`str` / `None`): Column for left DNA context (default: `None`).
+        - `right_context_column` (`str` / `None`): Column for right DNA context (default: `None`).
+        - `excluded_motifs` (`list` / `str` / `pd.DataFrame` / `None`): Motifs to exclude;
+            can be a CSV path or DataFrame (default: `None`).
+        - `verbose` (`bool`): If `True`, logs updates to stdout (default: `True`).
+
+    Returns:
+        - A pandas DataFrame of inserted spacers; saves to `output_file` if specified.
+        - A dictionary of stats from the last step in pipeline.
+
+    Notes:
+        - `input_data` must contain a unique 'ID' column, all other columns must be non-empty DNA strings.
+        - Column names in `input_data` must be unique, and exclude `spacer_column`.
+        - At least one of `left_context_column` or `right_context_column` must be specified.
+        - If `excluded_motifs` is a CSV or DataFrame, it must have 'ID' and 'Exmotif' columns.
+        - Oligo rows already summing to or exceeding `oligo_length_limit` have a `'-'` (dash) as spacer.
     '''
+
+    # Argument Aliasing
+    indata       = input_data
+    oligolimit   = oligo_length_limit
+    spacercol    = spacer_column
+    outfile      = output_file
+    spacerlen    = spacer_length
+    leftcontext  = left_context_column
+    rightcontext = right_context_column
+    exmotifs     = excluded_motifs
+    verbose      = verbose
 
     # Start Liner
     liner = ut.liner_engine(verbose)
@@ -425,16 +245,16 @@ def spacer(
             'status'  : False,
             'basis'   : 'infeasible',
             'step'    : 2,
-            'stepname': 'parsing-oligo-limit',
+            'step_name': 'parsing-oligo-limit',
             'vars'    : {
-                   'oligolimit': oligolimit,
-                'limitoverflow': True,
-                'minvariantlen': minvariantlen,
-                'maxvariantlen': maxvariantlen,
-                'minelementlen': minelementlen,
-                'maxelementlen': maxelementlen,
-                'minspaceavail': minspaceavail,
-                'maxspaceavail': maxspaceavail},
+                   'oligo_limit': oligolimit,
+                'limit_overflow': True,
+                'min_varian_tlen': minvariantlen,
+                'max_variant_len': maxvariantlen,
+                'min_element_len': minelementlen,
+                'max_element_len': maxelementlen,
+                'min_space_avail': minspaceavail,
+                'max_space_avail': maxspaceavail},
             'warns'   : warns}
 
         # Return results
@@ -457,8 +277,8 @@ def spacer(
 
         # Update Step 4 Warning
         warns[4] = {
-            'warncount': 0,
-            'stepname' : 'parsing-excluded-motifs',
+            'warn_count': 0,
+            'step_name' : 'parsing-excluded-motifs',
             'vars': None}
 
         # Parse exmotifs
@@ -476,7 +296,7 @@ def spacer(
             liner=liner)
 
         # Remove Step 4 Warning
-        if not warns[4]['warncount']:
+        if not warns[4]['warn_count']:
             warns.pop(4)
 
         # exmotifs infeasible
@@ -487,10 +307,10 @@ def spacer(
                 'status'  : False,
                 'basis'   : 'infeasible',
                 'step'    : 4,
-                'stepname': 'parsing-excluded-motifs',
+                'step_name': 'parsing-excluded-motifs',
                 'vars'    : {
-                     'problens': problens,
-                    'probcount': tuple(list(
+                     'prob_lens': problens,
+                    'prob_count': tuple(list(
                         4**pl for pl in problens))},
                 'warns'   : warns}
 
@@ -526,8 +346,8 @@ def spacer(
 
             # Update Step 6 Warning
             warns[6] = {
-                'warncount': 0,
-                'stepname' : 'parsing-edge-effects',
+                'warn_count': 0,
+                'step_name' : 'parsing-edge-effects',
                 'vars': None}
 
             # Compute Forbidden Prefixes and Suffixes
@@ -543,7 +363,7 @@ def spacer(
                 liner=liner)
 
             # Remove Step 6 Warning
-            if not warns[6]['warncount']:
+            if not warns[6]['warn_count']:
                 warns.pop(6)
 
     # Finalize Context
@@ -561,13 +381,13 @@ def spacer(
         'status'  : False,
         'basis'   : 'unsolved',
         'step'    : 7,
-        'stepname': 'computing-spacers',
+        'step_name': 'computing-spacers',
         'vars'    : {
-               'targetcount': targetcount,   # Required Number of Spacers
-               'spacercount': 0,             # Spacer Design Count
-               'exmotiffail': 0,             # Exmotif Elimination Fail Count
-                  'edgefail': 0,             # Edge Effect Fail Count
-            'exmotifcounter': cx.Counter()}, # Exmotif Encounter Counter
+               'target_count': targetcount,   # Required Number of Spacers
+               'spacer_count': 0,             # Spacer Design Count
+               'exmotif_fail': 0,             # Exmotif Elimination Fail Count
+                  'edge_fail': 0,             # Edge Effect Fail Count
+            'exmotif_counter': cx.Counter()}, # Exmotif Encounter Counter
         'warns'   : warns}
 
     # Schedule outfile deletion
@@ -577,7 +397,7 @@ def spacer(
 
     # Design Spacers
     (spacers,
-    stats) = spacer_engine(
+    stats) = cm.spacer_engine(
         spacergroup=spacergroup,
         leftcontext=leftcontext,
         rightcontext=rightcontext,
@@ -620,67 +440,67 @@ def spacer(
 
     plen = ut.get_printlen(
         value=max(stats['vars'][field] for field in (
-            'targetcount',
-            'spacercount')))
+            'target_count',
+            'spacer_count')))
 
     liner.send(
         '  Design Status   : {}\n'.format(
             spacerstatus))
     liner.send(
         '  Target Count    : {:{},d} Spacer(s)\n'.format(
-            stats['vars']['targetcount'],
+            stats['vars']['target_count'],
             plen))
     liner.send(
         '  Spacer Count    : {:{},d} Spacer(s) ({:6.2f} %)\n'.format(
-            stats['vars']['spacercount'],
+            stats['vars']['spacer_count'],
             plen,
             ut.safediv(
-                A=stats['vars']['spacercount'] * 100.,
+                A=stats['vars']['spacer_count'] * 100.,
                 B=targetcount)))
 
     # Failure Relavant Stats
     if not stats['status']:
         maxval = max(stats['vars'][field] for field in (
-            'exmotiffail',
-            'edgefail'))
+            'exmotif_fail',
+            'edge_fail'))
 
         sntn, plen = ut.get_notelen(
             printlen=ut.get_printlen(
                 value=maxval))
 
-        total_conflicts = stats['vars']['exmotiffail']  + \
-                          stats['vars']['edgefail']
+        total_conflicts = stats['vars']['exmotif_fail']  + \
+                          stats['vars']['edge_fail']
         liner.send(
             ' Exmotif Conflicts: {:{},{}} Event(s) ({:6.2f} %)\n'.format(
-                stats['vars']['exmotiffail'],
+                stats['vars']['exmotif_fail'],
                 plen,
                 sntn,
                 ut.safediv(
-                    A=stats['vars']['exmotiffail'] * 100.,
+                    A=stats['vars']['exmotif_fail'] * 100.,
                     B=total_conflicts)))
         liner.send(
             '    Edge Conflicts: {:{},{}} Event(s) ({:6.2f} %)\n'.format(
-                stats['vars']['edgefail'],
+                stats['vars']['edge_fail'],
                 plen,
                 sntn,
                 ut.safediv(
-                    A=stats['vars']['edgefail'] * 100.,
+                    A=stats['vars']['edge_fail'] * 100.,
                     B=total_conflicts)))
 
         # Enumerate Motif-wise Fail Counts
-        if stats['vars']['exmotifcounter']:
+        if stats['vars']['exmotif_counter']:
 
             qlen = max(len(motif) \
-                for motif in stats['vars']['exmotifcounter'].keys()) + 2
+                for motif in stats['vars']['exmotif_counter'].keys()) + 2
 
             sntn, vlen = ut.get_notelen(
                 printlen=ut.get_printlen(
                     value=max(
-                        stats['vars']['exmotifcounter'].values())))
+                        stats['vars']['exmotif_counter'].values())))
 
             liner.send('   Exmotif-wise Conflict Distribution\n')
 
-            for exmotif,count in stats['vars']['exmotifcounter'].most_common():
+            for exmotif,count in stats['vars']['exmotif_counter'].most_common():
                 exmotif = '\'{}\''.format(exmotif)
                 liner.send(
                     '     - Motif {:>{}} Triggered {:{},{}} Event(s)\n'.format(

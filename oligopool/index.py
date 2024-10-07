@@ -2,7 +2,7 @@ import time as tt
 import atexit as ae
 
 from .base import utils     as ut
-from .base import valparse  as vp
+from .base import validation_parsing  as vp
 from .base import scry      as sy
 from .base import coreindex as ci
 

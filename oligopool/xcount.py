@@ -7,7 +7,7 @@ import atexit      as ae
 import multiprocessing as mp
 
 from .base import utils     as ut
-from .base import valparse  as vp
+from .base import validation_parsing  as vp
 from .base import phiX      as px
 from .base import corecount as cc
 

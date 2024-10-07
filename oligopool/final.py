@@ -1,20 +1,44 @@
-import time  as tt
+import time as tt
 
-import numpy    as np
-import pandas   as pd
-import atexit   as ae
+import atexit as ae
 
-from .base import utils    as ut
-from .base import valparse as vp
+import numpy  as np
+import pandas as pd
+
+from .base import utils as ut
+from .base import validation_parsing as vp
+
+from typing import Tuple
 
 
 def final(
-    indata,
-    outfile=None,
-    verbose=True):
+    input_data:str|pd.DataFrame,
+    output_file:str|None=None,
+    verbose:bool=True) -> Tuple[pd.DataFrame, dict]:
     '''
-    TBW
+    Concatenates all columns in input_data and returns the final library DataFrame.
+    If a path is provided, a CSV file containing the library is written out.
+
+    Required Parameters:
+        - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated oligopool variants.
+
+    Optional Parameters:
+        - `output_file` (`str` / `None`): Filename for output DataFrame (default: `None`).
+        - `verbose` (`bool`): If `True`, logs updates to stdout (default: `True`).
+
+    Returns:
+        - A pandas DataFrame of final library; saves to `output_file` if specified.
+        - A dictionary of stats from the last step in pipeline.
+
+    Notes:
+        - `input_data` must contain a unique 'ID' column, all other columns must be non-empty DNA strings.
+        - All annotations are lost in this step, so new elements can only be added as left or right context.
     '''
+
+    # Argument Aliasing
+    indata  = input_data
+    outfile = output_file
+    verbose = verbose
 
     # Start Liner
     liner = ut.liner_engine(verbose)

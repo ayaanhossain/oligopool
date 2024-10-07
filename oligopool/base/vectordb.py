@@ -25,6 +25,12 @@ class vectorDB:
         :: maximum_repeat_length
            type - integer
            desc - maximum shared repeat length
+
+        Note:
+            If reopening a vectorDB instance for reuse
+            the maximum_repeat_length parameter is
+            ignored, and the maximum_repeat_length
+            from the vectorDB instance is used.
         '''
 
         # Aliasing

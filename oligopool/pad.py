@@ -1,34 +1,72 @@
 import time  as tt
 
 import collections as cx
-import atexit      as ae
+import atexit as ae
 
-from .base import utils    as ut
-from .base import valparse as vp
+import pandas as pd
+
+from .base import utils as ut
+from .base import validation_parsing as vp
 from .base import core_primer as cp
-from . import primer as pr
+
+from typing import Tuple
 
 
 def pad(
-    indata,
-    splitcol,
-    typeIIS,
-    oligolimit,
-    mintmelt,
-    maxtmelt,
-    maxreplen,
-    outfile=None,
-    verbose=True):
+    input_data:str|pd.DataFrame,
+    oligo_length_limit:int,
+    split_column:str,
+    typeIIS_system:str,
+    minimum_melting_temperature:float,
+    maximum_melting_temperature:float,
+    maximum_repeat_length:int,
+    output_file:str|None=None,
+    verbose:bool=True) -> Tuple[pd.DataFrame, dict]:
+    '''
+    Pads split oligos with optimized paired primers with a 3prime TypeIIS restriction site of choice
+    and adds optional flanking spacers to reach oligo length limit. Returned DataFrame adds new columns
+    to `input_data`, is compatible with `final` module, and is optionally written to a CSV file.
+
+    Required Parameters:
+        - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated oligopool variants.
+        - `oligo_length_limit` (`int`): Maximum allowed padded oligo length (≥ 60).
+        - `split_column` (`str`): Column name containing split fragments.
+        - `typeIIS_system` (`str`): Type IIS restriction enzyme to be used for pad excision. See notes.
+        - `minimum_melting_temperature` (`float`): Minimum padding primer Tm (≥ 25°C).
+        - `maximum_melting_temperature` (`float`): Maximum padding primer Tm (≤ 95°C).
+        - `maximum_repeat_length` (`int`): Max shared repeat length b/w padding primers & oligos (between 6 and 20).
+
+    Optional Parameters:
+        - `output_file` (`str` / `None`): Filename for output DataFrame (default: `None`).
+        - `verbose` (`bool`): If `True`, logs updates to stdout (default: `True`).
+
+    Returns:
+        - A pandas DataFrame with padded oligos; saves to `output_file` if specified.
+        - A dictionary of stats from the last step in pipeline.
+
+    Notes:
+        - `input_data` must contain a unique 'ID' column, all other columns must be non-empty DNA strings.
+        - Column names in `input_data` must be unique, and exclude `primer_column`.
+        - Oligo rows already summing to or exceeding `oligo_length_limit` have a `'-'` (dash) as spacer.
+        - The following 34 unique Type IIS systems are supported to faciliate scarless padding primer excision.
+            * `AcuI`,  `AlwI`,  `BbsI`,  `BccI`,   `BceAI`,    `BciVI`,
+              `BcoDI`, `BmrI`,  `BpuEI`, `BsaI`,   `BseRI`,    `BsmAI`,
+              `BsmBI`, `BsmFI`, `BsmI`,  `BspCNI`, `BspQI`,    `BsrDI`,
+              `BsrI`,  `BtgZI`, `BtsCI`, `BtsI`,   `BtsIMutI`, `EarI`,
+              `EciI`,  `Esp3I`, `FauI`,  `HgaI`,   `HphI`,     `HpyAV`,
+              `MlyI`,  `MnlI`,  `SapI`,  `SfaNI`
     '''
 
-    Note 2. 34 unique TypeIIS systems available for padding
-            AcuI,  AlwI,  BbsI,  BccI,   BceAI,    BciVI,
-            BcoDI, BmrI,  BpuEI, BsaI,   BseRI,    BsmAI,
-            BsmBI, BsmFI, BsmI,  BspCNI, BspQI,    BsrDI,
-            BsrI,  BtgZI, BtsCI, BtsI,   BtsIMutI, EarI,
-            EciI,  Esp3I, FauI,  HgaI,   HphI,     HpyAV,
-            MlyI,  MnlI,  SapI,  SfaNI
-    '''
+    # Argument Aliasing
+    indata     = input_data
+    oligolimit = oligo_length_limit
+    splitcol   = split_column
+    typeIIS    = typeIIS_system
+    mintmelt   = minimum_melting_temperature
+    maxtmelt   = maximum_melting_temperature
+    maxreplen  = maximum_repeat_length
+    outfile    = output_file
+    verbose    = verbose
 
     # Start Liner
     liner = ut.liner_engine(verbose)
@@ -45,6 +83,17 @@ def pad(
         indata=indata,
         indata_field='   Input Data       ',
         required_fields=('ID',),
+        precheck=False,
+        liner=liner)
+
+    # Full oligolimit Validation
+    oligolimit_valid = vp.get_numeric_validity(
+        numeric=oligolimit,
+        numeric_field='   Oligo Limit      ',
+        numeric_pre_desc=' Design ',
+        numeric_post_desc=' Base Pair(s) Padded Oligos',
+        minval=60,
+        maxval=float('+inf'),
         precheck=False,
         liner=liner)
 
@@ -71,17 +120,6 @@ def pad(
     typeIIS_valid) = vp.get_parsed_typeIIS_info(
         typeIIS=typeIIS,
         typeIIS_field=' TypeIIS System     ',
-        liner=liner)
-
-    # Full maxreplen Validation
-    oligolimit_valid = vp.get_numeric_validity(
-        numeric=oligolimit,
-        numeric_field='   Oligo Limit      ',
-        numeric_pre_desc=' Design ',
-        numeric_post_desc=' Base Pair(s) Padded Oligos',
-        minval=60,
-        maxval=float('+inf'),
-        precheck=False,
         liner=liner)
 
     # Full mintmelt and maxtmelt Validation
@@ -171,7 +209,7 @@ def pad(
             'status'  : False,
             'basis'   : 'infeasible',
             'step'    : 1,
-            'stepname': 'parsing-split-column',
+            'step_name': 'parsing-split-column',
             'vars'    : {
                 'maxfragmentlen': maxfragmentlen,
                  'maxallowedlen': maxallowedlen},
@@ -208,7 +246,7 @@ def pad(
             'status'  : False,
             'basis'   : 'infeasible',
             'step'    : 2,
-            'stepname': 'parsing-typeIIS-system',
+            'step_name': 'parsing-typeIIS-system',
             'vars'    : {
                   'minpadlen': minpadlen,
                   'maxpadlen': maxpadlen,
@@ -245,12 +283,12 @@ def pad(
             'status'  : False,
             'basis'   : 'infeasible',
             'step'    : 3,
-            'stepname': 'parsing-melting-temperature',
+            'step_name': 'parsing-melting-temperature',
             'vars'    : {
-                'estimatedminTm': estimatedminTm,
-                'estimatedmaxTm': estimatedmaxTm,
-                   'higherminTm': higherminTm,
-                    'lowermaxTm': lowermaxTm},
+                'estimated_min_Tm': estimatedminTm,
+                'estimated_max_Tm': estimatedmaxTm,
+                   'higher_min_Tm': higherminTm,
+                    'lower_max_Tm': lowermaxTm},
             'warns'   : warns}
 
         # Return results
@@ -262,8 +300,8 @@ def pad(
 
     # Update Step 4 Warning
     warns[4] = {
-        'warncount': 0,
-        'stepname' : 'parsing-excluded-motifs',
+        'warn_count': 0,
+        'step_name' : 'parsing-excluded-motifs',
         'vars': None}
 
     # Parse exmotifs
@@ -281,7 +319,7 @@ def pad(
         liner=liner)
 
     # Remove Step 4 Warning
-    if not warns[4]['warncount']:
+    if not warns[4]['warn_count']:
         warns.pop(4)
 
     # exmotifs infeasible
@@ -292,10 +330,10 @@ def pad(
             'status'  : False,
             'basis'   : 'infeasible',
             'step'    : 4,
-            'stepname': 'parsing-excluded-motifs',
+            'step_name': 'parsing-excluded-motifs',
             'vars'    : {
-                 'problens': problens,
-                'probcount': tuple(list(
+                 'prob_lens': problens,
+                'prob_count': tuple(list(
                     4**pl for pl in problens))},
             'warns'   : warns}
 
@@ -324,8 +362,8 @@ def pad(
 
     # Update Step 6 Warning
     warns[6] = {
-        'warncount': 0,
-        'stepname' : 'parsing-edge-effects',
+        'warn_count': 0,
+        'step_name' : 'parsing-edge-effects',
         'vars': None}
 
     # Compute Forbidden Prefixes and Suffixes
@@ -342,7 +380,7 @@ def pad(
         liner=liner)
 
     # Remove Step 6 Warning
-    if not warns[6]['warncount']:
+    if not warns[6]['warn_count']:
         warns.pop(6)
 
     # Parse Oligopool Repeats
@@ -369,12 +407,12 @@ def pad(
             'status'  : False,
             'basis'   : 'infeasible',
             'step'    : 7,
-            'stepname': 'parsing-oligopool-repeats',
+            'step_name': 'parsing-oligopool-repeats',
             'vars'    : {
-                'sourcecontext': sourcecontext,
-                'kmerspace'    : kmerspace,
-                'fillcount'    : fillcount,
-                'freecount'    : freecount},
+                'source_context': sourcecontext,
+                'kmer_space'    : kmerspace,
+                'fill_count'    : fillcount,
+                'free_count'    : freecount},
             'warns'   : warns}
 
         # Return results
@@ -386,24 +424,24 @@ def pad(
         'status'  : False,
         'basis'   : 'unsolved',
         'step'    : 8,
-        'stepname': 'computing-primer',
+        'step_name': 'computing-primer',
         'vars'    : {
-                'fwdpadprimerTm': None,          # Forward Pad Melting Temperature
-                'revpadprimerTm': None,          # Reverse Pad Melting Temperature
-                'fwdpadprimerGC': None,          # Forward Pad GC Content
-                'revpadprimerGC': None,          # Reverse Pad GC Content
-              'fwdpadhairpinMFE': None,          # Forward Pad Hairpin Free Energy
-              'revpadhairpinMFE': None,          # Reverse Pad Hairpin Free Energy
-            'fwdpadhomodimerMFE': None,          # Forward Pad Homodimer Free Energy
-            'revpadhomodimerMFE': None,          # Reverse Pad Homodimer Free Energy
-                'heterodimerMFE': None,          # Heterodimer Free Energy
-                        'Tmfail': 0,             # Melting Temperature Fail Count
-                    'repeatfail': 0,             # Repeat Fail Count
-                 'homodimerfail': 0,             # Homodimer Fail Count
-               'heterodimerfail': 0,             # Heterodimer Fail Count
-                   'exmotiffail': 0,             # Exmotif Elimination Fail Count
-                      'edgefail': 0,             # Edge Effect Fail Count
-                'exmotifcounter': cx.Counter()}, # Exmotif Encounter Counter
+                'fwd_pad_primer_Tm': None,          # Forward Pad Melting Temperature
+                'rev_pad_primer_Tm': None,          # Reverse Pad Melting Temperature
+                'fwd_pad_primer_GC': None,          # Forward Pad GC Content
+                'rev_pad_primer_GC': None,          # Reverse Pad GC Content
+              'fwd_pad_hairpin_MFE': None,          # Forward Pad Hairpin Free Energy
+              'rev_pad_hairpin_MFE': None,          # Reverse Pad Hairpin Free Energy
+            'fwd_pad_homodimer_MFE': None,          # Forward Pad Homodimer Free Energy
+            'rev_pad_homodimer_MFE': None,          # Reverse Pad Homodimer Free Energy
+                'heterodimer_MFE': None,          # Heterodimer Free Energy
+                        'Tm_fail': 0,             # Melting Temperature Fail Count
+                    'repeat_fail': 0,             # Repeat Fail Count
+                 'homodimer_fail': 0,             # Homodimer Fail Count
+               'heterodimer_fail': 0,             # Heterodimer Fail Count
+                   'exmotif_fail': 0,             # Exmotif Elimination Fail Count
+                      'edge_fail': 0,             # Edge Effect Fail Count
+                'exmotif_counter': cx.Counter()}, # Exmotif Encounter Counter
         'warns'   : warns}
 
     # Schedule outfile deletion
@@ -416,20 +454,20 @@ def pad(
         'status'  : False,
         'basis'   : 'unsolved',
         'step'    : 8,
-        'stepname': 'computing-forward-pad',
+        'step_name': 'computing-forward-pad',
         'vars'    : {
-                   'primerTm': None,          # Primer Melting Temperature
-                   'primerGC': None,          # Primer GC Content
-                 'hairpinMFE': None,          # Primer Hairpin Free Energy
-               'homodimerMFE': None,          # Homodimer Free Energy
-             'heterodimerMFE': None,          # Heterodimer Free Energy
-                     'Tmfail': 0,             # Melting Temperature Fail Count
-                 'repeatfail': 0,             # Repeat Fail Count
-              'homodimerfail': 0,             # Homodimer Fail Count
-            'heterodimerfail': 0,             # Heterodimer Fail Count
-                'exmotiffail': 0,             # Exmotif Elimination Fail Count
-                   'edgefail': 0,             # Edge Effect Fail Count
-             'exmotifcounter': cx.Counter()}, # Exmotif Encounter Counter
+                   'primer_Tm': None,          # Primer Melting Temperature
+                   'primer_GC': None,          # Primer GC Content
+                 'hairpin_MFE': None,          # Primer Hairpin Free Energy
+               'homodimer_MFE': None,          # Homodimer Free Energy
+             'heterodimer_MFE': None,          # Heterodimer Free Energy
+                     'Tm_fail': 0,             # Melting Temperature Fail Count
+                 'repeat_fail': 0,             # Repeat Fail Count
+              'homodimer_fail': 0,             # Homodimer Fail Count
+            'heterodimer_fail': 0,             # Heterodimer Fail Count
+                'exmotif_fail': 0,             # Exmotif Elimination Fail Count
+                   'edge_fail': 0,             # Edge Effect Fail Count
+             'exmotif_counter': cx.Counter()}, # Exmotif Encounter Counter
         'warns'   : warns}
 
     # Define Forward Primer-Pad Attributes
@@ -442,7 +480,7 @@ def pad(
 
     # Design Forward Primer-Pad
     (fwdpad,
-    fwdstats) = pr.primer_engine(
+    fwdstats) = cp.primer_engine(
         primerseq=fwdseq,
         primerspan=fwdcore,
         homology=homology,
@@ -469,20 +507,20 @@ def pad(
         'status'  : False,
         'basis'   : 'unsolved',
         'step'    : 9,
-        'stepname': 'computing-reverse-pad',
+        'step_name': 'computing-reverse-pad',
         'vars'    : {
-                   'primerTm': None,          # Primer Melting Temperature
-                   'primerGC': None,          # Primer GC Content
-                 'hairpinMFE': None,          # Primer Hairpin Free Energy
-               'homodimerMFE': None,          # Homodimer Free Energy
-             'heterodimerMFE': None,          # Heterodimer Free Energy
-                     'Tmfail': 0,             # Melting Temperature Fail Count
-                 'repeatfail': 0,             # Repeat Fail Count
-              'homodimerfail': 0,             # Homodimer Fail Count
-            'heterodimerfail': 0,             # Heterodimer Fail Count
-                'exmotiffail': 0,             # Exmotif Elimination Fail Count
-                   'edgefail': 0,             # Edge Effect Fail Count
-             'exmotifcounter': cx.Counter()}, # Exmotif Encounter Counter
+                   'primer_Tm': None,          # Primer Melting Temperature
+                   'primer_GC': None,          # Primer GC Content
+                 'hairpin_MFE': None,          # Primer Hairpin Free Energy
+               'homodimer_MFE': None,          # Homodimer Free Energy
+             'heterodimer_MFE': None,          # Heterodimer Free Energy
+                     'Tm_fail': 0,             # Melting Temperature Fail Count
+                 'repeat_fail': 0,             # Repeat Fail Count
+              'homodimer_fail': 0,             # Homodimer Fail Count
+            'heterodimer_fail': 0,             # Heterodimer Fail Count
+                'exmotif_fail': 0,             # Exmotif Elimination Fail Count
+                   'edge_fail': 0,             # Edge Effect Fail Count
+             'exmotif_counter': cx.Counter()}, # Exmotif Encounter Counter
         'warns'   : warns}
 
     # Do we Continue?
@@ -500,14 +538,14 @@ def pad(
 
         # Design Reverse Primer-Pad
         (revpad,
-        revstats) = pr.primer_engine(
+        revstats) = cp.primer_engine(
             primerseq=revseq,
             primerspan=revcore,
             homology=homology,
             primertype=1,
             fixedbaseindex=cp.get_fixedbaseindex(seq=revseq),
-            mintmelt=fwdstats['vars']['primerTm']-1,
-            maxtmelt=fwdstats['vars']['primerTm']+1,
+            mintmelt=fwdstats['vars']['primer_Tm']-1,
+            maxtmelt=fwdstats['vars']['primer_Tm']+1,
             maxreplen=maxreplen,
             oligorepeats=oligorepeats,
             pairedprimer=fwdpad,
@@ -523,40 +561,40 @@ def pad(
             liner=liner)
 
     # Meta Merge
-    stats['status']   = fwdstats['status'] and \
-                        revstats['status']
-    stats['basis']    = 'solved' if stats['status'] else 'unsolved'
-    stats['step']     = fwdstats['step'] if not revstats['status'] \
-                                         else   revstats['step']
-    stats['stepname'] = fwdstats['stepname'] if not revstats['status'] \
-                                             else   revstats['stepname']
+    stats['status']    = fwdstats['status'] and \
+                         revstats['status']
+    stats['basis']     = 'solved' if stats['status'] else 'unsolved'
+    stats['step']      = fwdstats['step'] if not revstats['status'] \
+                                          else   revstats['step']
+    stats['step_name'] = fwdstats['step_name'] if not revstats['status'] \
+                                               else   revstats['step_name']
 
     # Forward Stats Merge
-    stats['vars']['fwdpadprimerTm']     = fwdstats['vars']['primerTm']
-    stats['vars']['fwdpadprimerGC']     = fwdstats['vars']['primerGC']
-    stats['vars']['fwdpadhairpinMFE']   = fwdstats['vars']['hairpinMFE']
-    stats['vars']['fwdpadhomodimerMFE'] = fwdstats['vars']['homodimerMFE']
-    stats['vars']['Tmfail']             = fwdstats['vars']['Tmfail']
-    stats['vars']['repeatfail']         = fwdstats['vars']['repeatfail']
-    stats['vars']['homodimerfail']      = fwdstats['vars']['homodimerfail']
-    stats['vars']['heterodimerfail']    = fwdstats['vars']['heterodimerfail']
-    stats['vars']['exmotiffail']        = fwdstats['vars']['exmotiffail']
-    stats['vars']['edgefail']           = fwdstats['vars']['edgefail']
-    stats['vars']['exmotifcounter']     = fwdstats['vars']['exmotifcounter']
+    stats['vars']['fwd_pad_primer_Tm']     = fwdstats['vars']['primer_Tm']
+    stats['vars']['fwd_pad_primer_GC']     = fwdstats['vars']['primer_GC']
+    stats['vars']['fwd_pad_hairpin_MFE']   = fwdstats['vars']['hairpin_MFE']
+    stats['vars']['fwd_pad_homodimer_MFE'] = fwdstats['vars']['homodimer_MFE']
+    stats['vars']['Tm_fail']             = fwdstats['vars']['Tm_fail']
+    stats['vars']['repeat_fail']         = fwdstats['vars']['repeat_fail']
+    stats['vars']['homodimer_fail']      = fwdstats['vars']['homodimer_fail']
+    stats['vars']['heterodimer_fail']      = fwdstats['vars']['heterodimer_fail']
+    stats['vars']['exmotif_fail']          = fwdstats['vars']['exmotif_fail']
+    stats['vars']['edge_fail']             = fwdstats['vars']['edge_fail']
+    stats['vars']['exmotif_counter']       = fwdstats['vars']['exmotif_counter']
 
     # Reverse Stats Merge
-    stats['vars']['revpadprimerTm']     = revstats['vars']['primerTm']
-    stats['vars']['revpadprimerGC']     = revstats['vars']['primerGC']
-    stats['vars']['revpadhairpinMFE']   = revstats['vars']['hairpinMFE']
-    stats['vars']['revpadhomodimerMFE'] = revstats['vars']['homodimerMFE']
-    stats['vars']['heterodimerMFE']     = revstats['vars']['heterodimerMFE']
-    stats['vars']['Tmfail']            += revstats['vars']['Tmfail']
-    stats['vars']['repeatfail']        += revstats['vars']['repeatfail']
-    stats['vars']['homodimerfail']     += revstats['vars']['homodimerfail']
-    stats['vars']['heterodimerfail']   += revstats['vars']['heterodimerfail']
-    stats['vars']['exmotiffail']       += revstats['vars']['exmotiffail']
-    stats['vars']['edgefail']          += revstats['vars']['edgefail']
-    stats['vars']['exmotifcounter']    += revstats['vars']['exmotifcounter']
+    stats['vars']['rev_pad_primer_Tm']     = revstats['vars']['primer_Tm']
+    stats['vars']['rev_pad_primer_GC']     = revstats['vars']['primer_GC']
+    stats['vars']['rev_pad_hairpin_MFE']   = revstats['vars']['hairpin_MFE']
+    stats['vars']['rev_pad_homodimer_MFE'] = revstats['vars']['homodimer_MFE']
+    stats['vars']['heterodimer_MFE']       = revstats['vars']['heterodimer_MFE']
+    stats['vars']['Tm_fail']              += revstats['vars']['Tm_fail']
+    stats['vars']['repeat_fail']          += revstats['vars']['repeat_fail']
+    stats['vars']['homodimer_fail']       += revstats['vars']['homodimer_fail']
+    stats['vars']['heterodimer_fail']     += revstats['vars']['heterodimer_fail']
+    stats['vars']['exmotif_fail']         += revstats['vars']['exmotif_fail']
+    stats['vars']['edge_fail']            += revstats['vars']['edge_fail']
+    stats['vars']['exmotif_counter']      += revstats['vars']['exmotif_counter']
 
     # Primer Status
     if stats['status']:
@@ -611,18 +649,18 @@ def pad(
             ReversePrimer.append(revprimer)
 
         # Add columns
-        indf['5\'Spacer']     = LeftSpacer
-        indf['3\'Spacer']     = RightSpacer
+        indf['5primeSpacer']     = LeftSpacer
+        indf['3primeSpacer']     = RightSpacer
         indf['ForwardPrimer'] = ForwardPrimer
         indf['ReversePrimer'] = ReversePrimer
 
         # Prepare outdf
         outdf = indf
-        outdf = outdf[['5\'Spacer',
+        outdf = outdf[['5primeSpacer',
             'ForwardPrimer',
             splitcolname,
             'ReversePrimer',
-            '3\'Spacer']]
+            '3primeSpacer']]
 
         # Write outdf to file
         if not outfile is None:
@@ -642,108 +680,108 @@ def pad(
 
         liner.send(
             '     Melting Temperature: {:6.2f} °C and {:6.2f} °C\n'.format(
-                stats['vars']['fwdpadprimerTm'],
-                stats['vars']['revpadprimerTm']))
+                stats['vars']['fwd_pad_primer_Tm'],
+                stats['vars']['rev_pad_primer_Tm']))
         liner.send(
             '          GC Content    : {:6.2f} %  and {:6.2f} %\n'.format(
-                stats['vars']['fwdpadprimerGC'],
-                stats['vars']['revpadprimerGC']))
+                stats['vars']['fwd_pad_primer_GC'],
+                stats['vars']['rev_pad_primer_GC']))
         liner.send(
             '     Hairpin MFE        : {:6.2f} kcal/mol and {:6.2f} kcal/mol\n'.format(
-                stats['vars']['fwdpadhairpinMFE'],
-                stats['vars']['revpadhairpinMFE']))
+                stats['vars']['fwd_pad_hairpin_MFE'],
+                stats['vars']['rev_pad_hairpin_MFE']))
         liner.send(
             '   Homodimer MFE        : {:6.2f} kcal/mol and {:6.2f} kcal/mol\n'.format(
-                stats['vars']['fwdpadhomodimerMFE'],
-                stats['vars']['revpadhomodimerMFE']))
+                stats['vars']['fwd_pad_homodimer_MFE'],
+                stats['vars']['rev_pad_homodimer_MFE']))
         liner.send(
             ' Heterodimer MFE        : {:6.2f} kcal/mol\n'.format(
-                stats['vars']['heterodimerMFE']))
+                stats['vars']['heterodimer_MFE']))
 
     # Failure Relavant Stats
     else:
         maxval = max(stats['vars'][field] for field in (
-            'Tmfail',
-            'repeatfail',
-            'homodimerfail',
-            'heterodimerfail',
-            'exmotiffail',
-            'edgefail'))
+            'Tm_fail',
+            'repeat_fail',
+            'homodimer_fail',
+            'heterodimer_fail',
+            'exmotif_fail',
+            'edge_fail'))
 
         sntn, plen = ut.get_notelen(
             printlen=ut.get_printlen(
                 value=maxval))
 
-        total_conflicts = stats['vars']['Tmfail']        + \
-                          stats['vars']['repeatfail']      + \
-                          stats['vars']['homodimerfail']   + \
-                          stats['vars']['heterodimerfail'] + \
-                          stats['vars']['exmotiffail']     + \
-                          stats['vars']['edgefail']
+        total_conflicts = stats['vars']['Tm_fail']        + \
+                          stats['vars']['repeat_fail']      + \
+                          stats['vars']['homodimer_fail']   + \
+                          stats['vars']['heterodimer_fail'] + \
+                          stats['vars']['exmotif_fail']     + \
+                          stats['vars']['edge_fail']
 
         liner.send(
             ' Melt. Temp. Conflicts  : {:{},{}} Event(s) ({:6.2f} %)\n'.format(
-                stats['vars']['Tmfail'],
+                stats['vars']['Tm_fail'],
                 plen,
                 sntn,
                 ut.safediv(
-                    A=stats['vars']['Tmfail'] * 100.,
+                    A=stats['vars']['Tm_fail'] * 100.,
                     B=total_conflicts)))
         liner.send(
             '      Repeat Conflicts  : {:{},{}} Event(s) ({:6.2f} %)\n'.format(
-                stats['vars']['repeatfail'],
+                stats['vars']['repeat_fail'],
                 plen,
                 sntn,
                 ut.safediv(
-                    A=stats['vars']['repeatfail'] * 100.,
+                    A=stats['vars']['repeat_fail'] * 100.,
                     B=total_conflicts)))
         liner.send(
             '   Homodimer Conflicts  : {:{},{}} Event(s) ({:6.2f} %)\n'.format(
-                stats['vars']['homodimerfail'],
+                stats['vars']['homodimer_fail'],
                 plen,
                 sntn,
                 ut.safediv(
-                    A=stats['vars']['homodimerfail'] * 100.,
+                    A=stats['vars']['homodimer_fail'] * 100.,
                     B=total_conflicts)))
         liner.send(
             ' Heterodimer Conflicts  : {:{},{}} Event(s) ({:6.2f} %)\n'.format(
-                stats['vars']['heterodimerfail'],
+                stats['vars']['heterodimer_fail'],
                 plen,
                 sntn,
                 ut.safediv(
-                    A=stats['vars']['heterodimerfail'] * 100.,
+                    A=stats['vars']['heterodimer_fail'] * 100.,
                     B=total_conflicts)))
         liner.send(
             '     Exmotif Conflicts  : {:{},{}} Event(s) ({:6.2f} %)\n'.format(
-                stats['vars']['exmotiffail'],
+                stats['vars']['exmotif_fail'],
                 plen,
                 sntn,
                 ut.safediv(
-                    A=stats['vars']['exmotiffail'] * 100.,
+                    A=stats['vars']['exmotif_fail'] * 100.,
                     B=total_conflicts)))
         liner.send(
             '        Edge Conflicts  : {:{},{}} Event(s) ({:6.2f} %)\n'.format(
-                stats['vars']['edgefail'],
+                stats['vars']['edge_fail'],
                 plen,
                 sntn,
                 ut.safediv(
-                    A=stats['vars']['edgefail'] * 100.,
+                    A=stats['vars']['edge_fail'] * 100.,
                     B=total_conflicts)))
 
         # Enumerate Motif-wise Fail Counts
-        if stats['vars']['exmotifcounter']:
+        if stats['vars']['exmotif_counter']:
 
             qlen = max(len(motif) \
-                for motif in stats['vars']['exmotifcounter'].keys()) + 2
+                for motif in stats['vars']['exmotif_counter'].keys()) + 2
 
             sntn, vlen = ut.get_notelen(
                 printlen=ut.get_printlen(
                     value=max(
-                        stats['vars']['exmotifcounter'].values())))
+                        stats['vars']['exmotif_counter'].values())))
 
             liner.send('   Exmotif-wise Conflict Distribution\n')
 
-            for exmotif,count in stats['vars']['exmotifcounter'].most_common():
+            for exmotif,count in stats['vars']['exmotif_counter'].most_common():
                 exmotif = '\'{}\''.format(exmotif)
                 liner.send(
                     '     - Exmotif {:>{}} Triggered {:{},{}} Event(s)\n'.format(

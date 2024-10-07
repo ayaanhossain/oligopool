@@ -1,3 +1,11 @@
+2024.10.05
+1. Updated docstrings in `lenstat`, `vectorDB`.
+2. Updated `spacer`, `motif`, `final`.
+3. Reverting to stats-only for `lenstat`.
+4. Removed `deprecated` directory (will use commit history).
+5. Updated docstrings for `split` and `pad`.
+6. `Design Mode` is completed.
+
 2024.10.02
 1. Updated `__init__.py`
 2. Updated `OligopoolCalculatorInAction.ipynb`.

@@ -70,7 +70,7 @@ $ pip uninstall oligopool
 
 ## Getting Started
 
-`Oligopool Calculator` is carefully designed, easy to use, and wicked fast.
+`Oligopool Calculator` is carefully designed, easy to use, and stupid fast.
 
 You can import the library and use its various functions either in a script or in a `jupyter` `notebook` environment. Use `help(...)` to read the docs as necessary and follow along.
 

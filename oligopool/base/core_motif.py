@@ -2,7 +2,8 @@ import time  as tt
 
 import collections as cx
 
-import numpy as np
+import numpy   as np
+import nrpcalc as nr
 
 from . import utils as ut
 
@@ -713,3 +714,510 @@ def extra_assign_motif(
 
         # Update Iteration
         i += 1
+
+def motif_engine(
+    motifseq,
+    homology,
+    optrequired,
+    leftcontext,
+    rightcontext,
+    exmotifs,
+    exmotifindex,
+    edgeeffectlength,
+    prefixdict,
+    suffixdict,
+    targetcount,
+    stats,
+    liner):
+    '''
+    Compute edge-effect free constrained
+    motifs within given contexts.
+
+    :: motifseq
+       type - string
+       desc - degenerate motif design sequence
+              constraint
+    :: homology
+       type - integer
+       desc - maximum allowed internal repeat
+              length for default traceback
+    :: optrequired
+       type - bool
+       desc - if True, then constraint is degenerate
+              so optimization is required
+    :: leftcontext
+       type - list / None
+       desc - list of sequence to the
+              left of motifs,
+              None otherwise
+    :: rightcontext
+       type - list / None
+       desc - list of sequences to the
+              right of motifs,
+              None otherwise
+    :: exmotifs
+       type - list / None
+       desc - list of motifs to exclude
+              in designed motifs,
+              None otherwise
+    :: exmotifindex
+       type - set / None
+       desc - location of excluded motifs
+              in motif design constraint,
+              None otherwise
+    :: edgeeffectlength
+       type - integer
+       desc - context length for edge effects
+    :: prefixdict
+       type - dict / None
+       desc - dictionary of forbidden motif
+              prefix sequences
+    :: suffixdict
+       type - dict / None
+       desc - dictionary of forbidden motif
+              suffix sequences
+    :: targetcount
+       type - integer
+       desc - required number of motifs
+              to be designed
+    :: stats
+       type - dict
+       desc - motif design stats storage
+    :: liner
+       type - coroutine
+       desc - dynamic printing
+    '''
+
+    # Book-keeping
+    t0     = tt.time()          # Start Timer
+    motifs = [None]*targetcount # Store Motifs
+    plen   = ut.get_printlen(   # Target Print Length
+        value=targetcount)
+
+    # Context Setup
+    contextarray   = cx.deque(range(targetcount))  # Context Array
+    (_,
+    leftselector)  = ut.get_context_type_selector( # Left  Context Selector
+        context=leftcontext)
+    (_,
+    rightselector) = ut.get_context_type_selector( # Right Context Selector
+        context=rightcontext)
+
+    # Optimize exmotifs
+    if not exmotifs is None:
+        exmotifs = ut.get_grouped_sequences(
+            sequences=exmotifs)
+
+    # Motif Design Required
+    if optrequired:
+
+        # Define Maker Instance
+        maker = nr.base.maker.NRPMaker(
+            part_type='DNA',
+            seed=None)
+
+        # Core Design Loop
+        while contextarray:
+
+            # Fetch Context Index
+            idx = contextarray.popleft()
+
+            # Fetch Context Sequences
+            lcseq =  leftselector(idx)
+            rcseq = rightselector(idx)
+
+            # Define Forbidden Prefix and Suffix
+            prefixforbidden = prefixdict[lcseq] if not lcseq is None else None
+            suffixforbidden = suffixdict[rcseq] if not rcseq is None else None
+
+            # Define Objective Function
+            objectivefunction = lambda motif: motif_objectives(
+                motif=motif,
+                motiflen=len(motifseq),
+                exmotifs=exmotifs,
+                exmotifindex=exmotifindex,
+                lcseq=lcseq,
+                rcseq=rcseq,
+                edgeeffectlength=edgeeffectlength,
+                prefixforbidden=prefixforbidden,
+                suffixforbidden=suffixforbidden,
+                inittime=t0,
+                stats=stats,
+                idx=idx+1,
+                plen=plen,
+                element='Motif',
+                liner=liner)
+
+            # Design Motif via Maker
+            motif = maker.nrp_maker(
+                homology=min(len(motifseq), homology),
+                seq_constr=motifseq,
+                struct_constr='.'*len(motifseq),
+                target_size=1,
+                background=None,
+                struct_type=None,
+                synth_opt=False,
+                local_model_fn=objectivefunction,
+                jump_count=100,
+                fail_count=100,
+                output_file=None,
+                verbose=False,
+                abortion=True,
+                allow_internal_repeat=True,
+                check_constraints=False)
+
+            # Did we succeed? No ..
+            if len(motif) == 0:
+
+                # Terminate Design Loop
+                break # RIP .. We failed!
+
+            # A motif was designed!
+            else:
+
+                # Extract Motif
+                motif = motif[0]
+
+                # Record Designed Motif
+                motifs[idx] = motif
+                stats['vars']['motif_count'] += 1
+
+                # Show Update
+                show_update(
+                    idx=idx+1,
+                    plen=plen,
+                    element='Motif',
+                    motif=motifs[idx],
+                    optstatus=2,
+                    optstate=0,
+                    inittime=None,
+                    terminal=False,
+                    liner=liner)
+
+                extra_assign_motif(
+                    motif=motif,
+                    contextarray=contextarray,
+                    leftselector=leftselector,
+                    rightselector=rightselector,
+                    edgeeffectlength=edgeeffectlength,
+                    prefixdict=prefixdict,
+                    suffixdict=suffixdict,
+                    storage=motifs,
+                    stats=stats,
+                    plen=plen,
+                    element='Motif',
+                    element_key='motif_count',
+                    liner=liner)
+
+    # Constant Motif
+    else:
+
+        # Constant Solution
+        motifs = motifseq
+        stats['vars']['motif_count'] = targetcount
+
+    # Check Status and Return Solution
+    if not optrequired or \
+       stats['vars']['motif_count'] == targetcount:
+
+        # We solved this!
+        stats['status'] = True
+        stats['basis']  = 'solved'
+
+        # Determine Last Known Motif
+        if optrequired:
+            lastmotif = motifs[-1]
+        else:
+            lastmotif = motifseq
+
+        # Final Update
+        show_update(
+            idx=targetcount,
+            plen=plen,
+            element='Motif',
+            motif=lastmotif,
+            optstatus=2,
+            optstate=0,
+            inittime=t0,
+            terminal=True,
+            liner=liner)
+
+        # Return Results
+        return (motifs, stats)
+
+    # Design Unsuccessful
+    else:
+
+        # This was a miscarriage
+        stats['status'] = False
+        stats['basis']  = 'unsolved'
+
+        # Final Update
+        liner.send('|* Time Elapsed: {:.2f} sec\n'.format(
+            tt.time()-t0))
+
+        # Return Results
+        return (None, stats)
+
+def spacer_engine(
+    spacergroup,
+    leftcontext,
+    rightcontext,
+    exmotifs,
+    edgeeffectlength,
+    prefixdict,
+    suffixdict,
+    targetcount,
+    stats,
+    liner):
+    '''
+    Compute constrained degenerate
+    spacer contextually.
+
+    :: spacergroup
+       type - cx.defaultdict
+       desc - grouped spacer lengths by their index
+              of occurence
+    :: leftcontext
+       type - list / None
+       desc - list of sequence to the
+              left of spacers,
+              None otherwise
+    :: rightcontext
+       type - list / None
+       desc - list of sequences to the
+              right of spacers,
+              None otherwise
+    :: exmotifs
+       type - list / None
+       desc - list of motifs to exclude
+              in designed spacers,
+              None otherwise
+    :: edgeeffectlength
+       type - integer
+       desc - context length for edge effects
+    :: prefixdict
+       type - dict / None
+       desc - dictionary of forbidden motif
+              prefix sequences
+    :: suffixdict
+       type - dict / None
+       desc - dictionary of forbidden motif
+              suffix sequences
+    :: targetcount
+       type - integer
+       desc - required number of spacers
+              to be designed
+    :: stats
+       type - dict
+       desc - motif design stats storage
+    :: liner
+       type - coroutine
+       desc - dynamic printing
+    '''
+
+    # Book-keeping
+    t0      = tt.time()          # Start Timer
+    spacers = [None]*targetcount # Store Spacers
+    plen    = ut.get_printlen(   # Target Print Length
+        value=targetcount)
+    abort   = False              # Abortion Flag
+
+    # Context Setup
+    contextarray   = cx.deque(range(targetcount))  # Context Array
+    (_,
+    leftselector)  = ut.get_context_type_selector( # Left  Context Selector
+        context=leftcontext)
+    (_,
+    rightselector) = ut.get_context_type_selector( # Right Context Selector
+        context=rightcontext)
+
+    # Optimize exmotifs
+    if not exmotifs is None:
+        exmotifs = ut.get_grouped_sequences(
+            sequences=exmotifs)
+
+    # Define Maker Instance
+    maker = nr.base.maker.NRPMaker(
+        part_type='DNA',
+        seed=None)
+
+    # Core Design Outer Loop
+    while spacergroup:
+
+        # Fetch Context Array
+        (spacerlen,
+        contextarray) = spacergroup.popitem()
+
+        # Core Design Inner Loop
+        while contextarray:
+
+            # Case 1: Zero Length Spacer
+            if spacerlen == 0:
+
+                # Assign Gap to Entire Group
+                while contextarray:
+
+                    # Fetch Context Index
+                    idx = contextarray.popleft()
+
+                    # Assign Gap
+                    spacers[idx] = '-'
+                    stats['vars']['spacer_count'] += 1
+
+                    # Show Update
+                    show_update(
+                        idx=idx+1,
+                        plen=plen,
+                        element='Spacer',
+                        motif='*GAP*',
+                        optstatus=2,
+                        optstate=0,
+                        inittime=None,
+                        terminal=False,
+                        liner=liner)
+
+                # Zero Spacers Completed
+                break # Jump to Next Group
+
+            # Case 2: Non-Zero Length Spacer
+            #         (this requires computation)
+            else:
+
+                # Fetch Context Index
+                idx = contextarray.popleft()
+
+                # Fetch Context Sequences
+                lcseq =  leftselector(idx)
+                rcseq = rightselector(idx)
+
+                # Define Forbidden Prefix and Suffix
+                prefixforbidden = prefixdict[lcseq] if not lcseq is None else None
+                suffixforbidden = suffixdict[rcseq] if not rcseq is None else None
+
+                # Define Objective Function
+                objectivefunction = lambda spacer: motif_objectives(
+                    motif=spacer,
+                    motiflen=spacerlen,
+                    exmotifs=exmotifs,
+                    exmotifindex=None,
+                    lcseq=lcseq,
+                    rcseq=rcseq,
+                    edgeeffectlength=edgeeffectlength,
+                    prefixforbidden=prefixforbidden,
+                    suffixforbidden=suffixforbidden,
+                    inittime=t0,
+                    stats=stats,
+                    idx=idx+1,
+                    plen=plen,
+                    element='Spacer',
+                    liner=liner)
+
+                # Design Spacer via Maker
+                spacer = maker.nrp_maker(
+                    homology=min(spacerlen, 6),
+                    seq_constr='N'*spacerlen,
+                    struct_constr='.'*spacerlen,
+                    target_size=1,
+                    background=None,
+                    struct_type=None,
+                    synth_opt=False,
+                    local_model_fn=objectivefunction,
+                    jump_count=100,
+                    fail_count=100,
+                    output_file=None,
+                    verbose=False,
+                    abortion=True,
+                    allow_internal_repeat=True,
+                    check_constraints=False)
+
+                # Did we succeed? No ..
+                if len(spacer) == 0:
+
+                    # Terminate Design Loop
+                    abort = True
+                    break # RIP .. We failed!
+
+                # A spacer was designed!
+                else:
+
+                    # Extract Spacer
+                    spacer = spacer[0]
+
+                    # Record Designed Motif
+                    spacers[idx] = spacer
+                    stats['vars']['spacer_count'] += 1
+
+                    # Show Update
+                    show_update(
+                        idx=idx+1,
+                        plen=plen,
+                        element='Spacer',
+                        motif=spacers[idx],
+                        optstatus=2,
+                        optstate=0,
+                        inittime=None,
+                        terminal=False,
+                        liner=liner)
+
+                    extra_assign_motif(
+                        motif=spacer,
+                        contextarray=contextarray,
+                        leftselector=leftselector,
+                        rightselector=rightselector,
+                        edgeeffectlength=edgeeffectlength,
+                        prefixdict=prefixdict,
+                        suffixdict=suffixdict,
+                        storage=spacers,
+                        stats=stats,
+                        plen=plen,
+                        element='Spacer',
+                        element_key='spacer_count',
+                        liner=liner)
+
+        # Continue Outer Loop?
+        if abort:
+            break
+
+    # Check Status and Return Solution
+    if not abort and \
+       stats['vars']['spacer_count'] == targetcount:
+
+        # We solved this!
+        stats['status'] = True
+        stats['basis']  = 'solved'
+
+         # Determine Last Known Motif
+        if spacers[-1] != '-':
+            lastmotif = spacers[-1]
+        else:
+            lastmotif = '*GAP*'
+
+        # Final Update
+        show_update(
+            idx=targetcount,
+            plen=plen,
+            element='Spacer',
+            motif=lastmotif,
+            optstatus=2,
+            optstate=0,
+            inittime=t0,
+            terminal=True,
+            liner=liner)
+
+        # Return Results
+        return (spacers, stats)
+
+    # Design Unsuccessful
+    else:
+
+        # This was a miscarriage
+        stats['status'] = False
+        stats['basis']  = 'unsolved'
+
+        # Final Update
+        liner.send('|* Time Elapsed: {:.2f} sec\n'.format(
+            tt.time()-t0))
+
+        # Return Results
+        return (None, stats)

@@ -1747,3 +1747,255 @@ def primer_objectives(
 
     # All Objectives OK!
     return True
+
+def primer_engine(
+    primerseq,
+    primerspan,
+    homology,
+    primertype,
+    fixedbaseindex,
+    mintmelt,
+    maxtmelt,
+    maxreplen,
+    oligorepeats,
+    pairedprimer,
+    pairedspan,
+    pairedrepeats,
+    exmotifs,
+    exmotifindex,
+    edgeeffectlength,
+    prefixdict,
+    suffixdict,
+    background,
+    stats,
+    liner):
+    '''
+    Return a primer fulfilling all constraints.
+    Internal use only.
+
+    :: primerseq
+       type - string
+       desc - degenerate primer design sequence
+              constraint
+    :: primerspan
+       type - integer / None
+       desc - extraction span for primer sequence
+              for dimer evaluation
+    :: homology
+       type - integer
+       desc - maximum allowed internal repeat
+              length for default traceback
+    :: primertype
+       type - integer
+       desc - primer design type identifier
+              0 = forward primer design
+              1 = reverse primer design
+    :: fixedbaseindex
+       type - set
+       desc - base indices lacking more than one
+              nucleotide choices
+    :: mintmelt
+       type - float
+       desc - primer melting temperature lower
+              bound
+    :: maxtmelt
+       type - float
+       desc - primer melting temperature upper
+              bound
+    :: maxreplen
+       type - integer
+       desc - maximum shared repeat length
+    :: oligorepeats
+       type - set
+       desc - set storing oligopool repeats
+    :: pairedprimer
+       type - string / None
+       desc - paired primer sequence
+    :: pairedspan
+       type - integer / None
+       desc - extraction span for paired primer
+              sequence for dimer evaluation
+    :: pairedrepeats
+       type - set / None
+       desc - set storing paired primer repeats
+    :: exmotifs
+       type - cx.deque / None
+       desc - deque of all excluded motifs
+    :: exmotifindex
+       type - set
+       desc - ending index locations of all
+              embedded excluded motifs
+    :: edgeeffectlength
+       type - integer
+       desc - context length for edge effects
+    :: prefixdict
+       type - dict / None
+       desc - dictionary of forbidden primer
+              prefix sequences
+    :: suffixdict
+       type - dict / None
+       desc - dictionary of forbidden primer
+              suffix sequences
+    :: background
+       type - db.vectorDB / None
+       desc - vectorDB instance storing
+              background repeats
+    :: stats
+       type - dict
+       desc - primer design stats storage
+    :: liner
+       type - coroutine
+       desc - dynamic printing
+    '''
+
+    # Book-keeping
+    t0 = tt.time() # Start Timer
+    # Flexible Structure Constraint
+    primerstruct = ''.join('x.'[idx in fixedbaseindex] \
+        for idx in fixedbaseindex)
+
+    # Extract Paired Primer Span
+    if (not pairedspan   is None) and \
+       (not pairedprimer is None):
+
+        # Forward-Pair = Reverse Extraction
+        if primertype == 0:
+            pairedprimer = pairedprimer[:+pairedspan]
+        # Reverse-Pair = Forward Extraction
+        else:
+            pairedprimer = pairedprimer[-pairedspan:]
+
+    # Update Paired Primer Orientation
+    # Since Forward Primer Design,
+    # interpret Paired Primer as
+    # Reverse Primer specified in
+    # terms of Forward Strand
+    if primertype == 0:
+        if not pairedprimer is None:
+            pairedprimer = ut.get_revcomp(
+                seq=pairedprimer)
+    # Correct Free Base Index
+    else:
+        fixedbaseindex = set(len(primerseq)-1-idx \
+            for idx in fixedbaseindex)
+
+    # Optimize exmotifs
+    if not exmotifs is None:
+        exmotifs = ut.get_grouped_sequences(
+            sequences=exmotifs)
+
+    # Define Objective Function
+    objectivefunction = lambda primer: primer_objectives(
+        primer=primer,
+        primerlen=len(primerseq),
+        primerspan=primerspan,
+        primertype=primertype,
+        fixedbaseindex=fixedbaseindex,
+        mintmelt=mintmelt,
+        maxtmelt=maxtmelt,
+        maxreplen=maxreplen,
+        oligorepeats=oligorepeats,
+        pairedprimer=pairedprimer,
+        pairedrepeats=pairedrepeats,
+        exmotifs=exmotifs,
+        exmotifindex=exmotifindex,
+        edgeeffectlength=edgeeffectlength,
+        prefixforbidden=prefixdict,
+        suffixforbidden=suffixdict,
+        background=background,
+        inittime=t0,
+        stats=stats,
+        liner=liner)
+
+    # Define Maker Instance
+    maker = nr.base.maker.NRPMaker(
+        part_type='DNA',
+        seed=None)
+
+    # Design Primer via Maker
+    primer = maker.nrp_maker(
+        homology=min(len(primerseq), homology),
+        seq_constr=primerseq,
+        struct_constr=primerstruct,
+        target_size=1,
+        background=None,
+        struct_type='both',
+        synth_opt=False,
+        local_model_fn=objectivefunction,
+        jump_count=1000,
+        fail_count=100000,
+        output_file=None,
+        verbose=False,
+        abortion=True,
+        allow_internal_repeat=False,
+        check_constraints=False)
+
+    # Check Status and Return Solution
+    if len(primer) > 0:
+
+        # Final Update
+        show_update(
+            primer=primer[0],
+            element='Primer',
+            optstatus=2,
+            optstate=0,
+            inittime=t0,
+            terminal=True,
+            liner=liner)
+
+        # Extract Primer
+        primer  = primer[0]
+        xprimer = primer[:]
+
+        # Adjust Extraction
+        if not primerspan is None:
+            if primertype == 0:
+                primer = primer[-primerspan:]
+            else:
+                primer = primer[:+primerspan]
+
+        # We solved this!
+        stats['status'] = True
+        stats['basis']  = 'solved'
+
+        # Correct Primer Orientation
+        cprimer = ut.get_revcomp(
+            seq=primer) if primertype == 1 else primer
+
+        # Update Tm
+        stats['vars']['primer_Tm'] = ut.get_tmelt(
+            seq=cprimer)
+
+        # Update GC Percentage
+        stats['vars']['primer_GC'] = (cprimer.count('G') + \
+                                     cprimer.count('C')) \
+                                        / (len(cprimer) * 0.01)
+
+        # Update Hairpin Free Energy
+        stats['vars']['hairpin_MFE'] = folder.evaluate_mfe(
+            seq=cprimer,
+            dg=True)[-1]
+
+        # Update Heterodimer Free Energy
+        stats['vars']['homodimer_MFE'] = folder.evaluate_mfe_dimer(
+            seq1=cprimer,
+            seq2=cprimer)[-1]
+
+        # Update Homodimer Free Energy
+        if not pairedprimer is None:
+            stats['vars']['heterodimer_MFE'] = folder.evaluate_mfe_dimer(
+                seq1=cprimer,
+                seq2=pairedprimer)[-1]
+
+        # Return Results
+        return (xprimer, stats)
+
+    # Design Unsuccessful
+    else:
+
+        # Final Update
+        liner.send('|* Time Elapsed: {:.2f} sec\n'.format(
+            tt.time() - t0))
+
+        # Return Results
+        return (None, stats)

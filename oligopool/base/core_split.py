@@ -982,7 +982,7 @@ def aggregate_stats(
     TmDenom = np.zeros(len(overlap))
     HDDenom = np.zeros(len(overlap))
     edges   = min(10, max(1, 10**6 / len(seqlist)))
-    stats['vars']['splitlens'] = [float('inf') for _ in range(len(split))]
+    stats['vars']['split_lens'] = [float('inf') for _ in range(len(split))]
 
     plen = ut.get_printlen(value=len(overlap))
     qlen = ut.get_printlen(value=len(seqlist))
@@ -994,9 +994,9 @@ def aggregate_stats(
         seq = seqlist[jdx]
         for idx in range(len(split)):
             splitseq = seq[split[idx][0]:split[idx][1]]
-            stats['vars']['splitlens'][idx] = min(
+            stats['vars']['split_lens'][idx] = min(
                 len(splitseq),
-                stats['vars']['splitlens'][idx])
+                stats['vars']['split_lens'][idx])
             if idx % 2 == 1:
                 splitseq = ut.get_revcomp(
                     seq=splitseq)
@@ -1041,11 +1041,11 @@ def aggregate_stats(
                 plen))
 
     # Average Statistics
-    stats['vars']['numsplits']    = len(split)
-    stats['vars']['overlaplens']  = [y-x for x,y in overlap]
-    stats['vars']['meanTmdistro'] = list(map(
+    stats['vars']['num_splits']    = len(split)
+    stats['vars']['overlap_lens']  = [y-x for x,y in overlap]
+    stats['vars']['mean_Tm_distro'] = list(map(
         int, np.round(overlapTmtotals / TmDenom)))
-    stats['vars']['meandistancedistro'] = list(map(
+    stats['vars']['mean_distance_distro'] = list(map(
         int, np.round(overlapHDtotals / HDDenom)))
 
     # Show Time Elapsed
@@ -1054,4 +1054,214 @@ def aggregate_stats(
 
     # Return Results
     return (splitstore,
+        stats)
+
+def split_engine(
+    seqlist,
+    splitlimit,
+    mintmelt,
+    minhdist,
+    maxoverlap,
+    minvariantlen,
+    maxvariantlen,
+    spanlen,
+    seqmat,
+    varcont,
+    stats,
+    liner):
+    '''
+    Compute and return splitting coordinates.
+    Internal use only.
+
+    :: seqlist
+       type - list
+       desc - list of sequences to split
+
+    :: splitlimit
+       type - integer
+       desc - maximum allowed oligo length
+              after splitting
+    :: mintmelt
+       type - float
+       desc - minimum melting temperature of
+              split regions
+    :: minhdist
+       type - integer
+       desc - minimum pairwise hamming distance
+              between all split regions at a
+              given index
+    :: maxoverlap
+       type - integer
+       desc - maximum allowed split overlap
+              length
+    :: minvariantlen
+       type - integer
+       desc - length of the shortest variant
+              in the oligopool
+    :: maxvariantlen
+       type - integer
+       desc - length of the longest variant
+              in the oligopool
+    :: spanlen
+       type - integer
+       desc - minimum required split overlap
+              length
+    :: seqmat
+       type - np.array
+       desc - numerically encoded array for
+              all variants in oligopool with
+              additional padding to make all
+              sequences have length equal to
+              maxvariantlen
+    :: varcont
+       type - cx.deque
+       desc - a deque of tuple with start and
+              end coordinates of variable
+              regions
+    :: stats
+       type - dict
+       desc - split design stats storage
+    :: liner
+       type - coroutine
+       desc - dynamic printing
+    '''
+
+    # Book-keeping
+    split   = []    # Split Coordinate Storage
+    overlap = []    # Overlap Coordinate Storage
+    fstart  = 0     # Current Fragment  Start
+    sstart  = 0     # Current Split     Start
+    status  = False # Solution status
+    state   = None  # Failure State
+
+    # Compute Split Coordinates
+    mt0 = tt.time() # Total Split Time-keeping
+    while True:
+
+        # Show Update
+        liner.send('\n  Now Computing Split for Fragment: {}\n'.format(
+            len(split)+1))
+        liner.send('    Initial Fragment Coordinates: (Start={}, End={})\n'.format(
+            fstart,
+            get_splitend(
+                fstart=fstart,
+                splitlimit=splitlimit,
+                variantlen=maxvariantlen)))
+
+        # Do we need to split any more?
+        if not continue_splitting(
+            fstart=fstart,
+            splitlimit=splitlimit,
+            variantlen=maxvariantlen):
+
+            # Store Final Fragment Coordinates
+            split.append((fstart, maxvariantlen))
+
+            # Show Updates
+            liner.send('    Split Required? No\n')
+            liner.send('    Final Fragment Coordinates: (Start={}, End={})\n'.format(
+                    *split[-1]))
+
+            # Book-keeping Update
+            status = True # Problem Solved!
+            break # No more splitting required
+
+        else:
+
+            # Show Updates
+            liner.send('    Split Required? Yes\n')
+
+            # Instance Time-keeping
+            t0 = tt.time()
+
+            # Get Splitpoints for Current Fragment
+            liner.send('    Finding Splittable Regions ...')
+            spq = get_splitqueue(
+                varcont=varcont,
+                fstart=fstart,
+                sstart=sstart,
+                splitlimit=splitlimit,
+                variantlen=maxvariantlen)
+
+            # Did we find split regions?
+            if not spq: # No Split Regions Found
+                liner.send('    No Splittable Regions Found ... Terminating\n')
+                status = False # No Solution
+                state  = 0
+                break
+            else:       # Split Regions Found
+                liner.send('    Splittable Regions Found: {} (in {:.2f} sec)\n'.format(
+                    len(spq),
+                    tt.time() - t0))
+
+            # Get the Tm and HDist based split
+            rq = get_split(
+                seqlist=seqlist,
+                seqmat=seqmat,
+                spq=spq,
+                mintmelt=mintmelt,
+                minhdist=minhdist,
+                spanlen=spanlen,
+                maxoverlap=maxoverlap,
+                liner=liner)
+
+            # Did we find feasible split regions?
+            if rq is None: # No Feasible Split Found
+                liner.send('    No Feasible Splits Found ... Terminating\n')
+                status = False # No Solution
+                state  = 0
+                break
+
+            else:          # Feasigle Split Found
+                r,q = rq   # Parse Split
+                # Store Current Fragment Coordinates
+                split.append((fstart, q))
+                overlap.append((r, q))
+
+                # Book-keeping Update
+                fstart = r # Next Fragment Start Coordinate
+                sstart = q # Next Split    Start Coordinate
+
+                # Show Updates
+                liner.send('    Split Region Selected: (Start={}, End={}) (in {:.2f} sec)\n'.format(
+                    r, q, tt.time()-t0))
+                liner.send('    Final Fragment {} Coordinates: (Start={}, End={})\n'.format(
+                    len(split), *split[-1]))
+
+    # Did the shorter variants get split as well?
+    if status:
+        for u,v in overlap:
+            if u > minvariantlen:
+                status = False
+                state  = 1
+                break
+
+    # Compute Verdict
+    if status:
+        # Update Stats
+        stats['status'] = True
+        stats['basis']  = 'solved'
+        # Sh
+        liner.send(
+            '\n  Solution Status: Splitting Completed\n'.format())
+    else:
+        if state == 0:
+            # Update Stats
+            stats['vars']['infeasible_contigs'] = True
+
+            liner.send(
+                '\n  Solution Status: Unsolved due to Infeasible Variable Contigs\n')
+        else:
+            # Update Stats
+            stats['vars']['uneven_splits'] = True
+
+            liner.send(
+                '\n  Solution Status: Unsolved due to Uneven Number of Splits\n')
+
+    # Final Updates
+    liner.send('  Time Elapsed: {:.2f} sec\n'.format(tt.time() - mt0))
+
+    # Return Results
+    return (split,
+        overlap,
         stats)

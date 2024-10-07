@@ -85,13 +85,14 @@ Design Mode workflow
         >>> # Check length statistics as needed
         >>> length_stats = op.lenstat(input_data=further_along_df)
         ...
-        >>> # Finalize the library
-        >>> final_df, stats = op.final(input_data=ready_to_go_df, ...)
         >>>
         >>> # Split and pad longer oligos if needed
-        >>> split_df, stats = op.split(input_data=final_df, ...)
+        >>> split_df, stats = op.split(input_data=even_further_along_df, ...)
         >>> first_pad_df,  stats = op.pad(input_data=split_df, ...)
         >>> second_pad_df, stats = op.pad(input_data=split_df, ...)
+        ...
+        >>> # Finalize the library
+        >>> final_df, stats = op.final(input_data=ready_to_go_df, ...)
         ...
 
 Analysis Mode workflow

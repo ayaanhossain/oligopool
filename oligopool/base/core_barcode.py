@@ -2,9 +2,10 @@ import time  as tt
 
 import collections as cx
 
-import bisect as bs
-import dinopy as dp
-import numpy  as np
+import bisect  as bs
+import dinopy  as dp
+import numpy   as np
+import bounter as bt
 
 from . import utils  as ut
 
@@ -846,3 +847,328 @@ def get_distro(
 
     # Return Distribution
     return normhammingdistro
+
+def barcode_engine(
+    barcodelen,
+    minhdist,
+    maxreplen,
+    barcodetype,
+    oligorepeats,
+    leftcontext,
+    rightcontext,
+    exmotifs,
+    targetcount,
+    stats,
+    liner):
+    '''
+    Return barcodes fulfilling all constraints.
+    Internal use only.
+
+    :: barcodelen
+       type - integer
+       desc - required barcode length
+    :: minhdist
+       type - integer
+       desc - minimum pairwise hamming
+              distance between a pair
+              of barcodes
+    :: maxreplen
+       type - integer
+       desc - maximum shared repeat length
+    :: barcodetype
+       type - integer
+       desc - bacode design type identifier
+              0 = terminus optimized barcodes
+              1 = spectrum optimized barcodes
+    :: oligorepeats
+       type - dict
+       desc - dictionary of all indexed
+              sets of oligopool repeats
+    :: leftcontext
+       type - list / None
+       desc - list of sequence to the
+              left of barcodes,
+              None otherwise
+    :: rightcontext
+       type - list / None
+       desc - list of sequences to the
+              right of barcodes,
+              None otherwise
+    :: exmotifs
+       type - list / None
+       desc - list of motifs to exclude
+              in designed barcodes,
+              None otherwise
+    :: targetcount
+       type - integer
+       desc - required number of barcodes
+              to be designed
+    :: stats
+       type - dict
+       desc - barcode design stats storage
+    :: liner
+       type - coroutine
+       desc - dynamic printing
+    '''
+
+    # Book-keeping
+    t0 = tt.time()               # Start Timer
+    store = np.zeros(            # Store Encoded Barcodes
+        (targetcount, barcodelen),
+        dtype=np.float64)
+    codes = []                   # Store Decoded Barcodes
+    assignmentarray = []         # Assignment Array
+    coocache = {}                # Coorindate Dictionary
+    count    = 0                 # Barcode Count
+
+    # Optimized Contig Break
+    contigsize = get_contigsize_scheme(
+        barcodelen=barcodelen,
+        minhdist=minhdist)
+
+    # Spectral Uniquness
+    minstringlen = int(np.ceil(ut.safelog(
+        A=targetcount*barcodelen,
+        n=4)))
+    # Is barcodelen at minimum?
+    if barcodelen <= minstringlen:
+        substringlen = barcodelen
+        liner.send(' Type Optimization: Deactivated\n')
+    else:
+        # Terminus Optimized
+        if barcodetype == 0:
+            substringlen = barcodelen - (ut.get_tvalue(
+                elementlen=barcodelen) + 1)
+            if substringlen <= minstringlen:
+                substringlen = minstringlen
+        # Spectrum Optimized
+        else:
+            substringlen = minstringlen
+        liner.send(' Type Optimization: Activated\n')
+    substringcache = bt.bounter(
+            need_iteration=False, # Static Checks Only
+            size_mb=1024)         # 1 GB Spectrum Cap
+
+    # Context Setup
+    contextarray   = cx.deque(range(targetcount))  # Context Array
+    (leftcontexttype,
+    leftselector)  = ut.get_context_type_selector( # Left  Context Selector
+        context=leftcontext)
+    (rightcontexttype,
+    rightselector) = ut.get_context_type_selector( # Right Context Selector
+        context=rightcontext)
+
+    # Setup Jumper and Generator
+    (jtp,
+    jumper)  = get_jumper(
+        barcodelen=barcodelen)
+    barcodes = stream_barcodes(
+        barcodelen=barcodelen,
+        jumper=jumper)
+    barcode    = None # Current Barcode
+    acccodeseq = None # Last Successful Barcode Sequence
+
+    # Infinite Jumper Failure
+    prob  = ut.get_prob(    # Probability of Success
+        success=1,
+        trials=max(4 ** (
+            min(barcodelen - minhdist, 8)),
+            1000))
+    trial = ut.get_trials(  # Trials Required
+        prob=prob)
+    sscnt = 1     # Success Count
+    flcnt = 0     # Failure Count
+    excnt = trial # Trial   Count
+
+    # Verbage Setup
+    verbage_reach  = 0
+    verbage_target = ut.get_sample(
+        value=targetcount,
+        lf=0.080,
+        uf=0.120)
+    plen = ut.get_printlen(
+        value=targetcount)
+
+    # Build Barcodes
+    while True:
+
+        # Sample a Barcode in Space
+        barcode = next(barcodes)
+
+        # Space Exhausted?
+        if barcode is None:
+
+            # Final Update
+            liner.send(
+                '|* Time Elapsed: {:.2f} sec\n'.format(
+                    tt.time() - t0))
+
+            # No Solution
+            return (None,
+                None,
+                stats)
+
+        # Update Barcode Store
+        store[count, :] = barcode
+
+        # Decode Barcode Sequence
+        barcodeseq = get_barcodeseq(
+            barcode=barcode)
+
+        # Check Objectives
+        (optstatus,
+        optstate,
+        aidx,
+        emcounter,
+        subset,
+        cooridnates) = barcode_objectives(
+            store=store,
+            count=count,
+            barcodeseq=barcodeseq,
+            barcodelen=barcodelen,
+            substringlen=substringlen,
+            substringcache=substringcache,
+            minhdist=minhdist,
+            contigsize=contigsize,
+            coocache=coocache,
+            maxreplen=maxreplen,
+            oligorepeats=oligorepeats,
+            exmotifs=exmotifs,
+            contextarray=contextarray,
+            leftcontexttype=leftcontexttype,
+            leftselector=leftselector,
+            rightcontexttype=rightcontexttype,
+            rightselector=rightselector)
+
+        # Inifinite Jumper Book-keeping Update
+        if jtp == 2:
+            excnt += 1
+
+        # Accept Sample into Store?
+        if optstatus:
+
+            # Update Store Fill Count
+            stats['vars']['barcode_count'] += 1
+            count += 1
+
+            # Show Update on Success
+            show_update(
+                count=count,
+                plen=plen,
+                barcodeseq=barcodeseq,
+                optstatus=optstatus,
+                optstate=optstate,
+                inittime=t0,
+                terminal=False,
+                liner=liner)
+
+            # Record Assignment Index
+            assignmentarray.append(aidx)
+
+            # Update Codes
+            codes.append(barcodeseq)
+
+            # Update Substring Cache
+            if barcodelen - substringlen > 0:
+                substringcache.update(subset)
+
+            # Update Coordinate Cache
+            for contig,index in cooridnates:
+                if not contig in coocache:
+                    coocache[contig] = []
+                    for _ in range(minhdist):
+                        coocache[contig].append([])
+                    coocache[contig] = tuple(coocache[contig])
+                coocache[contig][index].append(count-1)
+
+            # Update Last Accounted Barcode
+            acccodeseq = barcodeseq
+
+            # Inifinite Jumper Book-keeping Update
+            if jtp == 2:
+                sscnt += 1
+                prob  = ut.get_prob(
+                    success=sscnt,
+                    trials=excnt)
+                trial = ut.get_trials(
+                    prob=prob)
+                flcnt = 0
+
+        # Rejected from Store
+        else:
+
+            # Update Fail Counts
+            if optstate == 1:
+                stats['vars']['distance_fail'] += 1
+            if optstate == 2:
+                stats['vars']['exmotif_fail']  += 1
+            if optstate == 3:
+                stats['vars']['edge_fail']     += sum(
+                    emcounter.values())
+            if optstate == 4:
+                stats['vars']['repeat_fail']   += 1
+            if optstate == 5:
+                stats['vars']['type_fail']     += 1
+
+            # Inifinite Jumper Book-keeping Update
+            if jtp == 2:
+                flcnt += 1
+
+            # Record Context Failure Motifs
+            if not emcounter is None:
+                stats['vars']['exmotif_counter'] += emcounter
+
+        # Verbage Book-keeping
+        if verbage_reach >= verbage_target:
+            show_update(
+                count=count,
+                plen=plen,
+                barcodeseq=barcodeseq,
+                optstatus=optstatus,
+                optstate=optstate,
+                inittime=t0,
+                terminal=False,
+                liner=liner)
+            verbage_reach = -1
+        verbage_reach += 1
+
+        # Target Reached?
+        if count == targetcount:
+
+            # Construct the Sorted Barcodes
+            codes = [code for aidx,code in sorted(
+                zip(assignmentarray, codes))]
+
+            # Update Design Status
+            stats['status'] = True
+            stats['basis']  = 'solved'
+
+            # Final Update
+            show_update(
+                count=count,
+                plen=plen,
+                barcodeseq=codes[-1],
+                optstatus=True,
+                optstate=0,
+                inittime=t0,
+                terminal=True,
+                liner=liner)
+
+            # Return Solution
+            return (codes,
+                store,
+                stats)
+
+        # Trials Exhausted for Inifinite Jumper?
+        if jtp == 2:
+            if flcnt == trial:
+
+                # Final Update
+                liner.send(
+                    '|* Time Elapsed: {:.2f} sec\n'.format(
+                        tt.time() - t0))
+
+                # No Solution
+                return (None,
+                    None,
+                    stats)

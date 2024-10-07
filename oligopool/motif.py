@@ -3,215 +3,67 @@ import time  as tt
 import collections as cx
 import atexit as ae
 
-import nrpcalc as nr
-
-from .base import utils     as ut
-from .base import valparse  as vp
-from .base import coremotif as cm
+import pandas  as pd
 
 
-def motif_engine(
-    motifseq,
-    homology,
-    optrequired,
-    leftcontext,
-    rightcontext,
-    exmotifs,
-    exmotifindex,
-    edgeeffectlength,
-    prefixdict,
-    suffixdict,
-    targetcount,
-    stats,
-    liner):
-    '''
-    TBW
-    '''
+from .base import utils as ut
+from .base import validation_parsing as vp
+from .base import core_motif as cm
 
-    # Book-keeping
-    t0     = tt.time()          # Start Timer
-    motifs = [None]*targetcount # Store Motifs
-    plen   = ut.get_printlen(   # Target Print Length
-        value=targetcount)
+from typing import Tuple
 
-    # Context Setup
-    contextarray   = cx.deque(range(targetcount))  # Context Array
-    (_,
-    leftselector)  = ut.get_context_type_selector( # Left  Context Selector
-        context=leftcontext)
-    (_,
-    rightselector) = ut.get_context_type_selector( # Right Context Selector
-        context=rightcontext)
-
-    # Optimize exmotifs
-    if not exmotifs is None:
-        exmotifs = ut.get_grouped_sequences(
-            sequences=exmotifs)
-
-    # Motif Design Required
-    if optrequired:
-
-        # Define Maker Instance
-        maker = nr.base.maker.NRPMaker(
-            part_type='DNA',
-            seed=None)
-
-        # Core Design Loop
-        while contextarray:
-
-            # Fetch Context Index
-            idx = contextarray.popleft()
-
-            # Fetch Context Sequences
-            lcseq =  leftselector(idx)
-            rcseq = rightselector(idx)
-
-            # Define Forbidden Prefix and Suffix
-            prefixforbidden = prefixdict[lcseq] if not lcseq is None else None
-            suffixforbidden = suffixdict[rcseq] if not rcseq is None else None
-
-            # Define Objective Function
-            objectivefunction = lambda motif: cm.motif_objectives(
-                motif=motif,
-                motiflen=len(motifseq),
-                exmotifs=exmotifs,
-                exmotifindex=exmotifindex,
-                lcseq=lcseq,
-                rcseq=rcseq,
-                edgeeffectlength=edgeeffectlength,
-                prefixforbidden=prefixforbidden,
-                suffixforbidden=suffixforbidden,
-                inittime=t0,
-                stats=stats,
-                idx=idx+1,
-                plen=plen,
-                element='Motif',
-                liner=liner)
-
-            # Design Motif via Maker
-            motif = maker.nrp_maker(
-                homology=min(len(motifseq), homology),
-                seq_constr=motifseq,
-                struct_constr='.'*len(motifseq),
-                target_size=1,
-                background=None,
-                struct_type=None,
-                synth_opt=False,
-                local_model_fn=objectivefunction,
-                jump_count=100,
-                fail_count=100,
-                output_file=None,
-                verbose=False,
-                abortion=True,
-                allow_internal_repeat=True,
-                check_constraints=False)
-
-            # Did we succeed? No ..
-            if len(motif) == 0:
-
-                # Terminate Design Loop
-                break # RIP .. We failed!
-
-            # A motif was designed!
-            else:
-
-                # Extract Motif
-                motif = motif[0]
-
-                # Record Designed Motif
-                motifs[idx] = motif
-                stats['vars']['motifcount'] += 1
-
-                # Show Update
-                cm.show_update(
-                    idx=idx+1,
-                    plen=plen,
-                    element='Motif',
-                    motif=motifs[idx],
-                    optstatus=2,
-                    optstate=0,
-                    inittime=None,
-                    terminal=False,
-                    liner=liner)
-
-                cm.extra_assign_motif(
-                    motif=motif,
-                    contextarray=contextarray,
-                    leftselector=leftselector,
-                    rightselector=rightselector,
-                    edgeeffectlength=edgeeffectlength,
-                    prefixdict=prefixdict,
-                    suffixdict=suffixdict,
-                    storage=motifs,
-                    stats=stats,
-                    plen=plen,
-                    element='Motif',
-                    element_key='motifcount',
-                    liner=liner)
-
-    # Constant Motif
-    else:
-
-        # Constant Solution
-        motifs = motifseq
-        stats['vars']['motifcount'] = targetcount
-
-    # Check Status and Return Solution
-    if not optrequired or \
-       stats['vars']['motifcount'] == targetcount:
-
-        # We solved this!
-        stats['status'] = True
-        stats['basis']  = 'solved'
-
-        # Determine Last Known Motif
-        if optrequired:
-            lastmotif = motifs[-1]
-        else:
-            lastmotif = motifseq
-
-        # Final Update
-        cm.show_update(
-            idx=targetcount,
-            plen=plen,
-            element='Motif',
-            motif=lastmotif,
-            optstatus=2,
-            optstate=0,
-            inittime=t0,
-            terminal=True,
-            liner=liner)
-
-        # Return Results
-        return (motifs, stats)
-
-    # Design Unsuccessful
-    else:
-
-        # This was a miscarriage
-        stats['status'] = False
-        stats['basis']  = 'unsolved'
-
-        # Final Update
-        liner.send('|* Time Elapsed: {:.2f} sec\n'.format(
-            tt.time()-t0))
-
-        # Return Results
-        return (None, stats)
 
 def motif(
-    indata,
-    oligolimit,
-    motifseq,
-    motifcol,
-    outfile,
-    leftcontext=None,
-    rightcontext=None,
-    exmotifs=None,
-    verbose=True):
+    input_data:str|pd.DataFrame,
+    oligo_length_limit:int,
+    motif_sequence_constraint:str,
+    motif_column:str,
+    output_file:str|None=None,
+    left_context_column:str|None=None,
+    right_context_column:str|None=None,
+    excluded_motifs:list|str|pd.DataFrame|None=None,
+    verbose:bool=True) -> Tuple[pd.DataFrame, dict]:
     '''
-    TBW
+    Adds a constant or designs constrained motifs free of edge-effects between the given sequence
+    contexts. Addition of motifs will not produce excluded motifs unless one was embedded in it.
+    Returned DataFrame with added motifs can optionally be saved to a CSV.
+
+    Required Parameters:
+        - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated oligopool variants.
+        - `oligo_length_limit` (`int`): Maximum allowed oligo length (≥ 4).
+        - `motif_sequence_constraint` (`int`): IUPAC degenerate sequence constraint, or a constant.
+        - `motif_column` (`str`): Column name for inserting the designed motifs.
+
+    Optional Parameters:
+        - `output_file` (`str` / `None`): Filename for output DataFrame (default: `None`).
+        - `left_context_column` (`str` / `None`): Column for left DNA context (default: `None`).
+        - `right_context_column` (`str` / `None`): Column for right DNA context (default: `None`).
+        - `excluded_motifs` (`list` / `str` / `pd.DataFrame` / `None`): Motifs to exclude;
+            can be a CSV path or DataFrame (default: `None`).
+        - `verbose` (`bool`): If `True`, logs updates to stdout (default: `True`).
+
+    Returns:
+        - A pandas DataFrame of added motifs; saves to `output_file` if specified.
+        - A dictionary of stats from the last step in pipeline.
+
+    Notes:
+        - `input_data` must contain a unique 'ID' column, all other columns must be non-empty DNA strings.
+        - Column names in `input_data` must be unique, and exclude `motif_column`.
+        - At least one of `left_context_column` or `right_context_column` must be specified.
+        - If `excluded_motifs` is a CSV or DataFrame, it must have 'ID' and 'Exmotif' columns.
+        - Constants in sequence constraint may lead to `excluded_motifs` and be impossible to solve.
     '''
+
+    # Argument Aliasing
+    indata       = input_data
+    oligolimit   = oligo_length_limit
+    motifseq     = motif_sequence_constraint
+    motifcol     = motif_column
+    outfile      = output_file
+    leftcontext  = left_context_column
+    rightcontext = right_context_column
+    exmotifs     = excluded_motifs
+    verbose      = verbose
 
     # Start Liner
     liner = ut.liner_engine(verbose)
@@ -378,16 +230,16 @@ def motif(
             'status'  : False,
             'basis'   : 'infeasible',
             'step'    : 1,
-            'stepname': 'parsing-oligo-limit',
+            'step_name': 'parsing-oligo-limit',
             'vars'    : {
-                   'oligolimit': oligolimit,
-                'limitoverflow': True,
-                'minvariantlen': minvariantlen,
-                'maxvariantlen': maxvariantlen,
-                'minelementlen': minelementlen,
-                'maxelementlen': maxelementlen,
-                'minspaceavail': minspaceavail,
-                'maxspaceavail': maxspaceavail},
+                   'oligo_limit': oligolimit,
+                'limit_overflow': True,
+                'min_variant_len': minvariantlen,
+                'max_variant_len': maxvariantlen,
+                'min_element_len': minelementlen,
+                'max_element_len': maxelementlen,
+                'min_space_avail': minspaceavail,
+                'max_space_avail': maxspaceavail},
             'warns'   : warns}
 
         # Return results
@@ -402,8 +254,8 @@ def motif(
 
         # Update Step 2 Warning
         warns[2] = {
-            'warncount': 0,
-            'stepname' : 'parsing-excluded-motifs',
+            'warn_count': 0,
+            'step_name' : 'parsing-excluded-motifs',
             'vars': None}
 
         # Parse exmotifs
@@ -421,7 +273,7 @@ def motif(
             liner=liner)
 
         # Remove Step 2 Warning
-        if not warns[2]['warncount']:
+        if not warns[2]['warn_count']:
             warns.pop(2)
 
         # exmotifs infeasible
@@ -432,10 +284,10 @@ def motif(
                 'status'  : False,
                 'basis'   : 'infeasible',
                 'step'    : 2,
-                'stepname': 'parsing-excluded-motifs',
+                'step_name': 'parsing-excluded-motifs',
                 'vars'    : {
-                     'problens': problens,
-                    'probcount': tuple(list(
+                     'prob_lens': problens,
+                    'prob_count': tuple(list(
                         4**pl for pl in problens))},
                 'warns'   : warns}
 
@@ -452,8 +304,8 @@ def motif(
 
     # Update Step 2 Warning
     warns[3] = {
-        'warncount': 0,
-        'stepname' : 'parsing-motif-sequence',
+        'warn_count': 0,
+        'step_name' : 'parsing-motif-sequence',
         'vars': None}
 
     # Parse primerseq
@@ -466,7 +318,7 @@ def motif(
         liner=liner)
 
     # Remove Step 3 Warning
-    if not warns[3]['warncount']:
+    if not warns[3]['warn_count']:
         warns.pop(3)
 
     # Parse Edge Effects
@@ -495,8 +347,8 @@ def motif(
 
         # Update Step 5 Warning
         warns[5] = {
-            'warncount': 0,
-            'stepname' : 'parsing-edge-effects',
+            'warn_count': 0,
+            'step_name' : 'parsing-edge-effects',
             'vars': None}
 
         # Compute Forbidden Prefixes and Suffixes
@@ -512,7 +364,7 @@ def motif(
             liner=liner)
 
         # Remove Step 5 Warning
-        if not warns[5]['warncount']:
+        if not warns[5]['warn_count']:
             warns.pop(5)
 
     # Finalize Context
@@ -530,13 +382,13 @@ def motif(
         'status'  : False,
         'basis'   : 'unsolved',
         'step'    : 6,
-        'stepname': 'computing-motifs',
+        'step_name': 'computing-motifs',
         'vars'    : {
-               'targetcount': targetcount,   # Required Number of Motifs
-                'motifcount': 0,             # Motif Design Count
-               'exmotiffail': 0,             # Exmotif Elimination Fail Count
-                  'edgefail': 0,             # Edge Effect Fail Count
-            'exmotifcounter': cx.Counter()}, # Exmotif Encounter Counter
+               'target_count': targetcount,   # Required Number of Motifs
+                'motif_count': 0,             # Motif Design Count
+               'exmotif_fail': 0,             # Exmotif Elimination Fail Count
+                  'edge_fail': 0,             # Edge Effect Fail Count
+            'exmotif_counter': cx.Counter()}, # Exmotif Encounter Counter
         'warns'   : warns}
 
     # Schedule outfile deletion
@@ -546,7 +398,7 @@ def motif(
 
     # Design Motifs
     (motifs,
-    stats) = motif_engine(
+    stats) = cm.motif_engine(
         motifseq=motifseq,
         homology=homology,
         optrequired=optrequired,
@@ -592,67 +444,67 @@ def motif(
 
     plen = ut.get_printlen(
         value=max(stats['vars'][field] for field in (
-            'targetcount',
-            'motifcount')))
+            'target_count',
+            'motif_count')))
 
     liner.send(
         '  Design Status   : {}\n'.format(
             motifstatus))
     liner.send(
         '  Target Count    : {:{},d} Motif(s)\n'.format(
-            stats['vars']['targetcount'],
+            stats['vars']['target_count'],
             plen))
     liner.send(
         '   Motif Count    : {:{},d} Motif(s) ({:6.2f} %)\n'.format(
-            stats['vars']['motifcount'],
+            stats['vars']['motif_count'],
             plen,
             ut.safediv(
-                A=stats['vars']['motifcount'] * 100.,
+                A=stats['vars']['motif_count'] * 100.,
                 B=targetcount)))
 
     # Failure Relavant Stats
     if not stats['status']:
         maxval = max(stats['vars'][field] for field in (
-            'exmotiffail',
-            'edgefail'))
+            'exmotif_fail',
+            'edge_fail'))
 
         sntn, plen = ut.get_notelen(
             printlen=ut.get_printlen(
                 value=maxval))
 
-        total_conflicts = stats['vars']['exmotiffail']  + \
-                          stats['vars']['edgefail']
+        total_conflicts = stats['vars']['exmotif_fail']  + \
+                          stats['vars']['edge_fail']
         liner.send(
             ' Exmotif Conflicts: {:{},{}} Event(s) ({:6.2f} %)\n'.format(
-                stats['vars']['exmotiffail'],
+                stats['vars']['exmotif_fail'],
                 plen,
                 sntn,
                 ut.safediv(
-                    A=stats['vars']['exmotiffail'] * 100.,
+                    A=stats['vars']['exmotif_fail'] * 100.,
                     B=total_conflicts)))
         liner.send(
             '    Edge Conflicts: {:{},{}} Event(s) ({:6.2f} %)\n'.format(
-                stats['vars']['edgefail'],
+                stats['vars']['edge_fail'],
                 plen,
                 sntn,
                 ut.safediv(
-                    A=stats['vars']['edgefail'] * 100.,
+                    A=stats['vars']['edge_fail'] * 100.,
                     B=total_conflicts)))
 
         # Enumerate Motif-wise Fail Counts
-        if stats['vars']['exmotifcounter']:
+        if stats['vars']['exmotif_counter']:
 
             qlen = max(len(motif) \
-                for motif in stats['vars']['exmotifcounter'].keys()) + 2
+                for motif in stats['vars']['exmotif_counter'].keys()) + 2
 
             sntn, vlen = ut.get_notelen(
                 printlen=ut.get_printlen(
                     value=max(
-                        stats['vars']['exmotifcounter'].values())))
+                        stats['vars']['exmotif_counter'].values())))
 
             liner.send('   Exmotif-wise Conflict Distribution\n')
 
-            for exmotif,count in stats['vars']['exmotifcounter'].most_common():
+            for exmotif,count in stats['vars']['exmotif_counter'].most_common():
                 exmotif = '\'{}\''.format(exmotif)
                 liner.send(
                     '     - Motif {:>{}} Triggered {:{},{}} Event(s)\n'.format(

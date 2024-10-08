@@ -144,7 +144,7 @@ def insert_variants(dataframe, elements_spec, stats_dict):
     # Process All Variants
     status = False
     for element_name in elements_spec:
-        if elements_spec[element_name]['type'] == 'variant':
+        if elements_spec[element_name]['element_type'] == 'variant':
             try:
                 dataframe[element_name] = elements_spec[element_name]['sequences']
                 stats_dict['oligopool'][element_name] = {
@@ -184,7 +184,7 @@ def insert_motifs(dataframe, elements_spec, stats_dict):
     status = False
     incomplete = False
     for element_name in elements_spec:
-        if elements_spec[element_name]['type'] == 'motif':
+        if elements_spec[element_name]['element_type'] == 'motif':
             try:
                 if element_name in dataframe.columns:
                     dataframe.drop(element_name, inplace=True, axis=1)
@@ -222,7 +222,7 @@ def get_primer_order(elements_spec):
     '''What is the optimal order of designing the primers?'''
     order = collections.deque()
     for element_name in elements_spec:
-        if elements_spec[element_name]['type'] == 'primer':
+        if elements_spec[element_name]['element_type'] == 'primer':
             if not element_name in order:
                 order.append(element_name)
             paired_primer = elements_spec[element_name]['paired_primer_column']
@@ -313,7 +313,7 @@ def insert_barcodes(dataframe, elements_spec, stats_dict):
     status = False
     incomplete = False
     for element_name in elements_spec:
-        if elements_spec[element_name]['type'] == 'barcode':
+        if elements_spec[element_name]['element_type'] == 'barcode':
             try:
                 if element_name in dataframe.columns:
                     dataframe.drop(element_name, inplace=True, axis=1)
@@ -356,7 +356,7 @@ def insert_spacers(dataframe, elements_spec, stats_dict):
     status = False
     incomplete = False
     for element_name in elements_spec:
-        if elements_spec[element_name]['type'] == 'spacer':
+        if elements_spec[element_name]['element_type'] == 'spacer':
             try:
                 if element_name in dataframe.columns:
                     dataframe.drop(element_name, inplace=True, axis=1)
@@ -741,17 +741,17 @@ def test_primer_order():
     # Define all Primers
     elements_spec = {
         'Primer1': {
-            'type': 'primer',
+            'element_type': 'primer',
             'paired_primer_column': 'Primer2',
         },
 
         'Primer2': {
-            'type': 'primer',
+            'element_type': 'primer',
             'paired_primer_column': 'Primer1',
         },
 
         'Primer3': {
-            'type': 'primer',
+            'element_type': 'primer',
             'paired_primer_column': 'Primer2',
         },
     }

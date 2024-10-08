@@ -148,7 +148,7 @@ You can learn more about each module using help.
     ...
     >>> help(op.xcount)
 
-For advanced use cases, the following classes are also available.
+For advanced uses, the following classes are also available.
     - vectorDB
     - Scry
 '''

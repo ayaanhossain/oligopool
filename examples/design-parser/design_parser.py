@@ -1,35 +1,90 @@
 '''
-An Example of an Automated Design Mode Parser.
-Useful, if you want to create Oligopool Calculator
-Design Mode Web-Interfaces.
+An Example of Oligopool Calculator Automated Design Mode Parser.
 
-Look into test_design_parser.py for an example of
+Use the `design_parser(...)` method for pipeline execution.
+
+Look into run_design_parser.py for an example of
 how to use this parser.
+
+Author: Ayaan Hossain
 '''
 
-import collections
-
+import os
+import shutil
 import uuid
 import atexit
+import contextlib
+
+import collections
 import pandas
 
-from oligopool import background, motif, primer, barcode, spacer, split, pad, final
-from oligopool import utils
+import oligopool as op
 
-def setup_workspace(workspacename):
 
-    # Schedule outdir deletion
+# --= WORKSPACE METHODS =--
+
+@contextlib.contextmanager
+def ignored(*exceptions):
+    '''Raymond Hettinger's ignored context.'''
+    try:
+        yield
+    except exceptions:
+        pass
+
+def removestarfix(string, fix, loc):
+    '''Remove prefix or suffix from string.'''
+    if loc <= 0:
+        if string.startswith(fix):
+            return string[len(fix):]
+    elif loc > 0:
+        if string.endswith(fix):
+            return string[:-len(fix)]
+    return string
+
+def get_adjusted_path(path, suffix):
+    '''Adjust output_file with suffix.'''
+    if not isinstance(path, str):
+        return None
+    path = path.strip()
+    path = removestarfix(
+        string=path,
+        fix='/',
+        loc=1)
+    if not suffix is None and \
+    not path.endswith(suffix):
+        path += str(suffix)
+    return path
+
+def remove_directory(dirpath):
+    '''Delete dirpath and its contents.'''
+    if not dirpath is None:
+        dirpath = get_adjusted_path(
+            path=dirpath,
+            suffix=None)
+        with ignored(OSError):
+            shutil.rmtree(dirpath)
+
+def setup_directory(dirpath):
+    '''Build dirpath.'''
+    dirpath = get_adjusted_path(
+        path=dirpath,
+        suffix=None)
+    if not os.path.exists(dirpath):
+        os.makedirs(dirpath)
+
+def setup_workspace(workspace_name):
+    '''Setup temporary workspace.'''
     atexit.register(
-        utils.remove_directory,
-        workspacename)
+        remove_directory,
+        workspace_name)
+    setup_directory(
+        dirpath=workspace_name)
 
-    # Setup outdir
-    utils.setup_directory(
-        dirpath=workspacename)
 
-def setup_dataframe(
-    pool_size,
-    element_names):
+# --= DESIGN MODE METHODS =--
+
+def setup_dataframe(pool_size, element_names):
+    '''Build the initial DataFrame with placeholders.'''
 
     # Blank DataFrame
     dataframe = pandas.DataFrame()
@@ -48,10 +103,8 @@ def setup_dataframe(
     # Return Results
     return dataframe
 
-def setup_background(
-    workspacename,
-    background_spec,
-    stats_dict):
+def setup_background(workspace_name, background_spec, stats_dict):
+    '''Build the background within workspace.'''
 
     # Build Background
     status = False
@@ -59,36 +112,34 @@ def setup_background(
        (len(background_spec) > 0):
 
         # Define Background Name
-        backgroundname = workspacename + '/oligopool_background'
+        background_name = workspace_name + '/oligopool_background'
 
         # Build Background
         try:
-            stats = background(
-                indata=background_spec['indata'],
-                maxreplen=background_spec['maxreplen'],
-                outdir=backgroundname)
+            stats = op.background(
+                input_data=background_spec['input_data'],
+                maximum_repeat_length=background_spec['maximum_repeat_length'],
+                output_directory=background_name)
             stats_dict['background'] = stats
             status = True
         except:
             stats = {
-                'status'  : False,
-                'basis'   : 'infeasible',
-                'step'    : 0,
-                'stepname': 'parsing-input',
-                'vars'    : {},
-                'warns'   : {}}
+                'status'   : False,
+                'basis'    : 'infeasible',
+                'step'     : 0,
+                'step_name': 'parsing-input',
+                'vars'     : {},
+                'warns'    : {}}
             status = False
     else:
         print()
-        backgroundname = None
+        background_name = None
 
     # Return Results
-    return status, backgroundname, stats_dict
+    return status, background_name, stats_dict
 
-def insert_variants(
-    dataframe,
-    elements_spec,
-    stats_dict):
+def insert_variants(dataframe, elements_spec, stats_dict):
+    '''Insert variants into DataFrame.'''
 
     # Process All Variants
     status = False
@@ -97,23 +148,23 @@ def insert_variants(
             try:
                 dataframe[element_name] = elements_spec[element_name]['sequences']
                 stats_dict['oligopool'][element_name] = {
-                    'status'  : True,
-                    'basis'   : 'solved',
-                    'step'    : 1,
-                    'stepname': 'inserting-variants',
-                    'vars'    : {},
-                    'warns'   : {}
+                    'status'   : True,
+                    'basis'    : 'solved',
+                    'step'     : 1,
+                    'step_name': 'inserting-variants',
+                    'vars'     : {},
+                    'warns'    : {}
                 }
                 status = True
             except:
                 dataframe = None
                 stats_dict['oligopool'][element_name] = {
-                    'status'  : False,
-                    'basis'   : 'infeasible',
-                    'step'    : 0,
-                    'stepname': 'parsing-input',
-                    'vars'    : {},
-                    'warns'   : {}
+                    'status'   : False,
+                    'basis'    : 'infeasible',
+                    'step'     : 0,
+                    'step_name': 'parsing-input',
+                    'vars'     : {},
+                    'warns'    : {}
                 }
                 status = False
                 break
@@ -126,10 +177,8 @@ def insert_variants(
     # Return Results
     return status, dataframe, stats_dict
 
-def insert_motifs(
-    dataframe,
-    elements_spec,
-    stats_dict):
+def insert_motifs(dataframe, elements_spec, stats_dict):
+    '''Insert any degenerate motifs into DataFrame.'''
 
     # Process All Variants
     status = False
@@ -139,56 +188,52 @@ def insert_motifs(
             try:
                 if element_name in dataframe.columns:
                     dataframe.drop(element_name, inplace=True, axis=1)
-                dataframe, stats = motif(
-                    indata=dataframe,
-                    oligolimit=elements_spec[element_name]['oligolimit'],
-                    motifseq=elements_spec[element_name]['motifseq'],
-                    motifcol=element_name,
-                    outfile=None,
-                    leftcontext=elements_spec[element_name]['leftcontext'],
-                    rightcontext=elements_spec[element_name]['rightcontext'],
-                    exmotifs=elements_spec[element_name]['exmotifs'])
+                dataframe, stats = op.motif(
+                    input_data=dataframe,
+                    oligo_length_limit=elements_spec[element_name]['oligo_length_limit'],
+                    motif_sequence_constraint=elements_spec[element_name]['motif_sequence_constraint'],
+                    motif_column=element_name,
+                    output_file=None,
+                    left_context_column=elements_spec[element_name]['left_context_column'],
+                    right_context_column=elements_spec[element_name]['right_context_column'],
+                    excluded_motifs=elements_spec[element_name]['excluded_motifs'])
                 stats_dict['oligopool'][element_name] = stats
                 status = True
                 if stats['status'] is False:
                     incomplete = True
                     break
-            except:
+            except Exception as E:
+                # raise E
                 dataframe = None
                 stats_dict['oligopool'][element_name] = {
-                    'status'  : False,
-                    'basis'   : 'infeasible',
-                    'step'    : 0,
-                    'stepname': 'parsing-input',
-                    'vars'    : {},
-                    'warns'   : {}}
+                    'status'   : False,
+                    'basis'    : 'infeasible',
+                    'step'     : 0,
+                    'step_name': 'parsing-input',
+                    'vars'     : {},
+                    'warns'    : {}}
                 status = False
                 break
 
     # Return Results
     return status, incomplete, dataframe, stats_dict
 
-def get_primer_order(
-    elements_spec):
+def get_primer_order(elements_spec):
     '''What is the optimal order of designing the primers?'''
     order = collections.deque()
     for element_name in elements_spec:
         if elements_spec[element_name]['type'] == 'primer':
             if not element_name in order:
                 order.append(element_name)
-            pairedprimer = elements_spec[element_name]['pairedprimer']
-            if not pairedprimer is None and \
-               not pairedprimer in order:
+            paired_primer = elements_spec[element_name]['paired_primer_column']
+            if not paired_primer is None and \
+               not paired_primer in order:
                 index = order.index(element_name)
-                order.insert(index, pairedprimer)
+                order.insert(index, paired_primer)
     return order
 
-def insert_primers(
-    element_names,
-    background,
-    dataframe,
-    elements_spec,
-    stats_dict):
+def insert_primers(element_names, background, dataframe, elements_spec, stats_dict):
+    '''Insert primers into DataFrame.'''
 
     # Process All Variants
     status = False
@@ -202,34 +247,34 @@ def insert_primers(
         try:
             if element_name in dataframe.columns:
                 dataframe.drop(element_name, inplace=True, axis=1)
-            pairedcol = elements_spec[element_name]['pairedprimer']
-            if pairedcol in order:
-                pairedcol = None # element_name is a Predecessor
+            paired_primer_column = elements_spec[element_name]['paired_primer_column']
+            if paired_primer_column in order:
+                paired_primer_column = None # element_name is a Predecessor
             # Left Context is Sensitive
-            if elements_spec[element_name]['leftcontext'] in stats_dict:
-                leftcontext = elements_spec[element_name]['leftcontext']
+            if elements_spec[element_name]['left_context_column'] in stats_dict:
+                left_context_column = elements_spec[element_name]['left_context_column']
             else:
-                leftcontext = None
+                left_context_column = None
             # Right Context is Sensitive
-            if elements_spec[element_name]['rightcontext'] in stats_dict:
-                rightcontext = elements_spec[element_name]['rightcontext']
+            if elements_spec[element_name]['right_context_column'] in stats_dict:
+                right_context_column = elements_spec[element_name]['right_context_column']
             else:
-                rightcontext = None
-            dataframe, stats = primer(
-                indata=dataframe,
-                oligolimit=elements_spec[element_name]['oligolimit'],
-                primerseq=elements_spec[element_name]['primerseq'],
-                primertype=elements_spec[element_name]['primertype'],
-                mintmelt=elements_spec[element_name]['mintmelt'],
-                maxtmelt=elements_spec[element_name]['maxtmelt'],
-                maxreplen=elements_spec[element_name]['maxreplen'],
-                primercol=element_name,
-                outfile=None,
-                pairedcol=pairedcol,
-                leftcontext=leftcontext,
-                rightcontext=rightcontext,
-                exmotifs=elements_spec[element_name]['exmotifs'],
-                background=background,
+                right_context_column = None
+            dataframe, stats = op.primer(
+                input_data=dataframe,
+                oligo_length_limit=elements_spec[element_name]['oligo_length_limit'],
+                primer_sequence_constraint=elements_spec[element_name]['primer_sequence_constraint'],
+                primer_type=elements_spec[element_name]['primer_type'],
+                minimum_melting_temperature=elements_spec[element_name]['minimum_melting_temperature'],
+                maximum_melting_temperature=elements_spec[element_name]['maximum_melting_temperature'],
+                maximum_repeat_length=elements_spec[element_name]['maximum_repeat_length'],
+                primer_column=element_name,
+                output_file=None,
+                paired_primer_column=paired_primer_column,
+                left_context_column=left_context_column,
+                right_context_column=right_context_column,
+                excluded_motifs=elements_spec[element_name]['excluded_motifs'],
+                background_directory=background,
                 verbose=True)
             # print(dataframe)
             # print(dataframe.columns)
@@ -246,25 +291,23 @@ def insert_primers(
                 incomplete = True
                 break
         except Exception as E:
-            raise E
+            # raise E
             dataframe = None
             stats_dict['oligopool'][element_name] = {
-                'status'  : False,
-                'basis'   : 'infeasible',
-                'step'    : 0,
-                'stepname': 'parsing-input',
-                'vars'    : {},
-                'warns'   : {}}
+                'status'   : False,
+                'basis'    : 'infeasible',
+                'step'     : 0,
+                'step_name': 'parsing-input',
+                'vars'     : {},
+                'warns'    : {}}
             status = False
             break
 
     # Return Results
     return status, incomplete, dataframe, stats_dict
 
-def insert_barcodes(
-    dataframe,
-    elements_spec,
-    stats_dict):
+def insert_barcodes(dataframe, elements_spec, stats_dict):
+    '''Insert barcodes into DataFrame.'''
 
     # Process All Variants
     status = False
@@ -274,31 +317,30 @@ def insert_barcodes(
             try:
                 if element_name in dataframe.columns:
                     dataframe.drop(element_name, inplace=True, axis=1)
-                dataframe, stats = barcode(
-                    indata=dataframe,
-                    oligolimit=elements_spec[element_name]['oligolimit'],
-                    barcodelen=elements_spec[element_name]['barcodelen'],
-                    minhdist=elements_spec[element_name]['minhdist'],
-                    maxreplen=elements_spec[element_name]['maxreplen'],
-                    barcodecol=element_name,
-                    outfile=None,
-                    barcodetype=elements_spec[element_name]['barcodetype'],
-                    leftcontext=elements_spec[element_name]['leftcontext'],
-                    rightcontext=elements_spec[element_name]['rightcontext'],
-                    exmotifs=elements_spec[element_name]['exmotifs'])
+                dataframe, stats = op.barcode(
+                    input_data=dataframe,
+                    oligo_length_limit=elements_spec[element_name]['oligo_length_limit'],
+                    barcode_length=elements_spec[element_name]['barcode_length'],
+                    minimum_hamming_distance=elements_spec[element_name]['minimum_hamming_distance'],
+                    maximum_repeat_length=elements_spec[element_name]['maximum_repeat_length'],
+                    barcode_column=element_name,
+                    output_file=None,
+                    barcode_type=elements_spec[element_name]['barcode_type'],
+                    left_context_column=elements_spec[element_name]['left_context_column'],
+                    right_context_column=elements_spec[element_name]['right_context_column'],
+                    excluded_motifs=elements_spec[element_name]['excluded_motifs'])
                 stats_dict['oligopool'][element_name] = stats
                 status = True
                 if stats['status'] is False:
                     incomplete = True
                     break
             except Exception as E:
-                raise E
                 dataframe = None
                 stats_dict['oligopool'][element_name] = {
                     'status'  : False,
                     'basis'   : 'infeasible',
                     'step'    : 0,
-                    'stepname': 'parsing-input',
+                    'step_name': 'parsing-input',
                     'vars'    : {},
                     'warns'   : {}}
                 status = False
@@ -307,10 +349,8 @@ def insert_barcodes(
     # Return Results
     return status, incomplete, dataframe, stats_dict
 
-def insert_spacers(
-    dataframe,
-    elements_spec,
-    stats_dict):
+def insert_spacers(dataframe, elements_spec, stats_dict):
+    '''Insert spacers into DataFrame.'''
 
     # Process All Variants
     status = False
@@ -320,15 +360,15 @@ def insert_spacers(
             try:
                 if element_name in dataframe.columns:
                     dataframe.drop(element_name, inplace=True, axis=1)
-                dataframe, stats = spacer(
-                    indata=dataframe,
-                    oligolimit=elements_spec[element_name]['oligolimit'],
-                    spacercol=element_name,
-                    outfile=None,
-                    spacerlen=elements_spec[element_name]['spacerlen'],
-                    leftcontext=elements_spec[element_name]['leftcontext'],
-                    rightcontext=elements_spec[element_name]['rightcontext'],
-                    exmotifs=elements_spec[element_name]['exmotifs'])
+                dataframe, stats = op.spacer(
+                    input_data=dataframe,
+                    oligo_length_limit=elements_spec[element_name]['oligo_length_limit'],
+                    spacer_column=element_name,
+                    output_file=None,
+                    spacer_length=elements_spec[element_name]['spacer_length'],
+                    left_context_column=elements_spec[element_name]['left_context_column'],
+                    right_context_column=elements_spec[element_name]['right_context_column'],
+                    excluded_motifs=elements_spec[element_name]['excluded_motifs'])
                 stats_dict['oligopool'][element_name] = stats
                 status = True
                 if stats['status'] is False:
@@ -337,35 +377,33 @@ def insert_spacers(
             except:
                 dataframe = None
                 stats_dict['oligopool'][element_name] = {
-                    'status'  : False,
-                    'basis'   : 'infeasible',
-                    'step'    : 0,
-                    'stepname': 'parsing-input',
-                    'vars'    : {},
-                    'warns'   : {}}
+                    'status'   : False,
+                    'basis'    : 'infeasible',
+                    'step'     : 0,
+                    'step_name': 'parsing-input',
+                    'vars'     : {},
+                    'warns'    : {}}
                 status = False
                 break
 
     # Return Results
     return status, incomplete, dataframe, stats_dict
 
-def split_oligos(
-    dataframe,
-    split_spec,
-    stats_dict):
+def split_oligos(dataframe, split_spec, stats_dict):
+    '''Split long oligos into shorter fragments.'''
 
     # Process All Variants
     status = False
     incomplete = False
     try:
-        dataframe, stats = split(
-            indata=dataframe,
-            splitlimit=split_spec['splitlimit'],
-            mintmelt=split_spec['mintmelt'],
-            minhdist=split_spec['minhdist'],
-            minoverlap=split_spec['minoverlap'],
-            maxoverlap=split_spec['maxoverlap'],
-            outfile=None)
+        dataframe, stats = op.split(
+            input_data=dataframe,
+            split_length_limit=split_spec['split_length_limit'],
+            minimum_melting_temperature=split_spec['minimum_melting_temperature'],
+            minimum_hamming_distance=split_spec['minimum_hamming_distance'],
+            minimum_overlap_length=split_spec['minimum_overlap_length'],
+            maximum_overlap_length=split_spec['maximum_overlap_length'],
+            output_file=None)
         stats_dict['split'] = stats
         status = True
         if stats['status'] is False:
@@ -373,52 +411,50 @@ def split_oligos(
     except:
         dataframe = None
         stats_dict['split'] = {
-            'status'  : False,
-            'basis'   : 'infeasible',
-            'step'    : 0,
-            'stepname': 'parsing-input',
-            'vars'    : {},
-            'warns'   : {}}
+            'status'   : False,
+            'basis'    : 'infeasible',
+            'step'     : 0,
+            'step_name': 'parsing-input',
+            'vars'     : {},
+            'warns'    : {}}
         status = False
 
     # Return Results
     return status, incomplete, dataframe, stats_dict
 
-def pad_oligos(
-    dataframe,
-    padding_spec,
-    stats_dict):
+def pad_oligos(dataframe, padding_spec, stats_dict):
+    '''Add padding to split oligos.'''
 
     # Process All Variants
     status = False
     incomplete = False
     paddedframes = []
     stats_dict['padding'] = {}
-    for splitcol in dataframe.columns:
+    for split_column in dataframe.columns:
         try:
-            paddedframe, stats = pad(
-                indata=dataframe,
-                splitcol=splitcol,
-                typeIIS=padding_spec['typeIIS'],
-                oligolimit=padding_spec['oligolimit'],
-                mintmelt=padding_spec['mintmelt'],
-                maxtmelt=padding_spec['maxtmelt'],
-                maxreplen=padding_spec['maxreplen'],
-                outfile=None)
-            stats_dict['padding'][splitcol] = stats
+            paddedframe, stats = op.pad(
+                input_data=dataframe,
+                split_column=split_column,
+                typeIIS_system=padding_spec['typeIIS_system'],
+                oligo_length_limit=padding_spec['oligo_length_limit'],
+                minimum_melting_temperature=padding_spec['minimum_melting_temperature'],
+                maximum_melting_temperature=padding_spec['maximum_melting_temperature'],
+                maximum_repeat_length=padding_spec['maximum_repeat_length'],
+                output_file=None)
+            stats_dict['padding'][split_column] = stats
             status = True
             if stats['status'] is False:
                 incomplete = True
                 break
         except:
             paddedframe = None
-            stats_dict['padding'][splitcol] = {
-                'status'  : False,
-                'basis'   : 'infeasible',
-                'step'    : 0,
-                'stepname': 'parsing-input',
-                'vars'    : {},
-                'warns'   : {}}
+            stats_dict['padding'][split_column] = {
+                'status'   : False,
+                'basis'    : 'infeasible',
+                'step'     : 0,
+                'step_name': 'parsing-input',
+                'vars'     : {},
+                'warns'    : {}}
             status = False
             break
         paddedframes.append(paddedframe)
@@ -427,125 +463,50 @@ def pad_oligos(
     return status, incomplete, paddedframes, stats_dict
 
 def design_parser(
-    pool_size,
-    element_names,
-    elements_spec,
-    background_spec,
-    split_spec,
-    padding_spec):
-    '''
-    Oligopool Calculator Design Mode Web Interface
-    Parser Logic. Dr. Salis' use only.
+    pool_size:int,
+    element_names:list,
+    elements_spec:dict,
+    background_spec:dict,
+    split_spec:dict,
+    padding_spec:dict) -> dict:
+    '''Oligopool Calculator Design Mode Automated Pipeline.
 
-    :: poolsize
-       type - integer
-       desc - an integer equal to the number of unique
-              variants in the oligopool
-        e.g.  pool_size = 4350
+    This function parses design specifications for an oligopool and processes them
+    to generate the desired library.
 
-    :: element_names
-       type - list
-       desc - a list of names of each oligopool element
-              in the order of desired adjacency
-        e.g.  element_names = [
-            'Primer1',
-            'Cut1',
-            'Sequence',
-            'Barcode',
-            'Primer2',
-            'Cut2',
-            'Primer3',
-            'Filler']
+    Parameters:
+    -----------
+        pool_size : int
+            The number of unique variants in the oligopool.
+            Example: pool_size = 4350
 
-    :: elements_spec
-       type - dict
-       desc - a dictionary of various element design params
-       e.g.   elements_spec={
-            'Primer1': {
-                        'type': 'primer',
-                  'oligolimit': 170,
-                   'primerseq': 'NNNNNNNNNNNNNNNNNNNNNN',
-                  'primertype': 0,
-                    'mintmelt': 53,
-                    'maxtmelt': 55,
-                   'maxreplen': 10,
-                'pairedprimer': 'Primer3',
-                 'leftcontext': None,
-                'rightcontext': 'Cut1',
-                    'exmotifs': ['GGATCC', 'TCTAGA'] + ['CCCCC', 'AAAAA', 'TTTTT', 'GGGGG']},
+        element_names : list
+            A list of names for each oligopool element in the order of desired adjacency.
+            Example: element_names = ['promoter', 'gene', 'terminator']
 
-            'Cut1': {
-                        'type': 'motif',
-                  'oligolimit': 194,
-                    'motifseq': 'NNNGGATCCNNN',
-                 'leftcontext': 'Primer1',
-                'rightcontext': 'Promoter',
-                    'exmotifs': ['GGATCC', 'TCTAGA'] + ['CCCCC', 'AAAAA', 'TTTTT', 'GGGGG']},
+        elements_spec : dict
+            A dictionary containing various element design parameters for each named element.
+            The keys should correspond to the names in element_names.
+            Example: elements_spec = {'primer': {...}, 'promoter': {...}, 'barcode': {...}, ...}
 
-            'Promoter': {
-                     'type': 'variant',
-                'sequences': plist},
+        background_spec : dict
+            A dictionary with background parameters for the oligopool design.
 
-            'Barcode': {
-                        'type': 'barcode',
-                  'oligolimit': 170,
-                  'barcodelen': 15,
-                    'minhdist': 3,
-                   'maxreplen': 5,
-                 'barcodetype': 1,
-                    'exmotifs': ['GGATCC', 'TCTAGA'] + ['CCCCC', 'AAAAA', 'TTTTT', 'GGGGG'],
-                 'leftcontext': 'Promoter',
-                'rightcontext': 'Primer2'},
+        split_spec : dict
+            A dictionary specifying how to split or segment the oligopool design.
 
-            'Primer2': {
-                        'type': 'primer',
-                  'oligolimit': 170,
-                   'primerseq': 'NNNNNNNNNNNNNNNNNNNNNN',
-                  'primertype': 0,
-                    'mintmelt': 53,
-                    'maxtmelt': 55,
-                   'maxreplen': 10,
-                'pairedprimer': 'Primer3',
-                 'leftcontext': 'Barcode',
-                'rightcontext': 'Cut2',
-                    'exmotifs': ['GGATCC', 'TCTAGA'] + ['CCCCC', 'AAAAA', 'TTTTT', 'GGGGG']},
+        padding_spec : dict
+            A dictionary containing specifications for padding sequences in the design.
 
-            'Cut2': {
-                        'type': 'motif',
-                  'oligolimit': 194,
-                    'motifseq': 'NNNTCTAGANNN',
-                 'leftcontext': 'Primer2',
-                'rightcontext': 'Primer3',
-                    'exmotifs': ['GGATCC', 'TCTAGA'] + ['CCCCC', 'AAAAA', 'TTTTT', 'GGGGG']},
 
-            'Primer3': {
-                        'type': 'primer',
-                  'oligolimit': 170,
-                   'primerseq': 'NNNNNNNNNNNNNNNNNNNNNN',
-                  'primertype': 1,
-                    'mintmelt': 53,
-                    'maxtmelt': 55,
-                   'maxreplen': 10,
-                'pairedprimer': 'Primer2',
-                 'leftcontext': 'Cut2',
-                'rightcontext': 'Filler',
-                    'exmotifs': ['GGATCC', 'TCTAGA'] + ['CCCCC', 'AAAAA', 'TTTTT', 'GGGGG']},
+    Returns:
+    --------
+        A dictionary containing all results and pipeline statistics in a dictionary.
 
-            'Filler': {
-                        'type': 'spacer',
-                  'oligolimit': 170,
-                   'spacerlen': None,
-                 'leftcontext': 'Primer3',
-                'rightcontext': None,
-                    'exmotifs': ['GGATCC', 'TCTAGA'] + ['CCCCC', 'AAAAA', 'TTTTT', 'GGGGG']},
-        },
 
-    :: background_spec
-       type - dict / None
-       desc - a dictionary with background params
-       e.g. background_spec = {
-               'indata': [seq1, seq2, ..., seqN],
-            'maxreplen': 15}
+    Notes:
+    ------
+        See 'run_design_parser.py' for example for an input structure.
     '''
 
     # Book-keeping
@@ -557,9 +518,9 @@ def design_parser(
     output = None
 
     # Setup Temporary Workspace
-    workspacename = str(uuid.uuid4())
+    workspace_name = str(uuid.uuid4())
     setup_workspace(
-        workspacename=workspacename)
+        workspace_name=workspace_name)
 
     # Build Initial DataFrame
     dataframe = setup_dataframe(
@@ -572,13 +533,13 @@ def design_parser(
     # Setup Background
     if ((background_spec is None) or \
         (len(background_spec) <= 0)):
-        backgroundname = None
+        background_name = None
         print()
     else:
         (status,
-        backgroundname,
+        background_name,
         stats_dict) = setup_background(
-            workspacename=workspacename,
+            workspace_name=workspace_name,
             background_spec=background_spec,
             stats_dict=stats_dict)
         if status is False:
@@ -635,7 +596,7 @@ def design_parser(
     dataframe,
     stats_dict) = insert_primers(
         element_names=element_names,
-        background=backgroundname,
+        background=background_name,
         dataframe=dataframe,
         elements_spec=elements_spec,
         stats_dict=stats_dict)
@@ -695,12 +656,11 @@ def design_parser(
         'stats_dict': stats_dict}
 
     # Finalize DataFrame
-    final_dataframe, _ = final.final(
-        indata=dataframe,
-        outfile=None,
+    final_dataframe, _ = op.final(
+        input_data=dataframe,
+        output_file=None,
         verbose=True)
-    final_dataframe.drop(
-        'OligoLength', inplace=True, axis=1)
+    final_dataframe.drop('OligoLength', inplace=True, axis=1)
 
     # Split Oligos
     split_dataframe = None
@@ -715,13 +675,13 @@ def design_parser(
             stats_dict=stats_dict)
         if status is False:
             return {
-                'step': 8,
+                  'step': 8,
              'step_name': 'Step 8: Split Input Error',
                 'output': output,
             'stats_dict': stats_dict}
         if incomplete:
             return {
-                'step': 8,
+                  'step': 8,
              'step_name': 'Step 8: Split Infeasible',
                 'output': output,
             'stats_dict': stats_dict}
@@ -741,20 +701,19 @@ def design_parser(
             stats_dict=stats_dict)
         if status is False:
             return {
-                'step': 9,
+                  'step': 9,
              'step_name': 'Step 9: Padding Input Error',
                 'output': output,
             'stats_dict': stats_dict}
         if incomplete:
             return {
-                'step': 9,
+                  'step': 9,
              'step_name': 'Step 9: Padding Infeasible',
                 'output': output,
             'stats_dict': stats_dict}
 
     # Remove Workspace
-    utils.remove_directory(
-        dirpath=workspacename)
+    remove_directory(dirpath=workspace_name)
 
     # Compute Ouput
     output = {
@@ -773,28 +732,34 @@ def design_parser(
             'output': output,
         'stats_dict': stats_dict}
 
-def test():
 
+# --= MISC TEST =--
+
+def test_primer_order():
+    '''Resolve the dependency graph of a system of primers.'''
+
+    # Define all Primers
     elements_spec = {
         'Primer1': {
             'type': 'primer',
-            'pairedprimer': 'Primer2',
+            'paired_primer_column': 'Primer2',
         },
 
         'Primer2': {
             'type': 'primer',
-            'pairedprimer': 'Primer1',
+            'paired_primer_column': 'Primer1',
         },
 
         'Primer3': {
             'type': 'primer',
-            'pairedprimer': 'Primer2',
+            'paired_primer_column': 'Primer2',
         },
     }
 
-    order = get_primer_order(
-        elements_spec)
+    # Resolve and show order
+    order = get_primer_order(elements_spec)
     print(order)
 
 if __name__ == '__main__':
-    test()
+    # test_primer_order()
+    help(design_parser)

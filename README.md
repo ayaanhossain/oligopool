@@ -5,14 +5,11 @@
 </h1>
 
 <p align="center">
-  <a style="text-decoration: none" href="#Overview">Overview</a> •
   <a style="text-decoration: none" href="#Installation">Installation</a> •
   <a style="text-decoration: none" href="#Getting-Started">Getting Started</a> •
   <a style="text-decoration: none" href="#License">License</a> •
   <a style="text-decoration: none" href="#Citation">Citation</a>
 </p>
-
-## Overview
 
 `Oligopool Calculator` is an end-to-end suite of algorithms for automated design and analysis of oligopool libraries.
 

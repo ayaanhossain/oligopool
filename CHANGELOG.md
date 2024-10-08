@@ -1,3 +1,7 @@
+2024.10.07
+1. Update `README.md`.
+2. Finalize and test `design_parser.py`.
+
 2024.10.05
 1. Updated docstrings in `lenstat`, `vectorDB`.
 2. Updated `spacer`, `motif`, `final`.

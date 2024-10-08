@@ -529,8 +529,8 @@ def motif_objectives(
             liner=liner)
 
         # Update Stats
-        stats['vars']['exmotiffail'] += 1
-        stats['vars']['exmotifcounter'][exmotif] += 1
+        stats['vars']['exmotif_fail'] += 1
+        stats['vars']['exmotif_counter'][exmotif] += 1
 
         # Return Traceback
         return False, max(
@@ -563,8 +563,8 @@ def motif_objectives(
             liner=liner)
 
         # Update Stats
-        stats['vars']['edgefail'] += len(dxmotifs)
-        stats['vars']['exmotifcounter'].update(dxmotifs)
+        stats['vars']['edge_fail'] += len(dxmotifs)
+        stats['vars']['exmotif_counter'].update(dxmotifs)
 
         # Return Traceback
         return False, traceloc
@@ -706,8 +706,8 @@ def extra_assign_motif(
         else:
 
             # Record Failure Stats
-            stats['vars']['edgefail'] += len(dxmotifs)
-            stats['vars']['exmotifcounter'].update(dxmotifs)
+            stats['vars']['edge_fail'] += len(dxmotifs)
+            stats['vars']['exmotif_counter'].update(dxmotifs)
 
             # Try Again Later
             contextarray.append(aidx)

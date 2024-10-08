@@ -34,7 +34,7 @@ def main():
 
         elements_spec={
             'Primer1': {
-                                       'type': 'primer',
+                               'element_type': 'primer',
                          'oligo_length_limit': 250,
                  'primer_sequence_constraint': 'NNNNNNNNNNNNNNNNNNNNNN',
                                 'primer_type': 0,
@@ -48,7 +48,7 @@ def main():
             },
 
             'Cut1': {
-                                     'type': 'motif',
+                             'element_type': 'motif',
                        'oligo_length_limit': 194,
                 'motif_sequence_constraint': 'NNNGGATCCNNN',
                       'left_context_column': 'Primer1',
@@ -57,12 +57,12 @@ def main():
             },
 
             'Promoter': {
-                     'type': 'variant',
+                     'element_type': 'variant',
                 'sequences': promoter_list
             },
 
             'Barcode': {
-                                    'type': 'barcode',
+                            'element_type': 'barcode',
                       'oligo_length_limit': 250,
                           'barcode_length': 16,
                 'minimum_hamming_distance': 3,
@@ -74,7 +74,7 @@ def main():
             },
 
             'Primer2': {
-                                       'type': 'primer',
+                               'element_type': 'primer',
                          'oligo_length_limit': 250,
                  'primer_sequence_constraint': 'NNNNNNNNNNNNNNNNNNNNNN',
                                 'primer_type': 0,
@@ -88,7 +88,7 @@ def main():
             },
 
             'Cut2': {
-                                     'type': 'motif',
+                             'element_type': 'motif',
                        'oligo_length_limit': 194,
                 'motif_sequence_constraint': 'NNNTCTAGANNN',
                       'left_context_column': 'Primer2',
@@ -97,7 +97,7 @@ def main():
             },
 
             'Primer3': {
-                                       'type': 'primer',
+                               'element_type': 'primer',
                          'oligo_length_limit': 250,
                  'primer_sequence_constraint': 'NNNNNNNNNNNNNNNNNNNNNN',
                                 'primer_type': 1,
@@ -111,7 +111,7 @@ def main():
             },
 
             'Filler': {
-                                'type': 'spacer',
+                        'element_type': 'spacer',
                   'oligo_length_limit': 250,
                        'spacer_length': None,
                  'left_context_column': 'Primer3',

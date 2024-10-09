@@ -13,7 +13,7 @@
 
 `Oligopool Calculator` is an end-to-end suite of algorithms for automated design and analysis of [oligopool libraries](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9300125/).
 
-It enables the scalable design of universal primer sets and error-correctable barcodes, the splitting of long constructs into multiple oligos, and the rapid packing and counting of barcoded reads -- all on a regular 8-core desktop computer.
+It enables the scalable design of universal primer sets, error-correctable barcodes, the splitting of long constructs into multiple oligos, and the rapid packing and counting of barcoded reads -- all on a regular 8-core desktop computer.
 
 We have used `Oligopool Calculator` in multiple projects to build libraries of tens of thousands of promoters, ribozymes, and mRNA stability elements, illustrating the use of a flexible grammar to add multiple barcodes, cut sites, avoid excluded sequences, and optimize experimental constraints. These libraries were later characterized using highly efficient barcode counting provided by `Oligopool Calculator`.
 

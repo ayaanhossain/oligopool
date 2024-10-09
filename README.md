@@ -112,8 +112,8 @@ Type "help", "copyright", "credits" or "license" for more information.
         Element modules available
             - primer
             - barcode
-            - spacer
             - motif
+            - spacer
 
         Assembly modules available
             - split

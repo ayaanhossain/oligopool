@@ -46,13 +46,13 @@ def primer(
         - `primer_column` (`str`): Column name for the designed primer.
 
     Optional Parameters:
-        - `output_file` (`str` / `None`): Filename for output DataFrame (default: `None`).
-        - `paired_primer_column` (`str` / `None`): Column for paired primer sequence (default: `None`).
-        - `left_context_column` (`str` / `None`): Column for left DNA context (default: `None`).
-        - `right_context_column` (`str` / `None`): Column for right DNA context (default: `None`).
-        - `excluded_motifs` (`list` / `str` / `pd.DataFrame` / `None`): Motifs to exclude;
+        - `output_file` (`str`): Filename for output DataFrame (default: `None`).
+        - `paired_primer_column` (`str`): Column for paired primer sequence (default: `None`).
+        - `left_context_column` (`str`): Column for left DNA context (default: `None`).
+        - `right_context_column` (`str`): Column for right DNA context (default: `None`).
+        - `excluded_motifs` (`list` / `str` / `pd.DataFrame`): Motifs to exclude;
             can be a CSV path or DataFrame (default: `None`).
-        - `background_directory` (`str` / `None`): Directory for background k-mer sequences (default: `None`).
+        - `background_directory` (`str`): Directory for background k-mer sequences (default: `None`).
         - `verbose` (`bool`): If `True`, logs updates to stdout (default: `True`).
 
     Returns:

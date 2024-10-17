@@ -5,7 +5,6 @@ import atexit as ae
 
 import pandas  as pd
 
-
 from .base import utils as ut
 from .base import validation_parsing as vp
 from .base import core_motif as cm
@@ -35,10 +34,10 @@ def motif(
         - `motif_column` (`str`): Column name for inserting the designed motifs.
 
     Optional Parameters:
-        - `output_file` (`str` / `None`): Filename for output DataFrame (default: `None`).
-        - `left_context_column` (`str` / `None`): Column for left DNA context (default: `None`).
-        - `right_context_column` (`str` / `None`): Column for right DNA context (default: `None`).
-        - `excluded_motifs` (`list` / `str` / `pd.DataFrame` / `None`): Motifs to exclude;
+        - `output_file` (`str`): Filename for output DataFrame (default: `None`).
+        - `left_context_column` (`str`): Column for left DNA context (default: `None`).
+        - `right_context_column` (`str`): Column for right DNA context (default: `None`).
+        - `excluded_motifs` (`list` / `str` / `pd.DataFrame`): Motifs to exclude;
             can be a CSV path or DataFrame (default: `None`).
         - `verbose` (`bool`): If `True`, logs updates to stdout (default: `True`).
 

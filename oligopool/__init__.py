@@ -27,7 +27,7 @@ from .base.scry import Scry
 # Setup
 __author__ = 'Ayaan Hossain'
 
-__version__ = '2024.10.05'
+__version__ = '2024.10.08'
 
 __doc__ = f'''
 oligopool v{__version__}
@@ -59,18 +59,18 @@ Design Mode workflow
     Element modules available
         - primer
         - barcode
-        - spacer
         - motif
-
-    Auxiliary modules available
-        - lenstat
-        - final
+        - spacer
 
     Assembly modules available
         - split
         - pad
 
-    Design Mode worfklow example sketch
+    Auxiliary modules available
+        - lenstat
+        - final
+
+    Design Mode example sketch
 
         >>> import pandas as pd
         >>> import oligopool as op
@@ -79,8 +79,8 @@ Design Mode workflow
         >>> init_df = pd.read_csv('initial_library.csv')
         >>>
         >>> # Add oligo elements one by one
-        >>> barcode_df, stats = op.barcode(input_data=init_df, ...)
-        >>> primer_df,  stats = op.primer(input_data=barcode_df, ...)
+        >>> primer_df,  stats = op.primer(input_data=init_df, ...)
+        >>> barcode_df, stats = op.barcode(input_data=primer_df, ...)
         ...
         >>> # Check length statistics as needed
         >>> length_stats = op.lenstat(input_data=further_along_df)
@@ -91,6 +91,7 @@ Design Mode workflow
         >>> first_pad_df,  stats = op.pad(input_data=split_df, ...)
         >>> second_pad_df, stats = op.pad(input_data=split_df, ...)
         ...
+        >>>
         >>> # Finalize the library
         >>> final_df, stats = op.final(input_data=ready_to_go_df, ...)
         ...
@@ -113,31 +114,30 @@ Analysis Mode workflow
         - acount
         - xcount
 
-    Analysis Mode worfklow example sketch
+    Analysis Mode example sketch
 
         >>> import pandas as pd
         >>> import oligopool as op
         >>>
         >>> # Read annotated library
-        >>> df = pd.read_csv('annotated_final_library.csv')
-        >>>
-        >>> # Index the barcodes and save the indexes
-        >>> bc1_index_stats = op.index(input_data=df, barcode_column='BC1', ...)
-        >>> bc2_index_stats = op.index(input_data=df, barcode_column='BC2', ...)
+        >>> bc1_df = pd.read_csv('barcode_1.csv')
+        >>> bc2_df = pd.read_csv('barcode_2.csv')
+        >>> av1_df = pd.read_csv('associate_1.csv')
         ...
         >>>
-        >>> # Pack the FastQ files
+        >>> # Index barcodes and any associates
+        >>> bc1_index_stats = op.index(barcode_data=bc1_df, barcode_column='BC1', ...)
+        >>> bc2_index_stats = op.index(barcode_data=bc2_df, barcode_column='BC2', ...)
+        ...
+        >>>
+        >>> # Pack experiment FastQ files
         >>> sam1_pack_stats = op.pack(r1_file='sample_1_R1.fq.gz', ...)
         >>> sam2_pack_stats = op.pack(r1_file='sample_2_R1.fq.gz', ...)
         ...
         >>>
-        >>> # Compute and write the barcode combination count matrix
-        >>> xcount_stats = op.xcount(index_files=['bc1_index', 'bc2_index'],
+        >>> # Compute and write barcode combination count matrix
+        >>> xcount_df = op.xcount(index_files=['bc1_index', 'bc2_index'],
         ...                          pack_file='sample_1_pack', ...)
-        ...
-        >>>
-        >>> # Read the count matrix and continue analysis
-        >>> count_df = pd.read_csv('sample_1_counts.csv')
         ...
 
 You can learn more about each module using help.

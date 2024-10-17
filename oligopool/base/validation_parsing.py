@@ -561,7 +561,6 @@ def get_parsed_packfile(
 
     # packfile content ok and non-empty?
     packfile_ok_content = False
-    packtype  = None
     packcount = 0
     packfile_nonempty = False
     if packfile_ok_format:
@@ -579,7 +578,7 @@ def get_parsed_packfile(
                 archive=archive,
                 dfile='packing.stat')
 
-            if packcount != packstat['packcount']:
+            if packcount != packstat['pack_count']:
                 raise
 
             packfile_nonempty = packcount > 0

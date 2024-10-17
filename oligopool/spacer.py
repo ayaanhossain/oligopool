@@ -34,12 +34,12 @@ def spacer(
         - `spacer_column` (`str`): Column name for inserting the designed spacers.
 
     Optional Parameters:
-        - `output_file` (`str` / `None`): Filename for output DataFrame (default: `None`).
-        - `spacer_length` (`int` / `None`): Length of the inserted spacers,
+        - `output_file` (`str`): Filename for output DataFrame (default: `None`).
+        - `spacer_length` (`int`): Length of the inserted spacers,
             if `None` automatically determine this length per oligo (default: `None`).
-        - `left_context_column` (`str` / `None`): Column for left DNA context (default: `None`).
-        - `right_context_column` (`str` / `None`): Column for right DNA context (default: `None`).
-        - `excluded_motifs` (`list` / `str` / `pd.DataFrame` / `None`): Motifs to exclude;
+        - `left_context_column` (`str`): Column for left DNA context (default: `None`).
+        - `right_context_column` (`str`): Column for right DNA context (default: `None`).
+        - `excluded_motifs` (`list` / `str` / `pd.DataFrame`): Motifs to exclude;
             can be a CSV path or DataFrame (default: `None`).
         - `verbose` (`bool`): If `True`, logs updates to stdout (default: `True`).
 

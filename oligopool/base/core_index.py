@@ -1,9 +1,9 @@
 import time as tt
 
 import collections as cx
-import itertools   as ix
 
 from . import utils as ut
+from . import scry  as sy
 
 
 # Parser and Setup Functions
@@ -482,3 +482,271 @@ def get_associate_tvalues(
         mintval = min(mintval, tvalue) if not mintval is None else tvalue
         maxtval = max(maxtval, tvalue) if not maxtval is None else tvalue
     return associatetvaldict, mintval, maxtval
+
+def index_engine(
+    IDdict,
+    barcodedict,
+    barcodename,
+    barcodecount,
+    barcodelen,
+    barcodeprefix,
+    barcodesuffix,
+    barcodepregap,
+    barcodepostgap,
+    associatedict,
+    associateprefix,
+    associatesuffix,
+    indexdir,
+    indexqueue,
+    liner):
+    '''
+    Prepare final indexes and models for
+    counting, based on parsed objects.
+    Internal use only.
+
+    :: IDdict
+       type - dict
+       desc - barcode/associate ID dictionary
+    :: barcodedict
+       type - dict
+       desc - complete barcode sequence
+              dictionary
+    :: barcodename
+       type - string
+       desc - barcode column name
+    :: barcodecount
+       type - integer
+       desc - total number of barcodes
+    :: barcodelen
+       type - integer
+       desc - length of barcodes
+    :: barcodeprefix
+       type - string / None
+       desc - constant barcode prefix
+    :: barcodesuffix
+       type - string / None
+       desc - constant barcode suffix
+    :: barcodepregap
+       type - integer
+       desc - gap between prefix and barcode
+    :: barcodepostgap
+       type - integer
+       desc - gap between barcode and suffix
+    :: associatedict
+       type - dict
+       desc - complete associate sequence
+              dictionary
+    :: associateprefix
+       type - string / None
+       desc - constant associate prefix
+    :: associatesuffix
+       type - string / None
+       desc - constant associate suffix
+    :: indexdir
+       type - string
+       desc - path to directory temporarily
+              storing indexed structures
+              and data models
+    :: indexqueue
+       type - mp.SimpleQueue
+       desc - queue storing indexed object
+              paths once saved into indexdir
+    :: liner
+       type - coroutine
+       desc - dynamic printing
+    '''
+
+    # Start Timer
+    t0 = tt.time()
+
+    # Base Index Directory Path
+    indexdir += '/'
+
+    # Counting Meta Data Initialization
+    maxtval = 2
+    metamap = {
+        'variantcount'   : barcodecount,
+        'barcodename'    : barcodename,
+        'barcodelen'     : barcodelen,
+        'barcodeprefix'  : barcodeprefix,
+        'barcodesuffix'  : barcodesuffix,
+        'barcodepregap'  : barcodepregap,
+        'barcodepostgap' : barcodepostgap,
+        'barcodegapped'  : any((barcodepregap, barcodepostgap)),
+        'association'    : len(associatedict) > 0,
+        'associateprefix': associateprefix,
+        'associatesuffix': associatesuffix
+    }
+
+    # Compute Barcode Set t-value
+    liner.send(' Inferring Barcode t-value ...')
+    barcodetval = infer_tvalue(
+        elementlen=barcodelen,
+        maximum=2)
+    liner.send(
+        '   Barcode t-value: {:,} Mismatch(es)\n'.format(
+            barcodetval))
+    metamap['barcodetval'] = barcodetval
+
+    # Compute Barcode Set k-value
+    liner.send(' Inferring Barcode k-value ...')
+    barcodekval = infer_kvalue(
+        elementlen=barcodelen,
+        tvalue=barcodetval,
+        minimum=3)
+    liner.send(
+        '   Barcode k-value: {:,} Base Pair(s)\n'.format(
+            barcodekval))
+    metamap['barcodekval'] = barcodekval
+
+    # Compute Associate Set t-value
+    if associatedict:
+        liner.send(' Inferring Associate t-value ...')
+        (associatetvaldict,
+        mintval,
+        maxtval) = get_associate_tvalues(
+            associatedict=associatedict,
+            maximum=4,
+            liner=liner)
+        if mintval == maxtval:
+            liner.send(
+                ' Associate t-value: {:,} Mismatch(es)\n'.format(
+                    mintval))
+        else:
+            liner.send(
+                ' Associate t-value: {:,} to {:,} Mismatch(es)\n'.format(
+                    mintval,
+                    maxtval))
+        metamap['associatetvalmin'] = mintval
+        metamap['associatetvalmax'] = maxtval
+    else:
+        metamap['associatetvalmin'] = None
+        metamap['associatetvalmax'] = None
+
+    # Compute Barcode Prefix t-value
+    if not barcodeprefix is None:
+        bpxtval = infer_tvalue(
+            elementlen=len(barcodeprefix),
+            maximum=2)
+        metamap['bpxtval'] = bpxtval
+    else:
+        metamap['bpxtval'] = None
+
+    # Compute Barcode Suffix t-value
+    if not barcodesuffix is None:
+        bsxtval = infer_tvalue(
+            elementlen=len(barcodesuffix),
+            maximum=2)
+        metamap['bsxtval'] = bsxtval
+    else:
+        metamap['bsxtval'] = None
+
+    # Compute Trimming Policy
+    metamap['trimpolicy'] = None
+    if not barcodeprefix is None and \
+       not barcodesuffix is None:
+        metamap['trimpolicy'] = 1.5
+    elif not barcodeprefix is None:
+        metamap['trimpolicy'] = 1
+    elif not barcodesuffix is None:
+        metamap['trimpolicy'] = 2
+
+    # Compute Read Anchor Motif
+    if not barcodeprefix is None:
+        metamap['anchor']     = barcodeprefix
+        metamap['revanchor']  = ut.get_revcomp(
+            seq=barcodeprefix)
+        metamap['anchortval'] = bpxtval
+    else:
+        metamap['anchor']     = barcodesuffix
+        metamap['revanchor']  = ut.get_revcomp(
+            seq=barcodesuffix)
+        metamap['anchortval'] = bsxtval
+
+    # Compute Associate Prefix t-value
+    if not associateprefix is None:
+        apxtval = infer_tvalue(
+            elementlen=len(associateprefix),
+            maximum=2)
+        metamap['apxtval'] = apxtval
+    else:
+        metamap['apxtval'] = None
+
+    # Compute Associate Suffix t-value
+    if not associatesuffix is None:
+        asxtval = infer_tvalue(
+            elementlen=len(associatesuffix),
+            maximum=2)
+        metamap['asxtval'] = asxtval
+    else:
+        metamap['asxtval'] = None
+
+    # Save and Delete ID Dict
+    liner.send(' Writing ID Map ...')
+    opath = indexdir+'ID.map'
+    ut.savedict(
+        dobj=IDdict,
+        filepath=opath)
+    indexqueue.put(opath)
+    del IDdict
+    liner.send(' Writing        ID Map  : Done\n')
+
+    # Save and Delete metamap
+    liner.send(' Writing Meta Map ...')
+    opath = indexdir+'meta.map'
+    ut.savedict(
+        dobj=metamap,
+        filepath=opath)
+    indexqueue.put(opath)
+    del metamap
+    liner.send(' Writing      Meta Map  : Done\n')
+
+    # Train Barcode Model
+    liner.send(' Training Barcode Model ...')
+    X,Y = split_map(
+        maptosplit=barcodedict)
+    t0  = tt.time()
+    barcodemodel = sy.Scry().train(
+        X=X,
+        Y=Y,
+        n=barcodelen,
+        k=barcodekval,
+        t=barcodetval,
+        liner=liner)
+
+    # Save Barcode Model
+    opath = indexdir+'barcode.model'
+    ut.savemodel(
+        mobj=barcodemodel,
+        filepath=opath)
+    indexqueue.put(opath)
+    del barcodedict
+    del barcodemodel
+    liner.send(' Writing   Barcode Model: Done\n')
+
+    # Update Associate Dictionary
+    if associatedict:
+        liner.send(' Updating Associate Map ...')
+        for k in associatedict:
+            associatedict[k] = (
+                associatedict[k],
+                associatetvaldict.pop(k))
+
+    # Save and Delete associatedict
+    if associatedict:
+        liner.send(' Writing Associate Map ...')
+        opath = indexdir+'associate.map'
+        ut.savedict(
+            dobj=associatedict,
+            filepath=opath)
+        indexqueue.put(opath)
+        del associatedict
+        liner.send(' Writing Associate Map  : Done\n')
+
+    # Show Time Elapsed
+    liner.send(
+        ' Time Elapsed: {:.2f} sec\n'.format(
+            tt.time()-t0))
+
+    # Indexing Completed
+    indexqueue.put(None)

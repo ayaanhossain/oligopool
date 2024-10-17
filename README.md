@@ -123,7 +123,7 @@ Type "help", "copyright", "credits" or "license" for more information.
             - lenstat
             - final
 
-        Design Mode worfklow example sketch
+        Design Mode example sketch
 
             >>> import pandas as pd
             >>> import oligopool as op
@@ -167,25 +167,28 @@ Type "help", "copyright", "credits" or "license" for more information.
             - acount
             - xcount
 
-        Analysis Mode worfklow example sketch
+        Analysis Mode example sketch
 
             >>> import pandas as pd
             >>> import oligopool as op
             >>>
             >>> # Read annotated library
-            >>> df = pd.read_csv('annotated_final_library.csv')
-            >>>
-            >>> # Index the barcodes and save the indexes
-            >>> bc1_index_stats = op.index(input_data=df, barcode_column='BC1', ...)
-            >>> bc2_index_stats = op.index(input_data=df, barcode_column='BC2', ...)
+            >>> bc1_df = pd.read_csv('barcode_1.csv')
+            >>> bc2_df = pd.read_csv('barcode_2.csv')
+            >>> av1_df = pd.read_csv('associate_1.csv')
             ...
             >>>
-            >>> # Pack the FastQ files
+            >>> # Index barcodes and any associates
+            >>> bc1_index_stats = op.index(barcode_data=bc1_df, barcode_column='BC1', ...)
+            >>> bc2_index_stats = op.index(barcode_data=bc2_df, barcode_column='BC2', ...)
+            ...
+            >>>
+            >>> # Pack experiment FastQ files
             >>> sam1_pack_stats = op.pack(r1_file='sample_1_R1.fq.gz', ...)
             >>> sam2_pack_stats = op.pack(r1_file='sample_2_R1.fq.gz', ...)
             ...
             >>>
-            >>> # Compute and write the barcode combination count matrix
+            >>> # Compute and write barcode combination count matrix
             >>> xcount_stats = op.xcount(index_files=['bc1_index', 'bc2_index'],
             ...                          pack_file='sample_1_pack', ...)
             ...

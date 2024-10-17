@@ -1,296 +1,72 @@
 import time as tt
+
 import atexit as ae
 
-from .base import utils     as ut
-from .base import validation_parsing  as vp
-from .base import scry      as sy
-from .base import coreindex as ci
+from .base import utils as ut
+from .base import validation_parsing as vp
+from .base import core_index as ci
 
-
-def index_engine(
-    IDdict,
-    barcodedict,
-    barcodename,
-    barcodecount,
-    barcodelen,
-    barcodeprefix,
-    barcodesuffix,
-    barcodepregap,
-    barcodepostgap,
-    associatedict,
-    associateprefix,
-    associatesuffix,
-    indexdir,
-    indexqueue,
-    liner):
-    '''
-    Prepare final indexes and models for
-    counting, based on parsed objects.
-    Internal use only.
-
-    :: IDdict
-       type - dict
-       desc - barcode/associate ID dictionary
-    :: barcodedict
-       type - dict
-       desc - complete barcode sequence
-              dictionary
-    :: barcodename
-       type - string
-       desc - barcode column name
-    :: barcodecount
-       type - integer
-       desc - total number of barcodes
-    :: barcodelen
-       type - integer
-       desc - length of barcodes
-    :: barcodeprefix
-       type - string / None
-       desc - constant barcode prefix
-    :: barcodesuffix
-       type - string / None
-       desc - constant barcode suffix
-    :: barcodepregap
-       type - integer
-       desc - gap between prefix and barcode
-    :: barcodepostgap
-       type - integer
-       desc - gap between barcode and suffix
-    :: associatedict
-       type - dict
-       desc - complete associate sequence
-              dictionary
-    :: associateprefix
-       type - string / None
-       desc - constant associate prefix
-    :: associatesuffix
-       type - string / None
-       desc - constant associate suffix
-    :: indexdir
-       type - string
-       desc - path to directory temporarily
-              storing indexed structures
-              and data models
-    :: indexqueue
-       type - mp.SimpleQueue
-       desc - queue storing indexed object
-              paths once saved into indexdir
-    :: liner
-       type - coroutine
-       desc - dynamic printing
-    '''
-
-    # Start Timer
-    t0 = tt.time()
-
-    # Base Index Directory Path
-    indexdir += '/'
-
-    # Counting Meta Data Initialization
-    maxtval = 2
-    metamap = {
-        'variantcount'   : barcodecount,
-        'barcodename'    : barcodename,
-        'barcodelen'     : barcodelen,
-        'barcodeprefix'  : barcodeprefix,
-        'barcodesuffix'  : barcodesuffix,
-        'barcodepregap'  : barcodepregap,
-        'barcodepostgap' : barcodepostgap,
-        'barcodegapped'  : any((barcodepregap, barcodepostgap)),
-        'association'    : len(associatedict) > 0,
-        'associateprefix': associateprefix,
-        'associatesuffix': associatesuffix
-    }
-
-    # Compute Barcode Set t-value
-    liner.send(' Inferring Barcode t-value ...')
-    barcodetval = ci.infer_tvalue(
-        elementlen=barcodelen,
-        maximum=2)
-    liner.send(
-        '   Barcode t-value: {:,} Mismatch(es)\n'.format(
-            barcodetval))
-    metamap['barcodetval'] = barcodetval
-
-    # Compute Barcode Set k-value
-    liner.send(' Inferring Barcode k-value ...')
-    barcodekval = ci.infer_kvalue(
-        elementlen=barcodelen,
-        tvalue=barcodetval,
-        minimum=3)
-    liner.send(
-        '   Barcode k-value: {:,} Base Pair(s)\n'.format(
-            barcodekval))
-    metamap['barcodekval'] = barcodekval
-
-    # Compute Associate Set t-value
-    if associatedict:
-        liner.send(' Inferring Associate t-value ...')
-        (associatetvaldict,
-        mintval,
-        maxtval) = ci.get_associate_tvalues(
-            associatedict=associatedict,
-            maximum=4,
-            liner=liner)
-        if mintval == maxtval:
-            liner.send(
-                ' Associate t-value: {:,} Mismatch(es)\n'.format(
-                    mintval))
-        else:
-            liner.send(
-                ' Associate t-value: {:,} to {:,} Mismatch(es)\n'.format(
-                    mintval,
-                    maxtval))
-        metamap['associatetvalmin'] = mintval
-        metamap['associatetvalmax'] = maxtval
-    else:
-        metamap['associatetvalmin'] = None
-        metamap['associatetvalmax'] = None
-
-    # Compute Barcode Prefix t-value
-    if not barcodeprefix is None:
-        bpxtval = ci.infer_tvalue(
-            elementlen=len(barcodeprefix),
-            maximum=2)
-        metamap['bpxtval'] = bpxtval
-    else:
-        metamap['bpxtval'] = None
-
-    # Compute Barcode Suffix t-value
-    if not barcodesuffix is None:
-        bsxtval = ci.infer_tvalue(
-            elementlen=len(barcodesuffix),
-            maximum=2)
-        metamap['bsxtval'] = bsxtval
-    else:
-        metamap['bsxtval'] = None
-
-    # Compute Trimming Policy
-    metamap['trimpolicy'] = None
-    if not barcodeprefix is None and \
-       not barcodesuffix is None:
-        metamap['trimpolicy'] = 1.5
-    elif not barcodeprefix is None:
-        metamap['trimpolicy'] = 1
-    elif not barcodesuffix is None:
-        metamap['trimpolicy'] = 2
-
-    # Compute Read Anchor Motif
-    if not barcodeprefix is None:
-        metamap['anchor']     = barcodeprefix
-        metamap['revanchor']  = ut.get_revcomp(
-            seq=barcodeprefix)
-        metamap['anchortval'] = bpxtval
-    else:
-        metamap['anchor']     = barcodesuffix
-        metamap['revanchor']  = ut.get_revcomp(
-            seq=barcodesuffix)
-        metamap['anchortval'] = bsxtval
-
-    # Compute Associate Prefix t-value
-    if not associateprefix is None:
-        apxtval = ci.infer_tvalue(
-            elementlen=len(associateprefix),
-            maximum=2)
-        metamap['apxtval'] = apxtval
-    else:
-        metamap['apxtval'] = None
-
-    # Compute Associate Suffix t-value
-    if not associatesuffix is None:
-        asxtval = ci.infer_tvalue(
-            elementlen=len(associatesuffix),
-            maximum=2)
-        metamap['asxtval'] = asxtval
-    else:
-        metamap['asxtval'] = None
-
-    # Save and Delete ID Dict
-    liner.send(' Writing ID Map ...')
-    opath = indexdir+'ID.map'
-    ut.savedict(
-        dobj=IDdict,
-        filepath=opath)
-    indexqueue.put(opath)
-    del IDdict
-    liner.send(' Writing        ID Map  : Done\n')
-
-    # Save and Delete metamap
-    liner.send(' Writing Meta Map ...')
-    opath = indexdir+'meta.map'
-    ut.savedict(
-        dobj=metamap,
-        filepath=opath)
-    indexqueue.put(opath)
-    del metamap
-    liner.send(' Writing      Meta Map  : Done\n')
-
-    # Train Barcode Model
-    liner.send(' Training Barcode Model ...')
-    X,Y = ci.split_map(
-        maptosplit=barcodedict)
-    t0  = tt.time()
-    barcodemodel = sy.Scry().train(
-        X=X,
-        Y=Y,
-        n=barcodelen,
-        k=barcodekval,
-        t=barcodetval,
-        liner=liner)
-
-    # Save Barcode Model
-    opath = indexdir+'barcode.model'
-    ut.savemodel(
-        mobj=barcodemodel,
-        filepath=opath)
-    indexqueue.put(opath)
-    del barcodedict
-    del barcodemodel
-    liner.send(' Writing   Barcode Model: Done\n')
-
-    # Update Associate Dictionary
-    if associatedict:
-        liner.send(' Updating Associate Map ...')
-        for k in associatedict:
-            associatedict[k] = (
-                associatedict[k],
-                associatetvaldict.pop(k))
-
-    # Save and Delete associatedict
-    if associatedict:
-        liner.send(' Writing Associate Map ...')
-        opath = indexdir+'associate.map'
-        ut.savedict(
-            dobj=associatedict,
-            filepath=opath)
-        indexqueue.put(opath)
-        del associatedict
-        liner.send(' Writing Associate Map  : Done\n')
-
-    # Show Time Elapsed
-    liner.send(
-        ' Time Elapsed: {:.2f} sec\n'.format(
-            tt.time()-t0))
-
-    # Indexing Completed
-    indexqueue.put(None)
 
 def index(
-    barcodedata,
-    barcodecol,
-    indexfile,
-    barcodeprefix=None,
-    barcodesuffix=None,
-    barcodepregap=0,
-    barcodepostgap=0,
-    associatedata=None,
-    associatecol=None,
-    associateprefix=None,
-    associatesuffix=None,
-    verbose=True):
+    barcode_data:str,
+    barcode_column:str,
+    index_file:str,
+    barcode_prefix_column:str|None=None,
+    barcode_suffix_column:str|None=None,
+    barcode_prefix_gap:int=0,
+    barcode_suffix_gap:int=0,
+    associate_data:str|None=None,
+    associate_column:str|None=None,
+    associate_prefix_column:str|None=None,
+    associate_suffix_column:str|None=None,
+    verbose:bool=True) -> dict:
     '''
-    TBW
+    Create an index for barcode mapping and counting. Indexes barcodes, optionally with associated
+    variants, for use in `Scry` classifier. Barcode and associate data can be provided separately.
+    Resulting index is a single information unit for mapping and counting, saved locally for future.
+
+    Required Parameters:
+        - `barcode_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated barcodes.
+        - `barcode_column` (`str`): Column name for the barcodes to index.
+        - `index_file` (`str`): Filename for output index object.
+
+    Optional Parameters:
+        - `barcode_prefix_column` (`str`): Column for the constant barcode prefix anchor (default: `None`).
+        - `barcode_suffix_column` (`str`): Column for the constant barcode suffix anchor (default: `None`).
+        - `barcode_prefix_gap` (`int`): Distance between the prefix and barcode (default: 0).
+        - `barcode_suffix_gap` (`int`): Distance between the suffix and barcode (default: 0).
+        - `associate_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated variants.
+        - `associate_column` (`str`): Column name for the associate elements to index (default: `None`).
+        - `associate_prefix_column` (`str`): Column for the constant associate prefix (default: `None`).
+        - `associate_suffix_column` (`str`): Column for the constant associate suffix (default: `None`).
+        - `verbose` (`bool`): If `True`, logs updates to stdout (default: `True`).
+
+    Returns:
+        - A dictionary of stats from the last step in pipeline.
+
+    Notes:
+        - `barcode_data` and `associate_data` require unique 'ID' column; others must be non-empty DNA strings.
+        - Specify at least one each of `{barcode|associate}_{prefix|suffix}_column`.
+        - For error-free indexing, specified columns should be adjacent to `{barcode|associate}_column`.
+        - In NGS reads, barcode `{prefix|suffix}` must be `barcode_{prefix|suffix}_gap` bases away from barcode.
+        - For association counting, partial presence of associate variant suffices; however, their
+          `{prefix|suffix}` constants must be adjancent and present completely.
+        - Multiple indices may be used simultaneously for combinatorial counting (association ignored).
     '''
+
+    # Alias Arguments
+    barcodedata     = barcode_data
+    barcodecol      = barcode_column
+    indexfile       = index_file
+    barcodeprefix   = barcode_prefix_column
+    barcodesuffix   = barcode_suffix_column
+    barcodepregap   = barcode_prefix_gap
+    barcodepostgap  = barcode_suffix_gap
+    associatedata   = associate_data
+    associatecol    = associate_column
+    associateprefix = associate_prefix_column
+    associatesuffix = associate_suffix_column
+    verbose         = verbose
 
     # Start Liner
     liner = ut.liner_engine(verbose)
@@ -495,14 +271,14 @@ def index(
             'status'  : False,
             'basis'   : 'infeasible',
             'step'    : 1,
-            'stepname': 'parsing-barcode-data',
+            'step_name': 'parsing-barcode-data',
             'vars'    : {
-                      'duplicates': duplicates,
-                    'barcodecount': barcodecount,
-                  'barcodesunique': barcodesuniq,
-                   'minbarcodelen': minbarcodelen,
-                   'maxbarcodelen': maxbarcodelen,
-                'barcodelenunique': barcodelenuniq},
+                        'duplicates': duplicates,
+                     'barcode_count': barcodecount,
+                  ' barcodes_unique': barcodesuniq,
+                   'min_barcode_len': minbarcodelen,
+                   'max_barcode_len': maxbarcodelen,
+                'barcode_len_unique': barcodelenuniq},
             'warns'   : warns}
 
         # Return results
@@ -536,15 +312,15 @@ def index(
             'status'  : False,
             'basis'   : 'infeasible',
             'step'    : 2,
-            'stepname': 'parsing-barcode-constants',
+            'step_name': 'parsing-barcode-constants',
             'vars'    : {
-                'constantsextracted': constantsextracted,
-                   'constantsunique': constantsuniq,
-                     'longconstants': longconstants,
-                      'prefixunique': prefixuniq,
-                      'suffixunique': suffixuniq,
-                         'prefixlen': prefixlen,
-                         'suffixlen': suffixlen},
+                'constants_extracted': constantsextracted,
+                   'constants_unique': constantsuniq,
+                     'long_constants': longconstants,
+                      'prefix_unique': prefixuniq,
+                      'suffix_unique': suffixuniq,
+                         'prefix_len': prefixlen,
+                         'suffix_len': suffixlen},
             'warns'   : warns}
 
         # Return results
@@ -559,8 +335,8 @@ def index(
 
         # Update Step 3 Warning
         warns[3] = {
-            'warncount': 0,
-            'stepname' : 'parsing-associate-data',
+            'warn_count': 0,
+            'step_name' : 'parsing-associate-data',
             'vars': None}
 
         # Extract associatedata
@@ -598,15 +374,15 @@ def index(
                 'status'  : False,
                 'basis'   : 'infeasible',
                 'step'    : 4,
-                'stepname': 'parsing-associate-constants',
+                'step_name': 'parsing-associate-constants',
                 'vars'    : {
-                    'constantsextracted': constantsextracted,
-                       'constantsunique': constantsuniq,
-                         'longconstants': longconstants,
-                          'prefixunique': prefixuniq,
-                          'suffixunique': suffixuniq,
-                             'prefixlen': prefixlen,
-                             'suffixlen': suffixlen},
+                    'constants_extracted': constantsextracted,
+                       'constants_unique': constantsuniq,
+                         'long_constants': longconstants,
+                          'prefix_unique': prefixuniq,
+                          'suffix_unique': suffixuniq,
+                             'prefix_len': prefixlen,
+                             'suffix_len': suffixlen},
                 'warns'   : warns}
 
             # Return results
@@ -640,12 +416,12 @@ def index(
         'status'  : True,
         'basis'   : 'solved',
         'step'    : 5,
-        'stepname': 'computing-index',
+        'step_name': 'computing-index',
         'vars'    : None,
         'warns'   : warns}
 
     # Compute Index Objects
-    index_engine(
+    ci.index_engine(
         IDdict=IDdict,
         barcodedict=barcodedict,
         barcodename=barcodecol,

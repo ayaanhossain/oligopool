@@ -136,8 +136,8 @@ Analysis Mode workflow
         ...
         >>>
         >>> # Compute and write barcode combination count matrix
-        >>> xcount_df = op.xcount(index_files=['bc1_index', 'bc2_index'],
-        ...                          pack_file='sample_1_pack', ...)
+        >>> xcount_df, stats = op.xcount(index_files=['bc1_index', 'bc2_index'],
+        ...                              pack_file='sample_1_pack', ...)
         ...
 
 You can learn more about each module using help.

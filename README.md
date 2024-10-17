@@ -211,6 +211,6 @@ Type "help", "copyright", "credits" or "license" for more information.
 
 `Oligpool Calculator` (c) 2024 Ayaan Hossain.
 
-`Oligpool Calculator` is an **open-source software** under [GPLv3](https://opensource.org/license/gpl-3-0) License.
+`Oligpool Calculator` is an **open-source software** under [GPL-3.0](https://opensource.org/license/gpl-3-0) License.
 
 See [LICENSE](https://github.com/ayaanhossain/oligopool/blob/master/LICENSE) file for more details.

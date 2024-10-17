@@ -189,7 +189,7 @@ Type "help", "copyright", "credits" or "license" for more information.
             ...
             >>>
             >>> # Compute and write barcode combination count matrix
-            >>> xcount_df,stats = op.xcount(index_files=['bc1_index', 'bc2_index'],
+            >>> xcount_df, stats = op.xcount(index_files=['bc1_index', 'bc2_index'],
             ...                          pack_file='sample_1_pack', ...)
             ...
 

@@ -1,9 +1,9 @@
 import time  as tt
 
 import collections as cx
-import atexit  as ae
+import atexit as ae
 
-import pandas  as pd
+import pandas as pd
 
 from .base import utils as ut
 from .base import validation_parsing as vp
@@ -39,14 +39,14 @@ def barcode(
         - `barcode_column` (`str`): Column name for the designed barcodes.
 
     Optional Parameters:
-        - `output_file` (`str` / `None`): Filename for output DataFrame (default: `None`).
+        - `output_file` (`str`): Filename for output DataFrame (default: `None`).
         - `barcode_type` (`int`): Barcode design type
             0 for fast terminus optimized,
             1 for slow spectrum optimized.
             (default: 0)
-        - `left_context_column` (`str` / `None`): Column for left DNA context (default: `None`).
-        - `right_context_column` (`str` / `None`): Column for right DNA context (default: `None`).
-        - `excluded_motifs` (`list` / `str` / `pd.DataFrame` / `None`): Motifs to exclude;
+        - `left_context_column` (`str`): Column for left DNA context (default: `None`).
+        - `right_context_column` (`str`): Column for right DNA context (default: `None`).
+        - `excluded_motifs` (`list` / `str` / `pd.DataFrame`): Motifs to exclude;
             can be a CSV path or DataFrame (default: `None`).
         - `verbose` (`bool`): If `True`, logs updates to stdout (default: `True`).
 

@@ -4,6 +4,7 @@
 3. Removed shell scripts -- don't need 'em.
 4. Updated `index`, `background`, `lenstat`, `pack`, `acount`, and `xcount`.
 5. Updated `design_parser.py`.
+6. Updated `analysis_pipeline.py`.
 
 2024.10.07
 1. Updated `README.md`.

@@ -2,13 +2,15 @@ import time as tt
 
 import atexit as ae
 
+import pandas as pd
+
 from .base import utils as ut
 from .base import validation_parsing as vp
 from .base import core_index as ci
 
 
 def index(
-    barcode_data:str,
+    barcode_data:str|pd.DataFrame,
     barcode_column:str,
     index_file:str,
     barcode_prefix_column:str|None=None,

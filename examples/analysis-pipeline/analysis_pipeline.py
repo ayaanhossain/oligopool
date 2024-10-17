@@ -1,74 +1,68 @@
-from oligopool import index, pack, xcount
+import os
+
+import oligopool as op
+
 
 def main():
+    '''
+    Example analysis pipeline showing Combinatorial Counting.
+
+    For details, use help(...) over the methods or check out
+    our read_simulator.ipynb and OligopoolCalculatorInAction.ipynb
+    notebooks describing the data generation and analysis logic.
+    '''
+
     '''
     Step 1: Index all Barcodes to be Mapped
     '''
 
-    # Some Vars we Reuse in this Example
-    indexfiles = ('Ribozymes-BC1','Ribozymes-BC2')
-    conditions = ('MB', 'CB')
-    replicates = (1, 2)
+    # Index the First Barcode
+    op.index(
+        barcode_data='ribozyme_architecture.csv',    # Filename storing barcode information
+        barcode_column='BC1',                        # Index BC1 only
+        barcode_prefix_column='OrangeForwardPrimer', # which should be next to OrangeForwardPrimer
+        barcode_suffix_column=None,                  # We have no flanking right constant for BC1
+        barcode_prefix_gap=0,                        # BC1 should be right next to prefix
+        barcode_suffix_gap=0,
+        index_file='BC1',                            # Store results in BC1.oligopool.index file
+        verbose=True,
+    )
 
-    # Index the First Barcode - BC1
-    index.index(
-        barcodedata='Ribozymes.csv', # File Name Storing Barcode Information [Required]
-        barcodecol='BC1',            # Column Name for Barcode Sequence [Reqd]
-        barcodeprefix='BC1-Left',    # Column Name for Barcode Prefix Constant [Provide Either]
-        barcodesuffix=None,          # Column Name for Barcode Suffix Constant [or Both of These]
-        indexfile=indexfiles[0],     # File Name for Resulting Index File [Reqd]
-        barcodepregap=0,             # Gap Length between Prefix and Barcode [Optional]
-        barcodepostgap=0,            # Gap Length between Barcode and Suffix [Opt]
-        associatedata=None,          # File Name Storing Associate Information [Opt]
-        associatecol=None,           # Column Name for Associate Sequence [Provide these]
-        associateprefix=None,        # Column Name for Assocaite Prefix Constant [if Assicate]
-        associatesuffix=None,        # Column Name for Associate Suffix Constant [Data Present]
-        verbose=True)                # Verbosity Control
-
-    # Index the Second Barcode - BC2
-    index.index(
-        barcodedata='Ribozymes.csv', # File Name Storing Barcode Information [Required]
-        barcodecol='BC2',            # Column Name for Barcode Sequence [Reqd]
-        barcodeprefix='BC2-Left',    # Column Name for Barcode Prefix Constant [Provide Either]
-        barcodesuffix='BC2-Right',   # Column Name for Barcode Suffix Constant [or Both of These]
-        indexfile=indexfiles[1],     # File Name for Resulting Index File [Reqd]
-        barcodepregap=0,             # Gap Length between Prefix and Barcode [Optional]
-        barcodepostgap=0,            # Gap Length between Barcode and Suffix [Opt]
-        associatedata=None,          # File Name Storing Associate Information [Opt]
-        associatecol=None,           # Column Name for Associate Sequence [Provide these]
-        associateprefix=None,        # Column Name for Assocaite Prefix Constant [if Assicate]
-        associatesuffix=None,        # Column Name for Associate Suffix Constant [Data Present]
-        verbose=True)                # Verbosity Control
+    # Index the Second Barcode
+    op.index(
+        barcode_data='ribozyme_architecture.csv',
+        barcode_column='BC2',                        # Index BC1 only
+        barcode_prefix_column='PinkForwardPrimer',   # which should be next to OrangeForwardPrimer
+        barcode_suffix_column='YellowReversePrimer', # and YellowReversePrimer as flanking right constant
+        barcode_prefix_gap=0,
+        barcode_suffix_gap=0,
+        associate_data='ribozyme_architecture.csv',  # Associates are in same DataFrame
+        associate_column='Variant',
+        associate_prefix_column=None,
+        associate_suffix_column='PinkForwardPrimer',
+        index_file='BC2',                            # Store results in BC2.oligopool.index file
+    )
 
     '''
     Step 2: Pack all FASTQ Files to be Counted
     '''
 
-    # Serially Pack Each Experiment
-    for condition in conditions:
-        for replicate in replicates:
-
-            # Build out File Names
-            r1file   = f'Reads/{condition}{replicate}_R1_001.fastq.gz'
-            r2file   = f'Reads/{condition}{replicate}_R2_001.fastq.gz'
-            packfile = f'Packs/{condition}{replicate}'
-
-            # Execute Packing
-            pack.pack(
-                r1file=r1file,     # File Name Storing R1 Reads [Reqd]
-                r1type=0,          # Orientation of R1 Reads, 0=Forward [Reqd]
-                r2file=r2file,     # File Name Storing R2 Reads [Opt]
-                r2type=1,          # Orientation of R2 Reads, 1=Reverse [Provide if R2 File Present]
-                packtype=1,        # 0=Store Reads, 2=Merge Reads [Reqd]
-                packfile=packfile, # File Name to Store Packed Reads [Reqd]
-                r1length=140,      # Min. Acceptable R1 Length [Reqd]
-                r1qual=30,         # Min. Acceptable R1 Q-Score [Reqd]
-                r2length=140,      # Min. Acceptable R2 Length [Opt]
-                r2qual=30,         # Min. Acceptable R2 Q-Score [Provide if R2 File Present]
-                packsize=2.0,      # No. of Reads in Each Pack in Millions [Opt]
-                ncores=0,          # No. of Cores to be Used, 0=Auto [Opt]
-                memlimit=0,        # Max. Amount of RAM per Core in GBs, 0=Auto [Opt]
-                verbose=True)      # Verbosity Control
+    # If we have multiple pairs of FASTQ files, execute this in a loop
+    # for each pair serially
+    op.pack(
+        r1_fastq_file='ribozyme_1M_R1.fq.gz',
+        r2_fastq_file='ribozyme_1M_R2.fq.gz',
+        r1_read_type=0, # R1 is in Forward Orientation
+        r2_read_type=1, # R2 is in Reverse Orientation
+        minimum_r1_read_quality=30, # Filter out any reads with Phred Score less than 30
+        minimum_r2_read_quality=30,
+        minimum_r1_read_length=10,  # Filter out any reads shorter than 10 bases
+        minimum_r2_read_length=10,
+        pack_type=1,   # R1 and R2 needs to be merged
+        pack_size=0.1, # Store 100K reads per read pack
+        pack_file='NGS',
+        core_count=4,  # Use only 4 CPU cores
+    )
 
     '''
     Step 3: Count all Packed Reads (Step 2) using Index (Step 1)
@@ -118,25 +112,24 @@ def main():
         '''
         return True # Accept everything, for now.
 
-    # Serially Count Each Experiment
-    for condition in conditions:
-        for replicate in replicates:
+    # The Count Matrix will be saved to 'CC.oligopool.xcount.csv'
+    op.xcount(
+        index_files=['BC1', 'BC2'],     # Map combinations of BC1 and BC2
+        pack_file='NGS.oligopool.pack',
+        count_file='CC',
+        mapping_type=1,
+        barcode_errors=-1,
+        callback=None,
+        core_count=0,
+        memory_limit=0.0,
+        verbose=True)
 
-            # Build File Names
-            packfile  = f'Packs/{condition}{replicate}'
-            countfile = f'Count/{condition}{replicate}'
+    # Cleanups
+    os.remove('BC1.oligopool.index')
+    os.remove('BC2.oligopool.index')
+    os.remove('NGS.oligopool.pack')
+    os.remove('CC.oligopool.xcount.csv')
 
-            # Execute Counting
-            xcount.xcount(
-                indexfiles=indexfiles, # Tuple of Index Files for Mapping [Reqd]
-                packfile=packfile,     # Current Packfile to be Counted [Reqd]
-                countfile=countfile,   # File Name to Store Counts [Reqd]
-                maptype=1,             # 0=Fast/Approx Mapping, 1=Exact Mapping [Opt]
-                barcodeerrors=3,       # Max. No. Seq Errors in Barcodes to Tolerate [Opt]
-                callback=myfunc,       # Custom Callback Analysis Function [Opt]
-                ncores=10,             # No. of Cores to be Used, 0=Auto [Opt]
-                memlimit=0,            # Max. Amount of RAM per Core in GBs, 0=Auto [Opt]
-                verbose=True)          # Verbosity Control
 
 if __name__ == '__main__':
     main()

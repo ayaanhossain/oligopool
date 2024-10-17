@@ -1,5 +1,12 @@
+2024.10.08
+1. Updated `README.md`.
+2. Updated `OligopoolCalculatorInAction.ipynb`.
+3. Removed shell scripts -- don't need 'em.
+4. Updated `index`, `background`, `lenstat`, `pack`, `acount`, and `xcount`.
+5. Updated `design_parser.py`.
+
 2024.10.07
-1. Update `README.md`.
+1. Updated `README.md`.
 2. Finalize and test `design_parser.py`.
 
 2024.10.05

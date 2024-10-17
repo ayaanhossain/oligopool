@@ -37,7 +37,7 @@ def pad(
         - `maximum_repeat_length` (`int`): Max shared repeat length b/w padding primers & oligos (between 6 and 20).
 
     Optional Parameters:
-        - `output_file` (`str` / `None`): Filename for output DataFrame (default: `None`).
+        - `output_file` (`str`): Filename for output DataFrame (default: `None`).
         - `verbose` (`bool`): If `True`, logs updates to stdout (default: `True`).
 
     Returns:

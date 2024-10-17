@@ -1,388 +1,73 @@
 import time as tt
 
-import collections as cx
-import random      as rn
-import atexit      as ae
-
+import atexit as ae
 import multiprocessing as mp
 
-from .base import utils     as ut
-from .base import validation_parsing  as vp
-from .base import phiX      as px
-from .base import corecount as cc
+import pandas as pd
 
+from .base import utils as ut
+from .base import validation_parsing as vp
+from .base import core_count as cc
 
-def acount_engine(
-    indexfile,
-    packfile,
-    packqueue,
-    countdir,
-    countqueue,
-    maptype,
-    barcodeerrors,
-    associateerrors,
-    previousreads,
-    analyzedreads,
-    phiXreads,
-    lowcomplexreads,
-    misassocreads,
-    falsereads,
-    incalcreads,
-    experimentreads,
-    callback,
-    callbackerror,
-    coreid,
-    batchid,
-    ncores,
-    nactive,
-    memlimit,
-    restart,
-    shutdown,
-    launchtime,
-    liner):
-    '''
-    TBD
-    '''
+from typing import Callable, Tuple
 
-    # Open indexfile
-    indexfile = ut.get_archive(
-        arcfile=indexfile)
-
-    # Load Barcode Model
-    model = ut.loadmodel(
-        archive=indexfile,
-        mfile='barcode.model')
-
-    # Prime Barcode Model
-    model.prime(
-        t=barcodeerrors,
-        mode=maptype)
-
-    # Load Maps
-    metamap = ut.loaddict(
-        archive=indexfile,
-        dfile='meta.map')
-    associatedict = ut.loaddict(
-        archive=indexfile,
-        dfile='associate.map')
-
-    # Close indexfile
-    indexfile.close()
-
-    # Define PhiX Spectrum
-    phiXkval = 30
-    phiXspec = px.get_phiX_spectrum(
-        k=phiXkval)
-
-    # Open packfile
-    packfile = ut.get_archive(
-        arcfile=packfile)
-
-    # Load packing.stat
-    packstat = ut.loaddict(
-        archive=packfile,
-        dfile='packing.stat')
-
-    # Book-keeping Variables
-    cctrs = {
-        'previousreads'  : previousreads.value(),
-        'analyzedreads'  : 0,
-        'phiXreads'      : 0,
-        'lowcomplexreads': 0,
-        'misassocreads'  : 0,
-        'falsereads'     : 0,
-        'incalcreads'    : 0,
-        'experimentreads': 0}
-    callbackabort = False
-
-    # Compute Printing Lengths
-    clen = ut.get_printlen(value=ncores)
-    slen = plen = ut.get_printlen(
-        value=packstat['survived'])
-
-    # Read Count Storage
-    countdict = cx.Counter()
-    countpath = '{}/{}.{}.count'.format(
-        countdir, coreid, batchid)
-
-    # Pack Counting Loop
-    while not packqueue.empty():
-
-        # Callback Error Somewhere?
-        if not callback is None:
-            if callbackerror.is_set():
-                callbackabort = True
-                shutdown.set()
-                break
-
-        # Fetch Pack Name / Token
-        packname = packqueue.get()
-
-        # Exhaustion Token
-        if packname is None:
-            shutdown.set()
-            break
-
-        # Fetch Read Pack
-        cpack = ut.loadpack(
-            archive=packfile,
-            pfile='{}.pack'.format(
-                packname))
-
-        # Book-keeping Variables
-        exoread   = None
-        exofreq   = None
-        readcount = 0
-
-        verbagereach  = 0
-        verbagetarget = rn.randint(
-            *map(round, (len(cpack) * 0.080,
-                         len(cpack) * 0.120)))
-
-        # Start Timer
-        t0 = tt.time()
-
-        # Read Counting Loop
-        while True:
-
-            # Callback Error Somewhere?
-            if not callback is None:
-                if callbackerror.is_set():
-                    callbackabort = True
-                    break
-
-            # Exoneration Block
-            if not exoread is None:
-
-                # Run Exoneration Procedure
-                cc.exoneration_procedure(
-                    exoread=exoread,
-                    exofreq=exofreq,
-                    phiXkval=phiXkval,
-                    phiXspec=phiXspec,
-                    cctrs=cctrs)
-
-                # Clear for Next Exoneration
-                exoread = None
-                exofreq = None
-
-            # Time to Show Update?
-            if verbagereach >= verbagetarget:
-
-                # Show Update
-                liner.send(
-                    ' Core {:{},d}: Analyzed {:{},d} Reads in {:.2f} sec'.format(
-                        coreid,
-                        clen,
-                        cctrs['analyzedreads'] + cctrs['previousreads'],
-                        slen,
-                        tt.time()-launchtime))
-
-                # Update Book-keeping
-                verbagereach = 0
-
-            # Continue processing pack?
-            if not cpack:
-                break
-
-            # Fetch Read and Frequency
-            (read,
-            freq) = cpack.pop()
-
-            # Update Book-keeping
-            cctrs['analyzedreads'] += freq
-            verbagereach += 1
-            readcount    += 1
-
-            # Anchor Read
-            (anchoredread,
-            anchorstatus) = cc.get_anchored_read(
-                read=read,
-                metamap=metamap)
-
-            # Anchor Absent
-            if not anchorstatus:
-                exoread = read
-                exofreq = freq
-                continue
-
-            # Setup Read References
-            barcoderead   = anchoredread
-            associateread = anchoredread
-
-            # Compute Barcode Index
-            index = cc.get_barcode_index(
-                barcoderead=barcoderead,
-                metamap=metamap,
-                model=model)
-
-            # Barcode Absent
-            if index is None:
-                cctrs['incalcreads'] += freq
-                continue
-
-            # Compute Associate Match
-            associatematch, basalmatch = cc.get_associate_match(
-                associateread=associateread,
-                associateerrors=associateerrors,
-                associatedict=associatedict,
-                index=index,
-                metamap=metamap)
-
-            # Associate Absent / Incorrect
-            if not associatematch:
-
-                # Associate Constants Missing
-                if not basalmatch:
-                    cctrs['incalcreads'] += freq
-                # Associate Mismatches with Reference
-                else:
-                    cctrs['misassocreads'] += freq
-                continue
-
-            # Compute Callback Evaluation
-            if not callback is None:
-                try:
-                    # Execute Callback
-                    evaluation = callback(
-                        read=anchoredread,
-                        ID=(index,),
-                        count=freq,
-                        coreid=coreid)
-
-                    # Uh oh ... Non-boolean Output
-                    if not ((evaluation is True) or \
-                            (evaluation is False)):
-                        raise
-                except:
-                    # We have a failed evaluation!
-                    callbackerror.set()
-                    callbackabort = True
-
-                    # Dump input for Stats
-                    ut.savedump(dobj={
-                          'read': anchoredread,
-                            'ID': (index,),
-                         'count': freq,
-                        'coreid': coreid},
-                        filepath='{}/{}.callback.dump'.format(
-                            countdir,
-                            coreid))
-
-                    # Break out!
-                    break
-
-                else:
-                    # Callback Evaluation is False
-                    if not evaluation:
-                        cctrs['falsereads'] += freq
-                        continue
-
-            # All Components Valid
-            countdict[((index),)]    += freq
-            cctrs['experimentreads'] += freq
-
-        # Show Final Updates
-        liner.send(
-            ' Core {:{},d}: Counted Pack {} w/ {:{},d} Reads in {:05.2f} sec\n'.format(
-                coreid,
-                clen,
-                packname,
-                readcount,
-                plen,
-                tt.time()-t0))
-
-        # Free Memory
-        ut.free_mem()
-
-        # Release Control
-        tt.sleep(0)
-
-        # Did we Abort due to Callback?
-        if callbackabort:
-            shutdown.set()
-            break
-
-        # Need to Restart?
-        if ut.needs_restart(
-            memlimit=memlimit):
-            restart.set() # Enable Restart
-            break # Release, your Memory Real Estate, biatch!
-
-    # Pack Queue is Empty
-    else:
-        shutdown.set()
-
-
-    # Close packfile
-    packfile.close()
-
-    # Shutdown!
-    if shutdown.is_set():
-        # Show Updates
-        liner.send(' Core {:{},d}: Shutting Down\n'.format(
-            coreid,
-            clen))
-    # Restart, We Must!
-    elif restart.is_set():
-        # Show Updates
-        liner.send(' Core {:{},d}: Restarting ...\n'.format(
-            coreid,
-            clen))
-
-    # We didn't Abort right?
-    if not callbackabort:
-
-        # Do we have counts?
-        if countdict:
-
-            # Save Count Dictionary
-            ut.savecount(
-                cobj=countdict,
-                filepath=countpath)
-
-            # Release Control
-            tt.sleep(0)
-
-            # Queue Count Dicionary Path
-            countqueue.put(
-                countpath.split('/')[-1])
-
-            # Release Control
-            tt.sleep(0)
-
-    # Update Read Counting Book-keeping
-    previousreads.increment(incr=cctrs['analyzedreads'])
-    analyzedreads.increment(incr=cctrs['analyzedreads'])
-    phiXreads.increment(incr=cctrs['phiXreads'])
-    lowcomplexreads.increment(incr=cctrs['lowcomplexreads'])
-    misassocreads.increment(incr=cctrs['misassocreads'])
-    falsereads.increment(incr=cctrs['falsereads'])
-    incalcreads.increment(incr=cctrs['incalcreads'])
-    experimentreads.increment(incr=cctrs['experimentreads'])
-
-    # Counting Completed
-    nactive.decrement()
-    if shutdown.is_set():
-        countqueue.put(None)
-
-    # Release Control
-    tt.sleep(0)
 
 def acount(
-    indexfile,
-    packfile,
-    countfile,
-    maptype=0,
-    barcodeerrors=-1,
-    associateerrors=-1,
-    callback=None,
-    ncores=0,
-    memlimit=0,
-    verbose=True):
+    index_file:str,
+    pack_file:str,
+    count_file:str,
+    mapping_type:int=0,
+    barcode_errors:int=-1,
+    associate_errors:int=-1,
+    callback:Callable[[str, Tuple, int, int], bool]|None=None,
+    core_count:int=0,
+    memory_limit:float=0.0,
+    verbose:bool=True) -> Tuple[pd.DataFrame, dict]:
     '''
-    TBD
+    Count barcoded reads with indexed associates within specified error tolerance. Reads can optionally
+    be co-processed using a callback function (see Notes). Count matrices are written out to disk,
+    and also returned back as a DataFrame.
+
+    Required Parameters:
+        - `index_file` (`str`): Index object filename.
+        - `pack_file` (`str`): Pack file path.
+        - `count_file` (`str`): Output count matrix filename.
+
+    Optional Parameters:
+        - `mapping_type` (`int`): Barcode classification (0 for fast, 1 for sensitive) (default: 0).
+        - `barcode_errors` (`int`): Maximum errors in barcodes (-1: auto-infer, default: -1).
+        - `associate_errors` (`int`): Maximum errors in associated variants (-1: auto-infer, default: -1).
+        - `callback` (`callable`): Custom read processing function (default: `None`).
+        - `core_count` (`int`): CPU cores to use (0: auto-infer, default: 0).
+        - `memory_limit` (`float`): GB of memory per core (0: auto-infer, default: 0)
+        - `verbose` (`bool`): If `True`, logs updates to stdout (default: `True`).
+
+    Returns:
+        - A pandas DataFrame of barcode and variant association counts.
+        - A dictionary of stats from the last step in pipeline.
+
+    Notes:
+        - Reads with unresolved associates are excluded from counts.
+        - Callback function signature: `callback_func_name(read, ID, count, coreid) -> bool`
+          where `read` is the processed string, `ID` is identified barcode ID tuple,
+          `count` is read/ID frequency, and `coreid` is the CPU core ID.
+        - Callbacks must return booleans: True implies accepting the read.
+        - Association counting operates on a single index and pack file pair.
+        - Here partial presence of associate variant suffices; however, their
+          `{prefix|suffix}` constants must be adjancent and present completely.
     '''
+
+    # Alias Arguments
+    indexfile = index_file
+    packfile  = pack_file
+    countfile = count_file
+    maptype   = mapping_type
+    barcodeerrors = barcode_errors
+    associateerrors = associate_errors
+    callback  = callback
+    ncores    = core_count
+    memlimit  = memory_limit
+    verbose   = verbose
 
     # Start Liner
     liner = ut.liner_engine(online=verbose)
@@ -508,6 +193,7 @@ def acount(
 
     # Counting Book-keeping
     stats = None
+    outdf = None
     warns = {}
 
     # Parse Callback Function
@@ -531,14 +217,14 @@ def acount(
                 'status'  : False,
                 'basis'   : 'infeasible',
                 'step'    : 1,
-                'stepname': 'parsing-callback-method',
+                'step_name': 'parsing-callback-method',
                 'vars'    : {
-                    'failedinputs': failedinputs},
+                    'failed_inputs': failedinputs},
                 'warns'   : warns}
 
             # Return results
             liner.close()
-            return stats
+            return (outdf, stats)
 
     # Enqueue Read Packs
     liner.send('\n[Step 2: Enqueing Read Packs]\n')
@@ -608,17 +294,17 @@ def acount(
         'status'  : False,
         'basis'   : 'unsolved',
         'step'    : 3,
-        'stepname': 'counting-read-packs',
+        'step_name': 'counting-read-packs',
         'vars'    : {
-            'callbackerror': False,
-             'failedinputs': None,
-                 'analyzed': int(analyzedreads.value()),
-                     'phiX': int(phiXreads.value()),
-               'lowcomplex': int(lowcomplexreads.value()),
-                 'misassoc': int(misassocreads.value()),
-            'callbackfalse': int(falsereads.value()),
-                   'incalc': int(incalcreads.value()),
-               'experiment': int(experimentreads.value())},
+               'callback_error': False,
+                'failed_inputs': None,
+               'analyzed_reads': int(analyzedreads.value()),
+                   'phiX_reads': int(phiXreads.value()),
+            'low_complex_reads': int(lowcomplexreads.value()),
+              'mis_assoc_reads': int(misassocreads.value()),
+               'callback_false': int(falsereads.value()),
+                 'incalc_reads': int(incalcreads.value()),
+             'experiment_reads': int(experimentreads.value())},
         'warns'   : warns}
 
     # Engine Timer
@@ -646,7 +332,7 @@ def acount(
 
         # Define Counter
         readcounter = mp.Process(
-            target=acount_engine,
+            target=cc.acount_engine,
             args=(indexfile,
                 packfile,
                 packqueue,
@@ -723,7 +409,7 @@ def acount(
             restarts[coreid].clear()
             shutdowns[coreid].clear()
             readcounters[coreid] = mp.Process(
-                target=acount_engine,
+                target=cc.acount_engine,
                 args=(indexfile,
                     packfile,
                     packqueue,
@@ -774,8 +460,8 @@ def acount(
             ' Callback Function Erroneous\n')
         ut.remove_file(
             filepath=countfile)
-        stats['vars']['callbackerror'] = True
-        stats['vars']['failedinputs']  = failedinputs
+        stats['vars']['callback_error'] = True
+        stats['vars']['failed_inputs']  = failedinputs
 
     # Handle Unmapped Reads
     elif experimentreads.value() <= 0:
@@ -797,13 +483,14 @@ def acount(
             tt.time() - et))
 
     # Did we succeed?
+    outdf = None
     if stats['status']:
 
         # Launching Count Matrix Writing
         liner.send('\n[Step 4: Writing Count Matrix]\n')
 
         # Write Count Matrix
-        cc.write_count(
+        outdf = cc.write_count(
             indexfiles=(indexfile,),
             countdir=countdir,
             countfile=countfile,
@@ -811,16 +498,16 @@ def acount(
 
         # Update Stats
         stats['step'] = 4
-        stats['stepname'] = 'writing-count-matrix'
+        stats['step_name'] = 'writing-count-matrix'
 
     # Update Stats
-    stats['vars']['analyzed']      = int(analyzedreads.value())
-    stats['vars']['phiX']          = int(phiXreads.value())
-    stats['vars']['lowcomplex']    = int(lowcomplexreads.value())
-    stats['vars']['misassoc']      = int(misassocreads.value())
-    stats['vars']['callbackfalse'] = int(falsereads.value())
-    stats['vars']['incalc']        = int(incalcreads.value())
-    stats['vars']['experiment']    = int(experimentreads.value())
+    stats['vars']['analyzed_reads']    = int(analyzedreads.value())
+    stats['vars']['phiX_reads']        = int(phiXreads.value())
+    stats['vars']['low_complex_reads'] = int(lowcomplexreads.value())
+    stats['vars']['mis_assoc_reads']   = int(misassocreads.value())
+    stats['vars']['callback_false']    = int(falsereads.value())
+    stats['vars']['incalc_reads']      = int(incalcreads.value())
+    stats['vars']['experiment_reads']  = int(experimentreads.value())
 
     # Counting Status
     if stats['status']:
@@ -898,5 +585,5 @@ def acount(
     # Close Liner
     liner.close()
 
-    # Return Statistics
-    return stats
+    # Return Counts and Statistics
+    return (outdf, stats)

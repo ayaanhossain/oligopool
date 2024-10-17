@@ -17,7 +17,7 @@ It enables the scalable design of universal primer sets, error-correctable barco
 
 We have used `Oligopool Calculator` in multiple projects to build libraries of tens of thousands of promoters, ribozymes, and mRNA stability elements, illustrating the use of a flexible grammar to add multiple barcodes, cut sites, avoid excluded sequences, and optimize experimental constraints. These libraries were later characterized using highly efficient barcode counting provided by `Oligopool Calculator`.
 
-`Oligopool Calculator` facilitates the creative design and application of massively parallel reporter assays by automating and simplifying the whole process. It has been benchmarked on simulated libraries containing millions of defined variants. To learn more, read our paper published in ACS Synthetic Biology.
+`Oligopool Calculator` facilitates the creative design and application of massively parallel reporter assays by automating and simplifying the whole process. It has been benchmarked on simulated libraries containing millions of defined variants and to analyze billions of reads. To learn more, read our paper published in ACS Synthetic Biology.
 
 <h1 align="center">
     <a href="https://github.com/ayaanhossain/oligopool/">

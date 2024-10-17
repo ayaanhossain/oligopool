@@ -8,15 +8,17 @@ import design_parser as dp
 import pprint as pp
 
 def get_promoter_list():
-    '''Load core oligopool variants.'''
+    '''Load core promoter variants.'''
     with open('promoters.txt') as infile:
         promoter_list = [x.strip() for x in infile.readlines()]
     return promoter_list
 
-def main():
+def run_design_parser():
     '''Design driver. Modify the spec here for design_parser execution.'''
 
-    promoter_list = get_promoter_list()
+    promoter_list = get_promoter_list()   # Load Core Oligo Variants
+
+    # REMEMBER TO PROCESS OR WRITE THE OUTPUT from the line below
 
     output = dp.design_parser(
 
@@ -58,7 +60,7 @@ def main():
 
             'Promoter': {
                      'element_type': 'variant',
-                'sequences': promoter_list
+                'sequences': promoter_list         # Your Core Oligo Variants go here
             },
 
             'Barcode': {
@@ -144,8 +146,7 @@ def main():
 
     pp.pprint(output['stats_dict'])
 
-    # for df in output:
-    #     print(output[df])
+    # REMEMBER TO PROCESS OR WRITE THE OUTPUT from design_parser
 
 if __name__ == '__main__':
-    main()
+    run_design_parser()

@@ -83,7 +83,7 @@ Type "help", "copyright", "credits" or "license" for more information.
 >>> import oligopool as op
 >>> help(op)
 ...
-    oligopool v2024.10.05
+    oligopool v2024.10.08
     by ah
 
     Automated design and analysis of oligopool libraries.
@@ -190,7 +190,7 @@ Type "help", "copyright", "credits" or "license" for more information.
             >>>
             >>> # Compute and write barcode combination count matrix
             >>> xcount_df, stats = op.xcount(index_files=['bc1_index', 'bc2_index'],
-            ...                          pack_file='sample_1_pack', ...)
+            ...                              pack_file='sample_1_pack', ...)
             ...
 
     You can learn more about each module using help.

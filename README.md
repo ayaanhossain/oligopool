@@ -189,12 +189,8 @@ Type "help", "copyright", "credits" or "license" for more information.
             ...
             >>>
             >>> # Compute and write barcode combination count matrix
-            >>> xcount_stats = op.xcount(index_files=['bc1_index', 'bc2_index'],
+            >>> xcount_df,stats = op.xcount(index_files=['bc1_index', 'bc2_index'],
             ...                          pack_file='sample_1_pack', ...)
-            ...
-            >>>
-            >>> # Read the count matrix and continue analysis
-            >>> count_df = pd.read_csv('sample_1_counts.csv')
             ...
 
     You can learn more about each module using help.

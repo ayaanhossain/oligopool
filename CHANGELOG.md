@@ -1,3 +1,7 @@
+2024.10.20
+1. Updated `OligopoolCalculatorInAction.ipynb`.
+2. Updated `acount` and `xcount`.
+
 2024.10.08
 1. Updated `README.md`.
 2. Updated `OligopoolCalculatorInAction.ipynb`.

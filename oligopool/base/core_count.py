@@ -860,6 +860,7 @@ def count_aggregator(
     countdir,
     prodcount,
     prodactive,
+    assoc,
     liner):
     '''
     Aggregate count dictionaries in
@@ -884,6 +885,10 @@ def count_aggregator(
        desc - total number of producers
               actively adding to
               countqueue
+    :: assoc
+       type - boolean
+       desc - if True, we are aggregating
+              association counts of tuples
     :: liner
        type - coroutine
        desc - dynamic printing and
@@ -939,11 +944,21 @@ def count_aggregator(
             k,v  = countlist.pop()
             strk = str(k).encode()
             w = countdb.get(strk)
-            if w is None:
-                w = 0
-            else:
-                w = int(w.decode('ascii'))
-            strv = str(w+v).encode()
+            match assoc:
+                case True:
+                    if w is None:
+                        w = [0, 0]
+                    else:
+                        w = eval(w.decode('ascii'))
+                    v[0] += w[0]
+                    v[1] += w[1]
+                    strv = str(v).encode()
+                case False:
+                    if w is None:
+                        w = 0
+                    else:
+                        w = int(w.decode('ascii'))
+                    strv = str(w+v).encode()
             batch.put(strk, strv)
 
         # Update CountDB
@@ -956,6 +971,7 @@ def write_count(
     indexfiles,
     countdir,
     countfile,
+    assoc,
     liner):
     '''
     Write entries in count database
@@ -975,6 +991,10 @@ def write_count(
        desc - path to CSV file storing
               read counts for discovered
               ID combinations
+    :: assoc
+       type - boolean
+       desc - if True, we are writing
+              association counts
     :: liner
        type - coroutine
        desc - dynamic printing
@@ -1026,8 +1046,13 @@ def write_count(
     with open(countfile, 'w') as outfile:
 
         # Write Header
-        outfile.write(','.join('{}.ID'.format(
-            idxname) for idxname in indexnames) + ',Counts\n')
+        match assoc:
+            case True:
+                outfile.write(','.join('{}.ID'.format(
+                    idxname) for idxname in indexnames) + ',BarcodeCounts,AssociationCounts\n')
+            case False:
+                outfile.write(','.join('{}.ID'.format(
+                    idxname) for idxname in indexnames) + ',Counts\n')
 
         # Book-keeping
         entrycount = 0
@@ -1043,12 +1068,16 @@ def write_count(
 
             # Build Entry
             rows = []
-            for IDx, index in enumerate(eval(indextuple)):
+            for IDx,index in enumerate(eval(indextuple)):
                 if index == '-':
                     rows.append('-')
                 else:
                     rows.append(IDdicts[IDx][int(index)])
-            rows.append(count.decode('ascii'))
+            match assoc:
+                case True:
+                    rows.append(','.join(str(x) for x in eval(count.decode('ascii'))))
+                case False:
+                    rows.append(count.decode('ascii'))
 
             # Write Entry to Count Matrix
             outfile.write(','.join(map(str,rows)) + '\n')
@@ -1280,7 +1309,7 @@ def acount_engine(
         value=packstat['survived_reads'])
 
     # Read Count Storage
-    countdict = cx.Counter()
+    countdict = cx.defaultdict(lambda: [0, 0])
     countpath = '{}/{}.{}.count'.format(
         countdir, coreid, batchid)
 
@@ -1414,13 +1443,13 @@ def acount_engine(
                 # Associate Constants Missing
                 if not basalmatch:
                     cctrs['incalcreads'] += freq
+                    continue
                 # Associate Mismatches with Reference
                 else:
                     cctrs['misassocreads'] += freq
-                continue
 
             # Compute Callback Evaluation
-            if not callback is None:
+            if associatematch and (not callback is None):
                 try:
                     # Execute Callback
                     evaluation = callback(
@@ -1457,9 +1486,11 @@ def acount_engine(
                         cctrs['falsereads'] += freq
                         continue
 
-            # All Components Valid
-            countdict[((index),)]    += freq
-            cctrs['experimentreads'] += freq
+            # Tally Read Counts
+            if associatematch:
+                cctrs['experimentreads'] += freq
+                countdict[((index),)][1] += freq # Association Count
+            countdict[((index),)][0] += freq     # Barcode Count
 
         # Show Final Updates
         liner.send(
@@ -1486,7 +1517,7 @@ def acount_engine(
         if ut.needs_restart(
             memlimit=memlimit):
             restart.set() # Enable Restart
-            break # Release, your Memory Real Estate, biatch!
+            break # Release, your Memory Real Estate
 
     # Pack Queue is Empty
     else:
@@ -1967,7 +1998,7 @@ def xcount_engine(
         if ut.needs_restart(
             memlimit=memlimit):
             restart.set() # Enable Restart
-            break # Release, your Memory Real Estate, biatch!
+            break # Release, your Memory Real Estate
 
     # Pack Queue is Empty
     else:

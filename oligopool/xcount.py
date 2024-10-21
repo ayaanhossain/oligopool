@@ -295,12 +295,14 @@ def xcount(
     et = tt.time()
 
     # Define Aggregator
+    assoc = False
     aggregator = mp.Process(
         target=cc.count_aggregator,
         args=(countqueue,
             countdir,
             ncores,
             nactive,
+            assoc,
             liner,))
 
     # Fire-off Aggregator
@@ -473,6 +475,7 @@ def xcount(
             indexfiles=indexfiles,
             countdir=countdir,
             countfile=countfile,
+            assoc=False,
             liner=liner)
 
         # Update Stats

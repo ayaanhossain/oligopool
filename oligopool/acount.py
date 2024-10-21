@@ -311,12 +311,14 @@ def acount(
     et = tt.time()
 
     # Define Aggregator
+    assoc = True
     aggregator = mp.Process(
         target=cc.count_aggregator,
         args=(countqueue,
             countdir,
             ncores,
             nactive,
+            assoc,
             liner,))
 
     # Fire-off Aggregator
@@ -494,6 +496,7 @@ def acount(
             indexfiles=(indexfile,),
             countdir=countdir,
             countfile=countfile,
+            assoc=True,
             liner=liner)
 
         # Update Stats

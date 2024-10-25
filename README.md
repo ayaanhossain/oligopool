@@ -54,7 +54,7 @@ Python 3.10.9 | packaged by conda-forge | (main, Feb  2 2023, 20:20:04) [GCC 11.
 Type "help", "copyright", "credits" or "license" for more information.
 >>> import oligopool as op
 >>> op.__version__
-'2024.09.29'
+'2024.10.24'
 >>>
 ```
 
@@ -83,7 +83,7 @@ Type "help", "copyright", "credits" or "license" for more information.
 >>> import oligopool as op
 >>> help(op)
 ...
-    oligopool v2024.10.08
+    oligopool v2024.10.24
     by ah
 
     Automated design and analysis of oligopool libraries.
@@ -104,7 +104,7 @@ Type "help", "copyright", "credits" or "license" for more information.
         2. Define any optional background sequences via the background module.
         3. Add necessary oligopool elements with constraints via element modules.
         4. Optionally, split long oligos and pad them via assembly modules.
-        5. Perform length checks as needed and finalize library via auxiliary modules.
+        5. Perform additional maneuvers and finalize library via auxiliary modules.
 
         Background module available
             - background
@@ -120,6 +120,8 @@ Type "help", "copyright", "credits" or "license" for more information.
             - pad
 
         Auxiliary modules available
+            - merge
+            - revcomp
             - lenstat
             - final
 

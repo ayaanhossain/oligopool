@@ -1,3 +1,8 @@
+2024.10.24
+1. Updated stats variables in `final` and `lenstat`.
+2. Added `revcomp` and `merge` auxiliary modules.
+3. Bugfix in `utils`.
+
 2024.10.20
 1. Updated `OligopoolCalculatorInAction.ipynb`.
 2. Updated `acount` and `xcount`.

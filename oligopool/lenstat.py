@@ -125,8 +125,8 @@ def lenstat(
             'len_stat'     : cx.OrderedDict({v[0]: { # Store Element-wise Length Stats
                 'min_element_len':  v[1],
                 'max_element_len':  v[2],
-                'min_oligo_length': v[3],
-                'max_oligo_length': v[4],
+                'min_oligo_len':    v[3],
+                'max_oligo_len':    v[4],
                 'limit_overflow':   v[5] == 'Yes'} for k,v in intstats.items()}),
             'oligo_limit'    : oligolimit,            # Specified Oligo Limit
             'min_space_avail': minspaceavail,         # Minimum Space Available

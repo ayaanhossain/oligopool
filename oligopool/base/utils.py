@@ -611,9 +611,7 @@ def get_unique_count(iterable):
             seen.add(element)
     return len(seen)
 
-def get_uniques(
-    iterable,
-    typer):
+def get_uniques(iterable, typer):
     '''
     Return the unique elements in iterable
     packed via typer. Internal use only.
@@ -635,9 +633,7 @@ def get_uniques(
             seen.add(element)
     return typer(uniques)
 
-def get_col_exist_idx(
-    col,
-    df):
+def get_col_exist_idx(col, df):
     '''
     Determine if col exists as a column in df,
     and return its index. Internal use only.
@@ -652,8 +648,9 @@ def get_col_exist_idx(
 
     col = col
     collist = tuple(df.columns)
-    if col == df.index.name or \
-       col in collist:
+    if col == df.index.name:
+        return True, -1
+    elif col in collist:
         return True, collist.index(col)
     else:
         return False, None

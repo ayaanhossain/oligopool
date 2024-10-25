@@ -6,6 +6,8 @@ from .motif import motif
 from .spacer import spacer
 
 # Auxiliary Design Functions
+from .merge import merge
+from .revcomp import revcomp
 from .lenstat import lenstat
 from .final import final
 
@@ -27,7 +29,7 @@ from .base.scry import Scry
 # Setup
 __author__ = 'Ayaan Hossain'
 
-__version__ = '2024.10.20'
+__version__ = '2024.10.24'
 
 __doc__ = f'''
 oligopool v{__version__}
@@ -51,7 +53,7 @@ Design Mode workflow
     2. Define any optional background sequences via the background module.
     3. Add necessary oligopool elements with constraints via element modules.
     4. Optionally, split long oligos and pad them via assembly modules.
-    5. Perform length checks as needed and finalize library via auxiliary modules.
+    5. Perform additional maneuvers and finalize library via auxiliary modules.
 
     Background module available
         - background
@@ -67,6 +69,8 @@ Design Mode workflow
         - pad
 
     Auxiliary modules available
+        - merge
+        - revcomp
         - lenstat
         - final
 

@@ -19,7 +19,7 @@ def revcomp(
     '''
     Reverse complements a section of elements in the DataFrame starting from `left_context` to
     `right_context`. The column content is reverse complemented and the order of the columns
-    is reverse. Output DataFrame can be saved to a CSV file.
+    is reversed. Output DataFrame can be saved to a CSV file.
 
     Required Parameters:
         - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated oligopool variants.

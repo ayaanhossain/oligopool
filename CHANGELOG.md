@@ -1,6 +1,6 @@
-2024.10.28
+2024.10.29
 1. Fix edge extraction and edge-effect length calc.
-2. Update `barcode`.
+2. Update `barcode` to include returning orphan oligos on failure.
 
 2024.10.27
 1. Drop two-bit encoding idea.

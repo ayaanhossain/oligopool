@@ -790,7 +790,7 @@ def get_distro(
     t0 = tt.time()
     hammingdistro = cx.Counter()
     count     = store.shape[0]
-    threshold = min(min(50000, count // 10), count)
+    threshold = max(min(50000, count // 10), min(count, 1000))
     plen      = ut.get_printlen(
         value=count)
 

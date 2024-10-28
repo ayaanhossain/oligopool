@@ -464,15 +464,19 @@ def barcode(
         'step'    : 6,
         'step_name': 'computing-barcodes',
         'vars'    : {
-               'target_count': targetcount,   # Required Number of Barcodes
-              'barcode_count': 0,             # Barcode Design Count
-                  'type_fail': 0,             # Barcode Tyoe Failure Count
-              'distance_fail': 0,             # Hamming Distance Fail Count
-                'repeat_fail': 0,             # Repeat Fail Count
-               'exmotif_fail': 0,             # Exmotif Elimination Fail Count
-                  'edge_fail': 0,             # Edge Effect Fail Count
-            'distance_distro': None,          # Hamming Distance Distribution
-            'exmotif_counter': cx.Counter()}, # Exmotif Encounter Counter
+               'target_count': targetcount,  # Required Number of Barcodes
+              'barcode_count': 0,            # Barcode Design Count
+               'orphan_oligo': None,         # Orphan Oligo Indexes
+                  'type_fail': 0,            # Barcode Tyoe Failure Count
+              'distance_fail': 0,            # Hamming Distance Fail Count
+                'repeat_fail': 0,            # Repeat Fail Count
+               'exmotif_fail': 0,            # Exmotif Elimination Fail Count
+                  'edge_fail': 0,            # Edge Effect Fail Count
+            'distance_distro': None,         # Hamming Distance Distribution
+            'exmotif_counter': cx.Counter(), # Exmotif Encounter Counter
+            'space_exhausted': False,        # Space Exhausted Bool
+            'trial_exhausted': False,        # Trial Exhausted Bool
+            },
         'warns'   : warns}
 
     # Schedule outfile deletion
@@ -555,6 +559,10 @@ def barcode(
             ut.safediv(
                 A=stats['vars']['barcode_count'] * 100.,
                 B=targetcount)))
+    liner.send(
+        '   Orphan Oligo    : {:{},d} Entries\n'.format(
+            len(stats['vars']['orphan_oligo']),
+            plen))
 
     # Success Relevant Stats
     if stats['status']:
@@ -622,6 +630,8 @@ def barcode(
                 ut.safediv(
                     A=stats['vars']['edge_fail'] * 100.,
                     B=total_conflicts)))
+        liner.send(f'    Space Exhausted: {stats["vars"]["space_exhausted"]}\n')
+        liner.send(f'    Trial Exhausted: {stats["vars"]["trial_exhausted"]}\n')
 
         # Enumerate Motif-wise Fail Counts
         if stats['vars']['exmotif_counter']:

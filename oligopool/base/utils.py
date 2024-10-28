@@ -24,7 +24,6 @@ import psutil  as pu
 import msgpack as mg
 import pyfastx as pf
 import edlib   as ed
-import dinopy  as dp
 import bounter as bt
 
 from . import scry as sy
@@ -1124,7 +1123,7 @@ def get_parsed_oligopool_repeats(
     else:
         oligorepeats = bt.bounter(
             need_iteration=False, # Static Checks Only
-            size_mb=4096)         # 4 GB Spectrum Cap
+            size_mb=4*4096)       # 16 GB Spectrum Cap
     t0           = tt.time()
     kmerspace    = ((4**(maxreplen+1)) // 2)
     fillcount    = None
@@ -1157,8 +1156,7 @@ def get_parsed_oligopool_repeats(
     # Extract Repeats
     liner.send(' Extracting Repeats ...')
 
-    for idx,oligo in enumerate(
-        get_df_concat(df=df)):
+    for idx,oligo in enumerate(get_df_concat(df=df)):
 
         # Show Update
         if (idx+1) % 1000 == 0:
@@ -1167,23 +1165,15 @@ def get_parsed_oligopool_repeats(
                     idx+1))
 
         # Store Repeats
+        transformation = stream_canon_spectrum(
+            seq=oligo,
+            k=maxreplen+1)
         if not merge:
-            transformation = set(map(
-                lambda x: dp.conversion.encode_twobit(
-                    seq=x,
-                    sentinel=False),
-                stream_canon_spectrum(
-                    seq=oligo,
-                    k=maxreplen+1)))
-            oligorepeats[idx] = tuple(
-                sorted(transformation))
+            oligorepeats[idx] = set(transformation)
             repeatcount = max(
                 repeatcount,
                 len(oligorepeats[idx]))
         else:
-            transformation = stream_canon_spectrum(
-                seq=oligo,
-                k=maxreplen+1)
             oligorepeats.update(
                 transformation)
     if merge:

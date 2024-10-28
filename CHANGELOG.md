@@ -1,3 +1,7 @@
+2024.10.27
+1. Drop two-bit encoding idea.
+2. Use set-based non-repetitiveness per context.
+
 2024.10.24
 1. Updated stats variables in `final` and `lenstat`.
 2. Added `revcomp` and `merge` auxiliary modules.

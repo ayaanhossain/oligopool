@@ -2,8 +2,6 @@ import time  as tt
 
 import collections as cx
 
-import bisect  as bs
-import dinopy  as dp
 import numpy   as np
 import bounter as bt
 
@@ -569,14 +567,7 @@ def is_nonrepetitive(
     for kmer in ut.stream_canon_spectrum(
         seq=incntxseq,
         k=maxreplen+1):
-        kmer = dp.conversion.encode_twobit(
-            seq=kmer,
-            sentinel=False)
-        idxk = bs.bisect_left(
-            corpus,
-            kmer)
-        if (idxk < len(corpus)) and \
-           (corpus[idxk] == kmer):
+        if kmer in corpus:
             return False
     return True
 
@@ -971,9 +962,7 @@ def barcode_engine(
     # Infinite Jumper Failure
     prob  = ut.get_prob(    # Probability of Success
         success=1,
-        trials=max(4 ** (
-            min(barcodelen - minhdist, 8)),
-            1000))
+        trials=max(4 ** (min(barcodelen - minhdist, 8)), 1000))
     trial = ut.get_trials(  # Trials Required
         prob=prob)
     sscnt = 1     # Success Count

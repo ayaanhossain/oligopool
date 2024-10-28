@@ -15,7 +15,7 @@ setup(
     name='oligopool',
 
     # Link: https://www.python.org/dev/peps/pep-0440/#version-scheme
-    version='2024.10.24',
+    version='2024.10.27',
 
     description='Oligopool Calculator - Automated design and analysis of oligopool libraries',
 
@@ -93,7 +93,6 @@ setup(
         'msgpack>=1.1.0',
         'pyfastx>=2.1.0',
         'edlib>=1.3.9.post1',
-        'dinopy>=3.0.0',
         'bounter>=1.2.0',
         'parasail>=1.3.4',
         'nrpcalc>=1.7.0',

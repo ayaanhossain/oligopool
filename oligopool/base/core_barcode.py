@@ -993,6 +993,8 @@ def barcode_engine(
                     tt.time() - t0))
 
             # No Solution
+            stats['vars']['space_exhausted'] = True
+            stats['vars']['orphan_oligo'] = sorted(contextarray)
             return (None,
                 None,
                 stats)
@@ -1144,6 +1146,7 @@ def barcode_engine(
                 liner=liner)
 
             # Return Solution
+            stats['vars']['orphan_oligo'] = sorted(contextarray)
             return (codes,
                 store,
                 stats)
@@ -1158,6 +1161,8 @@ def barcode_engine(
                         tt.time() - t0))
 
                 # No Solution
+                stats['vars']['trial_exhausted'] = True
+                stats['vars']['orphan_oligo'] = sorted(contextarray)
                 return (None,
                     None,
                     stats)

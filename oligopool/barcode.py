@@ -334,7 +334,9 @@ def barcode(
         return (outdf, stats)
 
     # Parse Excluded Motifs
-    if not exmotifs is None:
+    if ((not exmotifs is None) and
+        ((not leftcontext  is None) or \
+         (not rightcontext is None))):
 
         # Show update
         liner.send('\n[Step 3: Parsing Excluded Motifs]\n')
@@ -386,29 +388,36 @@ def barcode(
         edgeeffectlength = ut.get_edgeeffectlength(
             exmotifs=exmotifs)
 
-        # Extract Left and Right Context
-        if (not leftcontext  is None) or \
-           (not rightcontext is None):
+    # Re-calculate Edge-Effect Length
+    if edgeeffectlength is None:
+        edgeeffectlength = maxreplen
+    else:
+        edgeeffectlength = max(
+            edgeeffectlength,
+            maxreplen)
 
-           # Set Context Flag
-            has_context = True
+    # Extract Left and Right Context
+    if ((not leftcontext  is None) or \
+        (not rightcontext is None)):
 
-            # Show update
-            liner.send('\n[Step 4: Extracting Context Sequences]\n')
+        # Set Context Flag
+        has_context = True
 
-            # Extract Both Contexts
-            (leftcontext,
-            rightcontext) = ut.get_extracted_context(
-                leftcontext=leftcontext,
-                rightcontext=rightcontext,
-                edgeeffectlength=edgeeffectlength,
-                reduce=False,
-                liner=liner)
+        # Show update
+        liner.send('\n[Step 4: Extracting Context Sequences]\n')
+
+        # Extract Both Contexts
+        (leftcontext,
+        rightcontext) = ut.get_extracted_context(
+            leftcontext=leftcontext,
+            rightcontext=rightcontext,
+            edgeeffectlength=edgeeffectlength,
+            reduce=False,
+            liner=liner)
 
     # Finalize Context
     if not has_context:
-        (leftcontext,
-         rightcontext) = None, None
+        leftcontext,rightcontext = None, None
 
     # Parse Oligopool Repeats
     liner.send('\n[Step 5: Parsing Oligopool Repeats]\n')

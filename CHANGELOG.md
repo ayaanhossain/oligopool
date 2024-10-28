@@ -1,3 +1,7 @@
+2024.10.28
+1. Fix edge extraction and edge-effect length calc.
+2. Update `barcode`.
+
 2024.10.27
 1. Drop two-bit encoding idea.
 2. Use set-based non-repetitiveness per context.

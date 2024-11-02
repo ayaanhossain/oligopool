@@ -41,9 +41,35 @@ or install it directly from GitHub.
 $ pip install git+https://github.com/ayaanhossain/oligopool.git
 ```
 Both approaches should install all dependencies automatically.
-
 > **Note** This GitHub version will always be updated with all recent fixes. The PyPI version should be more stable.
 
+**Installing via `docker`**
+
+On non-`Linux` and `Linux` systems both, you can use `oligopool` via [`docker`](https://docs.docker.com/desktop/).
+```bash
+$ git clone https://github.com/ayaanhossain/oligopool.git # Download the repository
+$ cd oligopool # Navigate into the downloaded repository
+$ docker build -t oligopool-docker . # Build a docker image of the package and call it oligopool-docker
+```
+> **Note** that the name of the image is flexible, and can be anything we want.
+
+You can see a list of all `docker` images built on your system.
+```bash
+$ docker images
+REPOSITORY         TAG       IMAGE ID       CREATED              SIZE
+oligopool-docker   latest    414f88c5e29c   About a minute ago   1.76GB
+```
+
+Whenever needed, you can now mount your project directory and start using `Oligopool Calculator`.
+```bash
+$ cd path/to/your/project # Navigate to your project directory
+$ # For MacOS and Linux
+$ docker run -it -v $(pwd):/workspace oligopool-docker # Loads your project directory
+$ # For Windows
+$ docker run -it -v ${PWD}:/workspace oligopool-docker # Loads your project directory
+$ # After Loading
+$ ll # Shows you your files! You are in a Linux environment now.
+```
 
 **Verifying Installation**
 

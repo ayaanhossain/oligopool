@@ -4,6 +4,7 @@ FROM ubuntu:latest
 # Avoid prompts
 ENV DEBIAN_FRONTEND=noninteractive
 
+# Install Python 3.12 -- update later as necessary
 RUN apt-get update && apt-get install -y \
     python3.12 \
     python3-pip \
@@ -29,10 +30,14 @@ RUN apt-get update && apt-get install -y \
     nano \
     vim \
     tree \
+    htop \
     && rm -rf /var/lib/apt/lists/*
 
+# Make nice CLI prompt
+RUN echo 'export PS1="\[\033[0;34m\][\[\033[1;32m\]\u\[\033[0;34m\]]─(\[\033[1;34m\]\w\[\033[0;34m\])\n \[\033[1;36m\]>> \[\033[0m\]"' >> ~/.bashrc
+
 # Set working directory
-WORKDIR /workspace
+WORKDIR /op-workspace
 
 # Set the entrypoint to bash
 ENTRYPOINT ["/bin/bash"]

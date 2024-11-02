@@ -66,9 +66,9 @@ Whenever needed, you can now mount your project directory and start using `Oligo
 ```bash
 $ cd path/to/your/project # Navigate to your project directory
 $ # For MacOS and Linux
-$ docker run -it -v $(pwd):/workspace oligopool-docker # Loads your project directory
+$ docker run -it -v $(pwd):/op-workspace oligopool-docker # Loads your project directory
 $ # For Windows
-$ docker run -it -v ${PWD}:/workspace oligopool-docker # Loads your project directory
+$ docker run -it -v ${PWD}:/op-workspace oligopool-docker # Loads your project directory
 $ # After Loading
 $ ll # Shows you your files! You are in a Linux environment now.
 ```

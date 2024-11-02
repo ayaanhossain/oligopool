@@ -34,7 +34,7 @@ We have used `Oligopool Calculator` in multiple projects to build libraries of t
 
 **Canonical Installation**
 
-You can install `Oligopoll Calcultaor` from [PyPI](https://pypi.org/project/oligopool/), where it is published as the `oligopool` package
+You can install `Oligopool Calcultaor` from [PyPI](https://pypi.org/project/oligopool/), where it is published as the `oligopool` package
 ```bash
 $ pip install oligopool
 ```

@@ -32,6 +32,8 @@ We have used `Oligopool Calculator` in multiple projects to build libraries of t
 
 `Oligopool Calculator` is a `Linux`-based `Python3.10+`-exclusive library.
 
+**Installation via PyPI**
+
 You can install it from [PyPI](https://pypi.org/project/oligopool/), where it is published as the `oligopool` package
 ```bash
 $ pip install oligopool

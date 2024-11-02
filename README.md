@@ -53,7 +53,7 @@ $ git clone https://github.com/ayaanhossain/oligopool.git # Or, manually downloa
 $ cd oligopool # Navigate into the downloaded repository
 $ docker build -t oligopool-docker . # Build docker image and save it as oligopool-docker
 ```
-> **Note** that the name of the image is flexible, and can be anything we want.
+> **Note** that the name of the image (`oligopool-docker`) is flexible, and can be anything we want.
 
 You can see a list of all `docker` images built on your system.
 ```bash

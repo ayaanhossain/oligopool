@@ -72,6 +72,7 @@ $ docker run -it -v ${PWD}:/op-workspace oligopool-docker # Loads your project d
 $ # After Loading
 $ ll # Shows you your files! You are in a Linux environment now.
 ```
+> **Note** `op-workspace` is just a name for your project directory inside docker, could be anything.
 
 **Verifying Installation**
 

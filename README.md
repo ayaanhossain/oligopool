@@ -49,9 +49,9 @@ Both approaches should install all dependencies automatically.
 
 On non-`Linux` and `Linux` systems both, you can use `oligopool` via [`docker`](https://docs.docker.com/desktop/).
 ```bash
-$ git clone https://github.com/ayaanhossain/oligopool.git # Downloads the repository
-$ cd oligopool # Navigates into the downloaded repository
-$ docker build -t oligopool-docker . # Builds docker image and saves it as oligopool-docker
+$ git clone https://github.com/ayaanhossain/oligopool.git # Or, manually download repository
+$ cd oligopool # Navigate into the downloaded repository
+$ docker build -t oligopool-docker . # Build docker image and save it as oligopool-docker
 ```
 > **Note** that the name of the image is flexible, and can be anything we want.
 

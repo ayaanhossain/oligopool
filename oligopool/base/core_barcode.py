@@ -2,8 +2,7 @@ import time  as tt
 
 import collections as cx
 
-import numpy   as np
-import bounter as bt
+import numpy as np
 
 from . import utils  as ut
 

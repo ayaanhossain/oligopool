@@ -12,9 +12,9 @@ import atexit  as ae
 import contextlib  as cl
 import collections as cx
 
-import ctypes          as ct
-import multiprocessing as mp
-import multiprocessing.sharedctypes as mpsct
+import ctypes       as ct
+import multiprocess as mp
+import multiprocess.sharedctypes as mpsct
 
 import numpy   as np
 import numba   as nb

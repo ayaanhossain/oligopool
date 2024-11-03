@@ -53,8 +53,8 @@ def acount(
           `count` is read/ID frequency, and `coreid` is the CPU core ID.
         - Callbacks must return booleans: True implies accepting the read.
         - Association counting operates on a single index and pack file pair.
-        - Here partial presence of associate variant suffices; however, their
-          `{prefix|suffix}` constants must be adjancent and present completely.
+        - Here partial presence of associate variant suffices; however, their `{prefix|suffix}`
+          constants must be adjacent and present completely.
     '''
 
     # Alias Arguments

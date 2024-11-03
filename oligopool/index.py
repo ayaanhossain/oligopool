@@ -52,7 +52,7 @@ def index(
         - For error-free indexing, specified columns should be adjacent to `{barcode|associate}_column`.
         - In NGS reads, barcode `{prefix|suffix}` must be `barcode_{prefix|suffix}_gap` bases away from barcode.
         - For association counting, partial presence of associate variant suffices; however, their
-          `{prefix|suffix}` constants must be adjancent and present completely.
+          `{prefix|suffix}` constants must be adjacent and present completely.
         - Multiple indices may be used simultaneously for combinatorial counting (association ignored).
     '''
 

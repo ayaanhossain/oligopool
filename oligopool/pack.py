@@ -2,7 +2,7 @@ import time as tt
 
 import atexit as ae
 
-import multiprocessing as mp
+import multiprocess as mp
 
 from .base import utils as ut
 from .base import validation_parsing as vp

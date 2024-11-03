@@ -97,6 +97,7 @@ setup(
         'sharedb>=1.1.1',
         'numba>=0.60.0',
         'seaborn>=0.13.2',
+        'multiprocess>=0.70.17',
     ],
 
     project_urls={  # Optional

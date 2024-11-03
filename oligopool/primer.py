@@ -68,6 +68,7 @@ def primer(
         - `maximum_repeat_length` controls non-repetitiveness against `input_data` only, not `background`.
         - If `excluded_motifs` is a CSV or DataFrame, it must have 'ID' and 'Exmotif' columns.
         - Constant motifs in sequence constraint may lead to sub-optimal primers.
+        - A system of primers must be designed in the right order of dependency.
     '''
 
     # Argument Aliasing
@@ -292,8 +293,8 @@ def primer(
 
     # Parse oligolimit
     (parsestatus,
-    minvariantlen,
-    maxvariantlen,
+    minoligolen,
+    maxoligolen,
     minelementlen,
     maxelementlen,
     minspaceavail,
@@ -316,10 +317,10 @@ def primer(
             'step'     : 1,
             'step_name': 'parsing-oligo-limit',
             'vars'     : {
-                   'oligo_limit': oligolimit,
-                'limit_overflow': True,
-                'min_variant_len': minvariantlen,
-                'max_variant_len': maxvariantlen,
+                    'oligo_limit': oligolimit,
+                 'limit_overflow': True,
+                  'min_oligo_len': minoligolen,
+                  'max_oligo_len': maxoligolen,
                 'min_element_len': minelementlen,
                 'max_element_len': maxelementlen,
                 'min_space_avail': minspaceavail,

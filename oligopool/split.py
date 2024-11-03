@@ -1,4 +1,4 @@
-import time  as tt
+import time as tt
 
 import atexit as ae
 
@@ -169,8 +169,8 @@ def split(
     seqlist,
     oligounderflow,
     unevensplit,
-    minvariantlen,
-    maxvariantlen,
+    minoligolen,
+    maxoligolen,
     minsplitcount,
     maxsplitcount) = cs.get_parsed_splitlimit(
         indf=indf,
@@ -190,8 +190,8 @@ def split(
                     'split_limit': splitlimit,
                 'oligo_underflow': oligounderflow,
                    'uneven_split': unevensplit,
-                'min_variant_len': minvariantlen,
-                'max_variant_len': maxvariantlen,
+                  'min_oligo_len': minoligolen,
+                  'max_oligo_len': maxoligolen,
                 'min_split_count': minsplitcount,
                 'max_split_count': maxsplitcount,},
             'warns'   : warns}
@@ -212,7 +212,7 @@ def split(
     (padvec,
     seqmat) = cs.get_seqmat_padvec(
         seqlist=seqlist,
-        maxvariantlen=maxvariantlen,
+        maxoligolen=maxoligolen,
         liner=liner)
 
     # Compute Sequence Matrix
@@ -221,7 +221,7 @@ def split(
     # Compute padvec and seqmat
     entvec = cs.get_entvec(
         seqmat=seqmat,
-        maxvariantlen=maxvariantlen,
+        maxoligolen=maxoligolen,
         liner=liner)
 
     # Parse Oligopool Limit Feasibility
@@ -290,8 +290,8 @@ def split(
         mintmelt=mintmelt,
         minhdist=minhdist,
         maxoverlap=maxoverlap,
-        minvariantlen=minvariantlen,
-        maxvariantlen=maxvariantlen,
+        minoligolen=minoligolen,
+        maxoligolen=maxoligolen,
         spanlen=spanlen,
         seqmat=seqmat,
         varcont=varcont,

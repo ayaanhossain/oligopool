@@ -10,7 +10,7 @@ import numpy  as np
 import pandas as pd
 import edlib  as ed
 
-import plyvel
+from ShareDB import ShareDB
 
 from . import utils as ut
 from . import phiX  as px
@@ -896,14 +896,10 @@ def count_aggregator(
     '''
 
     # Define CountDB file
-    countdb = '{}/countdb'.format(
-        countdir)
+    countdb = '{}/countdb'.format(countdir)
 
     # Open CountDB Instance
-    countdb = plyvel.DB(
-        countdb,
-        create_if_missing=True,
-        error_if_exists=True)
+    countdb = ShareDB(path=countdb, map_size=None)
 
     # Waiting on Count Matrices
     while countqueue.empty():
@@ -936,33 +932,24 @@ def count_aggregator(
            prodactive.value() == 0:
             liner.send(' Aggregating: {}'.format(fname))
 
-        # Create New Batch
-        batch = countdb.write_batch(transaction=True)
-
         # Update Batch
         while countlist:
-            k,v  = countlist.pop()
-            strk = str(k).encode()
-            w = countdb.get(strk)
+            k,v = countlist.pop()
+            w = countdb.get(k)
             match assoc:
                 case True:
                     if w is None:
                         w = [0, 0]
-                    else:
-                        w = eval(w.decode('ascii'))
                     v[0] += w[0]
                     v[1] += w[1]
-                    strv = str(v).encode()
                 case False:
                     if w is None:
                         w = 0
-                    else:
-                        w = int(w.decode('ascii'))
-                    strv = str(w+v).encode()
-            batch.put(strk, strv)
+                    v += w
+            countdb[k] = v
 
         # Update CountDB
-        batch.write()
+        countdb.sync()
 
         # Release Control
         tt.sleep(0)
@@ -1037,10 +1024,7 @@ def write_count(
         countdir)
 
     # Open CountDB Instance
-    countdb = plyvel.DB(
-        countdb,
-        create_if_missing=False,
-        error_if_exists=False)
+    countdb = ShareDB(path=countdb, map_size=None)
 
     # Count Matrix Loop
     with open(countfile, 'w') as outfile:
@@ -1052,7 +1036,7 @@ def write_count(
                     idxname) for idxname in indexnames) + ',BarcodeCounts,AssociationCounts\n')
             case False:
                 outfile.write(','.join('{}.ID'.format(
-                    idxname) for idxname in indexnames) + ',Counts\n')
+                    idxname) for idxname in indexnames) + ',CombinatorialCounts\n')
 
         # Book-keeping
         entrycount = 0
@@ -1060,7 +1044,7 @@ def write_count(
         batchreach = 0
 
         # Loop through CountDB Entries
-        for indextuple,count in countdb:
+        for indextuple,count in countdb.items():
 
             # Update Book-keeping
             entrycount += 1
@@ -1068,16 +1052,16 @@ def write_count(
 
             # Build Entry
             rows = []
-            for IDx,index in enumerate(eval(indextuple)):
+            for IDx,index in enumerate(indextuple):
                 if index == '-':
                     rows.append('-')
                 else:
                     rows.append(IDdicts[IDx][int(index)])
             match assoc:
                 case True:
-                    rows.append(','.join(str(x) for x in eval(count.decode('ascii'))))
+                    rows.append(','.join(str(x) for x in count))
                 case False:
-                    rows.append(count.decode('ascii'))
+                    rows.append(count)
 
             # Write Entry to Count Matrix
             outfile.write(','.join(map(str,rows)) + '\n')

@@ -1,4 +1,4 @@
-import time  as tt
+import time as tt
 
 import collections as cx
 import atexit as ae
@@ -57,6 +57,7 @@ def barcode(
     Notes:
         - `input_data` must contain a unique 'ID' column, all other columns must be non-empty DNA strings.
         - Column names in `input_data` must be unique, and exclude `barcode_column`.
+        - Spectrum optimization saturate k-mers, terminus optimization ensure unique 5p/3p ends.
         - At least one of `left_context_column` or `right_context_column` must be specified.
         - If `excluded_motifs` is a CSV or DataFrame, it must have 'ID' and 'Exmotif' columns.
         - If barcode design is challenging, consider
@@ -65,6 +66,7 @@ def barcode(
             * switching to terminus optimized barcodes, or
             * increasing `maximum_repeat_length`, or
             * reducing `excluded_motifs` to relax the constraints.
+        - Constant motifs to be used as barcode anchors must be designed prior to barcode generation.
     '''
 
     # Argument Aliasing
@@ -265,8 +267,8 @@ def barcode(
 
     # Parse oligolimit
     (parsestatus,
-    minvariantlen,
-    maxvariantlen,
+    minoligolen,
+    maxoligolen,
     minelementlen,
     maxelementlen,
     minspaceavail,
@@ -289,10 +291,10 @@ def barcode(
             'step'    : 1,
             'step_name': 'parsing-oligo-limit',
             'vars'    : {
-                   'oligo_limit': oligolimit,
-                'limit_overflow': True,
-                'min_variant_len': minvariantlen,
-                'max_variant_len': maxvariantlen,
+                    'oligo_limit': oligolimit,
+                 'limit_overflow': True,
+                  'min_oligo_len': minoligolen,
+                  'max_oligo_len': maxoligolen,
                 'min_element_len': minelementlen,
                 'max_element_len': maxelementlen,
                 'min_space_avail': minspaceavail,

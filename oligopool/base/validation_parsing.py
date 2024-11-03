@@ -1,10 +1,10 @@
 import os
 
-import numbers         as nu
-import multiprocessing as mp
-import zipfile         as zf
-import math            as mt
-import collections     as cx
+import numbers      as nu
+import multiprocess as mp
+import zipfile      as zf
+import math         as mt
+import collections  as cx
 
 import numpy    as np
 import pandas   as pd

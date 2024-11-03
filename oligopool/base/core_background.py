@@ -84,9 +84,7 @@ def background_engine(
 
     # If Successful Update and Close DB
     if stats['status']:
-        vDB.DB.put(
-            b'LEN',
-            str(fill_count).encode())
+        vDB.DB['LEN'] = fill_count
         vDB.close()
 
     # Otherwise Drop DB

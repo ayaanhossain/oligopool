@@ -1,3 +1,12 @@
+2024.11.03
+1. Changed automatic padding constraints.
+2. Introduced design of constants as a motif type.
+3. Added Orphan Oligo indicators to `motif` and `spacer`.
+4. Updated the oligo length limit parsing.
+5. Updated edge-effect calculation in `pad`.
+6. Removed `bounter` since deprecated.
+7. Switched to `ShareDB`.
+
 2024.10.29
 1. Fix edge extraction and edge-effect length calc.
 2. Update `barcode` to include returning orphan oligos on failure.

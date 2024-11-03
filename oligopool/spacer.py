@@ -1,4 +1,4 @@
-import time  as tt
+import time as tt
 
 import collections as cx
 import atexit as ae
@@ -18,13 +18,13 @@ def spacer(
     oligo_length_limit:int,
     spacer_column:str,
     output_file:str|None=None,
-    spacer_length:int|None=None,
+    spacer_length:int|list|str|pd.DataFrame|None=None,
     left_context_column:str|None=None,
     right_context_column:str|None=None,
     excluded_motifs:list|str|pd.DataFrame|None=None,
     verbose:bool=True) -> Tuple[pd.DataFrame, dict]:
     '''
-    Inserts a fixed or variable length neutral spacer free from excluded motifs. If the spacer length
+    Inserts a fixed or variable length neutral spacer free of excluded motifs. If the spacer length
     is not specified, then the spacer per oligo is such that the final length of the oligo matches
     specified `oligo_length_limit`. Returned DataFrame can be written as a CSV file.
 
@@ -35,8 +35,9 @@ def spacer(
 
     Optional Parameters:
         - `output_file` (`str`): Filename for output DataFrame (default: `None`).
-        - `spacer_length` (`int`): Length of the inserted spacers,
-            if `None` automatically determine this length per oligo (default: `None`).
+        - `spacer_length` (`int` / `list` / `str` / `pd.DataFrame`): Length of the inserted spacers,
+            can be defined per oligo in a list or a DataFrame; if `None` the spacer length per oligo
+            is determined automatically to match `oligo_length_limit` (default: `None`).
         - `left_context_column` (`str`): Column for left DNA context (default: `None`).
         - `right_context_column` (`str`): Column for right DNA context (default: `None`).
         - `excluded_motifs` (`list` / `str` / `pd.DataFrame`): Motifs to exclude;
@@ -51,6 +52,7 @@ def spacer(
         - `input_data` must contain a unique 'ID' column, all other columns must be non-empty DNA strings.
         - Column names in `input_data` must be unique, and exclude `spacer_column`.
         - At least one of `left_context_column` or `right_context_column` must be specified.
+        - When `spacer_length` is a CSV or DataFrame, it must have 'ID' and 'Length' columns.
         - If `excluded_motifs` is a CSV or DataFrame, it must have 'ID' and 'Exmotif' columns.
         - Oligo rows already summing to or exceeding `oligo_length_limit` have a `'-'` (dash) as spacer.
     '''
@@ -223,8 +225,8 @@ def spacer(
 
     # Parse oligolimit
     (parsestatus,
-    minvariantlen,
-    maxvariantlen,
+    minoligolen,
+    maxoligolen,
     minelementlen,
     maxelementlen,
     minspaceavail,
@@ -247,10 +249,10 @@ def spacer(
             'step'    : 2,
             'step_name': 'parsing-oligo-limit',
             'vars'    : {
-                   'oligo_limit': oligolimit,
-                'limit_overflow': True,
-                'min_varian_tlen': minvariantlen,
-                'max_variant_len': maxvariantlen,
+                    'oligo_limit': oligolimit,
+                 'limit_overflow': True,
+                  'min_oligo_len': minoligolen,
+                  'max_oligo_len': maxoligolen,
                 'min_element_len': minelementlen,
                 'max_element_len': maxelementlen,
                 'min_space_avail': minspaceavail,
@@ -354,11 +356,13 @@ def spacer(
             (prefixdict,
             suffixdict) = cm.get_parsed_edgeeffects(
                 motifseq='NNNN',
+                motiftype=0,
                 leftcontext=leftcontext,
                 rightcontext=rightcontext,
                 leftpartition=leftpartition,
                 rightpartition=rightpartition,
                 exmotifs=exmotifs,
+                element='Spacer',
                 warn=warns[6],
                 liner=liner)
 
@@ -385,6 +389,7 @@ def spacer(
         'vars'    : {
                'target_count': targetcount,   # Required Number of Spacers
                'spacer_count': 0,             # Spacer Design Count
+               'orphan_oligo': None,          # Orphan Oligo Indexes
                'exmotif_fail': 0,             # Exmotif Elimination Fail Count
                   'edge_fail': 0,             # Edge Effect Fail Count
             'exmotif_counter': cx.Counter()}, # Exmotif Encounter Counter
@@ -457,6 +462,10 @@ def spacer(
             ut.safediv(
                 A=stats['vars']['spacer_count'] * 100.,
                 B=targetcount)))
+    liner.send(
+        '  Orphan Oligo    : {:{},d} Entries\n'.format(
+            len(stats['vars']['orphan_oligo']),
+            plen))
 
     # Failure Relavant Stats
     if not stats['status']:

@@ -9,10 +9,7 @@ from . import utils as ut
 
 # Parser and Setup Functions
 
-def get_parsed_splitlimit(
-    indf,
-    splitlimit,
-    liner):
+def get_parsed_splitlimit(indf, splitlimit, liner):
     '''
     Determine if splitting is feasible
     based on oligo synthesis limit.
@@ -33,12 +30,13 @@ def get_parsed_splitlimit(
 
     # Book-keeping
     t0 = tt.time()
-    lengthdiff    = round(splitlimit * 0.25)
-    maxvariantlen = None
+    lengthdiff  = round(splitlimit * 0.25)
+    minoligolen = None
+    maxoligolen = None
     minsplitcount = None
     maxsplitcount = None
-    lengthcond    = False
-    splitcond     = False
+    lengthcond = False
+    splitcond  = False
 
     # Finalize Oligopool
     liner.send(' Finalizing Oligopool ...')
@@ -55,17 +53,17 @@ def get_parsed_splitlimit(
     # Compute Variant Lengths
     liner.send(' Computing Variant Lengths ...')
 
-    variantlens   = list(map(len, seqlist))
-    minvariantlen = min(variantlens)
-    maxvariantlen = max(variantlens)
+    oligolen = list(map(len, seqlist))
+    minoligolen = min(oligolen)
+    maxoligolen = max(oligolen)
 
-    # variantlen = 190
-    # maxvariantlen = 190
+    # oligolen = 190
+    # maxoligolen = 190
 
     # Compute Length Feasibility
-    if minvariantlen < splitlimit:
-        parsemsg = ' [INFEASIBLE] (Variants Shorter than Split Limit)'
-    elif splitlimit - (maxvariantlen - minvariantlen) < lengthdiff:
+    if minoligolen < splitlimit:
+        parsemsg = ' [INFEASIBLE] (Oligos Shorter than Split Limit)'
+    elif splitlimit - (maxoligolen - minoligolen) < lengthdiff:
         # Note: Length Differential is more than 1/4 th of Split Limit
         parsemsg = ' [INFEASIBLE] (Lengths Differ by More than {:,} bp)'.format(
             lengthdiff)
@@ -74,21 +72,21 @@ def get_parsed_splitlimit(
         lengthcond = True
 
     # Show Updates
-    if minvariantlen == maxvariantlen:
+    if minoligolen == maxoligolen:
         liner.send(
-            ' Input Variant Length: {:,} Base Pair(s){}\n'.format(
-                minvariantlen,
+            '   Input Oligo Length: {:,} Base Pair(s){}\n'.format(
+                minoligolen,
                 parsemsg))
     else:
         liner.send(
-            ' Input Variant Length: {:,} to {:,} Base Pair(s){}\n'.format(
-                minvariantlen,
-                maxvariantlen,
+            '   Input Oligo Length: {:,} to {:,} Base Pair(s){}\n'.format(
+                minoligolen,
+                maxoligolen,
                 parsemsg))
 
     # Computing Split Counts
-    minsplitcount = int(np.ceil(minvariantlen / (splitlimit * 1.)))
-    maxsplitcount = int(np.ceil(maxvariantlen / (splitlimit * 1.)))
+    minsplitcount = int(np.ceil(minoligolen / (splitlimit * 1.)))
+    maxsplitcount = int(np.ceil(maxoligolen / (splitlimit * 1.)))
 
     # minsplitcount = 2
     # maxsplitcount = 3
@@ -132,13 +130,12 @@ def get_parsed_splitlimit(
         seqlist,
         not lengthcond,
         not splitcond,
-        minvariantlen,
-        maxvariantlen,
+        minoligolen,
+        maxoligolen,
         minsplitcount,
         maxsplitcount)
 
-def get_seqvec(
-    seq):
+def get_seqvec(seq):
     '''
     Return the numeric vector for seq.
     Internal use only.
@@ -152,9 +149,7 @@ def get_seqvec(
         tuple(float(ord(nt)) for nt in seq),
         dtype=np.float64)
 
-def get_padded_seq(
-    seq,
-    diff):
+def get_padded_seq(seq, diff):
     '''
     Return 3' padded sequence.
     Internal use only.
@@ -170,10 +165,7 @@ def get_padded_seq(
     return seq + ''.join(np.random.choice(
         list('ATGC')) for _ in range(diff))
 
-def get_seqmat_padvec(
-    seqlist,
-    maxvariantlen,
-    liner):
+def get_seqmat_padvec(seqlist, maxoligolen, liner):
     '''
     Return the numeric representation
     of seqlist and the vector of added
@@ -182,9 +174,9 @@ def get_seqmat_padvec(
     :: seqlist
        type - iterable
        desc - list of sequences to split
-    :: maxvariantlen
+    :: maxoligolen
        type - integer
-       desc - length of the longest variant
+       desc - length of the longest oligo
               in the pool
     :: liner
        type - coroutine
@@ -193,13 +185,13 @@ def get_seqmat_padvec(
 
     # Setup Stores
     seqmat = np.zeros(
-        (len(seqlist), maxvariantlen),
+        (len(seqlist), maxoligolen),
         dtype=np.float64)
-    padvec = np.array([maxvariantlen - len(seq) \
+    padvec = np.array([maxoligolen - len(seq) \
         for seq in seqlist])
 
     # Update-keeping
-    short = True if maxvariantlen > 10 else False
+    short = True if maxoligolen > 10 else False
 
     # Time-keeping
     t0 = tt.time()
@@ -248,10 +240,7 @@ def get_seqmat_padvec(
     seqmat = np.array(seqmat, dtype=np.float64)
     return padvec, seqmat
 
-def get_entvec(
-    seqmat,
-    maxvariantlen,
-    liner):
+def get_entvec(seqmat, maxoligolen, liner):
     '''
     Return entropy of sequence matrix.
     Internal use only.
@@ -259,9 +248,9 @@ def get_entvec(
     :: seqmat
        type - np.array
        desc - numeric sequence matrix
-    :: maxvariantlen
+    :: maxoligolen
        type - integer
-       desc - length of the longest variant
+       desc - length of the longest oligo
               in the pool
     :: liner
        type - coroutine
@@ -269,7 +258,7 @@ def get_entvec(
     '''
 
     # Update-keeping
-    short = True if maxvariantlen > 10 else False
+    short = True if maxoligolen > 10 else False
 
     # Time-keeping
     t0  = tt.time()
@@ -321,8 +310,7 @@ def get_entvec(
     # Return Results
     return entvec
 
-def get_base_varcont(
-    entvec):
+def get_base_varcont(entvec):
     '''
     Return all base variable region span indices.
     Internal use only.
@@ -387,9 +375,7 @@ def get_base_varcont(
     # Return Results
     return varcont
 
-def get_merged_varcont(
-    varcont,
-    mergegap):
+def get_merged_varcont(varcont, mergegap):
     '''
     Return a merged varcont, merging variable regions
     separated by at most mergegap constant bases.
@@ -429,10 +415,7 @@ def get_merged_varcont(
     # Return Result
     return merged
 
-def is_spannable(
-    p,
-    q,
-    spanlen):
+def is_spannable(p, q, spanlen):
     '''
     Determine if a contig span satisfies spanlen.
     Internal use only.
@@ -452,9 +435,7 @@ def is_spannable(
         return False
     return True
 
-def get_filtered_varcont(
-    varcont,
-    spanlen):
+def get_filtered_varcont(varcont, spanlen):
     '''
     Filter all variable regions shorter than
     the required spanlen. Internal use only.
@@ -486,11 +467,7 @@ def get_filtered_varcont(
     # Return Result
     return filtered
 
-def get_varcont(
-    entvec,
-    minhdist,
-    spanlen,
-    liner):
+def get_varcont(entvec, minhdist, spanlen, liner):
     '''
     Return all valid variable contig span regions.
     Internal use only.
@@ -625,7 +602,7 @@ def is_varcont_feasible(
 def get_splitend(
     fstart,
     splitlimit,
-    variantlen):
+    oligolen):
     '''
     Return the fragment end coordinates.
     Internal use only.
@@ -636,19 +613,19 @@ def get_splitend(
     :: splitlimit
        type - integer
        desc - maximum length of split oligo
-    :: variantlen
+    :: oligolen
        type - integer
-       desc - variant length considered
+       desc - oligo length considered
     '''
 
-    return min(fstart+splitlimit, variantlen)
+    return min(fstart+splitlimit, oligolen)
 
 def get_splitqueue(
     varcont,
     fstart,
     sstart,
     splitlimit,
-    variantlen):
+    oligolen):
     '''
     Return all variable contigs splitpoints given
     current oligo starting point and splitlen.
@@ -666,9 +643,9 @@ def get_splitqueue(
     :: splitlimit
        type - integer
        desc - maximum length of split oligo
-    :: variantlen
+    :: oligolen
        type - integer
-       desc - variant length considered
+       desc - oligo length considered
     '''
 
     # Do we compute splitpoints?
@@ -680,7 +657,7 @@ def get_splitqueue(
     end = get_splitend(
         fstart=fstart,
         splitlimit=splitlimit,
-        variantlen=variantlen)
+        oligolen=oligolen)
 
     # Determine Potential Splitpoints from Contigs
     for p,q in varcont:
@@ -718,7 +695,7 @@ def get_splitqueue(
 def continue_splitting(
     fstart,
     splitlimit,
-    variantlen):
+    oligolen):
     '''
     Determine if the current split engenders the last
     frament from splitting. Internal use only.
@@ -729,9 +706,9 @@ def continue_splitting(
     :: splitlimit
        type - integer
        desc - maximum length of split oligo
-    :: variantlen
+    :: oligolen
        type - integer
-       desc - variant length considered
+       desc - oligo length considered
     '''
 
     # Starting at fstart, we'll
@@ -739,7 +716,7 @@ def continue_splitting(
     if get_splitend(
         fstart=fstart,
         splitlimit=splitlimit,
-        variantlen=variantlen) == variantlen:
+        oligolen=oligolen) == oligolen:
         return False # No more splitting required
 
     return True # Splitting may be required
@@ -1062,8 +1039,8 @@ def split_engine(
     mintmelt,
     minhdist,
     maxoverlap,
-    minvariantlen,
-    maxvariantlen,
+    minoligolen,
+    maxoligolen,
     spanlen,
     seqmat,
     varcont,
@@ -1094,13 +1071,13 @@ def split_engine(
        type - integer
        desc - maximum allowed split overlap
               length
-    :: minvariantlen
+    :: minoligolen
        type - integer
-       desc - length of the shortest variant
+       desc - length of the shortest oligo
               in the oligopool
-    :: maxvariantlen
+    :: maxoligolen
        type - integer
-       desc - length of the longest variant
+       desc - length of the longest oligo
               in the oligopool
     :: spanlen
        type - integer
@@ -1109,10 +1086,10 @@ def split_engine(
     :: seqmat
        type - np.array
        desc - numerically encoded array for
-              all variants in oligopool with
+              all oligos in oligopool with
               additional padding to make all
               sequences have length equal to
-              maxvariantlen
+              maxoligolen
     :: varcont
        type - cx.deque
        desc - a deque of tuple with start and
@@ -1139,23 +1116,22 @@ def split_engine(
     while True:
 
         # Show Update
-        liner.send('\n  Now Computing Split for Fragment: {}\n'.format(
-            len(split)+1))
+        liner.send('\n  Now Computing Split for Fragment: {}\n'.format(len(split)+1))
         liner.send('    Initial Fragment Coordinates: (Start={}, End={})\n'.format(
             fstart,
             get_splitend(
                 fstart=fstart,
                 splitlimit=splitlimit,
-                variantlen=maxvariantlen)))
+                oligolen=maxoligolen)))
 
         # Do we need to split any more?
         if not continue_splitting(
             fstart=fstart,
             splitlimit=splitlimit,
-            variantlen=maxvariantlen):
+            oligolen=maxoligolen):
 
             # Store Final Fragment Coordinates
-            split.append((fstart, maxvariantlen))
+            split.append((fstart, maxoligolen))
 
             # Show Updates
             liner.send('    Split Required? No\n')
@@ -1181,7 +1157,7 @@ def split_engine(
                 fstart=fstart,
                 sstart=sstart,
                 splitlimit=splitlimit,
-                variantlen=maxvariantlen)
+                oligolen=maxoligolen)
 
             # Did we find split regions?
             if not spq: # No Split Regions Found
@@ -1230,8 +1206,8 @@ def split_engine(
 
     # Did the shorter variants get split as well?
     if status:
-        for u,v in overlap:
-            if u > minvariantlen:
+        for u,_ in overlap:
+            if u > minoligolen:
                 status = False
                 state  = 1
                 break
@@ -1262,6 +1238,4 @@ def split_engine(
     liner.send('  Time Elapsed: {:.2f} sec\n'.format(tt.time() - mt0))
 
     # Return Results
-    return (split,
-        overlap,
-        stats)
+    return (split, overlap, stats)

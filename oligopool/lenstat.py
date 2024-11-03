@@ -81,7 +81,6 @@ def lenstat(
     oligolimit = round(oligolimit)
 
     # Length Stats Book-keeping
-    outdf = None
     stats = None
     warns = {}
 

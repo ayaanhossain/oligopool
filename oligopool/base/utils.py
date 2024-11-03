@@ -24,12 +24,11 @@ import psutil  as pu
 import msgpack as mg
 import pyfastx as pf
 import edlib   as ed
-import bounter as bt
 
 from . import scry as sy
 
 
-# Global Lookups
+# --= Global Lookups =--
 
 complement_table = str.maketrans(
     '-ACGTURYSWKMBVDHN',
@@ -94,10 +93,10 @@ typeIIS_dict = {
     'sapi'    : ('SapI',     'GCTCTTC', 4),
     'sfani'   : ('SfaNI',    'GCATC',   9)}
 
-trimflag = sys.platform.lower(
-    ).startswith('linux')
+trimflag = sys.platform.lower().startswith('linux')
 
-# Shared Classes
+
+# --= Shared Classes =--
 
 class SafeCounter:
     '''
@@ -345,7 +344,8 @@ class SafeQueue:
             self.counter = None
             self.alive.value = False
 
-# Decorators and Contexts
+
+# --= Decorators and Contexts =--
 
 def coroutine(func):
     '''
@@ -376,7 +376,8 @@ def ignored(*exceptions):
     except exceptions:
         pass
 
-# Printing / Logging
+
+# --= Printing / Logging =--
 
 def removestarfix(string, fix, loc):
     '''
@@ -488,7 +489,8 @@ def get_notelen(printlen):
     else:
         return 'e', 0
 
-# Numeric Functions
+
+# --= Numeric Functions =--
 
 def get_trials(prob):
     '''
@@ -592,7 +594,8 @@ def get_sample(value, lf, uf):
         *map(np.round, (value * lf,
                         value * uf)))
 
-# DataFrame Functions
+
+# --= DataFrame Functions =--
 
 def get_unique_count(iterable):
     '''
@@ -737,7 +740,8 @@ def update_df(
         column=outcol,
         value=out)
 
-# Oligo Functions
+
+# --= Oligo Functions =--
 
 @nb.njit
 def get_store_hdist(
@@ -918,7 +922,8 @@ def get_constant_regions(seqconstr):
     # Return results
     return regions
 
-# Oligopool Functions
+
+# --= Oligopool Functions =--
 
 def get_variantlens(indf):
     '''
@@ -978,9 +983,9 @@ def get_parsed_oligolimit(
     '''
 
     # Book-keeping
-    parsestatus   = True
-    minvariantlen = None
-    maxvariantlen = None
+    parsestatus = True
+    minoligolen = None
+    maxoligolen = None
     minspaceavail = None
     maxspaceavail = None
     t0 = tt.time()
@@ -991,10 +996,10 @@ def get_parsed_oligolimit(
     if variantlens is None:
         variantlens = get_variantlens(indf=indf)
 
-    minvariantlen = np.min(variantlens)
-    maxvariantlen = np.max(variantlens)
-    minspaceavail = oligolimit - maxvariantlen
-    maxspaceavail = oligolimit - minvariantlen
+    minoligolen = np.min(variantlens)
+    maxoligolen = np.max(variantlens)
+    minspaceavail = oligolimit - maxoligolen
+    maxspaceavail = oligolimit - minoligolen
 
     parsestatus = (0 <= minelementlen <= minspaceavail) and \
                   (0 <= maxelementlen <= maxspaceavail)
@@ -1003,8 +1008,8 @@ def get_parsed_oligolimit(
     plen = get_printlen(
         value=max(np.abs([
             oligolimit,
-            minvariantlen,
-            maxvariantlen,
+            minoligolen,
+            maxoligolen,
             minelementlen,
             maxelementlen,
             minspaceavail,
@@ -1016,17 +1021,17 @@ def get_parsed_oligolimit(
             plen))
 
     # How much space occupied by variants?
-    if minvariantlen == maxvariantlen:
+    if minoligolen == maxoligolen:
         liner.send(
-            ' Input Variant Length: {:{},d} Base Pair(s)\n'.format(
-                minvariantlen,
+            '   Input Oligo Length: {:{},d} Base Pair(s)\n'.format(
+                minoligolen,
                 plen))
     else:
         liner.send(
-            ' Input Variant Length: {:{},d} to {:,} Base Pair(s)\n'.format(
-                minvariantlen,
+            '   Input Oligo Length: {:{},d} to {:,} Base Pair(s)\n'.format(
+                minoligolen,
                 plen,
-                maxvariantlen))
+                maxoligolen))
 
     # How much space required by elements?
     if minelementlen == maxelementlen:
@@ -1080,8 +1085,8 @@ def get_parsed_oligolimit(
 
     # Return Results
     return (parsestatus,
-        minvariantlen,
-        maxvariantlen,
+        minoligolen,
+        maxoligolen,
         minelementlen,
         maxelementlen,
         minspaceavail,
@@ -1121,14 +1126,12 @@ def get_parsed_oligopool_repeats(
     if not merge:
         oligorepeats = {}
     else:
-        oligorepeats = bt.bounter(
-            need_iteration=False, # Static Checks Only
-            size_mb=4*4096)       # 16 GB Spectrum Cap
-    t0           = tt.time()
-    kmerspace    = ((4**(maxreplen+1)) // 2)
-    fillcount    = None
-    freecount    = None
-    repeatcount  = 0
+        oligorepeats = set()
+    t0 = tt.time()
+    kmerspace = ((4**(maxreplen+1)) // 2)
+    fillcount = None
+    freecount = None
+    repeatcount = 0
 
     # Verbage Stuff
     plen = get_printlen(
@@ -1174,14 +1177,13 @@ def get_parsed_oligopool_repeats(
                 repeatcount,
                 len(oligorepeats[idx]))
         else:
-            oligorepeats.update(
-                transformation)
+            oligorepeats.update(transformation)
     if merge:
-        repeatcount = oligorepeats.cardinality()
+        repeatcount = len(oligorepeats)
 
     # Compute Feasibility
-    fillcount   = min(kmerspace, repeatcount)
-    freecount   = kmerspace - fillcount
+    fillcount = min(kmerspace, repeatcount)
+    freecount = kmerspace - fillcount
     parsestatus = (freecount * 1.) / kmerspace > .01
     if parsestatus:
         statusmsg = ''
@@ -1228,7 +1230,8 @@ def get_parsed_oligopool_repeats(
         freecount,
         oligorepeats)
 
-# Exmotif Functions
+
+# --= Exmotif Functions =--
 
 def stream_exmotif_splits(exmotif):
     '''
@@ -1357,9 +1360,7 @@ def get_parsed_exmotifs(
     # Sort Enque all motifs by length
     liner.send(' Sorting and Enqueing Excluded Motif(s) ...')
 
-    exmotifs = sorted(
-        exmotifs,
-        key=len)
+    exmotifs = sorted(exmotifs, key=len)
     dq = typer(exmotifs)
 
     liner.send(' Sorted and Enqued: {:,} Unique Excluded Motif(s)\n'.format(
@@ -1584,9 +1585,7 @@ def get_exmotif_conflict(
     else:
         return (False, pmotif)
 
-def get_exmotif_conflict_index(
-    seq,
-    conflicts):
+def get_exmotif_conflict_index(seq, conflicts):
     '''
     Compute the location of all
     motif conflicts in seq.
@@ -1624,10 +1623,7 @@ def get_exmotif_conflict_index(
     # Return Results
     return index
 
-def is_local_exmotif_feasible(
-    seq,
-    exmotifs,
-    exmotifindex):
+def is_local_exmotif_feasible(seq, exmotifs, exmotifindex):
     '''
     Determine if sequence devoid of exmotifs.
     Internal use only.
@@ -1669,7 +1665,8 @@ def is_local_exmotif_feasible(
     # No Conflict
     return True, None
 
-# Context Functions
+
+# --= Context Functions =--
 
 def get_edgeeffectlength(exmotifs):
     '''
@@ -1683,7 +1680,7 @@ def get_edgeeffectlength(exmotifs):
     '''
 
     if not exmotifs is None:
-        return len(exmotifs[-1])
+        return max(map(len, exmotifs))
     return 0
 
 def get_grouped_sequences(sequences):
@@ -1704,10 +1701,7 @@ def get_grouped_sequences(sequences):
         groupdict[len(sequence)].add(sequence)
     return groupdict
 
-def get_extracted_edge(
-    contextseq,
-    position,
-    edgeeffectlength):
+def get_extracted_edge(contextseq, position, edgeeffectlength):
     '''
     Extract context sequence edge based on
     context position. Internal use only.
@@ -1846,8 +1840,7 @@ def get_extracted_context(
     liner.send('  Time Elapsed: {:.2f} sec\n'.format(tt.time()-t0))
 
     # Return Parsed Context
-    return (extractedcontext[0],
-        extractedcontext[1])
+    return (extractedcontext[0], extractedcontext[1])
 
 def get_context_type_selector(context):
     '''
@@ -1941,6 +1934,8 @@ def get_parsed_edgeeffects(
     # Book-keeping
     prefixdict  = None
     suffixdict  = None
+    covprefix   = set()
+    covsuffix   = set()
     lcwarncount = set()
     rcwarncount = set()
     constantprefix = None
@@ -1969,8 +1964,10 @@ def get_parsed_edgeeffects(
         for lcseq in leftcontext:
 
             # Have we seen this prefix already?
-            if lcseq in prefixdict:
+            if lcseq in covprefix:
                 continue
+            else:
+                covprefix.add(lcseq)
 
             # Crunch Constraints
             for prefix in leftpartition:
@@ -2047,8 +2044,10 @@ def get_parsed_edgeeffects(
         for rcseq in rightcontext:
 
             # Have we seen this Suffix already?
-            if rcseq in suffixdict:
+            if rcseq in covsuffix:
                 continue
+            else:
+                covsuffix.add(rcseq)
 
             # Crunch Constraints
             for suffix in rightpartition:
@@ -2277,14 +2276,15 @@ def get_parsed_edgeeffects(
 
     # Update Warning
     warn['warn_count'] = len(lcwarncount) + \
-                        len(rcwarncount) + \
-                        (1 if not constantprefix is None else 0) + \
-                        (1 if not constantsuffix is None else 0)
+                         len(rcwarncount) + \
+                         (1 if not constantprefix is None else 0) + \
+                         (1 if not constantsuffix is None else 0)
     warn['vars'] = {
-        'constantprefix'    : constantprefix,
-        'constantsuffix'    : constantsuffix,
-        'leftcontextimpact' : len(lcwarncount),
-        'rightcontextimpact': len(rcwarncount)}
+        'constant_prefix'     : constantprefix,
+        'constant_suffix'     : constantsuffix,
+        'left_context_impact' : len(lcwarncount),
+        'right_context_impact': len(rcwarncount)
+    }
 
     # Return Results
     return (prefixdict, suffixdict)
@@ -2371,7 +2371,7 @@ def is_local_edge_feasible(
                     # Return Results
                     return False, dxmotifs, min(len(seq)-1, mlen-1)
 
-    # Sequence Prefix Selected Forbidden?
+    # Sequence Suffix Selected Forbidden?
     if not suffixforbidden is None:
 
         # Post Exploration
@@ -2408,7 +2408,8 @@ def is_local_edge_feasible(
     # Everything is OK
     return True, None, None
 
-# Sequence Analysis Functions
+
+# --= Sequence Analysis Functions =--
 
 def is_DNA(seq, dna_alpha=dna_alpha):
     '''
@@ -2605,7 +2606,8 @@ def get_tvalue(elementlen):
         return 1
     return ((elementlen - 1) // 5) - 1
 
-# System and IO Functions
+
+# --= System and IO Functions =--
 
 def stream_fastq_engine(
     filepath,
@@ -2782,7 +2784,8 @@ def needs_restart(memlimit):
     # Return Results
     return policystatus
 
-# Workspace Functions
+
+# --= Workspace Functions =--
 
 def get_adjusted_path(path, suffix):
     '''
@@ -3036,7 +3039,8 @@ def remove_directory(dirpath):
         with ignored(OSError):
             su.rmtree(dirpath)
 
-# Data Saving / Loading Functions
+
+# --= Data Saving / Loading Functions =--
 
 def msgpacksave(obj, filepath):
     '''
@@ -3389,10 +3393,10 @@ def loaddump(dfile):
     return pickleload(
         filepath=dfile)
 
-# Archive Functions
 
-def get_archive(
-    arcfile):
+# --= Archive Functions =--
+
+def get_archive(arcfile):
     '''
     Open and return ZipFile archive.
     Internal use only.
@@ -3543,7 +3547,8 @@ def archive(
     # Archive Completed
     archiver.close()
 
-# Memory Management Functions
+
+# --= Memory Management Functions =--
 
 def trim_malloc():
     '''

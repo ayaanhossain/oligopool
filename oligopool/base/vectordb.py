@@ -5,7 +5,7 @@ import shutil as sh
 
 from functools import wraps
 
-import plyvel
+from ShareDB import ShareDB
 
 from . import utils as ut
 
@@ -41,26 +41,27 @@ class vectorDB:
             string=path,
             fix='/',
             loc=1) + '/'
+        if not self.PATH.endswith('vectorDB.ShareDB'):
+            self.PATH += 'vectorDB.ShareDB'
 
         # Create/Open LevelDB object
-        self.DB = plyvel.DB(
-            self.PATH,
-            create_if_missing=True,
-            error_if_exists=False)
+        self.DB = ShareDB(
+            path=self.PATH,
+            map_size=None)
 
-        # Length Setup
+        # Length setup
         try:
-            self.LEN = int(self.DB.get(b'LEN'))
+            self.LEN = self.DB['LEN']
         except:
             self.LEN = 0
-            self.DB.put(b'LEN', b'0')
+            self.DB['LEN'] = 0
 
-        # K Setup
+        # K setup
         try:
-            self.K = int(self.DB.get(b'K'))
+            self.K = self.DB['K']
         except:
             self.K = int(maxreplen+1)
-            self.DB.put(b'K', str(maxreplen+1).encode())
+            self.DB['K'] = self.K
 
         # Verbosity Setup
         self.VERB = False
@@ -74,7 +75,7 @@ class vectorDB:
         vectorDB.
         '''
         return 'vectorDB stored at {} with {} {}-mers'.format(
-            self.PATH, self.LEN, self.K)
+            self.PATH.removesuffix('vectorDB.ShareDB'), self.LEN, self.K)
 
     def __str__(self):
         '''
@@ -135,7 +136,7 @@ class vectorDB:
         val = self.DB.get(key)
         if val is None:
             return None
-        return str(val)
+        return val
 
     @alivemethod
     def add(self, seq, rna=True):
@@ -156,11 +157,10 @@ class vectorDB:
                     seq = seq.replace('U', 'T')
                 for kmer in ut.stream_canon_spectrum(
                     seq=seq, k=self.K):
-                    kmer = kmer.encode()
                     if self._get(kmer) is None:
-                        self.DB.put(kmer, b'1')
+                        self.DB[kmer] = True
                         self.LEN += 1
-            self.DB.put(b'LEN', str(self.LEN).encode())
+            self.DB['LEN'] = self.LEN
         except Exception as E:
             raise E
 
@@ -168,7 +168,7 @@ class vectorDB:
     def multiadd(self, seq_list, rna=True):
         '''
         User function to add seq k-mers for each seq in
-        seq_list to vectorDB via single transaction.
+        seq_list to vectorDB.
 
         :: seq_list
            type - list
@@ -181,7 +181,6 @@ class vectorDB:
         try:
             t0 = tt.time()
             pt = False
-            WB = self.DB.write_batch(transaction=True)
             index = 0
             for seq in seq_list:
                 if not pt and self.VERB:
@@ -197,12 +196,11 @@ class vectorDB:
                         seq = seq.replace('U', 'T')
                     for kmer in ut.stream_canon_spectrum(
                         seq=seq, k=self.K):
-                        kmer = kmer.encode()
                         if self._get(kmer) is None:
-                            WB.put(kmer, b'1')
+                            self.DB[kmer] = True
                             self.LEN += 1
-            WB.put(b'LEN', str(self.LEN).encode())
-            WB.write()
+            self.DB['LEN'] = self.LEN
+            self.DB.sync()
             if self.VERB:
                 print('\n Time Elapsed: {:.2f} sec'.format(tt.time()-t0))
         except Exception as E:
@@ -228,7 +226,6 @@ class vectorDB:
                 seq = seq.replace('U', 'T')
             for kmer in ut.stream_canon_spectrum(
                 seq=seq, k=self.K):
-                kmer = kmer.encode()
                 if self._get(kmer):
                     return True
             return False
@@ -239,8 +236,7 @@ class vectorDB:
     def multicheck(self, seq_list, rna=True):
         '''
         User function to check existence of any k-mer for
-        each seq in seq_list in vectorDB via single
-        transaction.
+        each seq in seq_list in vectorDB.
 
         :: seq_list
            type - list
@@ -267,9 +263,9 @@ class vectorDB:
         User fuction to iterate over k-mers stored in
         vectorDB.
         '''
-        for key, _ in self.DB:
-            if not key in [b'K', b'LEN']:
-                yield str(key.decode('ascii'))
+        for key, _ in self.DB.items():
+            if not key in ['K', 'LEN']:
+                yield key
 
     @alivemethod
     def __len__(self):
@@ -299,11 +295,10 @@ class vectorDB:
                     seq = seq.replace('U', 'T')
                 for kmer in ut.stream_canon_spectrum(
                     seq=seq, k=self.K):
-                    kmer = kmer.encode()
                     if self._get(kmer):
-                        self.DB.delete(kmer)
+                        self.DB.remove(kmer)
                         self.LEN -= 1
-                self.DB.put(b'LEN', str(self.LEN).encode())
+                self.DB['LEN'] = self.LEN
         except Exception as E:
             raise E
 
@@ -311,8 +306,7 @@ class vectorDB:
     def multiremove(self, seq_list, rna=True, clear=False):
         '''
         User function to remove all k-mers from each
-        seq in seq_list from vectorDB via single
-        transaction.
+        seq in seq_list from vectorDB.
 
         :: seq
            type - list
@@ -326,7 +320,6 @@ class vectorDB:
         try:
             t0 = tt.time()
             pt = False
-            WB = self.DB.write_batch(transaction=True)
             index = 0
             for seq in seq_list:
                 if not pt and self.VERB:
@@ -342,16 +335,15 @@ class vectorDB:
                         seq = seq.replace('U', 'T')
                     for kmer in ut.stream_canon_spectrum(
                         seq=seq, k=self.K):
-                        kmer = kmer.encode()
                         if clear:
-                            WB.delete(kmer)
+                            self.DB.remove(kmer)
                             self.LEN -= 1
                         else:
                             if self._get(kmer):
-                                WB.delete(kmer)
+                                self.DB.remove(kmer)
                                 self.LEN -= 1
-            WB.write()
-            self.DB.put(b'LEN', str(self.LEN).encode())
+            self.DB.sync()
+            self.DB['LEN'] = self.LEN
             if self.VERB:
                 print('\n Time Elapsed: {:.2f} sec'.format(tt.time()-t0))
         except Exception as E:
@@ -368,14 +360,11 @@ class vectorDB:
                   to consider for future operations
         '''
         self.drop()
-        self.DB = plyvel.DB(
-            self.PATH,
-            create_if_missing=True,
-            error_if_exists=False)
+        self.DB = ShareDB(path=self.PATH, map_size=None)
         self.LEN = 0
-        self.DB.put(b'LEN', b'0')
+        self.DB['LEN'] = 0
         if maxreplen is None:
-            self.DB.put(b'K', str(self.K).encode())
+            self.DB['K'] = self.K
         else:
             if not maxreplen is None:
                 if not isinstance(maxreplen, int):
@@ -389,7 +378,7 @@ class vectorDB:
                         maxreplen))
                     print(' [SOLUTION] Try correcting maxreplen\n')
                     raise ValueError
-            self.DB.put(b'K', str(self.K).encode())
+            self.DB['K'] = self.K
         self.ALIVE = True
 
     def close(self):
@@ -410,7 +399,7 @@ class vectorDB:
         if self.ALIVE:
             del self.DB
             self.DB = None
-            sh.rmtree(self.PATH)
+            sh.rmtree(self.PATH.removesuffix('vectorDB.ShareDB'))
             self.ALIVE = False
             return True
         return False

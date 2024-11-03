@@ -1,4 +1,4 @@
-import time  as tt
+import time as tt
 
 import collections as cx
 import atexit as ae
@@ -48,13 +48,13 @@ def pad(
         - `input_data` must contain a unique 'ID' column, all other columns must be non-empty DNA strings.
         - Column names in `input_data` must be unique, and exclude `primer_column`.
         - Oligo rows already summing to or exceeding `oligo_length_limit` have a `'-'` (dash) as spacer.
-        - The following 34 unique Type IIS systems are supported to faciliate scarless padding primer excision.
-            * `AcuI`,  `AlwI`,  `BbsI`,  `BccI`,   `BceAI`,    `BciVI`,
-              `BcoDI`, `BmrI`,  `BpuEI`, `BsaI`,   `BseRI`,    `BsmAI`,
-              `BsmBI`, `BsmFI`, `BsmI`,  `BspCNI`, `BspQI`,    `BsrDI`,
-              `BsrI`,  `BtgZI`, `BtsCI`, `BtsI`,   `BtsIMutI`, `EarI`,
-              `EciI`,  `Esp3I`, `FauI`,  `HgaI`,   `HphI`,     `HpyAV`,
-              `MlyI`,  `MnlI`,  `SapI`,  `SfaNI`
+        - Supports 34 Type IIS enzymes for scarless pad removal:
+            * `AcuI`, `AlwI`,     `BbsI`,  `BccI`,  `BceAI`, `BciVI`, `BcoDI`,
+              `BmrI`, `BpuEI`,    `BsaI`,  `BseRI`, `BsmAI`, `BsmBI`, `BsmFI`,
+              `BsmI`, `BspCNI`,   `BspQI`, `BsrDI`, `BsrI`,  `BtgZI`, `BtsCI`,
+              `BtsI`, `BtsIMutI`, `EarI`,  `EciI`,  `Esp3I`, `FauI`,  `HgaI`,
+              `HphI`, `HpyAV`,    `MlyI`,  `MnlI`,  `SapI`,  `SfaNI`.
+        - Pads can be removed post-amplification using these enzymes, followed by mung bean nuclease for blunting.
     '''
 
     # Argument Aliasing
@@ -211,8 +211,8 @@ def pad(
             'step'    : 1,
             'step_name': 'parsing-split-column',
             'vars'    : {
-                'maxfragmentlen': maxfragmentlen,
-                 'maxallowedlen': maxallowedlen},
+                'max_fragment_len': maxfragmentlen,
+                 'max_allowed_len': maxallowedlen},
             'warns'   : warns}
 
         # Return results
@@ -248,9 +248,9 @@ def pad(
             'step'    : 2,
             'step_name': 'parsing-typeIIS-system',
             'vars'    : {
-                  'minpadlen': minpadlen,
-                  'maxpadlen': maxpadlen,
-                'typeIISfree': typeIISfree},
+                 'min_pad_len': minpadlen,
+                 'max_pad_len': maxpadlen,
+                'typeIIS_free': typeIISfree},
             'warns'   : warns}
 
         # Return results
@@ -358,24 +358,24 @@ def pad(
         liner=liner)
 
     # Show update
-    liner.send('\n[Step 6: Parsing Edge Effects]\n')
+    liner.send('\n[Step 6: Parsing Forward Pad Edge Effects]\n')
 
     # Update Step 6 Warning
     warns[6] = {
         'warn_count': 0,
-        'step_name' : 'parsing-edge-effects',
+        'step_name' : 'parsing-forward-pad-edge-effects',
         'vars': None}
 
     # Compute Forbidden Prefixes and Suffixes
-    (prefixdict,
+    (_,
     suffixdict) = cp.get_parsed_edgeeffects(
         primerseq=fwdseq[-fwdcore:],
-        leftcontext=leftcontext,
+        leftcontext=None,
         rightcontext=rightcontext,
-        leftpartition=leftpartition,
+        leftpartition=None,
         rightpartition=rightpartition,
         exmotifs=exmotifs,
-        element='Pad',
+        element='Forwad Pad',
         warn=warns[6],
         liner=liner)
 
@@ -383,8 +383,34 @@ def pad(
     if not warns[6]['warn_count']:
         warns.pop(6)
 
+    # Show update
+    liner.send('\n[Step 7: Parsing Reverse Pad Edge Effects]\n')
+
+    # Update Step 6 Warning
+    warns[7] = {
+        'warn_count': 0,
+        'step_name' : 'parsing-reverse-pad-edge-effects',
+        'vars': None}
+
+    # Compute Forbidden Prefixes and Suffixes
+    (prefixdict,
+    _) = cp.get_parsed_edgeeffects(
+        primerseq=revseq[:revcore],
+        leftcontext=leftcontext,
+        rightcontext=None,
+        leftpartition=leftpartition,
+        rightpartition=None,
+        exmotifs=exmotifs,
+        element='Reverse Pad',
+        warn=warns[7],
+        liner=liner)
+
+    # Remove Step 6 Warning
+    if not warns[7]['warn_count']:
+        warns.pop(7)
+
     # Parse Oligopool Repeats
-    liner.send('\n[Step 7: Parsing Oligopool Repeats]\n')
+    liner.send('\n[Step 8: Parsing Oligopool Repeats]\n')
 
     # Parse Repeats from indf
     (parsestatus,
@@ -406,7 +432,7 @@ def pad(
         stats = {
             'status'  : False,
             'basis'   : 'infeasible',
-            'step'    : 7,
+            'step'    : 8,
             'step_name': 'parsing-oligopool-repeats',
             'vars'    : {
                 'source_context': sourcecontext,
@@ -423,17 +449,17 @@ def pad(
     stats = {
         'status'  : False,
         'basis'   : 'unsolved',
-        'step'    : 8,
-        'step_name': 'computing-primer',
+        'step'    : 9,
+        'step_name': 'computing-pad',
         'vars'    : {
-                'fwd_pad_primer_Tm': None,          # Forward Pad Melting Temperature
-                'rev_pad_primer_Tm': None,          # Reverse Pad Melting Temperature
-                'fwd_pad_primer_GC': None,          # Forward Pad GC Content
-                'rev_pad_primer_GC': None,          # Reverse Pad GC Content
-              'fwd_pad_hairpin_MFE': None,          # Forward Pad Hairpin Free Energy
-              'rev_pad_hairpin_MFE': None,          # Reverse Pad Hairpin Free Energy
-            'fwd_pad_homodimer_MFE': None,          # Forward Pad Homodimer Free Energy
-            'rev_pad_homodimer_MFE': None,          # Reverse Pad Homodimer Free Energy
+                'fwd_pad_primer_Tm': None,        # Forward Pad Melting Temperature
+                'rev_pad_primer_Tm': None,        # Reverse Pad Melting Temperature
+                'fwd_pad_primer_GC': None,        # Forward Pad GC Content
+                'rev_pad_primer_GC': None,        # Reverse Pad GC Content
+              'fwd_pad_hairpin_MFE': None,        # Forward Pad Hairpin Free Energy
+              'rev_pad_hairpin_MFE': None,        # Reverse Pad Hairpin Free Energy
+            'fwd_pad_homodimer_MFE': None,        # Forward Pad Homodimer Free Energy
+            'rev_pad_homodimer_MFE': None,        # Reverse Pad Homodimer Free Energy
                 'heterodimer_MFE': None,          # Heterodimer Free Energy
                         'Tm_fail': 0,             # Melting Temperature Fail Count
                     'repeat_fail': 0,             # Repeat Fail Count
@@ -453,7 +479,7 @@ def pad(
     fwdstats = {
         'status'  : False,
         'basis'   : 'unsolved',
-        'step'    : 8,
+        'step'    : 9,
         'step_name': 'computing-forward-pad',
         'vars'    : {
                    'primer_Tm': None,          # Primer Melting Temperature
@@ -476,7 +502,7 @@ def pad(
         typeIISmotif) + len(typeIISmotif)])
 
     # Launching Forward Primer-Pad Design
-    liner.send('\n[Step 8: Computing Forward Pad]\n')
+    liner.send('\n[Step 9: Computing Forward Pad]\n')
 
     # Design Forward Primer-Pad
     (fwdpad,
@@ -506,7 +532,7 @@ def pad(
     revstats = {
         'status'  : False,
         'basis'   : 'unsolved',
-        'step'    : 9,
+        'step'    : 10,
         'step_name': 'computing-reverse-pad',
         'vars'    : {
                    'primer_Tm': None,          # Primer Melting Temperature
@@ -534,7 +560,7 @@ def pad(
             ut.get_revcomp(typeIISmotif)) + len(typeIISmotif)])
 
         # Launching Reverse Primer-Pad Design
-        liner.send('\n[Step 9: Computing Reverse Pad]\n')
+        liner.send('\n[Step 10: Computing Reverse Pad]\n')
 
         # Design Reverse Primer-Pad
         (revpad,
@@ -574,9 +600,9 @@ def pad(
     stats['vars']['fwd_pad_primer_GC']     = fwdstats['vars']['primer_GC']
     stats['vars']['fwd_pad_hairpin_MFE']   = fwdstats['vars']['hairpin_MFE']
     stats['vars']['fwd_pad_homodimer_MFE'] = fwdstats['vars']['homodimer_MFE']
-    stats['vars']['Tm_fail']             = fwdstats['vars']['Tm_fail']
-    stats['vars']['repeat_fail']         = fwdstats['vars']['repeat_fail']
-    stats['vars']['homodimer_fail']      = fwdstats['vars']['homodimer_fail']
+    stats['vars']['Tm_fail']               = fwdstats['vars']['Tm_fail']
+    stats['vars']['repeat_fail']           = fwdstats['vars']['repeat_fail']
+    stats['vars']['homodimer_fail']        = fwdstats['vars']['homodimer_fail']
     stats['vars']['heterodimer_fail']      = fwdstats['vars']['heterodimer_fail']
     stats['vars']['exmotif_fail']          = fwdstats['vars']['exmotif_fail']
     stats['vars']['edge_fail']             = fwdstats['vars']['edge_fail']
@@ -649,8 +675,8 @@ def pad(
             ReversePrimer.append(revprimer)
 
         # Add columns
-        indf['5primeSpacer']     = LeftSpacer
-        indf['3primeSpacer']     = RightSpacer
+        indf['5primeSpacer']  = LeftSpacer
+        indf['3primeSpacer']  = RightSpacer
         indf['ForwardPrimer'] = ForwardPrimer
         indf['ReversePrimer'] = ReversePrimer
 

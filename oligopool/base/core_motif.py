@@ -78,7 +78,7 @@ def get_parsed_sequence_constraint(
             optrequired = True # Partial Motif Conflict Optimization
 
             # Update Warning Entry
-            warn['vars'] = {'exmotifembedded': set()}
+            warn['vars'] = {'exmotif_embedded': set()}
 
             # Compute Embedded Motif Indices
             # to be Ignored Downstream
@@ -96,8 +96,8 @@ def get_parsed_sequence_constraint(
                     len(excludedmotifs)))
 
             # Record Warnings
-            warn['warncount'] = len(excludedmotifs)
-            warn['vars']['exmotifembedded'].update(excludedmotifs)
+            warn['warn_count'] = len(excludedmotifs)
+            warn['vars']['exmotif_embedded'].update(excludedmotifs)
             homology = max(homology,
                            max(map(len, excludedmotifs)) + 1)
 
@@ -151,11 +151,13 @@ def get_parsed_sequence_constraint(
 
 def get_parsed_edgeeffects(
     motifseq,
+    motiftype,
     leftcontext,
     rightcontext,
     leftpartition,
     rightpartition,
     exmotifs,
+    element,
     warn,
     liner):
     '''
@@ -166,6 +168,10 @@ def get_parsed_edgeeffects(
     :: motifseq
        type - string
        desc - motif sequence constraint
+    :: motiftype
+       type - integer
+       desc - if 0 design non-constant motifs,
+              otherwise constants are designed
     :: leftcontext
        type - tuple
        desc - tuple of all left context
@@ -178,6 +184,9 @@ def get_parsed_edgeeffects(
        type - cx.deque
        desc - deque of all motifs
               to be excluded
+    :: element
+       type - string
+       desc - name of the designed element
     :: warn
        type - dict
        desc - warning dictionary entry
@@ -188,13 +197,13 @@ def get_parsed_edgeeffects(
 
     return ut.get_parsed_edgeeffects(
         sequence=motifseq,
-        element='Motif',
+        element=element,
         leftcontext=leftcontext,
         rightcontext=rightcontext,
         leftpartition=leftpartition,
         rightpartition=rightpartition,
         exmotifs=exmotifs,
-        merge=False,
+        merge=motiftype==1,
         warn=warn,
         liner=liner)
 
@@ -533,9 +542,7 @@ def motif_objectives(
         stats['vars']['exmotif_counter'][exmotif] += 1
 
         # Return Traceback
-        return False, max(
-            0,
-            len(motif)-1)
+        return False, max(0, len(motif)-1)
 
     # Objective 2: Edge Feasibility (Edge-Effects)
     obj2, dxmotifs, traceloc = is_edge_feasible(
@@ -586,7 +593,9 @@ def motif_objectives(
 
 def extra_assign_motif(
     motif,
+    motiftype,
     contextarray,
+    contextset,
     leftselector,
     rightselector,
     edgeeffectlength,
@@ -606,6 +615,10 @@ def extra_assign_motif(
        type - string
        desc - a fully explored motif
               sequence path
+    :: motiftype
+       type - integer
+       desc - if 0 design non-constant motifs,
+              otherwise constants are designed
     :: contextarray
        type - np.array
        desc - context assignment array
@@ -666,12 +679,19 @@ def extra_assign_motif(
         aidx = contextarray.popleft()
 
         # Fetch Context Sequences
-        lcseq =  leftselector(aidx)
-        rcseq = rightselector(aidx)
+        if motiftype == 0:
+            lcseq =  leftselector(aidx)
+            rcseq = rightselector(aidx)
+        else:
+            lcseq = rcseq = None
 
         # Define Forbidden Prefix and Suffix
-        prefixforbidden = prefixdict[lcseq] if not lcseq is None else None
-        suffixforbidden = suffixdict[rcseq] if not rcseq is None else None
+        if motiftype == 0:
+            prefixforbidden = prefixdict[lcseq] if not lcseq is None else None
+            suffixforbidden = suffixdict[rcseq] if not rcseq is None else None
+        else:
+            prefixforbidden = prefixdict
+            suffixforbidden = suffixdict
 
         # Compute Edge Feasibility
         obj, dxmotifs, _ = ut.is_local_edge_feasible(
@@ -689,6 +709,10 @@ def extra_assign_motif(
             # Record Designed Motif
             storage[aidx] = motif
             stats['vars'][element_key] += 1
+
+            # Remove from Set
+            if not contextset is None:
+                contextset.remove(aidx)
 
             # Show Update
             show_update(
@@ -717,6 +741,7 @@ def extra_assign_motif(
 
 def motif_engine(
     motifseq,
+    motiftype,
     homology,
     optrequired,
     leftcontext,
@@ -737,6 +762,10 @@ def motif_engine(
        type - string
        desc - degenerate motif design sequence
               constraint
+    :: motiftype
+       type - integer
+       desc - if 0 design non-constant motifs,
+              otherwise constants are designed
     :: homology
        type - integer
        desc - maximum allowed internal repeat
@@ -793,15 +822,7 @@ def motif_engine(
     motifs = [None]*targetcount # Store Motifs
     plen   = ut.get_printlen(   # Target Print Length
         value=targetcount)
-
-    # Context Setup
-    contextarray   = cx.deque(range(targetcount))  # Context Array
-    (_,
-    leftselector)  = ut.get_context_type_selector( # Left  Context Selector
-        context=leftcontext)
-    (_,
-    rightselector) = ut.get_context_type_selector( # Right Context Selector
-        context=rightcontext)
+    contextarray = []
 
     # Optimize exmotifs
     if not exmotifs is None:
@@ -810,6 +831,18 @@ def motif_engine(
 
     # Motif Design Required
     if optrequired:
+
+        # Context Setup
+        contextarray   = cx.deque(range(targetcount))  # Context Array
+        if motiftype == 0:
+            (_,
+            leftselector)  = ut.get_context_type_selector( # Left  Context Selector
+                context=leftcontext)
+            (_,
+            rightselector) = ut.get_context_type_selector( # Right Context Selector
+                context=rightcontext)
+        else:
+            leftselector = rightselector = None
 
         # Define Maker Instance
         maker = nr.base.maker.NRPMaker(
@@ -823,12 +856,19 @@ def motif_engine(
             idx = contextarray.popleft()
 
             # Fetch Context Sequences
-            lcseq =  leftselector(idx)
-            rcseq = rightselector(idx)
+            if motiftype == 0:
+                lcseq =  leftselector(idx)
+                rcseq = rightselector(idx)
+            else:
+                lcseq = rcseq = None
 
             # Define Forbidden Prefix and Suffix
-            prefixforbidden = prefixdict[lcseq] if not lcseq is None else None
-            suffixforbidden = suffixdict[rcseq] if not rcseq is None else None
+            if motiftype == 0:
+                prefixforbidden = prefixdict[lcseq] if not lcseq is None else None
+                suffixforbidden = suffixdict[rcseq] if not rcseq is None else None
+            else:
+                prefixforbidden = prefixdict
+                suffixforbidden = suffixdict
 
             # Define Objective Function
             objectivefunction = lambda motif: motif_objectives(
@@ -870,6 +910,7 @@ def motif_engine(
             if len(motif) == 0:
 
                 # Terminate Design Loop
+                contextarray.appendleft(idx)
                 break # RIP .. We failed!
 
             # A motif was designed!
@@ -896,7 +937,9 @@ def motif_engine(
 
                 extra_assign_motif(
                     motif=motif,
+                    motiftype=motiftype,
                     contextarray=contextarray,
+                    contextset=None,
                     leftselector=leftselector,
                     rightselector=rightselector,
                     edgeeffectlength=edgeeffectlength,
@@ -943,6 +986,7 @@ def motif_engine(
             liner=liner)
 
         # Return Results
+        stats['vars']['orphan_oligo'] = sorted(contextarray)
         return (motifs, stats)
 
     # Design Unsuccessful
@@ -957,6 +1001,7 @@ def motif_engine(
             tt.time()-t0))
 
         # Return Results
+        stats['vars']['orphan_oligo'] = sorted(contextarray)
         return (None, stats)
 
 def spacer_engine(
@@ -1024,7 +1069,7 @@ def spacer_engine(
     abort   = False              # Abortion Flag
 
     # Context Setup
-    contextarray   = cx.deque(range(targetcount))  # Context Array
+    contextset = set(range(targetcount))  # All Context Set
     (_,
     leftselector)  = ut.get_context_type_selector( # Left  Context Selector
         context=leftcontext)
@@ -1064,6 +1109,9 @@ def spacer_engine(
                     # Assign Gap
                     spacers[idx] = '-'
                     stats['vars']['spacer_count'] += 1
+
+                    # Remove from Set
+                    contextset.remove(idx)
 
                     # Show Update
                     show_update(
@@ -1148,6 +1196,9 @@ def spacer_engine(
                     spacers[idx] = spacer
                     stats['vars']['spacer_count'] += 1
 
+                    # Remove from Set
+                    contextset.remove(idx)
+
                     # Show Update
                     show_update(
                         idx=idx+1,
@@ -1162,7 +1213,9 @@ def spacer_engine(
 
                     extra_assign_motif(
                         motif=spacer,
+                        motiftype=0,
                         contextarray=contextarray,
+                        contextset=contextset,
                         leftselector=leftselector,
                         rightselector=rightselector,
                         edgeeffectlength=edgeeffectlength,
@@ -1206,6 +1259,7 @@ def spacer_engine(
             liner=liner)
 
         # Return Results
+        stats['vars']['orphan_oligo'] = sorted(contextset)
         return (spacers, stats)
 
     # Design Unsuccessful
@@ -1220,4 +1274,5 @@ def spacer_engine(
             tt.time()-t0))
 
         # Return Results
+        stats['vars']['orphan_oligo'] = sorted(contextset)
         return (None, stats)

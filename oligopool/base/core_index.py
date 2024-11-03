@@ -361,7 +361,7 @@ def get_extracted_associates(
         ' Associate Unique   : {}\n'.format(
             associatemsg))
     if not associateuniq:
-        warn['warncount'] += len(duplicates)
+        warn['warn_count'] += len(duplicates)
         warn['vars'] = {
               'expectedcount': expcount,
              'associatecount': associatecount,

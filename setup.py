@@ -49,10 +49,9 @@ setup(
         # that you indicate whether you support Python 2, Python 3 or both.
         # These classifiers are *not* checked by 'pip install'. See instead
         # 'python_requires' below.
-        'Programming Language :: Python :: 3.6',
-        'Programming Language :: Python :: 3.7',
-        'Programming Language :: Python :: 3.8',
-        'Programming Language :: Python :: 3.9',
+        'Programming Language :: Python :: 3.10',
+        'Programming Language :: Python :: 3.11',
+        'Programming Language :: Python :: 3.12',
     ],
     keywords=' '.join([
         'synthetic',
@@ -93,10 +92,9 @@ setup(
         'msgpack>=1.1.0',
         'pyfastx>=2.1.0',
         'edlib>=1.3.9.post1',
-        'bounter>=1.2.0',
         'parasail>=1.3.4',
         'nrpcalc>=1.7.0',
-        'plyvel>=1.5.1',
+        'sharedb>=1.1.1',
         'numba>=0.60.0',
         'seaborn>=0.13.2',
     ],

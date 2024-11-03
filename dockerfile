@@ -25,7 +25,10 @@ COPY . /oligopool-docker
 # Install the library and its dependencies
 RUN pip install --no-cache-dir .
 
-# Install any additional packages you want available in the environment
+# Install any other Python libraries you want in this container
+# RUN pip install <name-of-package>
+
+# Install any additional system packages you want available in the environment
 RUN apt-get update && apt-get install -y \
     nano \
     vim \
@@ -38,6 +41,9 @@ RUN echo 'export PS1="\[\033[0;34m\][\[\033[1;32m\]\u\[\033[0;34m\]]─(\[\033[1
 
 # Set working directory
 WORKDIR /op-workspace
+
+# Expose port 8080 for jupyter
+EXPOSE 8080
 
 # Set the entrypoint to bash
 ENTRYPOINT ["/bin/bash"]

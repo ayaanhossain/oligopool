@@ -594,7 +594,7 @@ def is_composition_feasible(
     for substring in ut.stream_spectrum(
         seq=barcodeseq,
         k=substringlen):
-        if substringcache[substring] > 0:
+        if substring in substringcache:
             return False, None
         subset.append(substring)
     return True, subset
@@ -935,9 +935,7 @@ def barcode_engine(
         else:
             substringlen = minstringlen
         liner.send(' Type Optimization: Activated\n')
-    substringcache = bt.bounter(
-            need_iteration=False, # Static Checks Only
-            size_mb=1024)         # 1 GB Spectrum Cap
+    substringcache = set()
 
     # Context Setup
     contextarray   = cx.deque(range(targetcount))  # Context Array

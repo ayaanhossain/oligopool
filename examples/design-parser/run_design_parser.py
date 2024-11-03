@@ -68,7 +68,7 @@ def run_design_parser():
                       'oligo_length_limit': 250,
                           'barcode_length': 16,
                 'minimum_hamming_distance': 3,
-                   'maximum_repeat_length': 6,
+                   'maximum_repeat_length': 8,
                             'barcode_type': 1,
                          'excluded_motifs': ['GGATCC', 'TCTAGA'] + ['CCCCC', 'AAAAA', 'TTTTT', 'GGGGG'],
                      'left_context_column': 'Promoter',

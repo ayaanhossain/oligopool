@@ -263,7 +263,7 @@ def get_parsed_sequence_constraint(
                 len(excludedmotifs)))
 
         # Record Warnings
-        warn['warncount'] += len(excludedmotifs)
+        warn['warn_count'] += len(excludedmotifs)
         warn['vars']['exmotifembedded'].update(excludedmotifs)
         suboptimal = True
 
@@ -338,7 +338,7 @@ def get_parsed_sequence_constraint(
                 len(palindromeembedded)))
 
         # Record Warnings
-        warn['warncount'] += len(palindromeembedded)
+        warn['warn_count'] += len(palindromeembedded)
         warn['vars']['palindromeembedded'].update(palindromeembedded)
         suboptimal = True
 
@@ -512,7 +512,7 @@ def get_parsed_primer_tmelt_constraint(
     liner.send(' Estimating Feasible Melting Temperature Range ...')
 
     # Estimate Minimum Feasible Tm
-    for i in range(100 * len(primerseq)):
+    for _ in range(100 * len(primerseq)):
         minprimer = get_primer_extreme(
             primerseq=primerseq,
             exttype=0)
@@ -523,7 +523,7 @@ def get_parsed_primer_tmelt_constraint(
                 posminTm))
 
     # Estimate Maximum Feasible Tm
-    for i in range(100 * len(primerseq)):
+    for _ in range(100 * len(primerseq)):
         maxprimer = get_primer_extreme(
             primerseq=primerseq,
             exttype=1)
@@ -639,6 +639,9 @@ def get_parsed_edgeeffects(
        type - cx.deque
        desc - deque of all motifs
               to be excluded
+    :: element
+       type - string
+       desc - name of the designed element
     :: warn
        type - dict
        desc - warning dictionary entry
@@ -812,9 +815,9 @@ def get_parsed_typeIIS_constraint(
 
     # Compute TypeIIS Padding Lengths
     typeIISlen         = (6 + len(typeIIS)) * 2         # 2x 6 Ns + TypeIIS Motif + Cut
-    typeIISfree1       = max(0, 30 - typeIISlen)        # 2x 5' Ns to pad upto 15 bp TypeIIS Core
+    typeIISfree1       = max(0, 30 - typeIISlen)        # 2x 5p Ns to pad upto 15 bp TypeIIS Core
     typeIISrequiredlen = typeIISfree1 + typeIISlen      # Total Length of TypeIIS Core >= 30 bp
-    typeIISfree2       = minpadlen - typeIISrequiredlen # 2x 5' Ns to pad upto minpadlen
+    typeIISfree2       = minpadlen - typeIISrequiredlen # 2x 5p Ns to pad upto minpadlen
 
     # Compute feasibility
     if typeIISfree2 < 0:
@@ -862,6 +865,26 @@ def get_parsed_typeIIS_constraint(
         revseq = ut.get_revcomp(typeIIS)   + \
                  ('N'*(typeIISfree1 // 2)) + \
                  'NNNNNN' + 'N'*revbuff
+
+        # Adjust Forward Primer Constraints
+        if fwdseq.startswith('NN'):
+            fwdseq = 'SS' + fwdseq[2:]
+        elif fwdseq.startswith('N'):
+            fwdseq = 'S' + fwdseq[1:]
+        if fwdseq.endswith('NN'):
+            fwdseq = fwdseq[:-2] + 'WW'
+        elif fwdseq.endswith('N'):
+            fwdseq = fwdseq[:-1] + 'W'
+
+        # Adjust Reverse Primer Constraints
+        if revseq.endswith('NN'):
+            revseq = revseq[:-2] + 'SS'
+        elif revseq.endswith('N'):
+            revseq = revseq[:-1] + 'S'
+        if revseq.startswith('NN'):
+            revseq = 'WW' + revseq[2:]
+        elif revseq.startswith('N'):
+            revseq = 'W' + revseq[1:]
 
         # Extend Padding Sequence for Maximal Span
         p = maxpadlen // 2
@@ -1023,7 +1046,7 @@ def is_oligopool_feasible(
         primer[-maxreplen+1:],
         ut.get_revcomp(
             seq=primer[-maxreplen+1:]))
-    if oligorepeats[canonkmer] > 0:
+    if canonkmer in oligorepeats:
         return False, len(primer)-1 # Conflict
 
     # No Conflict
@@ -1967,9 +1990,7 @@ def primer_engine(
             seq=cprimer)
 
         # Update GC Percentage
-        stats['vars']['primer_GC'] = (cprimer.count('G') + \
-                                     cprimer.count('C')) \
-                                        / (len(cprimer) * 0.01)
+        stats['vars']['primer_GC'] = (cprimer.count('G') + cprimer.count('C')) / (len(cprimer) * 0.01)
 
         # Update Hairpin Free Energy
         stats['vars']['hairpin_MFE'] = folder.evaluate_mfe(

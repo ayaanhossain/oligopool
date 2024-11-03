@@ -1,4 +1,4 @@
-import time  as tt
+import time as tt
 
 import collections as cx
 import atexit as ae
@@ -18,6 +18,7 @@ def motif(
     motif_sequence_constraint:str,
     motif_column:str,
     output_file:str|None=None,
+    motif_type:int=0,
     left_context_column:str|None=None,
     right_context_column:str|None=None,
     excluded_motifs:list|str|pd.DataFrame|None=None,
@@ -35,6 +36,7 @@ def motif(
 
     Optional Parameters:
         - `output_file` (`str`): Filename for output DataFrame (default: `None`).
+        - `motif_type` (`int`): Motif type to design (0 for non-constant, 1 for constant, default: 0).
         - `left_context_column` (`str`): Column for left DNA context (default: `None`).
         - `right_context_column` (`str`): Column for right DNA context (default: `None`).
         - `excluded_motifs` (`list` / `str` / `pd.DataFrame`): Motifs to exclude;
@@ -51,6 +53,7 @@ def motif(
         - At least one of `left_context_column` or `right_context_column` must be specified.
         - If `excluded_motifs` is a CSV or DataFrame, it must have 'ID' and 'Exmotif' columns.
         - Constants in sequence constraint may lead to `excluded_motifs` and be impossible to solve.
+        - Constant motifs to be used as barcode anchors must be designed prior to barcode generation.
     '''
 
     # Argument Aliasing
@@ -59,6 +62,7 @@ def motif(
     motifseq     = motif_sequence_constraint
     motifcol     = motif_column
     outfile      = output_file
+    motiftype    = motif_type
     leftcontext  = left_context_column
     rightcontext = right_context_column
     exmotifs     = excluded_motifs
@@ -130,6 +134,17 @@ def motif(
     # Optional Argument Parsing
     liner.send('\n Optional Arguments\n')
 
+    # Full motiftype Validation
+    motiftype_valid = vp.get_categorical_validity(
+        category=motiftype,
+        category_field='    Motif Type    ',
+        category_pre_desc=' ',
+        category_post_desc=' Motifs',
+        category_dict={
+            0: 'Non-Constant',
+            1: 'Constant'},
+        liner=liner)
+
     # Store Context Names
     leftcontextname  = leftcontext
     rightcontextname = rightcontext
@@ -179,6 +194,7 @@ def motif(
         motifseq_valid,
         motifcol_valid,
         outfile_valid,
+        motiftype_valid,
         leftcontext_valid,
         rightcontext_valid,
         exmotifs_valid]):
@@ -207,8 +223,8 @@ def motif(
 
     # Parse oligolimit
     (parsestatus,
-    minvariantlen,
-    maxvariantlen,
+    minoligolen,
+    maxoligolen,
     minelementlen,
     maxelementlen,
     minspaceavail,
@@ -231,10 +247,10 @@ def motif(
             'step'    : 1,
             'step_name': 'parsing-oligo-limit',
             'vars'    : {
-                   'oligo_limit': oligolimit,
-                'limit_overflow': True,
-                'min_variant_len': minvariantlen,
-                'max_variant_len': maxvariantlen,
+                    'oligo_limit': oligolimit,
+                 'limit_overflow': True,
+                  'min_oligo_len': minoligolen,
+                  'max_oligo_len': maxoligolen,
                 'min_element_len': minelementlen,
                 'max_element_len': maxelementlen,
                 'min_space_avail': minspaceavail,
@@ -354,11 +370,13 @@ def motif(
         (prefixdict,
         suffixdict) = cm.get_parsed_edgeeffects(
             motifseq=motifseq,
+            motiftype=motiftype,
             leftcontext=leftcontext,
             rightcontext=rightcontext,
             leftpartition=leftpartition,
             rightpartition=rightpartition,
             exmotifs=exmotifs,
+            element='Motif',
             warn=warns[5],
             liner=liner)
 
@@ -385,6 +403,7 @@ def motif(
         'vars'    : {
                'target_count': targetcount,   # Required Number of Motifs
                 'motif_count': 0,             # Motif Design Count
+               'orphan_oligo': None,          # Orphan Oligo Indexes
                'exmotif_fail': 0,             # Exmotif Elimination Fail Count
                   'edge_fail': 0,             # Edge Effect Fail Count
             'exmotif_counter': cx.Counter()}, # Exmotif Encounter Counter
@@ -399,6 +418,7 @@ def motif(
     (motifs,
     stats) = cm.motif_engine(
         motifseq=motifseq,
+        motiftype=motiftype,
         homology=homology,
         optrequired=optrequired,
         leftcontext=leftcontext,
@@ -460,6 +480,10 @@ def motif(
             ut.safediv(
                 A=stats['vars']['motif_count'] * 100.,
                 B=targetcount)))
+    liner.send(
+        '  Orphan Oligo    : {:{},d} Entries\n'.format(
+            len(stats['vars']['orphan_oligo']),
+            plen))
 
     # Failure Relavant Stats
     if not stats['status']:

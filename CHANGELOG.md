@@ -6,6 +6,7 @@
 5. Updated edge-effect calculation in `pad`.
 6. Removed `bounter` since deprecated.
 7. Switched to `ShareDB`.
+8. Added robust parallelization for POSIX systems.
 
 2024.10.29
 1. Fix edge extraction and edge-effect length calc.

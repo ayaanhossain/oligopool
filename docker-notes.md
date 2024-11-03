@@ -1,4 +1,4 @@
-#### Using `Oligopool Calculator` with `docker`
+## Using `Oligopool Calculator` with `docker`
 
 On non-`Linux` and `Linux` systems both, you can use `oligopool` via [`docker`](https://docs.docker.com/desktop/).
 ```bash

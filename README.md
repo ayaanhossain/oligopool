@@ -4,7 +4,7 @@
     </a>
 </h1>
 
-<h3><p align="center">Version: 2024.11.03</p></h3>
+<h4><p align="center">Version: 2024.11.03</p></h4>
 
 <p align="center">
   <a style="text-decoration: none" href="#Installation">Installation</a> •

@@ -1,7 +1,7 @@
 import time as tt
 
 import atexit as ae
-import multiprocessing as mp
+import multiprocess as mp
 
 import pandas as pd
 

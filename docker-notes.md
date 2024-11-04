@@ -74,7 +74,7 @@ $ exit
 ```bash
 $ docker ps -a
 ```
-which will even show you stopped containers you spinned earlier.
+which will even show you stopped containers you spinned earlier. If you want to remove stopped `docker` containers, check the [documentation](https://docs.docker.com/reference/cli/docker/container/rm/).
 
 
 ### Using `Oligopool Calculator` within `docker` via `jupyter`.

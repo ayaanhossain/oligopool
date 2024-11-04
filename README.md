@@ -40,7 +40,7 @@ $ pip install --upgrade oligopool # Installs and/or upgrades oligopool
 ```
 or install it directly from GitHub.
 ```bash
-$ pip install git+https://github.com/ayaanhossain/oligopool.git # Guaranteed to the latest thing
+$ pip install git+https://github.com/ayaanhossain/oligopool.git
 ```
 Both approaches should install all dependencies automatically.
 > **Note** This GitHub version will always be updated with all recent fixes. The PyPI version should be more stable.

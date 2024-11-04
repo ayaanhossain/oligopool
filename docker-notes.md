@@ -79,24 +79,28 @@ which will even show you stopped containers you spinned earlier. If you want to 
 
 ### Using `Oligopool Calculator` within `docker` via `jupyter`.
 
-`Oligopool Calculator` for `Design Mode` is best used interactively via `jupyter`. `Analysis Mode` functions could need to run for longer so best used via scripts.
+`Oligopool Calculator` for `Design Mode` is best used interactively via `jupyter`. `Analysis Mode` functions could need to run for longer so perhaps better to be used via scripts.
 
-The `docker` image we just created can connect to `jupyter`. To use `jupyter` notebooks within a container started from the image, we will need to first map the port `8080` within the container to our host machine.
+Containers from the `oligopool-docker` image we just created can connect to `jupyter`. We will need to first map the port `8080` within the container to a port on our host machine.
 
-1. From your host machine terminal (this is outside the `container` prompt, so exit if you are within the container) map the port `8080` within container to port `8888` on your host.
+1. From your host machine terminal (this is outside the `container` prompt, so exit if you are within the container) map the port `8080` within container to port `8888` on your host and start an interactive `bash` session from your project directory.
 ```bash
-$ docker run -p 8888:8888 oligopool-docker
+$ docker run -p 8888:8080 -it -v ${PWD}:/op-workspace --name op-container oligopool-docker
 ```
-
-2. This will start a `jupyter` notebook at your local host. Simply navigate to
-```
-http://localhost:8888
-```
-on your browser. This is due to line 52 in our `dockerfile` which executes `jupyter` on startup at port `8080`, which is mapped to `8888` on our local host in step 1 above.
-
 > **Note** The port `8080` within the `docker` image is exposed by design. If you want to expose different ports, modify line 49 in `dockerfile` in the repo and rebuild the image.
 > Similarly, feel free to map to any port other than `8888` on your local host. You can even map `8080` within container to `8080` on your host.
 
-> **Note** If you want more packages within this docker image, you can modify lines 32 and 35 in our `dockerfile`.
+2. From the `bash` terminal within the container simply use the following
+```bash
+$ jupyter notebook --ip=0.0.0.0 --port=8080 --no-browser --allow-root
+```
+which will start a `jupyter` notebook within the container, but now accessible at
+```
+http://localhost:8888
+```
+on your local browser. This is very similar to how we would start `jupyter` notebooks from the terminal on our host.
+
+
+> **Note** If you want more packages within this docker image, you can modify lines 29 and 35 in our `dockerfile`.
 
 ---

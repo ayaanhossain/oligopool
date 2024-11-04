@@ -90,7 +90,7 @@ $ docker run -p 8888:8888 oligopool-docker
 ```
 http://localhost:8888
 ```
-on your browser. This is due to line 52 in our `dockerfile` which executes `jupyter` on startup at port `8080`, which is mapped to `8888` on our local host.
+on your browser. This is due to line 52 in our `dockerfile` which executes `jupyter` on startup at port `8080`, which is mapped to `8888` on our local host in step 1 above.
 
 > **Note** The port `8080` within the `docker` image is exposed by design. If you want to expose different ports, modify line 49 in `dockerfile` in the repo and rebuild the image.
 > Similarly, feel free to map to any port other than `8888` on your local host. You can even map `8080` within container to `8080` on your host.

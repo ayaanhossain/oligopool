@@ -45,7 +45,7 @@ $ cd path/to/your/project
 ```bash
 $ docker run -it -v $(pwd):/op-workspace --name op-container oligopool-docker # Loads your project directory
 ```
-> **Note** `op-workspace` is just a name for your project directory inside docker, could be anything. Similarly `op-container` is the name of container we spinned from `oligpool-docker` image.
+> **Note** `op-workspace` is just a name for your project directory inside container we spinned up, could be anything. Similarly `op-container` is the name of container we spinned from `oligpool-docker` image.
 
 3. If you are on `Windows`, the syntax for this is slightly different.
 ```powershell

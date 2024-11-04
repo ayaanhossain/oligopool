@@ -54,7 +54,7 @@ $ docker run -it -v ${PWD}:/op-workspace --name op-container oligopool-docker # 
 
 4. Once the container is up and running, you can access your directory content.
 ```bash
-$ ll # for example, this will show you your project directory content
+$ ll # for example, will show you your project directory content
 ```
 The terminal within the `docker` container will now be a `Linux` (Ubuntu) `bash` prompt. You can now execute any `oligopool` function or script from the terminal.
 ```bash

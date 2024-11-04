@@ -41,7 +41,7 @@ With the `docker` image created, we can now start a container within which `olig
 $ cd path/to/your/project
 ```
 
-2. If you are on `MacOS` or `Linux`, you can run the container and load your project directory (`pwd` path) as `op-workspace` inside the container.
+2. If you are on `MacOS` or `Linux`, you can spin a container from `oligopool-docker` image and load your project directory (`pwd` path) as `op-workspace` inside the container.
 ```bash
 $ docker run -it -v $(pwd):/op-workspace --name op-container oligopool-docker # Loads your project directory
 ```

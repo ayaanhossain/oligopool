@@ -54,7 +54,7 @@ def pad(
               `BsmI`, `BspCNI`,   `BspQI`, `BsrDI`, `BsrI`,  `BtgZI`, `BtsCI`,
               `BtsI`, `BtsIMutI`, `EarI`,  `EciI`,  `Esp3I`, `FauI`,  `HgaI`,
               `HphI`, `HpyAV`,    `MlyI`,  `MnlI`,  `SapI`,  `SfaNI`.
-        - Pads can be removed post-amplification using these enzymes, followed by mung bean nuclease for blunting.
+        - Pads can be removed post-amplification using these enzymes, and blunted using mung bean nuclease.
     '''
 
     # Argument Aliasing

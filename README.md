@@ -36,11 +36,11 @@ We have used `Oligopool Calculator` in multiple projects to build libraries of t
 
 On `Linux`, `MacOS` and `Windows Subsystem for Linux` you can install `Oligopool Calculator` from [PyPI](https://pypi.org/project/oligopool/), where it is published as the `oligopool` package
 ```bash
-$ pip install oligopool
+$ pip install --upgrade oligopool # Installs and/or upgrades oligopool
 ```
 or install it directly from GitHub.
 ```bash
-$ pip install git+https://github.com/ayaanhossain/oligopool.git
+$ pip install git+https://github.com/ayaanhossain/oligopool.git # Guaranteed to the latest thing
 ```
 Both approaches should install all dependencies automatically.
 > **Note** This GitHub version will always be updated with all recent fixes. The PyPI version should be more stable.

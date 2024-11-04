@@ -28,6 +28,9 @@ RUN pip install --no-cache-dir .
 # Install any other Python libraries you want in this container
 # RUN pip install <name-of-package>
 
+# Install Jupyter
+RUN pip install jupyter
+
 # Install any additional system packages you want available in the environment
 RUN apt-get update && apt-get install -y \
     nano \
@@ -42,8 +45,11 @@ RUN echo 'export PS1="\[\033[0;34m\][\[\033[1;32m\]\u\[\033[0;34m\]]─(\[\033[1
 # Set working directory
 WORKDIR /op-workspace
 
-# Expose port 8080 for jupyter
-EXPOSE 8080
+# Expose ports 8080, 8081, and 8082 for jupyter
+EXPOSE 8080 8081 8082
+
+# Run Jupyter Notebook when the container launches
+CMD ["jupyter", "notebook", "--ip=0.0.0.0", "--port=8080", "--no-browser", "--allow-root"]
 
 # Set the entrypoint to bash
 ENTRYPOINT ["/bin/bash"]

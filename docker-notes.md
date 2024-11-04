@@ -65,7 +65,7 @@ Type "help", "copyright", "credits" or "license" for more information.
 >>> op.__version__
 ```
 
-5. When you are done with the container work, simply exit from the container from the terminal.
+5. When you are done with the container work, simply exit from the terminal.
 ```bash
 $ exit
 ```

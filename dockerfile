@@ -48,8 +48,5 @@ WORKDIR /op-workspace
 # Expose ports 8080, 8081, and 8082 for jupyter
 EXPOSE 8080 8081 8082
 
-# Run Jupyter Notebook when the container launches
-CMD ["jupyter", "notebook", "--ip=0.0.0.0", "--port=8080", "--no-browser", "--allow-root"]
-
 # Set the entrypoint to bash
 ENTRYPOINT ["/bin/bash"]

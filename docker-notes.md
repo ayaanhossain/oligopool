@@ -79,7 +79,9 @@ which will even show you stopped containers you spinned earlier. If you want to 
 
 ### Using `Oligopool Calculator` within `docker` via `jupyter`.
 
-`Oligopool Calculator` for `Design Mode` is best used interactively via `jupyter`. The `docker` image we just created can connect to `jupyter`. To use `jupyter` notebooks within a container started from the image, we will need to first map the port `8080` within the container to our host machine.
+`Oligopool Calculator` for `Design Mode` is best used interactively via `jupyter`. `Analysis Mode` functions could need to run for longer so best used via scripts.
+
+The `docker` image we just created can connect to `jupyter`. To use `jupyter` notebooks within a container started from the image, we will need to first map the port `8080` within the container to our host machine.
 
 1. From your host machine terminal (this is outside the `container` prompt, so exit if you are within the container) map the port `8080` within container to port `8888` on your host.
 ```bash

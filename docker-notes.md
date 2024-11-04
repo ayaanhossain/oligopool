@@ -34,7 +34,7 @@ oligopool-docker   latest    414f88c5e29c   About a minute ago   1.76GB
 
 ### Attaching your project directory to a `docker` container.
 
-With the `docker` image created, we can now start a container within which `oligopool` is available. You can now mount your project directory and start using `Oligopool Calculator`.
+With the `docker` image created, we can now start a container within which `oligopool` is available. You can then mount your project directory and start using `Oligopool Calculator`.
 
 1. First, navigate to your project directory.
 ```bash

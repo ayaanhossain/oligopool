@@ -16,6 +16,7 @@ def motif(
     input_data:str|pd.DataFrame,
     oligo_length_limit:int,
     motif_sequence_constraint:str,
+    maximum_repeat_length:int,
     motif_column:str,
     output_file:str|None=None,
     motif_type:int=0,
@@ -32,6 +33,7 @@ def motif(
         - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated oligopool variants.
         - `oligo_length_limit` (`int`): Maximum allowed oligo length (≥ 4).
         - `motif_sequence_constraint` (`int`): IUPAC degenerate sequence constraint, or a constant.
+        - `maximum_repeat_length` (`int`): Max shared repeat length with oligos (≥ 4).
         - `motif_column` (`str`): Column name for inserting the designed motifs.
 
     Optional Parameters:
@@ -52,14 +54,15 @@ def motif(
         - Column names in `input_data` must be unique, and exclude `motif_column`.
         - At least one of `left_context_column` or `right_context_column` must be specified.
         - If `excluded_motifs` is a CSV or DataFrame, it must have 'ID' and 'Exmotif' columns.
-        - Constants in sequence constraint may lead to `excluded_motifs` and be impossible to solve.
-        - Constant motifs to be used as barcode anchors must be designed prior to barcode generation.
+        - Constant bases in sequence constraint may lead to `excluded_motifs` and be impossible to solve.
+        - Constant barcode anchors must be designed prior to barcode generation.
     '''
 
     # Argument Aliasing
     indata       = input_data
     oligolimit   = oligo_length_limit
     motifseq     = motif_sequence_constraint
+    maxreplen    = maximum_repeat_length
     motifcol     = motif_column
     outfile      = output_file
     motiftype    = motif_type
@@ -103,6 +106,17 @@ def motif(
         seqconstr_field='    Motif Sequence',
         minlenval=1,
         element='MOTIF',
+        liner=liner)
+
+    # Full maxreplen Validation
+    maxreplen_valid = vp.get_numeric_validity(
+        numeric=maxreplen,
+        numeric_field='   Repeat Length  ',
+        numeric_pre_desc=' Up to ',
+        numeric_post_desc=' Base Pair(s) Oligopool Repeats',
+        minval=4,
+        maxval=len(motifseq) if motifseq_valid else float('inf'),
+        precheck=False,
         liner=liner)
 
     # Full motifcol Validation
@@ -192,6 +206,7 @@ def motif(
         indata_valid,
         oligolimit_valid,
         motifseq_valid,
+        maxreplen_valid,
         motifcol_valid,
         outfile_valid,
         motiftype_valid,
@@ -312,6 +327,7 @@ def motif(
 
         # Update Edge-Effect Length
         edgeeffectlength = ut.get_edgeeffectlength(
+            maxreplen=maxreplen,
             exmotifs=exmotifs)
 
     # Parsing Sequence Constraint Feasibility
@@ -326,6 +342,7 @@ def motif(
     # Parse primerseq
     (optrequired,
     homology,
+    fixedbaseindex,
     exmotifindex) = cm.get_parsed_sequence_constraint(
         motifseq=motifseq,
         exmotifs=exmotifs,
@@ -391,19 +408,56 @@ def motif(
         prefixdict,
         suffixdict) = (None, None, None, None)
 
+    # Parse Oligopool Repeats
+    liner.send('\n[Step 6: Parsing Oligopool Repeats]\n')
+
+    # Parse Repeats from indf
+    (parsestatus,
+    sourcecontext,
+    kmerspace,
+    fillcount,
+    freecount,
+    oligorepeats) = ut.get_parsed_oligopool_repeats(
+        df=indf,
+        maxreplen=maxreplen,
+        element='Motif',
+        merge=motiftype == 1,
+        liner=liner)
+
+    # Repeat Length infeasible
+    if not parsestatus:
+
+        # Prepare stats
+        stats = {
+            'status': False,
+            'basis' : 'infeasible',
+            'step'  : 6,
+            'step_name': 'parsing-oligopool-repeats',
+            'vars'  : {
+                'source_context': sourcecontext,
+                'kmer_space'    : kmerspace,
+                'fill_count'    : fillcount,
+                'free_count'    : freecount},
+            'warns' : warns}
+
+        # Return results
+        liner.close()
+        return (outdf, stats)
+
     # Launching Motif Design
-    liner.send('\n[Step 6: Computing Motifs]\n')
+    liner.send('\n[Step 7: Computing Motifs]\n')
 
     # Define Motif Design Stats
     stats = {
         'status'  : False,
         'basis'   : 'unsolved',
-        'step'    : 6,
+        'step'    : 7,
         'step_name': 'computing-motifs',
         'vars'    : {
                'target_count': targetcount,   # Required Number of Motifs
                 'motif_count': 0,             # Motif Design Count
                'orphan_oligo': None,          # Orphan Oligo Indexes
+                'repeat_fail': 0,             # Repeat Fail Count
                'exmotif_fail': 0,             # Exmotif Elimination Fail Count
                   'edge_fail': 0,             # Edge Effect Fail Count
             'exmotif_counter': cx.Counter()}, # Exmotif Encounter Counter
@@ -421,6 +475,9 @@ def motif(
         motiftype=motiftype,
         homology=homology,
         optrequired=optrequired,
+        fixedbaseindex=fixedbaseindex,
+        maxreplen=maxreplen,
+        oligorepeats=oligorepeats,
         leftcontext=leftcontext,
         rightcontext=rightcontext,
         exmotifs=exmotifs,
@@ -488,6 +545,7 @@ def motif(
     # Failure Relavant Stats
     if not stats['status']:
         maxval = max(stats['vars'][field] for field in (
+            'repeat_fail',
             'exmotif_fail',
             'edge_fail'))
 
@@ -495,8 +553,18 @@ def motif(
             printlen=ut.get_printlen(
                 value=maxval))
 
-        total_conflicts = stats['vars']['exmotif_fail']  + \
+        total_conflicts = stats['vars']['repeat_fail']  + \
+                          stats['vars']['exmotif_fail'] + \
                           stats['vars']['edge_fail']
+
+        liner.send(
+            '  Repeat Conflicts: {:{},{}} Event(s) ({:6.2f} %)\n'.format(
+                stats['vars']['repeat_fail'],
+                plen,
+                sntn,
+                ut.safediv(
+                    A=stats['vars']['repeat_fail'] * 100.,
+                    B=total_conflicts)))
         liner.send(
             ' Exmotif Conflicts: {:{},{}} Event(s) ({:6.2f} %)\n'.format(
                 stats['vars']['exmotif_fail'],

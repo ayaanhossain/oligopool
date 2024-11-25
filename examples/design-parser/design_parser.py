@@ -192,6 +192,7 @@ def insert_motifs(dataframe, elements_spec, stats_dict):
                     input_data=dataframe,
                     oligo_length_limit=elements_spec[element_name]['oligo_length_limit'],
                     motif_sequence_constraint=elements_spec[element_name]['motif_sequence_constraint'],
+                    maximum_repeat_length=elements_spec[element_name]['maximum_repeat_length'],
                     motif_column=element_name,
                     output_file=None,
                     left_context_column=elements_spec[element_name]['left_context_column'],
@@ -363,6 +364,7 @@ def insert_spacers(dataframe, elements_spec, stats_dict):
                 dataframe, stats = op.spacer(
                     input_data=dataframe,
                     oligo_length_limit=elements_spec[element_name]['oligo_length_limit'],
+                    maximum_repeat_length=elements_spec[element_name]['maximum_repeat_length'],
                     spacer_column=element_name,
                     output_file=None,
                     spacer_length=elements_spec[element_name]['spacer_length'],

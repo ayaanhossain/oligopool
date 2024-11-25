@@ -1,3 +1,13 @@
+2024.11.24
+1. Update `__init__` description.
+2. Auto-clamped primers in `primer` module.
+3. Fix verbosity issue in `lenstat`.
+4. Fixed degenerate constraint issue in `motif`.
+5. Automated robust `homology` initialization.
+6. Adjusted edge-effect length calculation for repeats.
+7. Adding `maximum_repeat_length` to `motif` and `spacer`.
+8. Refactor non-repetitiveness of primer, spacer and motif,
+
 2024.11.03
 1. Changed automatic padding constraints.
 2. Introduced design of constants as a motif type.

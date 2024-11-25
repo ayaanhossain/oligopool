@@ -29,7 +29,7 @@ from .base.scry import Scry
 # Setup
 __author__ = 'Ayaan Hossain'
 
-__version__ = '2024.11.03'
+__version__ = '2024.11.24'
 
 __doc__ = f'''
 oligopool v{__version__}
@@ -102,7 +102,7 @@ Design Mode workflow
 
 Analysis Mode workflow
 
-    1. Index one or more CSVs containing the barcode information.
+    1. Index one or more CSVs containing barcode (and associate) data.
     2. Pack all NGS FastQ files, optionally merging them if required.
     3. Use acount for association counting of variants and barcodes.
     4. If multiple barcode combinations are to be counted use xcount.

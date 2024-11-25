@@ -53,6 +53,7 @@ def run_design_parser():
                              'element_type': 'motif',
                        'oligo_length_limit': 194,
                 'motif_sequence_constraint': 'NNNGGATCCNNN',
+                    'maximum_repeat_length': 8,
                       'left_context_column': 'Primer1',
                      'right_context_column': 'Promoter',
                           'excluded_motifs': ['GGATCC', 'TCTAGA'] + ['CCCCC', 'AAAAA', 'TTTTT', 'GGGGG']
@@ -68,7 +69,7 @@ def run_design_parser():
                       'oligo_length_limit': 250,
                           'barcode_length': 16,
                 'minimum_hamming_distance': 3,
-                   'maximum_repeat_length': 7,
+                   'maximum_repeat_length': 8,
                             'barcode_type': 1,
                          'excluded_motifs': ['GGATCC', 'TCTAGA'] + ['CCCCC', 'AAAAA', 'TTTTT', 'GGGGG'],
                      'left_context_column': 'Promoter',
@@ -93,6 +94,7 @@ def run_design_parser():
                              'element_type': 'motif',
                        'oligo_length_limit': 194,
                 'motif_sequence_constraint': 'NNNTCTAGANNN',
+                    'maximum_repeat_length': 8,
                       'left_context_column': 'Primer2',
                      'right_context_column': 'Primer3',
                           'excluded_motifs': ['GGATCC', 'TCTAGA'] + ['CCCCC', 'AAAAA', 'TTTTT', 'GGGGG']
@@ -113,12 +115,13 @@ def run_design_parser():
             },
 
             'Filler': {
-                        'element_type': 'spacer',
-                  'oligo_length_limit': 250,
-                       'spacer_length': None,
-                 'left_context_column': 'Primer3',
-                'right_context_column': None,
-                     'excluded_motifs': ['GGATCC', 'TCTAGA'] + ['CCCCC', 'AAAAA', 'TTTTT', 'GGGGG']
+                         'element_type': 'spacer',
+                   'oligo_length_limit': 250,
+                'maximum_repeat_length': 8,
+                        'spacer_length': None,
+                  'left_context_column': 'Primer3',
+                 'right_context_column': None,
+                      'excluded_motifs': ['GGATCC', 'TCTAGA'] + ['CCCCC', 'AAAAA', 'TTTTT', 'GGGGG']
             },
         },
 

@@ -896,6 +896,21 @@ def get_tmelt(
         dntp_conc=ntc,
         dna_conc=olc)
 
+def get_homology(seqconstr):
+    '''
+    Compute the maximal homology parameter
+    given the sequence constraint length.
+
+    :: seqconstr
+       type - string
+       desc - element sequence constraint
+    '''
+    n = len(seqconstr)
+    k = 0
+    while n - k + 1 > ((4 ** k) / 2):
+        k += 1
+    return max(k, 6)
+
 def get_constant_regions(seqconstr):
     '''
     Extract all constant, non-degenerate
@@ -921,6 +936,69 @@ def get_constant_regions(seqconstr):
 
     # Return results
     return regions
+
+def get_fixed_base_index(seqconstr):
+    '''
+    Compute the fixed base index set.
+    Internal use only.
+
+    :: seq
+       type - string
+       desc - sequence to process for
+              fixed bases
+    '''
+    fixedbaseindex = set()
+    for idx in range(len(seqconstr)):
+        if len(ddna_space[seqconstr[idx]]) == 1:
+            fixedbaseindex.add(idx)
+    return fixedbaseindex
+
+def is_oligopool_feasible(
+    seqpath,
+    maxreplen,
+    oligorepeats,
+    index,
+    fixedbaseindex):
+    '''
+    Determine if sequence contains a repeat
+    with oligopool. Internal use only.
+
+    :: seqpath
+       type - string
+       desc - a partially explored constrained
+              sequence path (primer, motif or spacer)
+    :: maxreplen
+       type - integer
+       desc - maximum shared repeat length
+    :: oligorepeats
+       type - set / dict / None
+       desc - set or dict storing oligopool repeats
+    :: index
+       type - integer / None
+       desc - an optional index for oligo repeats
+    :: fixedbaseindex
+       type - set
+       desc - set of all fixed base indices
+    '''
+
+    # Too Short a Primer Candidate
+    if (len(seqpath) < maxreplen+1) or \
+       (len(seqpath) in fixedbaseindex):
+        return True, None # No Conflict
+
+    # Oligopool Repeat Found?
+    fwd_repeat = seqpath[-(maxreplen+1):]
+    rev_repeat = get_revcomp(fwd_repeat)
+    canonkmer = min(fwd_repeat, rev_repeat)
+    if not index is None:
+        if canonkmer in oligorepeats[index]:
+            return False, len(seqpath)-1 # Conflict
+    else:
+        if canonkmer in oligorepeats:
+            return False, len(seqpath)-1 # Conflict
+
+    # No Conflict
+    return True, None
 
 
 # --= Oligopool Functions =--
@@ -1668,20 +1746,22 @@ def is_local_exmotif_feasible(seq, exmotifs, exmotifindex):
 
 # --= Context Functions =--
 
-def get_edgeeffectlength(exmotifs):
+def get_edgeeffectlength(maxreplen, exmotifs):
     '''
     Get the context length to search in for exmotif
     edge effects. Internal use only.
 
+    :: maxreplen
+       type - integer
+       desc - maximum shared repeat length
     :: exmotifs
        type - iterable / None
        desc - iterable of motifs to exlude,
               None otherwise
     '''
-
     if not exmotifs is None:
-        return max(map(len, exmotifs))
-    return 0
+        return max(maxreplen, max(map(len, exmotifs)))
+    return maxreplen
 
 def get_grouped_sequences(sequences):
     '''

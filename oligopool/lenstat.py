@@ -111,8 +111,9 @@ def lenstat(
                 )).to_string(index=False).split('\n'))
 
     # Show Stats String
-    print('\n{}'.format(
-        statsprint))
+    if verbose:
+        print('\n{}'.format(statsprint))
+
 
     # Restructure Length Stats Dictionary
     stats = {

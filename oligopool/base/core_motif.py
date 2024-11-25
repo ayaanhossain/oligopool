@@ -38,7 +38,7 @@ def get_parsed_sequence_constraint(
     t0 = tt.time()
     optrequired  = True # Optimization Required
     exmotifindex = None # No Conflicts
-    homology     = 6    # Initially, for Maker
+    homology = ut.get_homology(motifseq) # Initially, for Maker
 
     # Design Space Analysis
     liner.send(' Computing Design Space ...')
@@ -57,15 +57,13 @@ def get_parsed_sequence_constraint(
             ' Design Space: 1 Possible Motif(s)\n')
     else:
         liner.send(
-            ' Design Space: {:{},{}} Possible Motif(s)\n'.format(
-                dspace,
-                plen,
-                sntn))
+            ' Design Space: {:{},{}} Possible Motif(s)\n'.format(dspace, plen, sntn))
 
     # Exmotifs Analysis
     if dspace > 1 and not exmotifs is None:
         liner.send(' Computing Motif Conflicts ...')
 
+        # Compute Excluded Motif Conflicts
         motif_ok, excludedmotifs = ut.get_exmotif_conflict(
             seq=motifseq,
             seqlen=len(motifseq),
@@ -75,7 +73,6 @@ def get_parsed_sequence_constraint(
 
         # Show Update
         if not motif_ok:
-            optrequired = True # Partial Motif Conflict Optimization
 
             # Update Warning Entry
             warn['vars'] = {'exmotif_embedded': set()}
@@ -92,8 +89,7 @@ def get_parsed_sequence_constraint(
 
             # Show Updates
             liner.send(
-                ' Found {:,} Excluded Motif(s)\n'.format(
-                    len(excludedmotifs)))
+                ' Found {:,} Excluded Motif(s)\n'.format(len(excludedmotifs)))
 
             # Record Warnings
             warn['warn_count'] = len(excludedmotifs)
@@ -106,16 +102,10 @@ def get_parsed_sequence_constraint(
             for motif in excludedmotifs:
                 motif = '\'{}\''.format(motif)
                 liner.send(
-                    '   - Excluded Motif {:>{}} Present [WARNING] (Excluded Motif Embedded)\n'.format(
-                        motif,
-                        plen))
+                    '   - Excluded Motif {:>{}} Present [WARNING] (Excluded Motif Embedded)\n'.format(motif, plen))
         else:
             liner.send(
                 ' Found 0 Excluded Motif(s)\n')
-
-    # No Exmotifs Exist
-    else:
-        optrequired = False # No Optimization .. No Exmotifs
 
     # Region Analysis
     liner.send(' Computing Constant Regions ...')
@@ -129,12 +119,16 @@ def get_parsed_sequence_constraint(
         homology = max(homology,
                        max(map(len, regions)) + 1)
 
+    # Compute Fixed Base Index
+    fixedbaseindex = ut.get_fixed_base_index(
+        seqconstr=motifseq)
+
     # Show Time Elapsed
     liner.send(' Time Elapsed: {:.2f} sec\n'.format(
         tt.time()-t0))
 
     # Show Verdict
-    if optrequired == 0:
+    if optrequired is False:
         liner.send(
             ' Verdict: Motif Design is Constant\n')
     else:
@@ -147,7 +141,7 @@ def get_parsed_sequence_constraint(
                 ' Verdict: Motif Design Possibly Feasible\n')
 
     # Return Results
-    return (optrequired, homology, exmotifindex)
+    return (optrequired, homology, fixedbaseindex, exmotifindex)
 
 def get_parsed_edgeeffects(
     motifseq,
@@ -361,12 +355,45 @@ def show_update(
         design,
         ['Rejected', 'Provisionally Accepted', 'Accepted'][optstatus],
         ['',
-        ' due to Excluded Motif',
-        ' due to Edge Effect'][optstate]))
+         ' due to Oligopool Repeat',
+         ' due to Excluded Motif',
+         ' due to Edge Effect'][optstate]))
 
     if terminal:
         liner.send('|* Time Elapsed: {:.2f} sec\n'.format(
             tt.time() - inittime))
+
+def is_oligopool_feasible(
+    motif,
+    maxreplen,
+    oligorepeats,
+    index,
+    fixedbaseindex):
+    '''
+    Determine if motif contains a repeat
+    with oligopool. Internal use only.
+
+    :: motif
+       type - string
+       desc - a partially explored motif
+              sequence path
+    :: maxreplen
+       type - integer
+       desc - maximum shared repeat length
+    :: oligorepeats
+       type - set / None
+       desc - set storing oligopool repeats
+    :: fixedbaseindex
+       type - set
+       desc - set of all fixed base indices
+    '''
+
+    return ut.is_oligopool_feasible(
+        seqpath=motif,
+        maxreplen=maxreplen,
+        oligorepeats=oligorepeats,
+        index=index,
+        fixedbaseindex=fixedbaseindex)
 
 def is_exmotif_feasible(
     motif,
@@ -445,6 +472,10 @@ def is_edge_feasible(
 def motif_objectives(
     motif,
     motiflen,
+    motiftype,
+    fixedbaseindex,
+    maxreplen,
+    oligorepeats,
     exmotifs,
     exmotifindex,
     lcseq,
@@ -516,13 +547,15 @@ def motif_objectives(
        desc - dynamic printing
     '''
 
-    # Objective 1: Motif Embedding
-    obj1, exmotif = is_exmotif_feasible(
+    # Objective 1: Oligopool Non-Repetitiveness
+    obj1, traceloc = is_oligopool_feasible(
         motif=motif,
-        exmotifs=exmotifs,
-        exmotifindex=exmotifindex)
+        maxreplen=maxreplen,
+        oligorepeats=oligorepeats,
+        index=None if motiftype == 1 else idx-1,
+        fixedbaseindex=fixedbaseindex)
 
-    # Objective 1 Failed
+    # Objective 2 Failed
     if not obj1:
 
         # Show Update
@@ -538,21 +571,16 @@ def motif_objectives(
             liner=liner)
 
         # Update Stats
-        stats['vars']['exmotif_fail'] += 1
-        stats['vars']['exmotif_counter'][exmotif] += 1
+        stats['vars']['repeat_fail'] += 1
 
         # Return Traceback
-        return False, max(0, len(motif)-1)
+        return False, traceloc
 
-    # Objective 2: Edge Feasibility (Edge-Effects)
-    obj2, dxmotifs, traceloc = is_edge_feasible(
+    # Objective 2: Motif Embedding
+    obj2, exmotif = is_exmotif_feasible(
         motif=motif,
-        motiflen=motiflen,
-        lcseq=lcseq,
-        rcseq=rcseq,
-        edgeeffectlength=edgeeffectlength,
-        prefixforbidden=prefixforbidden,
-        suffixforbidden=suffixforbidden)
+        exmotifs=exmotifs,
+        exmotifindex=exmotifindex)
 
     # Objective 2 Failed
     if not obj2:
@@ -565,6 +593,38 @@ def motif_objectives(
             motif=motif,
             optstatus=0,
             optstate=2,
+            inittime=inittime,
+            terminal=False,
+            liner=liner)
+
+        # Update Stats
+        stats['vars']['exmotif_fail'] += 1
+        stats['vars']['exmotif_counter'][exmotif] += 1
+
+        # Return Traceback
+        return False, max(0, len(motif)-1)
+
+    # Objective 3: Edge Feasibility (Edge-Effects)
+    obj3, dxmotifs, traceloc = is_edge_feasible(
+        motif=motif,
+        motiflen=motiflen,
+        lcseq=lcseq,
+        rcseq=rcseq,
+        edgeeffectlength=edgeeffectlength,
+        prefixforbidden=prefixforbidden,
+        suffixforbidden=suffixforbidden)
+
+    # Objective 3 Failed
+    if not obj3:
+
+        # Show Update
+        show_update(
+            idx=idx,
+            plen=plen,
+            element=element,
+            motif=motif,
+            optstatus=0,
+            optstate=3,
             inittime=inittime,
             terminal=False,
             liner=liner)
@@ -594,6 +654,9 @@ def motif_objectives(
 def extra_assign_motif(
     motif,
     motiftype,
+    fixedbaseindex,
+    maxreplen,
+    oligorepeats,
     contextarray,
     contextset,
     leftselector,
@@ -693,10 +756,18 @@ def extra_assign_motif(
             prefixforbidden = prefixdict
             suffixforbidden = suffixdict
 
+        # Compute Repeat Feasibility
+        obj1, _ = is_oligopool_feasible(
+            motif=motif,
+            maxreplen=maxreplen,
+            oligorepeats=oligorepeats,
+            index=None if motiftype == 1 else aidx,
+            fixedbaseindex=fixedbaseindex)
+
         # Compute Edge Feasibility
-        obj, dxmotifs, _ = ut.is_local_edge_feasible(
-            seq=motif,
-            seqlen=len(motif),
+        obj3, dxmotifs, _ = is_edge_feasible(
+            motif=motif,
+            motiflen=len(motif),
             lcseq=lcseq,
             rcseq=rcseq,
             edgeeffectlength=edgeeffectlength,
@@ -704,7 +775,7 @@ def extra_assign_motif(
             suffixforbidden=suffixforbidden)
 
         # Objective Met
-        if obj:
+        if obj1 and obj3:
 
             # Record Designed Motif
             storage[aidx] = motif
@@ -730,8 +801,11 @@ def extra_assign_motif(
         else:
 
             # Record Failure Stats
-            stats['vars']['edge_fail'] += len(dxmotifs)
-            stats['vars']['exmotif_counter'].update(dxmotifs)
+            if not obj1:
+                stats['vars']['repeat_fail'] += 1
+            if not obj3:
+                stats['vars']['edge_fail'] += len(dxmotifs)
+                stats['vars']['exmotif_counter'].update(dxmotifs)
 
             # Try Again Later
             contextarray.append(aidx)
@@ -744,6 +818,9 @@ def motif_engine(
     motiftype,
     homology,
     optrequired,
+    fixedbaseindex,
+    maxreplen,
+    oligorepeats,
     leftcontext,
     rightcontext,
     exmotifs,
@@ -774,6 +851,13 @@ def motif_engine(
        type - bool
        desc - if True, then constraint is degenerate
               so optimization is required
+    :: maxreplen
+       type - integer
+       desc - maximum shared repeat length
+    :: oligorepeats
+       type - dict
+       desc - dictionary of all indexed
+              sets of oligopool repeats
     :: leftcontext
        type - list / None
        desc - list of sequence to the
@@ -874,6 +958,10 @@ def motif_engine(
             objectivefunction = lambda motif: motif_objectives(
                 motif=motif,
                 motiflen=len(motifseq),
+                motiftype=motiftype,
+                fixedbaseindex=fixedbaseindex,
+                maxreplen=maxreplen,
+                oligorepeats=oligorepeats,
                 exmotifs=exmotifs,
                 exmotifindex=exmotifindex,
                 lcseq=lcseq,
@@ -890,7 +978,7 @@ def motif_engine(
 
             # Design Motif via Maker
             motif = maker.nrp_maker(
-                homology=min(len(motifseq), homology),
+                homology=homology,
                 seq_constr=motifseq,
                 struct_constr='.'*len(motifseq),
                 target_size=1,
@@ -938,6 +1026,9 @@ def motif_engine(
                 extra_assign_motif(
                     motif=motif,
                     motiftype=motiftype,
+                    fixedbaseindex=fixedbaseindex,
+                    maxreplen=maxreplen,
+                    oligorepeats=oligorepeats,
                     contextarray=contextarray,
                     contextset=None,
                     leftselector=leftselector,
@@ -1006,6 +1097,8 @@ def motif_engine(
 
 def spacer_engine(
     spacergroup,
+    maxreplen,
+    oligorepeats,
     leftcontext,
     rightcontext,
     exmotifs,
@@ -1023,6 +1116,13 @@ def spacer_engine(
        type - cx.defaultdict
        desc - grouped spacer lengths by their index
               of occurence
+    :: maxreplen
+       type - integer
+       desc - maximum shared repeat length
+    :: oligorepeats
+       type - dict
+       desc - dictionary of all indexed
+              sets of oligopool repeats
     :: leftcontext
        type - list / None
        desc - list of sequence to the
@@ -1147,6 +1247,10 @@ def spacer_engine(
                 objectivefunction = lambda spacer: motif_objectives(
                     motif=spacer,
                     motiflen=spacerlen,
+                    motiftype=0,
+                    fixedbaseindex=set(),
+                    maxreplen=maxreplen,
+                    oligorepeats=oligorepeats,
                     exmotifs=exmotifs,
                     exmotifindex=None,
                     lcseq=lcseq,
@@ -1162,9 +1266,10 @@ def spacer_engine(
                     liner=liner)
 
                 # Design Spacer via Maker
+                spacer_constr = 'N'*spacerlen
                 spacer = maker.nrp_maker(
-                    homology=min(spacerlen, 6),
-                    seq_constr='N'*spacerlen,
+                    homology=ut.get_homology(spacer_constr),
+                    seq_constr=spacer_constr,
                     struct_constr='.'*spacerlen,
                     target_size=1,
                     background=None,
@@ -1214,6 +1319,9 @@ def spacer_engine(
                     extra_assign_motif(
                         motif=spacer,
                         motiftype=0,
+                        fixedbaseindex=set(),
+                        maxreplen=maxreplen,
+                        oligorepeats=oligorepeats,
                         contextarray=contextarray,
                         contextset=contextset,
                         leftselector=leftselector,

@@ -4,7 +4,7 @@
     </a>
 </h1>
 
-<h4><p align="center">Version: 2024.11.03</p></h4>
+<h4><p align="center">Version: 2024.11.07</p></h4>
 
 <p align="center">
   <a style="text-decoration: none" href="#Installation">Installation</a> •
@@ -17,7 +17,7 @@
 
 It enables the scalable design of universal primer sets, error-correctable barcodes, the splitting of long constructs into multiple oligos, and the rapid packing and counting of barcoded reads -- all on a regular 8-core desktop computer.
 
-We have used `Oligopool Calculator` in multiple projects to build libraries of tens of thousands of promoters, ribozymes, and mRNA stability elements, illustrating the use of a flexible grammar to add multiple barcodes, cut sites, avoid excluded sequences, and optimize experimental constraints. These libraries were later characterized using highly efficient barcode counting provided by `Oligopool Calculator`.
+We have used `Oligopool Calculator` in multiple projects to build libraries of tens of thousands of promoters (see [here](https://www.nature.com/articles/s41467-022-32829-5) and [here](https://www.nature.com/articles/s41587-020-0584-2)), ribozymes, and mRNA stability elements (see [here](https://www.nature.com/articles/s41467-024-54059-7)), illustrating the use of a flexible grammar to add multiple barcodes, cut sites, avoid excluded sequences, and optimize experimental constraints. These libraries were later characterized using highly efficient barcode counting provided by `Oligopool Calculator`.
 
 `Oligopool Calculator` facilitates the creative design and application of massively parallel reporter assays by automating and simplifying the whole process. It has been benchmarked on simulated libraries containing millions of defined variants and to analyze billions of reads.
 
@@ -78,7 +78,7 @@ Type "help", "copyright", "credits" or "license" for more information.
 >>> import oligopool as op
 >>> help(op)
 ...
-    oligopool v2024.10.24
+    oligopool v2024.11.24
     by ah
 
     Automated design and analysis of oligopool libraries.
@@ -148,7 +148,7 @@ Type "help", "copyright", "credits" or "license" for more information.
 
     Analysis Mode workflow
 
-        1. Index one or more CSVs containing the barcode information.
+        1. Index one or more CSVs containing barcode (and associate) data.
         2. Pack all NGS FastQ files, optionally merging them if required.
         3. Use acount for association counting of variants and barcodes.
         4. If multiple barcode combinations are to be counted use xcount.

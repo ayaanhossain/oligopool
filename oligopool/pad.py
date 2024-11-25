@@ -343,6 +343,7 @@ def pad(
 
     # Update Edge-Effect Length
     edgeeffectlength = ut.get_edgeeffectlength(
+        maxreplen=maxreplen,
         exmotifs=exmotifs)
 
     # Show update
@@ -511,7 +512,7 @@ def pad(
         primerspan=fwdcore,
         homology=homology,
         primertype=0,
-        fixedbaseindex=cp.get_fixedbaseindex(seq=fwdseq),
+        fixedbaseindex=ut.get_fixed_base_index(seqconstr=fwdseq),
         mintmelt=mintmelt,
         maxtmelt=maxtmelt,
         maxreplen=maxreplen,
@@ -569,7 +570,7 @@ def pad(
             primerspan=revcore,
             homology=homology,
             primertype=1,
-            fixedbaseindex=cp.get_fixedbaseindex(seq=revseq),
+            fixedbaseindex=ut.get_fixed_base_index(seqconstr=revseq),
             mintmelt=fwdstats['vars']['primer_Tm']-1,
             maxtmelt=fwdstats['vars']['primer_Tm']+1,
             maxreplen=maxreplen,

@@ -382,6 +382,7 @@ def primer(
 
         # Update Edge-Effect Length
         edgeeffectlength = ut.get_edgeeffectlength(
+            maxreplen=maxreplen,
             exmotifs=exmotifs)
 
     # Parsing Sequence Constraint Feasibility
@@ -395,6 +396,7 @@ def primer(
 
     # Parse primerseq
     (parsestatus,
+    primerseq,
     homology,
     fixedbaseindex,
     exmotifindex,

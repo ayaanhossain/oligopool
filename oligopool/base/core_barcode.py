@@ -948,13 +948,12 @@ def barcode_engine(
 
     # Setup Jumper and Generator
     (jtp,
-    jumper)  = get_jumper(
+    jumper) = get_jumper(
         barcodelen=barcodelen)
     barcodes = stream_barcodes(
         barcodelen=barcodelen,
         jumper=jumper)
-    barcode    = None # Current Barcode
-    acccodeseq = None # Last Successful Barcode Sequence
+    barcode = None # Current Barcode
 
     # Infinite Jumper Failure
     prob  = ut.get_prob(    # Probability of Success
@@ -1068,9 +1067,6 @@ def barcode_engine(
                         coocache[contig].append([])
                     coocache[contig] = tuple(coocache[contig])
                 coocache[contig][index].append(count-1)
-
-            # Update Last Accounted Barcode
-            acccodeseq = barcodeseq
 
             # Inifinite Jumper Book-keeping Update
             if jtp == 2:

@@ -16,6 +16,7 @@ from typing import Tuple
 def spacer(
     input_data:str|pd.DataFrame,
     oligo_length_limit:int,
+    maximum_repeat_length:int,
     spacer_column:str,
     output_file:str|None=None,
     spacer_length:int|list|str|pd.DataFrame|None=None,
@@ -31,6 +32,7 @@ def spacer(
     Required Parameters:
         - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated oligopool variants.
         - `oligo_length_limit` (`int`): Maximum allowed oligo length (≥ 4).
+        - `maximum_repeat_length` (`int`): Max shared repeat length with oligos (≥ 4).
         - `spacer_column` (`str`): Column name for inserting the designed spacers.
 
     Optional Parameters:
@@ -60,6 +62,7 @@ def spacer(
     # Argument Aliasing
     indata       = input_data
     oligolimit   = oligo_length_limit
+    maxreplen    = maximum_repeat_length
     spacercol    = spacer_column
     outfile      = output_file
     spacerlen    = spacer_length
@@ -92,6 +95,17 @@ def spacer(
         numeric_field='    Oligo Limit  ',
         numeric_pre_desc=' At most ',
         numeric_post_desc=' Base Pair(s)',
+        minval=4,
+        maxval=float('inf'),
+        precheck=False,
+        liner=liner)
+
+    # Full maxreplen Validation
+    maxreplen_valid = vp.get_numeric_validity(
+        numeric=maxreplen,
+        numeric_field='   Repeat Length ',
+        numeric_pre_desc=' Up to ',
+        numeric_post_desc=' Base Pair(s) Oligopool Repeats',
         minval=4,
         maxval=float('inf'),
         precheck=False,
@@ -184,6 +198,7 @@ def spacer(
     if not all([
         indata_valid,
         oligolimit_valid,
+        maxreplen_valid,
         spacercol_valid,
         outfile_valid,
         spacerlen_valid,
@@ -322,6 +337,7 @@ def spacer(
 
         # Update Edge-Effect Length
         edgeeffectlength = ut.get_edgeeffectlength(
+            maxreplen=maxreplen,
             exmotifs=exmotifs)
 
         # Parse Edge Effects
@@ -377,19 +393,56 @@ def spacer(
         prefixdict,
         suffixdict) = (None, None, None, None)
 
+    # Parse Oligopool Repeats
+    liner.send('\n[Step 7: Parsing Oligopool Repeats]\n')
+
+    # Parse Repeats from indf
+    (parsestatus,
+    sourcecontext,
+    kmerspace,
+    fillcount,
+    freecount,
+    oligorepeats) = ut.get_parsed_oligopool_repeats(
+        df=indf,
+        maxreplen=maxreplen,
+        element='Spacer',
+        merge=False,
+        liner=liner)
+
+    # Repeat Length infeasible
+    if not parsestatus:
+
+        # Prepare stats
+        stats = {
+            'status': False,
+            'basis' : 'infeasible',
+            'step'  : 7,
+            'step_name': 'parsing-oligopool-repeats',
+            'vars'  : {
+                'source_context': sourcecontext,
+                'kmer_space'    : kmerspace,
+                'fill_count'    : fillcount,
+                'free_count'    : freecount},
+            'warns' : warns}
+
+        # Return results
+        liner.close()
+        return (outdf, stats)
+
     # Launching Motif Design
-    liner.send('\n[Step 7: Computing Spacers]\n')
+    liner.send('\n[Step 8: Computing Spacers]\n')
 
     # Define Motif Design Stats
     stats = {
         'status'  : False,
         'basis'   : 'unsolved',
-        'step'    : 7,
+        'step'    : 8,
         'step_name': 'computing-spacers',
         'vars'    : {
                'target_count': targetcount,   # Required Number of Spacers
                'spacer_count': 0,             # Spacer Design Count
                'orphan_oligo': None,          # Orphan Oligo Indexes
+                'repeat_fail': 0,             # Repeat Fail Count
                'exmotif_fail': 0,             # Exmotif Elimination Fail Count
                   'edge_fail': 0,             # Edge Effect Fail Count
             'exmotif_counter': cx.Counter()}, # Exmotif Encounter Counter
@@ -404,6 +457,8 @@ def spacer(
     (spacers,
     stats) = cm.spacer_engine(
         spacergroup=spacergroup,
+        maxreplen=maxreplen,
+        oligorepeats=oligorepeats,
         leftcontext=leftcontext,
         rightcontext=rightcontext,
         exmotifs=exmotifs,
@@ -470,6 +525,7 @@ def spacer(
     # Failure Relavant Stats
     if not stats['status']:
         maxval = max(stats['vars'][field] for field in (
+            'repeat_fail',
             'exmotif_fail',
             'edge_fail'))
 
@@ -477,8 +533,18 @@ def spacer(
             printlen=ut.get_printlen(
                 value=maxval))
 
-        total_conflicts = stats['vars']['exmotif_fail']  + \
+        total_conflicts = stats['vars']['repeat_fail']  + \
+                          stats['vars']['exmotif_fail'] + \
                           stats['vars']['edge_fail']
+
+        liner.send(
+            '  Repeat Conflicts: {:{},{}} Event(s) ({:6.2f} %)\n'.format(
+                stats['vars']['repeat_fail'],
+                plen,
+                sntn,
+                ut.safediv(
+                    A=stats['vars']['repeat_fail'] * 100.,
+                    B=total_conflicts)))
         liner.send(
             ' Exmotif Conflicts: {:{},{}} Event(s) ({:6.2f} %)\n'.format(
                 stats['vars']['exmotif_fail'],

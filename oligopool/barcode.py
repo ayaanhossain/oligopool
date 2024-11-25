@@ -66,7 +66,7 @@ def barcode(
             * switching to terminus optimized barcodes, or
             * increasing `maximum_repeat_length`, or
             * reducing `excluded_motifs` to relax the constraints.
-        - Constant motifs to be used as barcode anchors must be designed prior to barcode generation.
+        - Constant barcode anchors must be designed prior to barcode generation.
     '''
 
     # Argument Aliasing
@@ -388,6 +388,7 @@ def barcode(
 
         # Update Edge-Effect Length
         edgeeffectlength = ut.get_edgeeffectlength(
+            maxreplen=maxreplen,
             exmotifs=exmotifs)
 
     # Re-calculate Edge-Effect Length
@@ -445,6 +446,7 @@ def barcode(
             'status': False,
             'basis' : 'infeasible',
             'step'  : 5,
+            'step_name': 'parsing-oligopool-repeats',
             'vars'  : {
                 'source_context': sourcecontext,
                 'kmer_space'    : kmerspace,

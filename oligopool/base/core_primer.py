@@ -143,23 +143,6 @@ def get_paired_repeat_conflicts(
     # Return results
     return (lcs <= 5, pairedrepeats)
 
-def get_fixedbaseindex(seq):
-    '''
-    Compute the fixed base index set.
-    Internal use only.
-
-    :: seq
-       type - string
-       desc - sequence to process for
-              fixed bases
-    '''
-
-    fixedbaseindex = set()
-    for idx in range(len(seq)):
-        if len(ut.ddna_space[seq[idx]]) == 1:
-            fixedbaseindex.add(idx)
-    return fixedbaseindex
-
 def get_parsed_sequence_constraint(
     primerseq,
     primertype,
@@ -199,11 +182,33 @@ def get_parsed_sequence_constraint(
     t0 = tt.time()
     exmotifindex = None  # No Conflicts
     suboptimal   = False # Suboptimality Tracker
-    homology     = 6     # Initially, for Maker
+    homology = ut.get_homology(primerseq) # Initially, for Maker
+
+    # Adjust Primer Sequence Constraint
+    if primertype == 0:
+        # Adjust Forward Primer Constraints
+        if primerseq.startswith('NN'):
+            primerseq = 'SS' + primerseq[2:]
+        elif primerseq.startswith('N'):
+            primerseq = 'S' + primerseq[1:]
+        if primerseq.endswith('NN'):
+            primerseq = primerseq[:-2] + 'WW'
+        elif primerseq.endswith('N'):
+            primerseq = primerseq[:-1] + 'W'
+    else:
+        # Adjust Reverse Primer Constraints
+        if primerseq.endswith('NN'):
+            primerseq = primerseq[:-2] + 'SS'
+        elif primerseq.endswith('N'):
+            primerseq = primerseq[:-1] + 'S'
+        if primerseq.startswith('NN'):
+            primerseq = 'WW' + primerseq[2:]
+        elif primerseq.startswith('N'):
+            primerseq = 'W' + primerseq[1:]
 
     # Compute Fixed Base Index
-    fixedbaseindex = get_fixedbaseindex(
-        seq=primerseq)
+    fixedbaseindex = ut.get_fixed_base_index(
+        seqconstr=primerseq)
 
     # Design Space Analysis
     liner.send(' Computing Design Space ...')
@@ -242,7 +247,7 @@ def get_parsed_sequence_constraint(
     if not motif_ok:
 
         # Update Warning Entry
-        warn['vars'] = {'exmotifembedded': set()}
+        warn['vars'] = {'exmotif_embedded': set()}
 
         # Compute Embedded Motif Indices
         # to be Ignored Downstream
@@ -264,7 +269,7 @@ def get_parsed_sequence_constraint(
 
         # Record Warnings
         warn['warn_count'] += len(excludedmotifs)
-        warn['vars']['exmotifembedded'].update(excludedmotifs)
+        warn['vars']['exmotif_embedded'].update(excludedmotifs)
         suboptimal = True
 
         # Show Excluded Motifs
@@ -323,7 +328,7 @@ def get_parsed_sequence_constraint(
     liner.send(' Computing Palindrome Conflicts ...')
 
     # Update Warning Entry
-    warn['vars'] = {'palindromeembedded': set()}
+    warn['vars'] = {'palindrome_embedded': set()}
 
     # Compute Panlindrome
     palindrome_ok, palindromeembedded = get_palindrome_conflicts(
@@ -339,7 +344,7 @@ def get_parsed_sequence_constraint(
 
         # Record Warnings
         warn['warn_count'] += len(palindromeembedded)
-        warn['vars']['palindromeembedded'].update(palindromeembedded)
+        warn['vars']['palindrome_embedded'].update(palindromeembedded)
         suboptimal = True
 
         # Show Palindromes
@@ -408,6 +413,7 @@ def get_parsed_sequence_constraint(
 
     # Return Results
     return (parsestatus,
+        primerseq,
         homology,
         fixedbaseindex,
         exmotifindex,
@@ -1028,6 +1034,9 @@ def is_oligopool_feasible(
        type - string
        desc - a partially explored primer
               sequence path
+    :: maxreplen
+       type - integer
+       desc - maximum shared repeat length
     :: oligorepeats
        type - set / None
        desc - set storing oligopool repeats
@@ -1036,21 +1045,12 @@ def is_oligopool_feasible(
        desc - set of all fixed base indices
     '''
 
-    # Too Short a Primer Candidate
-    if (len(primer) < maxreplen+1) or \
-       (len(primer) in fixedbaseindex):
-        return True, None # No Conflict
-
-    # Oligopool Repeat Found?
-    canonkmer = min(
-        primer[-maxreplen+1:],
-        ut.get_revcomp(
-            seq=primer[-maxreplen+1:]))
-    if canonkmer in oligorepeats:
-        return False, len(primer)-1 # Conflict
-
-    # No Conflict
-    return True, None
+    return ut.is_oligopool_feasible(
+        seqpath=primer,
+        maxreplen=maxreplen,
+        oligorepeats=oligorepeats,
+        index=None,
+        fixedbaseindex=fixedbaseindex)
 
 def is_paired_feasible(
     primer,

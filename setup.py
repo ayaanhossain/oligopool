@@ -15,7 +15,7 @@ setup(
     name='oligopool',
 
     # Link: https://www.python.org/dev/peps/pep-0440/#version-scheme
-    version='2024.11.03',
+    version='2024.11.24',
 
     description='Oligopool Calculator - Automated design and analysis of oligopool libraries',
 
@@ -94,7 +94,7 @@ setup(
         'edlib>=1.3.9.post1',
         'parasail>=1.3.4',
         'nrpcalc>=1.7.0',
-        'sharedb>=1.1.1',
+        'sharedb>=1.1.2',
         'numba>=0.60.0',
         'seaborn>=0.13.2',
         'multiprocess>=0.70.17',

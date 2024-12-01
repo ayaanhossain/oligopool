@@ -981,7 +981,7 @@ def is_oligopool_feasible(
        desc - set of all fixed base indices
     '''
 
-    # Too Short a Primer Candidate
+    # Too Short a Sequence Candidate
     if (len(seqpath) < maxreplen+1) or \
        (len(seqpath) in fixedbaseindex):
         return True, None # No Conflict

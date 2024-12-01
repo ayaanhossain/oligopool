@@ -29,7 +29,7 @@ from .base.scry import Scry
 # Setup
 __author__ = 'Ayaan Hossain'
 
-__version__ = '2024.11.24'
+__version__ = '2024.12.01'
 
 __doc__ = f'''
 oligopool v{__version__}

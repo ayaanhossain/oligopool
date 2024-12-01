@@ -1,3 +1,7 @@
+2024.12.01
+1. Update version.
+2. Show Manager dict in notebook.
+
 2024.11.24
 1. Update `__init__` description.
 2. Auto-clamped primers in `primer` module.

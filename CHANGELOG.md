@@ -1,3 +1,7 @@
+2024.12.02
+1. Fixed a small `core_count` print gap.
+2. Version bump.
+
 2024.12.01
 1. Update version.
 2. Show Manager dict in notebook.

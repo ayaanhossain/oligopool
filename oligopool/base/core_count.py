@@ -1079,7 +1079,7 @@ def write_count(
             entrycount))
 
     # Read Back the CSV
-    liner.send('|* Reading Count Matrix ...')
+    liner.send(' Reading Count Matrix ...')
     df = pd.read_csv(countfile)
 
     # Show Time Elapsed

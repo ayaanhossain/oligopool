@@ -55,7 +55,7 @@ def lenstat_engine(
             maxelementlen,
             minoligolength,
             maxoligolength,
-            ('Yes', 'No')[maxoligolength <= oligolimit]]
+            ('Yes', 'No')[int(maxoligolength <= oligolimit)]]
 
         # Show Update
         if minelementlen == maxelementlen:

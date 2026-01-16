@@ -50,7 +50,7 @@ __all__ = [
 # Setup
 __author__ = 'Ayaan Hossain'
 
-__version__ = '2026.01.15'
+__version__ = '2026.01.16'
 
 __doc__ = f'''
 oligopool v{__version__}
@@ -151,18 +151,18 @@ Analysis Mode workflow
         ...
         >>>
         >>> # Index barcodes and any associates
-        >>> bc1_index_stats = op.index(barcode_data=bc1_df, barcode_column='BC1', ...)
-        >>> bc2_index_stats = op.index(barcode_data=bc2_df, barcode_column='BC2', ...)
+        >>> bc1_index_stats = op.index(barcode_data=bc1_df, barcode_column='BC1', index_file='bc1_index', ...)
+        >>> bc2_index_stats = op.index(barcode_data=bc2_df, barcode_column='BC2', index_file='bc2_index', ...)
         ...
         >>>
         >>> # Pack experiment FastQ files
-        >>> sam1_pack_stats = op.pack(r1_file='sample_1_R1.fq.gz', ...)
-        >>> sam2_pack_stats = op.pack(r1_file='sample_2_R1.fq.gz', ...)
+        >>> sam1_pack_stats = op.pack(r1_fastq_file='sample_1_R1.fq.gz', r1_read_type=0, pack_type=0, pack_file='sample_1_pack', ...)
+        >>> sam2_pack_stats = op.pack(r1_fastq_file='sample_2_R1.fq.gz', r1_read_type=0, pack_type=0, pack_file='sample_2_pack', ...)
         ...
         >>>
         >>> # Compute and write barcode combination count matrix
         >>> xcount_df, stats = op.xcount(index_files=['bc1_index', 'bc2_index'],
-        ...                              pack_file='sample_1_pack', ...)
+        ...                              pack_file='sample_1_pack', count_file='sample_1_xcount', ...)
         ...
 
 You can learn more about each module using help.

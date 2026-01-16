@@ -214,10 +214,10 @@ The `oligopool` package installs a CLI with two equivalent entry points: `oligop
 $ op
 $ op manual
 $ op manual topics
-$ op manual barcode
+$ oligopool manual barcode
 ```
 
-At a glance, running `op` or `oligopool` with no arguments prints available commands:
+At a glance, running `op` or `oligopool` with no arguments prints available commands.
 ```bash
 $ op
 

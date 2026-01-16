@@ -4,7 +4,7 @@
     </a>
 </h1>
 
-<h4><p align="center">Version: 2026.01.15</p></h4>
+<h4><p align="center">Version: 2026.01.16</p></h4>
 
 <p align="center">
   <a style="text-decoration: none" href="#Installation">Installation</a> •
@@ -40,7 +40,8 @@ On `Linux`, `MacOS` and `Windows Subsystem for Linux` you can install `Oligopool
 $ pip install --upgrade oligopool # Installs and/or upgrades oligopool
 ```
 This also installs the command line tools: `oligopool` and `op`.
-or install it directly from GitHub.
+
+Or install it directly from GitHub:
 ```bash
 $ pip install git+https://github.com/ayaanhossain/oligopool.git
 ```
@@ -58,7 +59,7 @@ Python 3.10.9 | packaged by conda-forge | (main, Feb  2 2023, 20:20:04) [GCC 11.
 Type "help", "copyright", "credits" or "license" for more information.
 >>> import oligopool as op
 >>> op.__version__
-'2026.01.15'
+'2026.01.16'
 >>>
 ```
 
@@ -80,7 +81,7 @@ Type "help", "copyright", "credits" or "license" for more information.
 >>> import oligopool as op
 >>> help(op)
 ...
-    oligopool v2026.01.15
+    oligopool v2026.01.16
     by ah
 
     Automated design and analysis of oligopool libraries.
@@ -212,16 +213,28 @@ The `oligopool` package installs a CLI with two equivalent entry points: `oligop
 
 ```bash
 $ op
+$ op cite
 $ op manual
 $ op manual topics
 $ oligopool manual barcode
+```
+
+The CLI supports tab-completion via `argcomplete` (installed with the package):
+```bash
+# One-time install (recommended; restart your shell)
+$ op complete --install          # auto-detect shell
+$ op complete --install bash     # or: zsh|fish
+
+# Print help / snippets
+$ op complete --print-instructions
+$ op complete --shell bash       # or: zsh|fish
 ```
 
 At a glance, running `op` or `oligopool` with no arguments prints available commands.
 ```bash
 $ op
 
-oligopool v2026.01.15
+oligopool v2026.01.16
 by ah
 
 usage: oligopool COMMAND --argument=<value> ...
@@ -229,23 +242,33 @@ usage: oligopool COMMAND --argument=<value> ...
 COMMANDS Available:
 
     manual      show module documentation
+    cite        show citation information
+
     background  build background k-mer database
     barcode     design constrained barcodes
     primer      design constrained primers
     motif       design or add motifs
     spacer      design or insert spacers
+
     split       split oligos into fragments
     pad         pad split oligos with primers
+
     merge       merge elements into one column
     revcomp     reverse complement elements
+
     lenstat     compute length statistics
     final       finalize library
+
     index       index barcodes and associates
-    pack        pack fastq reads
-    acount      association counting
-    xcount      combinatorial counting
+    pack        preprocess and pack fastq for counting
+    acount      execute association counting
+    xcount      execute combinatorial counting
+
+    complete    print/install shell completion
 
 Note: Run "oligopool COMMAND" to see command-specific options.
+
+EST <timestamp>
 ```
 
 Most CLI subcommands write outputs to disk, so `--output-file` is required for commands that produce output DataFrames (for example: `barcode`, `primer`, `motif`, `spacer`, `split`, `pad`, `merge`, `revcomp`, `final`).

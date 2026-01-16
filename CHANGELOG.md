@@ -1,12 +1,25 @@
-2026.01.15
+2026.01.16
 1. Version bump.
 2. Standardized RNG seeding for stochastic design/assembly modules.
 3. Added baseline stats keys across modules (module, input_rows, output_rows).
 4. Improved validation messages with row-context examples.
 5. Clarified public API exports via `__all__`.
 6. Added CLI entry points (`oligopool`, `op`) including `manual` command and subcommands for major modules.
-7. Updated README citation formatting, version references, and CLI notes.
-8. Docker updates: renamed `dockerfile` -> `Dockerfile` and refreshed container setup notes.
+7. CLI UX: help formatting, "did you mean" suggestions, and `op complete` autocompletion installer (argcomplete required).
+8. Documentation updates: README citation/version, CLI usage, completion instructions, and Docker notes.
+9. Docker updates: added `Dockerfile` and refreshed container setup notes.
+10. CLI help command listing: `manual` first, `complete` last.
+11. CLI `xcount` options: removed unsupported associate error flag.
+12. Documented that `acount`/`xcount` callbacks are Python-only (not supported in CLI mode).
+13. Added `cite` CLI command to print citation information and paper link.
+14. `op complete` now prints an inline hint about `--install` when run without flags.
+15. Improved `op manual` autocompletion for manual topics.
+16. `op complete --install [bash|zsh|fish]` now works (shell arg is optional).
+17. Updated library docs examples to match current API parameter names.
+18. `op complete` output is banner-free for `eval`/sourcing.
+
+2026.01.15
+1. Version bump.
 
 2024.12.02
 1. Fixed a small `core_count` print gap.

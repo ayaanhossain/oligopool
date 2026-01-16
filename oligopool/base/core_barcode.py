@@ -83,7 +83,7 @@ def get_parsed_barcode_length(
         designspace,
         targetcount)
 
-def get_finite_jumper(upb):
+def get_finite_jumper(upb, rng=None):
     '''
     Return finite space jumper.
     Internal use only.
@@ -91,12 +91,17 @@ def get_finite_jumper(upb):
     :: upb
        type - integer
        desc - space uppberbound
+    :: rng
+       type - np.random.Generator / None
+       desc - optional RNG instance
     '''
 
     # Setup Permutation
     hfb = upb // 2
     qtb = upb // 4
-    fld = np.random.permutation(qtb)
+    if rng is None:
+        rng = np.random.default_rng()
+    fld = rng.permutation(qtb)
 
     # Split Field Index
     idx = 0
@@ -110,7 +115,7 @@ def get_finite_jumper(upb):
         yield hfb - 1 - coo
         idx += 1
 
-def get_infinite_jumper(upb):
+def get_infinite_jumper(upb, rng=None):
     '''
     Return infinite space jumper.
     Internal use only.
@@ -118,16 +123,19 @@ def get_infinite_jumper(upb):
     :: upb
        type - integer
        desc - space upperbound
+    :: rng
+       type - np.random.Generator / None
+       desc - optional RNG instance
     '''
 
-    # Setup RNG Permutation
-    rng = np.random.default_rng()
-
     # Stream Coordinates
+    if rng is None:
+        rng = np.random.default_rng()
+
     while True:
         yield rng.integers(0, upb)
 
-def get_jumper(barcodelen):
+def get_jumper(barcodelen, rng=None):
     '''
     Return jumper based on jumper type.
     Internal use only.
@@ -135,6 +143,9 @@ def get_jumper(barcodelen):
     :: barcodelen
        type - integer
        desc - barcode length
+    :: rng
+       type - np.random.Generator / None
+       desc - optional RNG instance
     '''
 
     # Compute Upperbound
@@ -143,10 +154,14 @@ def get_jumper(barcodelen):
     # Return Jumper
     if barcodelen <= 12:
         # Finite   Random Jumps
-        return 1, get_finite_jumper(upb=upb)
+        return 1, get_finite_jumper(
+            upb=upb,
+            rng=rng)
     else:
         # Infinite Random Jumps
-        return 2, get_infinite_jumper(upb=upb)
+        return 2, get_infinite_jumper(
+            upb=upb,
+            rng=rng)
 
 # Engine Objective and Helper Functions
 
@@ -769,7 +784,8 @@ def barcode_objectives(
 
 def get_distro(
     store,
-    liner):
+    liner,
+    rng=None):
     '''
     Compute and return the hamming
     distance distribution of store.
@@ -783,6 +799,9 @@ def get_distro(
     :: liner
        type - coroutine
        desc - dynamic printing
+    :: rng
+       type - np.random.Generator / None
+       desc - optional RNG instance
     '''
 
     # Book-keeping
@@ -799,7 +818,9 @@ def get_distro(
     # Select Samples
     if threshold < count:
         # store = store[np.lexsort(np.rot90(store))]
-        idxsample = sorted(np.random.permutation(
+        if rng is None:
+            rng = np.random.default_rng()
+        idxsample = sorted(rng.permutation(
             count)[:threshold])
         store = store[idxsample, :]
     else:
@@ -849,7 +870,8 @@ def barcode_engine(
     exmotifs,
     targetcount,
     stats,
-    liner):
+    liner,
+    rng=None):
     '''
     Return barcodes fulfilling all constraints.
     Internal use only.
@@ -899,6 +921,9 @@ def barcode_engine(
     :: liner
        type - coroutine
        desc - dynamic printing
+    :: rng
+       type - np.random.Generator / None
+       desc - optional RNG instance
     '''
 
     # Book-keeping
@@ -949,7 +974,8 @@ def barcode_engine(
     # Setup Jumper and Generator
     (jtp,
     jumper) = get_jumper(
-        barcodelen=barcodelen)
+        barcodelen=barcodelen,
+        rng=rng)
     barcodes = stream_barcodes(
         barcodelen=barcodelen,
         jumper=jumper)
@@ -970,7 +996,8 @@ def barcode_engine(
     verbage_target = ut.get_sample(
         value=targetcount,
         lf=0.080,
-        uf=0.120)
+        uf=0.120,
+        rng=rng)
     plen = ut.get_printlen(
         value=targetcount)
 

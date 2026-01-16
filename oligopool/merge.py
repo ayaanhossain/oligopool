@@ -26,7 +26,8 @@ def merge(
         - `merge_column` (`str`): Column name for the merged DNA.
 
     Optional Parameters:
-        - `output_file` (`str`): Filename for output DataFrame (default: `None`).
+        - `output_file` (`str`): Filename for output DataFrame; required in CLI usage,
+            optional in library usage (default: `None`).
         - `left_context_column` (`str`): Column for left DNA context (default: `None`).
         - `right_context_column` (`str`): Column for right DNA context (default: `None`).
         - `verbose` (`bool`): If `True`, logs updates to stdout (default: `True`).
@@ -67,6 +68,7 @@ def merge(
         required_fields=('ID',),
         precheck=False,
         liner=liner)
+    input_rows = len(indf.index) if isinstance(indf, pd.DataFrame) else 0
 
     # Full outcol Validation
     mergecol_valid = vp.get_parsed_column_info(
@@ -214,4 +216,9 @@ def merge(
     liner.close()
 
     # Return Solution and Statistics
+    stats = ut.stamp_stats(
+        stats=stats,
+        module='merge',
+        input_rows=input_rows,
+        output_rows=len(outdf.index) if outdf is not None else 0)
     return (outdf, stats)

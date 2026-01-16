@@ -15,7 +15,7 @@ setup(
     name='oligopool',
 
     # Link: https://www.python.org/dev/peps/pep-0440/#version-scheme
-    version='2026.01.15',
+    version='2026.01.16',
 
     description='Oligopool Calculator - Automated design and analysis of oligopool libraries',
 
@@ -98,6 +98,7 @@ setup(
         'numba>=0.60.0',
         'seaborn>=0.13.2',
         'multiprocess>=0.70.17',
+        'argcomplete>=3.2.3',
     ],
 
     project_urls={  # Optional

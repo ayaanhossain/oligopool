@@ -1,19 +1,35 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import sys
-import json
+'''
+Oligopool Calculator command-line interface.
+
+This module provides the `oligopool` and `op` entry points (see `setup.py`).
+
+Behavior notes:
+  - `op` prints a compact command menu.
+  - `op COMMAND` prints command-specific options (argparse errors show help).
+  - `op complete` prints/installs argcomplete setup (banner-free; safe for `eval`/sourcing).
+  - Banners are suppressed when `--stats-json` is used so stdout can be parsed as JSON.
+
+Implementation notes:
+  - `argcomplete.autocomplete(parser)` must run before any output is printed.
+  - Exit codes: 0 (success), 1 (runtime error / failed stats), 404 (argparse error).
+'''
+
 import argparse
-import textwrap
-import functools
 import datetime as dt
 import difflib
-
-import argcomplete
+import functools
+import json
 import os
 from pathlib import Path
+import sys
+import textwrap
 
-from . import __version__, __author__
+import argcomplete
+
+from . import __version__
 from .background import background
 from .barcode import barcode
 from .primer import primer
@@ -31,7 +47,8 @@ from .acount import acount
 from .xcount import xcount
 
 
-__doc__ = f'oligopool v{__version__}\nby ah'
+# Printed by `_print_header()`.
+BANNER_TEXT = f'oligopool v{__version__}\nby ah'
 
 CLI_MANUAL = '''
 Oligopool CLI Manual
@@ -45,12 +62,14 @@ Notes:
   - Run "oligopool COMMAND" to see command-specific options.
   - Use "oligopool manual topics" to list manual topics.
   - Use "oligopool cite" to print citation information.
+  - Use "op complete --print-instructions" to enable tab-completion.
 '''
 
 CLI_COMPLETE_MANUAL = '''
 Enable tab-completion (argcomplete)
 
 One-time install (recommended):
+  auto: op complete --install
   bash: op complete --install bash
    zsh: op complete --install zsh
   fish: op complete --install fish
@@ -71,7 +90,25 @@ ACS Synth Biol. 2024;13(12):4218-4232. doi:10.1021/acssynbio.4c00661
 Paper: https://pubs.acs.org/doi/10.1021/acssynbio.4c00661
 '''
 
-MANUAL_TOPIC_CHOICES = (
+MANUAL_TOPIC_TO_OBJECT = {
+    'background': background,
+    'barcode': barcode,
+    'primer': primer,
+    'motif': motif,
+    'spacer': spacer,
+    'split': split,
+    'pad': pad,
+    'merge': merge,
+    'revcomp': revcomp,
+    'lenstat': lenstat,
+    'final': final,
+    'index': index,
+    'pack': pack,
+    'acount': acount,
+    'xcount': xcount,
+}
+
+MANUAL_META_TOPICS = (
     'topics',
     'list',
     'cli',
@@ -80,27 +117,16 @@ MANUAL_TOPIC_CHOICES = (
     'package',
     'complete',
     'completion',
-    'background',
-    'barcode',
-    'primer',
-    'motif',
-    'spacer',
-    'split',
-    'pad',
-    'merge',
-    'revcomp',
-    'lenstat',
-    'final',
-    'index',
-    'pack',
-    'acount',
-    'xcount',
 )
 
-# Banner toggles to avoid duplicate prints in embedded contexts.
-header = False
-footer = False
+MANUAL_TOPIC_CHOICES = tuple(sorted(set(MANUAL_TOPIC_TO_OBJECT) | set(MANUAL_META_TOPICS)))
 
+# Banner toggles to prevent duplicate prints within a single process.
+_HEADER_PRINTED = False
+_FOOTER_PRINTED = False
+
+
+# === Argument parsing ===
 
 class OligopoolParser(argparse.ArgumentParser):
     '''
@@ -270,26 +296,30 @@ class OligopoolFormatter(argparse.RawTextHelpFormatter):
         return '\n'.join(lines)
 
 
+# === Banner helpers ===
+
 def _print_header():
     '''Print the CLI header banner once per process.'''
-    global header
-    if not header:
+    global _HEADER_PRINTED
+    if not _HEADER_PRINTED:
         print()
-        print(__doc__)
+        print(BANNER_TEXT)
         print()
-        header = True
+        _HEADER_PRINTED = True
 
 
 def _print_footer():
     '''Print the CLI footer banner once per process.'''
-    global footer
-    if not footer:
+    global _FOOTER_PRINTED
+    if not _FOOTER_PRINTED:
         # Use a fixed EST offset to keep the label stable (EST = UTC-05:00).
         now = dt.datetime.now(dt.timezone(dt.timedelta(hours=-5)))
         timestamp = now.strftime('%Y-%m-%d %I:%M:%S %p')
         print(f'\nEST {timestamp}\n')
-        footer = True
+        _FOOTER_PRINTED = True
 
+
+# === Common parsing helpers ===
 
 def _parse_list_str(value):
     '''Parse a comma-delimited string into a list of strings.'''
@@ -342,6 +372,8 @@ def _handle_result(result, args):
         return 0 if stats['status'] else 1
     return 0
 
+
+# === Subcommand parsing ===
 
 def _add_common_options(parser, opt_group=None):
     '''Register common CLI flags on the target parser/group.'''
@@ -443,7 +475,8 @@ def _completion_snippet(shell, include_hint=False):
     if include_hint:
         hint_lines = [
             '# Oligopool CLI tab-completion (argcomplete)',
-            f'# One-time install (recommended): op complete --install {shell}  (restart shell)',
+            '# One-time install (recommended): op complete --install  (restart shell)',
+            f'# Or: op complete --install {shell}',
             '# Show more help: op complete --print-instructions',
             '',
         ]
@@ -533,31 +566,13 @@ def _print_manual(topic):
                 lines = lines[1:]
         return '\n'.join(lines).strip()
 
-    topics = {
-        'background': background,
-        'barcode': barcode,
-        'primer': primer,
-        'motif': motif,
-        'spacer': spacer,
-        'split': split,
-        'pad': pad,
-        'merge': merge,
-        'revcomp': revcomp,
-        'lenstat': lenstat,
-        'final': final,
-        'index': index,
-        'pack': pack,
-        'acount': acount,
-        'xcount': xcount,
-    }
-
     if topic is None:
         print(CLI_MANUAL.strip())
         return 0
 
     key = str(topic).strip().lower()
     if key in ('list', 'topics'):
-        print('Available topics: {}'.format(', '.join(sorted(topics))))
+        print('Available topics: {}'.format(', '.join(sorted(MANUAL_TOPIC_TO_OBJECT))))
         return 0
     if key in ('cli', 'manual'):
         print(CLI_MANUAL.strip())
@@ -573,7 +588,7 @@ def _print_manual(topic):
         print('No manual is available.')
         return 1
 
-    target = topics.get(key)
+    target = MANUAL_TOPIC_TO_OBJECT.get(key)
     if target is None:
         print(f'No documentation available for "{topic}".')
         return 1
@@ -592,6 +607,8 @@ def _print_cite():
     print(CITATION_TEXT.strip())
     return 0
 
+
+# === Module subcommands ===
 
 def _add_background(cmdpar):
     '''Register the background subcommand parser.'''
@@ -1710,6 +1727,8 @@ def _get_parsers():
 
     return mainpar
 
+
+# === Entry point ===
 
 def main(argv=None):
     '''CLI entry point for Oligopool Calculator.

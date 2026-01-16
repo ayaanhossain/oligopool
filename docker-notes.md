@@ -7,7 +7,7 @@ To follow this mini guide you will need to have [`git`](https://git-scm.com/book
 
 ### Building `Oligopool Calculator` `docker` image.
 
-The first step in the process is to build a `oligopool` `docker` image.
+The first step in the process is to build an `oligopool` `docker` image.
 
 1. Either manually or via terminal download or clone this repository.
 ```bash
@@ -45,7 +45,7 @@ $ cd path/to/your/project
 ```bash
 $ docker run -it -v $(pwd):/op-workspace --name op-container oligopool-docker # Loads your project directory
 ```
-> **Note** `op-workspace` is just a name for your project directory inside container we spinned up, could be anything. Similarly `op-container` is the name of container we spinned from `oligpool-docker` image.
+> **Note** `op-workspace` is just a name for your project directory inside the container we spun up; it can be anything. Similarly `op-container` is the name of the container we spun up from the `oligopool-docker` image.
 
 3. If you are on `Windows`, the syntax for this is slightly different.
 ```powershell
@@ -54,7 +54,7 @@ $ docker run -it -v ${PWD}:/op-workspace --name op-container oligopool-docker # 
 
 4. Once the container is up and running, you can access your directory content.
 ```bash
-$ ll # for example, will show you your project directory content
+$ ls -la # for example, will show you your project directory content
 ```
 The terminal within the `docker` container will now be a `Linux` (Ubuntu) `bash` prompt. You can now execute any `oligopool` function or script from the terminal.
 ```bash
@@ -63,6 +63,12 @@ Python 3.12.3 (main, Sep 11 2024, 14:17:37) [GCC 13.2.0] on linux
 Type "help", "copyright", "credits" or "license" for more information.
 >>> import oligopool as op
 >>> op.__version__
+```
+You can also use the CLI entry points:
+```bash
+$ op
+$ op manual
+$ oligopool
 ```
 
 5. When you are done with the container work, simply exit from the terminal.
@@ -83,12 +89,17 @@ which will even show you stopped containers you spinned earlier. If you want to 
 
 Containers from the `oligopool-docker` image we just created can connect to `jupyter`. We will need to first map the port `8080` within the container to a port on our host machine.
 
-1. From your host machine terminal (this is outside the `container` prompt, so exit if you are within the container) map the port `8080` within container to port `8888` on your host and start an interactive `bash` session from your project directory.
+1. From your host machine terminal (this is outside the `container` prompt, so exit if you are within the container), map the port `8080` within the container to port `8888` on your host and start an interactive `bash` session from your project directory.
 ```bash
+$ docker run -p 8888:8080 -it -v $(pwd):/op-workspace --name op-container oligopool-docker
+```
+> **Note** The port `8080` within the `docker` image is exposed by design. If you want to expose different ports, modify the `EXPOSE` line in `Dockerfile` in the repo and rebuild the image.
+> Similarly, feel free to map to any port other than `8888` on your local host. You can even map `8080` within container to `8080` on your host.
+
+If you are on `Windows`, use:
+```powershell
 $ docker run -p 8888:8080 -it -v ${PWD}:/op-workspace --name op-container oligopool-docker
 ```
-> **Note** The port `8080` within the `docker` image is exposed by design. If you want to expose different ports, modify line 49 in `dockerfile` in the repo and rebuild the image.
-> Similarly, feel free to map to any port other than `8888` on your local host. You can even map `8080` within container to `8080` on your host.
 
 2. From the `bash` terminal within the container simply use the following
 ```bash
@@ -101,6 +112,6 @@ http://localhost:8888
 on your local browser. This is very similar to how we would start `jupyter` notebooks from the terminal on our host.
 
 
-> **Note** If you want more packages within this docker image, you can modify lines 29 and 35 in our `dockerfile`.
+> **Note** If you want more packages within this docker image, you can modify the `pip install` lines in our `Dockerfile`.
 
 ---

@@ -2,6 +2,7 @@ import time as tt
 
 import atexit as ae
 
+import numpy as np
 import pandas as pd
 
 from .base import utils as ut
@@ -19,7 +20,8 @@ def split(
     minimum_overlap_length:int,
     maximum_overlap_length:int,
     output_file:str|None=None,
-    verbose:bool=True) -> Tuple[pd.DataFrame, dict]:
+    verbose:bool=True,
+    random_seed:int|None=None) -> Tuple[pd.DataFrame, dict]:
     '''
     Splits longer oligos into shorter overlapping fragments with all overlaps at particular
     coordinates having specified minimum pairwise Hamming distances and minimum melting temperatures.
@@ -35,8 +37,10 @@ def split(
         - `maximum_overlap_length` (`int`): Maximum overlap region length (≥ 15).
 
     Optional Parameters:
-        - `output_file` (`str`): Filename for output DataFrame (default: `None`).
+        - `output_file` (`str`): Filename for output DataFrame; required in CLI usage,
+            optional in library usage (default: `None`).
         - `verbose` (`bool`): If `True`, logs updates to stdout (default: `True`).
+        - `random_seed` (`int` / `None`): Seed for local RNG (default: `None`).
 
     Returns:
         - A pandas DataFrame with split oligos; saves to `output_file` if specified.
@@ -58,6 +62,10 @@ def split(
     maxoverlap = maximum_overlap_length
     outfile    = output_file
     verbose    = verbose
+    random_seed = random_seed
+
+    # Local RNG
+    rng = np.random.default_rng(random_seed)
 
     # Start Liner
     liner = ut.liner_engine(verbose)
@@ -76,6 +84,7 @@ def split(
         required_fields=('ID',),
         precheck=False,
         liner=liner)
+    input_rows = len(indf.index) if isinstance(indf, pd.DataFrame) else 0
 
     # Full splitlimit Validation
     splitlimit_valid = vp.get_numeric_validity(
@@ -195,6 +204,12 @@ def split(
                 'min_split_count': minsplitcount,
                 'max_split_count': maxsplitcount,},
             'warns'   : warns}
+        stats['random_seed'] = random_seed
+        stats = ut.stamp_stats(
+            stats=stats,
+            module='split',
+            input_rows=input_rows,
+            output_rows=0)
 
         # Return results
         liner.close()
@@ -213,7 +228,8 @@ def split(
     seqmat) = cs.get_seqmat_padvec(
         seqlist=seqlist,
         maxoligolen=maxoligolen,
-        liner=liner)
+        liner=liner,
+        rng=rng)
 
     # Compute Sequence Matrix
     liner.send('\n[Step 3: Computing Entropy Vector]\n')
@@ -252,6 +268,12 @@ def split(
                   'merged_contig_count': mergedcontcount,
                   'filter_contig_count': filtercontcount},
             'warns'   : warns}
+        stats['random_seed'] = random_seed
+        stats = ut.stamp_stats(
+            stats=stats,
+            module='split',
+            input_rows=input_rows,
+            output_rows=0)
 
         # Return results
         liner.close()
@@ -275,6 +297,7 @@ def split(
               'infeasible_contigs': False,  # Infeasible Contigs Flag
                    'uneven_splits': False}, # Uneven Splits Flag
         'warns'   : warns}
+    stats['random_seed'] = random_seed
 
     # Schedule outfile deletion
     ofdeletion = ae.register(
@@ -313,7 +336,8 @@ def split(
             split=split,
             overlap=overlap,
             stats=stats,
-            liner=liner)
+            liner=liner,
+            rng=rng)
 
     # Split Status
     if stats['status']:
@@ -414,4 +438,9 @@ def split(
     liner.close()
 
     # Return Solution and Statistics
+    stats = ut.stamp_stats(
+        stats=stats,
+        module='split',
+        input_rows=input_rows,
+        output_rows=len(outdf.index) if outdf is not None else 0)
     return (outdf, stats)

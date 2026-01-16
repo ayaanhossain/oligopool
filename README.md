@@ -4,20 +4,21 @@
     </a>
 </h1>
 
-<h4><p align="center">Version: 2024.12.02</p></h4>
+<h4><p align="center">Version: 2026.01.15</p></h4>
 
 <p align="center">
   <a style="text-decoration: none" href="#Installation">Installation</a> •
   <a style="text-decoration: none" href="#Getting-Started">Getting Started</a> •
-  <a style="text-decoration: none" href="#License">License</a> •
-  <a style="text-decoration: none" href="#Citation">Citation</a>
+  <a style="text-decoration: none" href="#Command-Line-Interface-CLI">CLI</a> •
+  <a style="text-decoration: none" href="#Citation">Citation</a> •
+  <a style="text-decoration: none" href="#License">License</a>
 </p>
 
 `Oligopool Calculator` is a suite of algorithms for automated design and analysis of [oligopool libraries](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9300125/).
 
 It enables the scalable design of universal primer sets, error-correctable barcodes, the splitting of long constructs into multiple oligos, and the rapid packing and counting of barcoded reads -- all on a regular 8-core desktop computer.
 
-We have used `Oligopool Calculator` in multiple projects to build libraries of tens of thousands of promoters (see [here](https://www.nature.com/articles/s41467-022-32829-5) and [here](https://www.nature.com/articles/s41587-020-0584-2)), ribozymes, and mRNA stability elements (see [here](https://www.nature.com/articles/s41467-024-54059-7)), illustrating the use of a flexible grammar to add multiple barcodes, cut sites, avoid excluded sequences, and optimize experimental constraints. These libraries were later characterized using highly efficient barcode counting provided by `Oligopool Calculator`.
+We have used `Oligopool Calculator` in multiple projects to build libraries of tens of thousands of promoters (see [here](https://www.nature.com/articles/s41467-022-32829-5) and [here](https://www.nature.com/articles/s41587-020-0584-2)), ribozymes, and mRNA stability elements (see [here](https://www.nature.com/articles/s41467-024-54059-7)), illustrating the use of a flexible grammar to add multiple barcodes, cut sites, avoid excluded sequences, and optimize experimental constraints. These libraries were later characterized using highly efficient barcode counting provided by `Oligopool Calculator`. To learn more, please check out [our paper in ACS Synthetic Biology](https://pubs.acs.org/doi/10.1021/acssynbio.4c00661).
 
 `Oligopool Calculator` facilitates the creative design and application of massively parallel reporter assays by automating and simplifying the whole process. It has been benchmarked on simulated libraries containing millions of defined variants and to analyze billions of reads.
 
@@ -38,6 +39,7 @@ On `Linux`, `MacOS` and `Windows Subsystem for Linux` you can install `Oligopool
 ```bash
 $ pip install --upgrade oligopool # Installs and/or upgrades oligopool
 ```
+This also installs the command line tools: `oligopool` and `op`.
 or install it directly from GitHub.
 ```bash
 $ pip install git+https://github.com/ayaanhossain/oligopool.git
@@ -56,7 +58,7 @@ Python 3.10.9 | packaged by conda-forge | (main, Feb  2 2023, 20:20:04) [GCC 11.
 Type "help", "copyright", "credits" or "license" for more information.
 >>> import oligopool as op
 >>> op.__version__
-'2024.10.24'
+'2026.01.15'
 >>>
 ```
 
@@ -66,7 +68,7 @@ Type "help", "copyright", "credits" or "license" for more information.
 
 You can import the library and use its various functions either in a script or interactively inside a `jupyter` environment. Use `help(...)` to read the docs as necessary and follow along.
 
-There are examples of a [design parser](https://github.com/ayaanhossain/oligopool/blob/master/examples/design-parser/design_parser.py) and an [analysis pipleine](https://github.com/ayaanhossain/oligopool/blob/master/examples/analysis-pipeline/analysis_pipeline.py) inside the [`examples`](https://github.com/ayaanhossain/oligopool/tree/master/examples) directory.
+There are examples of a [design parser](https://github.com/ayaanhossain/oligopool/blob/master/examples/design-parser/design_parser.py) and an [analysis pipeline](https://github.com/ayaanhossain/oligopool/blob/master/examples/analysis-pipeline/analysis_pipeline.py) inside the [`examples`](https://github.com/ayaanhossain/oligopool/tree/master/examples) directory.
 
 A notebook demonstrating [`Oligopool Calculator` in action](https://github.com/ayaanhossain/oligopool/blob/master/examples/OligopoolCalculatorInAction.ipynb) is provided there as well.
 
@@ -78,7 +80,7 @@ Type "help", "copyright", "credits" or "license" for more information.
 >>> import oligopool as op
 >>> help(op)
 ...
-    oligopool v2024.11.24
+    oligopool v2026.01.15
     by ah
 
     Automated design and analysis of oligopool libraries.
@@ -204,10 +206,78 @@ Type "help", "copyright", "credits" or "license" for more information.
 ...
 ```
 
+### Command Line Interface (CLI)
+
+The `oligopool` package installs a CLI with two equivalent entry points: `oligopool` and `op`.
+
+```bash
+$ op
+$ op manual
+$ op manual topics
+$ op manual barcode
+```
+
+At a glance, running `op` or `oligopool` with no arguments prints available commands:
+```bash
+$ op
+
+oligopool v2026.01.15
+by ah
+
+usage: oligopool COMMAND --argument=<value> ...
+
+COMMANDS Available:
+
+    manual      show module documentation
+    background  build background k-mer database
+    barcode     design constrained barcodes
+    primer      design constrained primers
+    motif       design or add motifs
+    spacer      design or insert spacers
+    split       split oligos into fragments
+    pad         pad split oligos with primers
+    merge       merge elements into one column
+    revcomp     reverse complement elements
+    lenstat     compute length statistics
+    final       finalize library
+    index       index barcodes and associates
+    pack        pack fastq reads
+    acount      association counting
+    xcount      combinatorial counting
+
+Note: Run "oligopool COMMAND" to see command-specific options.
+```
+
+Most CLI subcommands write outputs to disk, so `--output-file` is required for commands that produce output DataFrames (for example: `barcode`, `primer`, `motif`, `spacer`, `split`, `pad`, `merge`, `revcomp`, `final`).
+
+Example:
+```bash
+$ op barcode \
+  --input-data initial_library.csv \
+  --oligo-length-limit 200 \
+  --barcode-length 20 \
+  --minimum-hamming-distance 3 \
+  --maximum-repeat-length 6 \
+  --barcode-column Barcode \
+  --output-file library_with_barcodes.csv
+```
+
+## Citation
+
+If you use `Oligopool Calculator` or libraries designed or analyzed using the tool in your research publication, please cite
+
+```
+Hossain A, Cetnar DP, LaFleur TL, McLellan JR, Salis HM.
+Automated Design of Oligopools and Rapid Analysis of Massively Parallel Barcoded Measurements.
+ACS Synth Biol. 2024;13(12):4218-4232. doi:10.1021/acssynbio.4c00661
+```
+
+You can read the complete article online at [ACS Synthetic Biology](https://doi.org/10.1021/acssynbio.4c00661).
+
 ## License
 
-`Oligpool Calculator` (c) 2024 Ayaan Hossain.
+`Oligopool Calculator` (c) 2024 Ayaan Hossain.
 
-`Oligpool Calculator` is an **open-source software** under [GPL-3.0](https://opensource.org/license/gpl-3-0) License.
+`Oligopool Calculator` is an **open-source software** under [GPL-3.0](https://opensource.org/license/gpl-3-0) License.
 
 See [LICENSE](https://github.com/ayaanhossain/oligopool/blob/master/LICENSE) file for more details.

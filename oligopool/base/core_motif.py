@@ -830,7 +830,8 @@ def motif_engine(
     suffixdict,
     targetcount,
     stats,
-    liner):
+    liner,
+    rng=None):
     '''
     Compute edge-effect free constrained
     motifs within given contexts.
@@ -899,6 +900,9 @@ def motif_engine(
     :: liner
        type - coroutine
        desc - dynamic printing
+    :: rng
+       type - np.random.Generator / None
+       desc - optional RNG instance
     '''
 
     # Book-keeping
@@ -929,9 +933,12 @@ def motif_engine(
             leftselector = rightselector = None
 
         # Define Maker Instance
+        seed = None
+        if rng is not None:
+            seed = int(rng.integers(0, 2**32 - 1))
         maker = nr.base.maker.NRPMaker(
             part_type='DNA',
-            seed=None)
+            seed=seed)
 
         # Core Design Loop
         while contextarray:
@@ -1107,7 +1114,8 @@ def spacer_engine(
     suffixdict,
     targetcount,
     stats,
-    liner):
+    liner,
+    rng=None):
     '''
     Compute constrained degenerate
     spacer contextually.
@@ -1159,6 +1167,9 @@ def spacer_engine(
     :: liner
        type - coroutine
        desc - dynamic printing
+    :: rng
+       type - np.random.Generator / None
+       desc - optional RNG instance
     '''
 
     # Book-keeping
@@ -1183,9 +1194,12 @@ def spacer_engine(
             sequences=exmotifs)
 
     # Define Maker Instance
+    seed = None
+    if rng is not None:
+        seed = int(rng.integers(0, 2**32 - 1))
     maker = nr.base.maker.NRPMaker(
         part_type='DNA',
-        seed=None)
+        seed=seed)
 
     # Core Design Outer Loop
     while spacergroup:

@@ -87,6 +87,7 @@ def index(
         required_fields=('ID',),
         precheck=False,
         liner=liner)
+    input_rows = len(bardf.index) if isinstance(bardf, pd.DataFrame) else 0
 
     # Sort bardf
     if barcodedata_valid:
@@ -282,6 +283,11 @@ def index(
                    'max_barcode_len': maxbarcodelen,
                 'barcode_len_unique': barcodelenuniq},
             'warns'   : warns}
+        stats = ut.stamp_stats(
+            stats=stats,
+            module='index',
+            input_rows=input_rows,
+            output_rows=0)
 
         # Return results
         liner.close()
@@ -319,11 +325,16 @@ def index(
                 'constants_extracted': constantsextracted,
                    'constants_unique': constantsuniq,
                      'long_constants': longconstants,
-                      'prefix_unique': prefixuniq,
-                      'suffix_unique': suffixuniq,
-                         'prefix_len': prefixlen,
-                         'suffix_len': suffixlen},
+                     'prefix_unique': prefixuniq,
+                     'suffix_unique': suffixuniq,
+                        'prefix_len': prefixlen,
+                        'suffix_len': suffixlen},
             'warns'   : warns}
+        stats = ut.stamp_stats(
+            stats=stats,
+            module='index',
+            input_rows=input_rows,
+            output_rows=0)
 
         # Return results
         liner.close()
@@ -386,6 +397,11 @@ def index(
                              'prefix_len': prefixlen,
                              'suffix_len': suffixlen},
                 'warns'   : warns}
+            stats = ut.stamp_stats(
+                stats=stats,
+                module='index',
+                input_rows=input_rows,
+                output_rows=0)
 
             # Return results
             liner.close()
@@ -473,4 +489,9 @@ def index(
     # Close Liner
     liner.close()
 
+    stats = ut.stamp_stats(
+        stats=stats,
+        module='index',
+        input_rows=input_rows,
+        output_rows=0)
     return stats

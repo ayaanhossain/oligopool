@@ -54,6 +54,7 @@ def lenstat(
         required_fields=('ID',),
         precheck=False,
         liner=liner)
+    input_rows = len(indf.index) if isinstance(indf, pd.DataFrame) else 0
 
     # Full oligolimit Validation
     oligolimit_valid = vp.get_numeric_validity(
@@ -153,4 +154,9 @@ def lenstat(
     liner.close()
 
     # Return Results
+    stats = ut.stamp_stats(
+        stats=stats,
+        module='lenstat',
+        input_rows=input_rows,
+        output_rows=0)
     return stats

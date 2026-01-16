@@ -23,7 +23,8 @@ def spacer(
     left_context_column:str|None=None,
     right_context_column:str|None=None,
     excluded_motifs:list|str|pd.DataFrame|None=None,
-    verbose:bool=True) -> Tuple[pd.DataFrame, dict]:
+    verbose:bool=True,
+    random_seed:int|None=None) -> Tuple[pd.DataFrame, dict]:
     '''
     Inserts a fixed or variable length neutral spacer free of excluded motifs. If the spacer length
     is not specified, then the spacer per oligo is such that the final length of the oligo matches
@@ -36,7 +37,8 @@ def spacer(
         - `spacer_column` (`str`): Column name for inserting the designed spacers.
 
     Optional Parameters:
-        - `output_file` (`str`): Filename for output DataFrame (default: `None`).
+        - `output_file` (`str`): Filename for output DataFrame; required in CLI usage,
+            optional in library usage (default: `None`).
         - `spacer_length` (`int` / `list` / `str` / `pd.DataFrame`): Length of the inserted spacers,
             can be defined per oligo in a list or a DataFrame; if `None` the spacer length per oligo
             is determined automatically to match `oligo_length_limit` (default: `None`).
@@ -45,6 +47,7 @@ def spacer(
         - `excluded_motifs` (`list` / `str` / `pd.DataFrame`): Motifs to exclude;
             can be a CSV path or DataFrame (default: `None`).
         - `verbose` (`bool`): If `True`, logs updates to stdout (default: `True`).
+        - `random_seed` (`int` / `None`): Seed for local RNG (default: `None`).
 
     Returns:
         - A pandas DataFrame of inserted spacers; saves to `output_file` if specified.
@@ -70,6 +73,10 @@ def spacer(
     rightcontext = right_context_column
     exmotifs     = excluded_motifs
     verbose      = verbose
+    random_seed  = random_seed
+
+    # Local RNG
+    rng = np.random.default_rng(random_seed)
 
     # Start Liner
     liner = ut.liner_engine(verbose)
@@ -88,6 +95,7 @@ def spacer(
         required_fields=('ID',),
         precheck=False,
         liner=liner)
+    input_rows = len(indf.index) if isinstance(indf, pd.DataFrame) else 0
 
     # Full oligolimit Validation
     oligolimit_valid = vp.get_numeric_validity(
@@ -273,6 +281,12 @@ def spacer(
                 'min_space_avail': minspaceavail,
                 'max_space_avail': maxspaceavail},
             'warns'   : warns}
+        stats['random_seed'] = random_seed
+        stats = ut.stamp_stats(
+            stats=stats,
+            module='spacer',
+            input_rows=input_rows,
+            output_rows=0)
 
         # Return results
         liner.close()
@@ -330,6 +344,12 @@ def spacer(
                     'prob_count': tuple(list(
                         4**pl for pl in problens))},
                 'warns'   : warns}
+            stats['random_seed'] = random_seed
+            stats = ut.stamp_stats(
+                stats=stats,
+                module='spacer',
+                input_rows=input_rows,
+                output_rows=0)
 
             # Return results
             liner.close()
@@ -424,6 +444,12 @@ def spacer(
                 'fill_count'    : fillcount,
                 'free_count'    : freecount},
             'warns' : warns}
+        stats['random_seed'] = random_seed
+        stats = ut.stamp_stats(
+            stats=stats,
+            module='spacer',
+            input_rows=input_rows,
+            output_rows=0)
 
         # Return results
         liner.close()
@@ -440,13 +466,14 @@ def spacer(
         'step_name': 'computing-spacers',
         'vars'    : {
                'target_count': targetcount,   # Required Number of Spacers
-               'spacer_count': 0,             # Spacer Design Count
+                'spacer_count': 0,             # Spacer Design Count
                'orphan_oligo': None,          # Orphan Oligo Indexes
                 'repeat_fail': 0,             # Repeat Fail Count
                'exmotif_fail': 0,             # Exmotif Elimination Fail Count
                   'edge_fail': 0,             # Edge Effect Fail Count
             'exmotif_counter': cx.Counter()}, # Exmotif Encounter Counter
         'warns'   : warns}
+    stats['random_seed'] = random_seed
 
     # Schedule outfile deletion
     ofdeletion = ae.register(
@@ -467,7 +494,8 @@ def spacer(
         suffixdict=suffixdict,
         targetcount=targetcount,
         stats=stats,
-        liner=liner)
+        liner=liner,
+        rng=rng)
 
     # Spacer Status
     if stats['status']:
@@ -594,4 +622,9 @@ def spacer(
     liner.close()
 
     # Return Solution and Statistics
+    stats = ut.stamp_stats(
+        stats=stats,
+        module='spacer',
+        input_rows=input_rows,
+        output_rows=len(outdf.index) if outdf is not None else 0)
     return (outdf, stats)

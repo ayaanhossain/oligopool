@@ -15,7 +15,7 @@ setup(
     name='oligopool',
 
     # Link: https://www.python.org/dev/peps/pep-0440/#version-scheme
-    version='2024.12.02',
+    version='2026.01.15',
 
     description='Oligopool Calculator - Automated design and analysis of oligopool libraries',
 
@@ -103,5 +103,12 @@ setup(
     project_urls={  # Optional
         'Bug Reports': 'https://github.com/ayaanhossain/oligopool/issues',
         'Source'     : 'https://github.com/ayaanhossain/oligopool/tree/master/oligopool',
+    },
+
+    entry_points={
+        'console_scripts': [
+            'oligopool=oligopool.cli:main',
+            'op=oligopool.cli:main',
+        ],
     },
 )

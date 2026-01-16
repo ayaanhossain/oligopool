@@ -59,6 +59,7 @@ def background(
         df_field='Sequence',
         required=True,
         liner=liner)
+    input_rows = len(background) if background is not None else 0
 
     # Full maxreplen Validation
     maxreplen_valid = vp.get_numeric_validity(
@@ -181,4 +182,9 @@ def background(
     liner.close()
 
     # Return Statistics
+    stats = ut.stamp_stats(
+        stats=stats,
+        module='background',
+        input_rows=input_rows,
+        output_rows=0)
     return stats

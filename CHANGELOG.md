@@ -1,3 +1,12 @@
+2026.01.15
+1. Version bump.
+2. Standardized RNG seeding for stochastic design/assembly modules.
+3. Added baseline stats keys across modules (module, input_rows, output_rows).
+4. Improved validation messages with row-context examples.
+5. Clarified public API exports via `__all__`.
+6. Added CLI entry points (`oligopool`, `op`) including `manual` command and subcommands for major modules.
+7. Updated README citation formatting, version references, and CLI notes.
+
 2024.12.02
 1. Fixed a small `core_count` print gap.
 2. Version bump.

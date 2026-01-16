@@ -73,6 +73,7 @@ def pack(
     ncores   = core_count
     memlimit = memory_limit
     verbose  = verbose
+    input_rows = 0
 
     # Start Liner
     liner = ut.liner_engine(online=verbose)
@@ -707,4 +708,9 @@ def pack(
     liner.close()
 
     # Return Statistics
+    stats = ut.stamp_stats(
+        stats=stats,
+        module='pack',
+        input_rows=input_rows,
+        output_rows=0)
     return stats

@@ -3,6 +3,7 @@ import time as tt
 import collections as cx
 import atexit as ae
 
+import numpy  as np
 import pandas  as pd
 
 from .base import utils as ut
@@ -23,7 +24,8 @@ def motif(
     left_context_column:str|None=None,
     right_context_column:str|None=None,
     excluded_motifs:list|str|pd.DataFrame|None=None,
-    verbose:bool=True) -> Tuple[pd.DataFrame, dict]:
+    verbose:bool=True,
+    random_seed:int|None=None) -> Tuple[pd.DataFrame, dict]:
     '''
     Adds a constant or designs constrained motifs free of edge-effects between the given sequence
     contexts. Addition of motifs will not produce excluded motifs unless one was embedded in it.
@@ -37,13 +39,15 @@ def motif(
         - `motif_column` (`str`): Column name for inserting the designed motifs.
 
     Optional Parameters:
-        - `output_file` (`str`): Filename for output DataFrame (default: `None`).
+        - `output_file` (`str`): Filename for output DataFrame; required in CLI usage,
+            optional in library usage (default: `None`).
         - `motif_type` (`int`): Motif type to design (0 for non-constant, 1 for constant, default: 0).
         - `left_context_column` (`str`): Column for left DNA context (default: `None`).
         - `right_context_column` (`str`): Column for right DNA context (default: `None`).
         - `excluded_motifs` (`list` / `str` / `pd.DataFrame`): Motifs to exclude;
             can be a CSV path or DataFrame (default: `None`).
         - `verbose` (`bool`): If `True`, logs updates to stdout (default: `True`).
+        - `random_seed` (`int` / `None`): Seed for local RNG (default: `None`).
 
     Returns:
         - A pandas DataFrame of added motifs; saves to `output_file` if specified.
@@ -70,6 +74,10 @@ def motif(
     rightcontext = right_context_column
     exmotifs     = excluded_motifs
     verbose      = verbose
+    random_seed  = random_seed
+
+    # Local RNG
+    rng = np.random.default_rng(random_seed)
 
     # Start Liner
     liner = ut.liner_engine(verbose)
@@ -88,6 +96,7 @@ def motif(
         required_fields=('ID',),
         precheck=False,
         liner=liner)
+    input_rows = len(indf.index) if isinstance(indf, pd.DataFrame) else 0
 
     # Full oligolimit Validation
     oligolimit_valid = vp.get_numeric_validity(
@@ -271,6 +280,12 @@ def motif(
                 'min_space_avail': minspaceavail,
                 'max_space_avail': maxspaceavail},
             'warns'   : warns}
+        stats['random_seed'] = random_seed
+        stats = ut.stamp_stats(
+            stats=stats,
+            module='motif',
+            input_rows=input_rows,
+            output_rows=0)
 
         # Return results
         liner.close()
@@ -320,6 +335,12 @@ def motif(
                     'prob_count': tuple(list(
                         4**pl for pl in problens))},
                 'warns'   : warns}
+            stats['random_seed'] = random_seed
+            stats = ut.stamp_stats(
+                stats=stats,
+                module='motif',
+                input_rows=input_rows,
+                output_rows=0)
 
             # Return results
             liner.close()
@@ -439,6 +460,12 @@ def motif(
                 'fill_count'    : fillcount,
                 'free_count'    : freecount},
             'warns' : warns}
+        stats['random_seed'] = random_seed
+        stats = ut.stamp_stats(
+            stats=stats,
+            module='motif',
+            input_rows=input_rows,
+            output_rows=0)
 
         # Return results
         liner.close()
@@ -462,6 +489,7 @@ def motif(
                   'edge_fail': 0,             # Edge Effect Fail Count
             'exmotif_counter': cx.Counter()}, # Exmotif Encounter Counter
         'warns'   : warns}
+    stats['random_seed'] = random_seed
 
     # Schedule outfile deletion
     ofdeletion = ae.register(
@@ -487,7 +515,8 @@ def motif(
         suffixdict=suffixdict,
         targetcount=targetcount,
         stats=stats,
-        liner=liner)
+        liner=liner,
+        rng=rng)
 
     # Motif Status
     if stats['status']:
@@ -614,4 +643,9 @@ def motif(
     liner.close()
 
     # Return Solution and Statistics
+    stats = ut.stamp_stats(
+        stats=stats,
+        module='motif',
+        input_rows=input_rows,
+        output_rows=len(outdf.index) if outdf is not None else 0)
     return (outdf, stats)

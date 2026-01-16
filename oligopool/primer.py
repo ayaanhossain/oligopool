@@ -3,6 +3,7 @@ import time as tt
 import collections as cx
 import atexit as ae
 
+import numpy as np
 import pandas as pd
 
 from .base import utils as ut
@@ -28,7 +29,8 @@ def primer(
     right_context_column:str|None=None,
     excluded_motifs:list|str|pd.DataFrame|None=None,
     background_directory:str|None=None,
-    verbose:bool=True) -> Tuple[pd.DataFrame, dict]:
+    verbose:bool=True,
+    random_seed:int|None=None) -> Tuple[pd.DataFrame, dict]:
     '''
     Designs constrained primers with specified melting temperature and non-repetitiveness
     for all variants in the oligopool. Ensures compatibility with paired primers and minimizes
@@ -46,7 +48,8 @@ def primer(
         - `primer_column` (`str`): Column name for the designed primer.
 
     Optional Parameters:
-        - `output_file` (`str`): Filename for output DataFrame (default: `None`).
+        - `output_file` (`str`): Filename for output DataFrame; required in CLI usage,
+            optional in library usage (default: `None`).
         - `paired_primer_column` (`str`): Column for paired primer sequence (default: `None`).
         - `left_context_column` (`str`): Column for left DNA context (default: `None`).
         - `right_context_column` (`str`): Column for right DNA context (default: `None`).
@@ -54,6 +57,7 @@ def primer(
             can be a CSV path or DataFrame (default: `None`).
         - `background_directory` (`str`): Directory for background k-mer sequences (default: `None`).
         - `verbose` (`bool`): If `True`, logs updates to stdout (default: `True`).
+        - `random_seed` (`int` / `None`): Seed for local RNG (default: `None`).
 
     Returns:
         - A pandas DataFrame of designed primers; saves to `output_file` if specified.
@@ -87,6 +91,10 @@ def primer(
     exmotifs     = excluded_motifs
     background   = background_directory
     verbose      = verbose
+    random_seed  = random_seed
+
+    # Local RNG
+    rng = np.random.default_rng(random_seed)
 
     # Start Liner
     liner = ut.liner_engine(verbose)
@@ -105,6 +113,7 @@ def primer(
         required_fields=('ID',),
         precheck=False,
         liner=liner)
+    input_rows = len(indf.index) if isinstance(indf, pd.DataFrame) else 0
 
     # Full oligolimit Validation
     oligolimit_valid = vp.get_numeric_validity(
@@ -326,6 +335,12 @@ def primer(
                 'min_space_avail': minspaceavail,
                 'max_space_avail': maxspaceavail},
             'warns'   : warns}
+        stats['random_seed'] = random_seed
+        stats = ut.stamp_stats(
+            stats=stats,
+            module='primer',
+            input_rows=input_rows,
+            output_rows=0)
 
         # Return results
         liner.close()
@@ -375,6 +390,12 @@ def primer(
                     'prob_count': tuple(list(
                         4**pl for pl in problens))},
                 'warns'   : warns}
+            stats['random_seed'] = random_seed
+            stats = ut.stamp_stats(
+                stats=stats,
+                module='primer',
+                input_rows=input_rows,
+                output_rows=0)
 
             # Return results
             liner.close()
@@ -428,6 +449,12 @@ def primer(
                 'internal_repeats': internalrepeats,
                   'paired_repeats': pairedrepeats},
             'warns'   : warns}
+        stats['random_seed'] = random_seed
+        stats = ut.stamp_stats(
+            stats=stats,
+            module='primer',
+            input_rows=input_rows,
+            output_rows=0)
 
         # Return results
         liner.close()
@@ -457,7 +484,8 @@ def primer(
         mintmelt=mintmelt,
         maxtmelt=maxtmelt,
         element='Primer',
-        liner=liner)
+        liner=liner,
+        rng=rng)
 
     # mintmelt and maxtmelt infeasible
     if not parsestatus:
@@ -474,6 +502,12 @@ def primer(
                    'higher_min_Tm': higherminTm,
                     'lower_max_Tm': lowermaxTm},
             'warns'   : warns}
+        stats['random_seed'] = random_seed
+        stats = ut.stamp_stats(
+            stats=stats,
+            module='primer',
+            input_rows=input_rows,
+            output_rows=0)
 
         # Return results
         liner.close()
@@ -557,6 +591,12 @@ def primer(
                 'fill_count'    : fillcount,
                 'free_count'    : freecount},
             'warns'   : warns}
+        stats['random_seed'] = random_seed
+        stats = ut.stamp_stats(
+            stats=stats,
+            module='primer',
+            input_rows=input_rows,
+            output_rows=0)
 
         # Return results
         liner.close()
@@ -585,6 +625,7 @@ def primer(
                    'edge_fail': 0,             # Edge Effect Fail Count
              'exmotif_counter': cx.Counter()}, # Exmotif Encounter Counter
         'warns'   : warns}
+    stats['random_seed'] = random_seed
 
     # Schedule outfile deletion
     ofdeletion = ae.register(
@@ -613,7 +654,8 @@ def primer(
         suffixdict=suffixdict,
         background=background,
         stats=stats,
-        liner=liner)
+        liner=liner,
+        rng=rng)
 
     # Primer Status
     if stats['status']:
@@ -775,4 +817,9 @@ def primer(
     liner.close()
 
     # Return Solution and Statistics
+    stats = ut.stamp_stats(
+        stats=stats,
+        module='primer',
+        input_rows=input_rows,
+        output_rows=len(outdf.index) if outdf is not None else 0)
     return (outdf, stats)

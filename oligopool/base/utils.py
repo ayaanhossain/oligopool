@@ -569,7 +569,7 @@ def safelog(A, n=10):
 
     return np.log(A) / np.log(n) if (A > 0. and n > 0.) else 0.
 
-def get_sample(value, lf, uf):
+def get_sample(value, lf, uf, rng=None):
     '''
     Return a random integer between
     (lf*value, uf*value).
@@ -586,13 +586,93 @@ def get_sample(value, lf, uf):
        type - nu.Real
        desc - sample upper bound fraction
               of value
+    :: rng
+       type - np.random.Generator / None
+       desc - optional RNG instance
     '''
 
     if min(lf*value, uf*value) <= 10:
         return round(value / 2)
-    return np.random.randint(
-        *map(np.round, (value * lf,
-                        value * uf)))
+    low, high = map(
+        lambda x: int(np.round(x)),
+        (value * lf, value * uf))
+    if rng is None:
+        rng = np.random.default_rng()
+    return int(rng.integers(low, high))
+
+def stamp_stats(stats, module, input_rows=None, output_rows=None):
+    '''
+    Add standardized stats keys. Internal use only.
+
+    :: stats
+       type - dict / None
+       desc - stats dictionary to update
+    :: module
+       type - string
+       desc - module name
+    :: input_rows
+       type - int / None
+       desc - number of input rows
+    :: output_rows
+       type - int / None
+       desc - number of output rows
+    '''
+    if stats is None:
+        return stats
+    stats['module'] = module
+    stats['input_rows'] = 0 if input_rows is None else int(input_rows)
+    stats['output_rows'] = 0 if output_rows is None else int(output_rows)
+    return stats
+
+def get_row_examples(df, invalid_mask, id_col='ID', limit=5):
+    '''
+    Return example row identifiers for an invalid mask. Internal use only.
+
+    :: df
+       type - pd.DataFrame
+       desc - DataFrame for row context
+    :: invalid_mask
+       type - iterable / pd.Series / np.array
+       desc - boolean mask for invalid rows
+    :: id_col
+       type - string
+       desc - column name for row IDs
+    :: limit
+       type - integer
+       desc - maximum number of examples to return
+    '''
+
+    if df is None or invalid_mask is None:
+        return []
+
+    try:
+        if id_col in getattr(df, 'columns', []):
+            values = df.loc[invalid_mask, id_col]
+        else:
+            values = df.index[invalid_mask]
+    except Exception:
+        return []
+
+    examples = []
+    for value in list(values)[:limit]:
+        examples.append(str(value))
+    return examples
+
+def format_row_examples(examples, label='Failing ID examples'):
+    '''
+    Format row example list for messages. Internal use only.
+
+    :: examples
+       type - list
+       desc - list of example identifiers
+    :: label
+       type - string
+       desc - label prefix
+    '''
+
+    if not examples:
+        return ''
+    return f' {label}: {examples}'
 
 
 # --= DataFrame Functions =--

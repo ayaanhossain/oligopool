@@ -23,7 +23,8 @@ def final(
         - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated oligopool variants.
 
     Optional Parameters:
-        - `output_file` (`str`): Filename for output DataFrame (default: `None`).
+        - `output_file` (`str`): Filename for output DataFrame; required in CLI usage,
+            optional in library usage (default: `None`).
         - `verbose` (`bool`): If `True`, logs updates to stdout (default: `True`).
 
     Returns:
@@ -57,6 +58,7 @@ def final(
         required_fields=('ID',),
         precheck=False,
         liner=liner)
+    input_rows = len(indf.index) if isinstance(indf, pd.DataFrame) else 0
 
     # Full outfile Validation
     outfile_valid = vp.get_outdf_validity(
@@ -158,4 +160,9 @@ def final(
     liner.close()
 
     # Return Solution and Statistics
+    stats = ut.stamp_stats(
+        stats=stats,
+        module='final',
+        input_rows=input_rows,
+        output_rows=len(outdf.index) if outdf is not None else 0)
     return (outdf, stats)

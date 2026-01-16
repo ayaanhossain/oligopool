@@ -97,6 +97,7 @@ def xcount(
         packfile=packfile,
         packfile_field='      Pack File   ',
         liner=liner)
+    input_rows = packcount if packfile_valid else 0
 
     # Adjust packfile Suffix
     if packfile_valid:
@@ -208,6 +209,11 @@ def xcount(
                 'vars'    : {
                     'failed_inputs': failedinputs},
                 'warns'   : warns}
+            stats = ut.stamp_stats(
+                stats=stats,
+                module='xcount',
+                input_rows=input_rows,
+                output_rows=0)
 
             # Return results
             liner.close()
@@ -560,4 +566,9 @@ def xcount(
     liner.close()
 
     # Return Counts and Statistics
+    stats = ut.stamp_stats(
+        stats=stats,
+        module='xcount',
+        input_rows=input_rows,
+        output_rows=len(outdf.index) if outdf is not None else 0)
     return (outdf, stats)

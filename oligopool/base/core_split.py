@@ -149,7 +149,7 @@ def get_seqvec(seq):
         tuple(float(ord(nt)) for nt in seq),
         dtype=np.float64)
 
-def get_padded_seq(seq, diff):
+def get_padded_seq(seq, diff, rng=None):
     '''
     Return 3' padded sequence.
     Internal use only.
@@ -160,12 +160,17 @@ def get_padded_seq(seq, diff):
     :: diff
        type - integer
        desc - amount of 3' padding
+    :: rng
+       type - np.random.Generator / None
+       desc - optional RNG instance
     '''
 
-    return seq + ''.join(np.random.choice(
-        list('ATGC')) for _ in range(diff))
+    if rng is None:
+        rng = np.random.default_rng()
+    pad = rng.choice(list('ATGC'), size=diff)
+    return seq + ''.join(pad.tolist())
 
-def get_seqmat_padvec(seqlist, maxoligolen, liner):
+def get_seqmat_padvec(seqlist, maxoligolen, liner, rng=None):
     '''
     Return the numeric representation
     of seqlist and the vector of added
@@ -178,6 +183,9 @@ def get_seqmat_padvec(seqlist, maxoligolen, liner):
        type - integer
        desc - length of the longest oligo
               in the pool
+    :: rng
+       type - np.random.Generator / None
+       desc - optional RNG instance
     :: liner
        type - coroutine
        desc - dynamic printing
@@ -199,7 +207,10 @@ def get_seqmat_padvec(seqlist, maxoligolen, liner):
     # Fill Store
     for idx,seq in enumerate(seqlist):
         diff   = padvec[idx]
-        padseq = get_padded_seq(seq=seq, diff=diff)
+        padseq = get_padded_seq(
+            seq=seq,
+            diff=diff,
+            rng=rng)
         seqvec = get_seqvec(seq=padseq)
         seqmat[idx, :] = seqvec
 
@@ -923,7 +934,8 @@ def aggregate_stats(
     split,
     overlap,
     stats,
-    liner):
+    liner,
+    rng=None):
     '''
     Aggregate Melting Temperature, Hamming
     Distance distribution and other metrics
@@ -949,6 +961,9 @@ def aggregate_stats(
     :: liner
        type - coroutine
        desc - dynamic printing
+    :: rng
+       type - np.random.Generator / None
+       desc - optional RNG instance
     '''
 
     # Book-keeping
@@ -994,7 +1009,9 @@ def aggregate_stats(
             if jdx < len(seqlist)-1:
 
                 # Fetch Subsample Coordinates
-                sxr = np.random.randint(
+                if rng is None:
+                    rng = np.random.default_rng()
+                sxr = rng.integers(
                     low=jdx+1,
                     high=len(seqlist),
                     size=min(edges, len(seqlist)-jdx-1))

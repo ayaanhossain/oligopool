@@ -276,7 +276,7 @@ You can read the complete article online at [ACS Synthetic Biology](https://doi.
 
 ## License
 
-`Oligopool Calculator` (c) 2024 Ayaan Hossain.
+`Oligopool Calculator` (c) 2024-2026 Ayaan Hossain.
 
 `Oligopool Calculator` is an **open-source software** under [GPL-3.0](https://opensource.org/license/gpl-3-0) License.
 

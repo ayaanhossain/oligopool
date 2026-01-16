@@ -6,7 +6,6 @@ import json
 import argparse
 import textwrap
 import functools
-import importlib
 import datetime as dt
 
 from . import __version__, __author__
@@ -171,20 +170,6 @@ def _parse_list_int(value):
     if value.lstrip('-').isdigit():
         return int(value)
     return value
-
-
-def _load_callback(callback_spec):
-    """Resolve a module:function callback spec into a callable."""
-    if callback_spec is None:
-        return None
-    if ':' not in callback_spec:
-        raise ValueError('callback must be in module:function form')
-    module_name, func_name = callback_spec.split(':', 1)
-    module = importlib.import_module(module_name)
-    func = getattr(module, func_name)
-    if not callable(func):
-        raise TypeError('callback is not callable')
-    return func
 
 
 def _dump_stats(stats, args):
@@ -1311,13 +1296,6 @@ Max barcode errors (-1 = auto-infer).
 Max associate errors (-1 = auto-infer).
 (default: -1)''')
     opt.add_argument(
-        '--callback',
-        type=str,
-        default=None,
-        metavar='\b',
-        help='''>>[optional string]
-Callback in module:function form, called as callback(read, ID, count, coreid).''')
-    opt.add_argument(
         '--core-count',
         type=int,
         default=0,
@@ -1391,13 +1369,6 @@ Max barcode errors (-1 = auto-infer).
         help='''>>[optional integer]
 Max associate errors (-1 = auto-infer).
 (default: -1)''')
-    opt.add_argument(
-        '--callback',
-        type=str,
-        default=None,
-        metavar='\b',
-        help='''>>[optional string]
-Callback in module:function form, called as callback(read, ID, count, coreid).''')
     opt.add_argument(
         '--core-count',
         type=int,
@@ -1624,7 +1595,7 @@ def main(argv=None):
                 mapping_type=args.mapping_type,
                 barcode_errors=args.barcode_errors,
                 associate_errors=args.associate_errors,
-                callback=_load_callback(args.callback),
+                callback=None,
                 core_count=args.core_count,
                 memory_limit=args.memory_limit,
                 verbose=args.verbose)
@@ -1637,7 +1608,7 @@ def main(argv=None):
                 mapping_type=args.mapping_type,
                 barcode_errors=args.barcode_errors,
                 associate_errors=args.associate_errors,
-                callback=_load_callback(args.callback),
+                callback=None,
                 core_count=args.core_count,
                 memory_limit=args.memory_limit,
                 verbose=args.verbose)

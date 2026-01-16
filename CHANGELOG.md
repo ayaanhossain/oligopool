@@ -6,6 +6,7 @@
 5. Clarified public API exports via `__all__`.
 6. Added CLI entry points (`oligopool`, `op`) including `manual` command and subcommands for major modules.
 7. Updated README citation formatting, version references, and CLI notes.
+8. Docker updates: renamed `dockerfile` -> `Dockerfile` and refreshed container setup notes.
 
 2024.12.02
 1. Fixed a small `core_count` print gap.

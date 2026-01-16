@@ -264,7 +264,7 @@ $ op barcode \
 
 ## Citation
 
-If you use `Oligopool Calculator` or libraries designed or analyzed using the tool in your research publication, please cite
+If you use `Oligopool Calculator` or libraries designed or analyzed using the tool in your research publication, please cite our paper.
 
 ```
 Hossain A, Cetnar DP, LaFleur TL, McLellan JR, Salis HM.

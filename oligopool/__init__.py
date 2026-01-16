@@ -25,11 +25,32 @@ from .xcount import xcount
 from .base.vectordb import vectorDB
 from .base.scry import Scry
 
+__all__ = [
+    'background',
+    'barcode',
+    'primer',
+    'motif',
+    'spacer',
+    'merge',
+    'revcomp',
+    'lenstat',
+    'final',
+    'split',
+    'pad',
+    'index',
+    'pack',
+    'acount',
+    'xcount',
+    'vectorDB',
+    'Scry',
+    '__author__',
+    '__version__',
+]
 
 # Setup
 __author__ = 'Ayaan Hossain'
 
-__version__ = '2024.12.02'
+__version__ = '2026.01.15'
 
 __doc__ = f'''
 oligopool v{__version__}

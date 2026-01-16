@@ -719,12 +719,19 @@ def get_parsed_data_info(
         # Check column-wise emptiness
         for col in df.columns:
             if df[col].isnull().values.any():
+                examples = ut.get_row_examples(
+                    df=df,
+                    invalid_mask=df[col].isnull(),
+                    id_col='ID',
+                    limit=5)
+                example_note = ut.format_row_examples(examples)
                 liner.send(
-                    '{}: {} w/ {:,} Record(s) [MISSING VALUES IN COLUMN=\'{}\']\n'.format(
+                    '{}: {} w/ {:,} Record(s) [MISSING VALUES IN COLUMN=\'{}\']{}\n'.format(
                         data_field,
                         data,
                         len(df.index),
-                        col))
+                        col,
+                        example_note))
                 break
 
         # No missing values
@@ -745,25 +752,43 @@ def get_parsed_data_info(
                 keys='ID',
                 inplace=True)
 
-            # Assert ID keys are unique
-            if not df.index.is_unique:
-                raise Exception
-
-            # Everything checked out
-            df_indexible = True
-
         # Indexing unsuccessful
-        except:
+        except Exception:
 
             # Unindexible df
             liner.send(
-                '{}: {} w/ {:,} Record(s) [NON-UNIQUE OR MISSING COLUMN=\'ID\']\n'.format(
+                '{}: {} w/ {:,} Record(s) [INVALID OR MISSING COLUMN=\'ID\']\n'.format(
                     data_field,
                     data,
                     len(df.index)))
 
             # Indexing failed
             df_indexible = False
+
+        else:
+
+            # Assert ID keys are unique
+            if not df.index.is_unique:
+                duplicates = []
+                for value in df.index[df.index.duplicated()]:
+                    sval = str(value)
+                    if sval not in duplicates:
+                        duplicates.append(sval)
+                    if len(duplicates) >= 5:
+                        break
+                example_note = ut.format_row_examples(
+                    duplicates,
+                    label='Duplicate ID examples')
+                liner.send(
+                    '{}: {} w/ {:,} Record(s) [NON-UNIQUE COLUMN=\'ID\']{}\n'.format(
+                        data_field,
+                        data,
+                        len(df.index),
+                        example_note))
+                df_indexible = False
+            else:
+                # Everything checked out
+                df_indexible = True
 
     # df contains required columns?
     df_contains_required_cols = False
@@ -893,13 +918,22 @@ def get_parsed_indata_info(
 
         # SHow update
         if not df_contains_DNA_only:
+            invalid_mask = ~df[column].map(
+                lambda x: ut.is_DNA(seq=x))
+            examples = ut.get_row_examples(
+                df=df,
+                invalid_mask=invalid_mask,
+                id_col='ID',
+                limit=5)
+            example_note = ut.format_row_examples(examples)
             liner.send(
-                '{}: {} w/ {:,} Record(s) [NON-DNA VALUE=\'{}\' IN COLUMN=\'{}\']\n'.format(
+                '{}: {} w/ {:,} Record(s) [NON-DNA VALUE=\'{}\' IN COLUMN=\'{}\']{}\n'.format(
                     indata_field,
                     data_name,
                     len(df.index),
                     value,
-                    column))
+                    column,
+                    example_note))
 
     # Compute final validity
     df_valid = all([

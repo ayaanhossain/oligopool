@@ -423,7 +423,8 @@ def get_parsed_sequence_constraint(
 
 def get_primer_extreme(
     primerseq,
-    exttype):
+    exttype,
+    rng=None):
     '''
     Get candidate sequences with strong
     and weak bases for evaluation.
@@ -435,17 +436,23 @@ def get_primer_extreme(
     :: exttype
        type - integer
        desc - base group identifier
+    :: rng
+       type - np.random.Generator / None
+       desc - optional RNG instance
     '''
 
     extbases = []
+    if rng is None:
+        rng = np.random.default_rng()
+    chooser = rng.choice
     for ib in primerseq:
         space = list(ut.ddna_space[ib])
         extrm = list(ut.ddna_space[
             ['W', 'S'][exttype]].intersection(space))
         if extrm:
-            extbases.append(np.random.choice(extrm))
+            extbases.append(chooser(extrm))
         else:
-            extbases.append(np.random.choice(space))
+            extbases.append(chooser(space))
     return ''.join(extbases)
 
 def get_parsed_primer_tmelt_constraint(
@@ -454,7 +461,8 @@ def get_parsed_primer_tmelt_constraint(
     mintmelt,
     maxtmelt,
     element,
-    liner):
+    liner,
+    rng=None):
     '''
     Determine melting temperature bounds for
     primerseq, subject to pairedprimer and
@@ -478,6 +486,9 @@ def get_parsed_primer_tmelt_constraint(
     :: liner
        type - coroutine
        desc - dynamic printing
+    :: rng
+       type - np.random.Generator / None
+       desc - optional RNG instance
     '''
 
     # Book-keeping
@@ -521,7 +532,8 @@ def get_parsed_primer_tmelt_constraint(
     for _ in range(100 * len(primerseq)):
         minprimer = get_primer_extreme(
             primerseq=primerseq,
-            exttype=0)
+            exttype=0,
+            rng=rng)
         posminTm = min(posminTm, ut.get_tmelt(
             seq=minprimer))
         liner.send(
@@ -532,7 +544,8 @@ def get_parsed_primer_tmelt_constraint(
     for _ in range(100 * len(primerseq)):
         maxprimer = get_primer_extreme(
             primerseq=primerseq,
-            exttype=1)
+            exttype=1,
+            rng=rng)
         posmaxTm = max(posmaxTm, ut.get_tmelt(
             seq=maxprimer))
         liner.send(
@@ -1791,7 +1804,8 @@ def primer_engine(
     suffixdict,
     background,
     stats,
-    liner):
+    liner,
+    rng=None):
     '''
     Return a primer fulfilling all constraints.
     Internal use only.
@@ -1869,6 +1883,9 @@ def primer_engine(
     :: liner
        type - coroutine
        desc - dynamic printing
+    :: rng
+       type - np.random.Generator / None
+       desc - optional RNG instance
     '''
 
     # Book-keeping
@@ -1931,9 +1948,12 @@ def primer_engine(
         liner=liner)
 
     # Define Maker Instance
+    seed = None
+    if rng is not None:
+        seed = int(rng.integers(0, 2**32 - 1))
     maker = nr.base.maker.NRPMaker(
         part_type='DNA',
-        seed=None)
+        seed=seed)
 
     # Design Primer via Maker
     primer = maker.nrp_maker(

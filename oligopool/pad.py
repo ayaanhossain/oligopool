@@ -3,6 +3,7 @@ import time as tt
 import collections as cx
 import atexit as ae
 
+import numpy as np
 import pandas as pd
 
 from .base import utils as ut
@@ -21,7 +22,8 @@ def pad(
     maximum_melting_temperature:float,
     maximum_repeat_length:int,
     output_file:str|None=None,
-    verbose:bool=True) -> Tuple[pd.DataFrame, dict]:
+    verbose:bool=True,
+    random_seed:int|None=None) -> Tuple[pd.DataFrame, dict]:
     '''
     Pads split oligos with optimized paired primers with a 3prime TypeIIS restriction site of choice
     and adds optional flanking spacers to reach oligo length limit. Returned DataFrame adds new columns
@@ -37,8 +39,10 @@ def pad(
         - `maximum_repeat_length` (`int`): Max shared repeat length b/w padding primers & oligos (between 6 and 20).
 
     Optional Parameters:
-        - `output_file` (`str`): Filename for output DataFrame (default: `None`).
+        - `output_file` (`str`): Filename for output DataFrame; required in CLI usage,
+            optional in library usage (default: `None`).
         - `verbose` (`bool`): If `True`, logs updates to stdout (default: `True`).
+        - `random_seed` (`int` / `None`): Seed for local RNG (default: `None`).
 
     Returns:
         - A pandas DataFrame with padded oligos; saves to `output_file` if specified.
@@ -67,6 +71,10 @@ def pad(
     maxreplen  = maximum_repeat_length
     outfile    = output_file
     verbose    = verbose
+    random_seed = random_seed
+
+    # Local RNG
+    rng = np.random.default_rng(random_seed)
 
     # Start Liner
     liner = ut.liner_engine(verbose)
@@ -85,6 +93,7 @@ def pad(
         required_fields=('ID',),
         precheck=False,
         liner=liner)
+    input_rows = len(indf.index) if isinstance(indf, pd.DataFrame) else 0
 
     # Full oligolimit Validation
     oligolimit_valid = vp.get_numeric_validity(
@@ -214,6 +223,12 @@ def pad(
                 'max_fragment_len': maxfragmentlen,
                  'max_allowed_len': maxallowedlen},
             'warns'   : warns}
+        stats['random_seed'] = random_seed
+        stats = ut.stamp_stats(
+            stats=stats,
+            module='pad',
+            input_rows=input_rows,
+            output_rows=0)
 
         # Return results
         liner.close()
@@ -252,6 +267,12 @@ def pad(
                  'max_pad_len': maxpadlen,
                 'typeIIS_free': typeIISfree},
             'warns'   : warns}
+        stats['random_seed'] = random_seed
+        stats = ut.stamp_stats(
+            stats=stats,
+            module='pad',
+            input_rows=input_rows,
+            output_rows=0)
 
         # Return results
         liner.close()
@@ -273,7 +294,8 @@ def pad(
         mintmelt=mintmelt,
         maxtmelt=maxtmelt,
         element='Pad',
-        liner=liner)
+        liner=liner,
+        rng=rng)
 
     # mintmelt and maxtmelt infeasible
     if not parsestatus:
@@ -290,6 +312,12 @@ def pad(
                    'higher_min_Tm': higherminTm,
                     'lower_max_Tm': lowermaxTm},
             'warns'   : warns}
+        stats['random_seed'] = random_seed
+        stats = ut.stamp_stats(
+            stats=stats,
+            module='pad',
+            input_rows=input_rows,
+            output_rows=0)
 
         # Return results
         liner.close()
@@ -336,6 +364,12 @@ def pad(
                 'prob_count': tuple(list(
                     4**pl for pl in problens))},
             'warns'   : warns}
+        stats['random_seed'] = random_seed
+        stats = ut.stamp_stats(
+            stats=stats,
+            module='pad',
+            input_rows=input_rows,
+            output_rows=0)
 
         # Return results
         liner.close()
@@ -441,6 +475,12 @@ def pad(
                 'fill_count'    : fillcount,
                 'free_count'    : freecount},
             'warns'   : warns}
+        stats['random_seed'] = random_seed
+        stats = ut.stamp_stats(
+            stats=stats,
+            module='pad',
+            input_rows=input_rows,
+            output_rows=0)
 
         # Return results
         liner.close()
@@ -470,6 +510,7 @@ def pad(
                       'edge_fail': 0,             # Edge Effect Fail Count
                 'exmotif_counter': cx.Counter()}, # Exmotif Encounter Counter
         'warns'   : warns}
+    stats['random_seed'] = random_seed
 
     # Schedule outfile deletion
     ofdeletion = ae.register(
@@ -496,6 +537,7 @@ def pad(
                    'edge_fail': 0,             # Edge Effect Fail Count
              'exmotif_counter': cx.Counter()}, # Exmotif Encounter Counter
         'warns'   : warns}
+    fwdstats['random_seed'] = random_seed
 
     # Define Forward Primer-Pad Attributes
     pairedrepeats = set()
@@ -527,7 +569,8 @@ def pad(
         suffixdict=suffixdict,
         background=background,
         stats=fwdstats,
-        liner=liner)
+        liner=liner,
+        rng=rng)
 
     # Define Reverse Primer-Pad Design Stats
     revstats = {
@@ -549,6 +592,7 @@ def pad(
                    'edge_fail': 0,             # Edge Effect Fail Count
              'exmotif_counter': cx.Counter()}, # Exmotif Encounter Counter
         'warns'   : warns}
+    revstats['random_seed'] = random_seed
 
     # Do we Continue?
     if fwdstats['status']:
@@ -585,7 +629,8 @@ def pad(
             suffixdict=None,
             background=background,
             stats=revstats,
-            liner=liner)
+            liner=liner,
+            rng=rng)
 
     # Meta Merge
     stats['status']    = fwdstats['status'] and \
@@ -827,4 +872,9 @@ def pad(
     liner.close()
 
     # Return Solution and Statistics
+    stats = ut.stamp_stats(
+        stats=stats,
+        module='pad',
+        input_rows=input_rows,
+        output_rows=len(outdf.index) if outdf is not None else 0)
     return (outdf, stats)

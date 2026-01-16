@@ -47,7 +47,7 @@ $ pip install git+https://github.com/ayaanhossain/oligopool.git
 Both approaches should install all dependencies automatically.
 > **Note** This GitHub version will always be updated with all recent fixes. The PyPI version should be more stable.
 
-If you are on `Windows` or simply prefer to, `Oligopool Calculator` can also be used via `docker` (see [our notes](https://github.com/ayaanhossain/oligopool/blob/master/docker-notes.md)).
+If you are on `Windows` or simply prefer to, `Oligopool Calculator` can also be used via `docker` (please see [the notes](https://github.com/ayaanhossain/oligopool/blob/master/docker-notes.md)).
 
 **Verifying Installation**
 

@@ -246,8 +246,6 @@ $ oligopool manual barcode
 ```
 
 Run `op` with no arguments to see the command list, and run `op COMMAND` to see command-specific options.
-
-At a glance:
 ```bash
 $ op
 

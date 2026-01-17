@@ -264,7 +264,7 @@ def get_grouped_spacerlen(
     liner):
     '''
     Group all spacer lengths by their index
-    of occurence. Internal use only.
+    of occurrence. Internal use only.
 
     :: spacerlen
        type - np.array
@@ -1123,7 +1123,7 @@ def spacer_engine(
     :: spacergroup
        type - cx.defaultdict
        desc - grouped spacer lengths by their index
-              of occurence
+              of occurrence
     :: maxreplen
        type - integer
        desc - maximum shared repeat length

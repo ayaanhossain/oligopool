@@ -18,7 +18,7 @@ def merge(
     right_context_column:str|None=None,
     verbose:bool=True) -> Tuple[pd.DataFrame, dict]:
     '''
-    Merges all elements from `left_context` to `right_context` into `merge_column` and removes the
+    Merges all elements from `left_context_column` to `right_context_column` into `merge_column` and removes the
     original ones from the DataFrame. The modified DataFrame can be saved to a CSV file.
 
     Required Parameters:
@@ -38,9 +38,9 @@ def merge(
 
     Notes:
         - `input_data` must contain a unique 'ID' column, all other columns must be non-empty DNA strings.
-        - `merge` module does not require the `left_context` or `right_context` to be adjacent.
-        - If the left context column is unspecified, then the first column is considered.
-        - Similarly, the the last column is considered as the right context column, if unspecified.
+        - `merge` module does not require `left_context_column` and `right_context_column` to be adjacent.
+        - If `left_context_column` is unspecified, then the first column is considered.
+        - Similarly, the last column is considered as the right context column, if unspecified.
     '''
 
     # Argument Aliasing
@@ -54,7 +54,7 @@ def merge(
     # Start Liner
     liner = ut.liner_engine(verbose)
 
-    # Merging Verbage Print
+    # Merging Verbiage Print
     liner.send('\n[Oligopool Calculator: Design Mode - Merge]\n')
 
     # Required Argument Parsing

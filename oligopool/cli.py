@@ -17,38 +17,177 @@ Implementation notes:
   - Exit codes: 0 (success), 1 (runtime error / failed stats), 404 (argparse error).
 '''
 
+import ast
 import argparse
 import datetime as dt
 import difflib
 import functools
+import importlib
 import json
 import os
 from pathlib import Path
+import re
 import sys
 import textwrap
 
 import argcomplete
 
 from . import __version__
-from .background import background
-from .barcode import barcode
-from .primer import primer
-from .motif import motif
-from .spacer import spacer
-from .merge import merge
-from .revcomp import revcomp
-from .lenstat import lenstat
-from .final import final
-from .split import split
-from .pad import pad
-from .index import index
-from .pack import pack
-from .acount import acount
-from .xcount import xcount
 
 
 # Printed by `_print_header()`.
 BANNER_TEXT = f'oligopool v{__version__}\nby ah'
+
+MAIN_MENU_DESCRIPTION = (
+    'Oligopool Calculator is a suite of algorithms for\n'
+    'automated design and analysis of oligopool libraries.'
+)
+
+_DOC_SECTION_HEADERS = {
+    'Required Parameters:',
+    'Optional Parameters:',
+    'Returns:',
+    'Notes:',
+}
+
+COMMAND_TO_API = {
+    'background': ('background', 'background'),
+    'barcode': ('barcode', 'barcode'),
+    'primer': ('primer', 'primer'),
+    'motif': ('motif', 'motif'),
+    'spacer': ('spacer', 'spacer'),
+    'split': ('split', 'split'),
+    'pad': ('pad', 'pad'),
+    'merge': ('merge', 'merge'),
+    'revcomp': ('revcomp', 'revcomp'),
+    'lenstat': ('lenstat', 'lenstat'),
+    'final': ('final', 'final'),
+    'index': ('index', 'index'),
+    'pack': ('pack', 'pack'),
+    'acount': ('acount', 'acount'),
+    'xcount': ('xcount', 'xcount'),
+}
+
+_MODULE_AST_CACHE: dict[str, ast.AST] = {}
+_FUNC_DOC_CACHE: dict[tuple[str, str], str] = {}
+
+# In argcomplete mode, the CLI is executed on every tab press; avoid any work
+# that is irrelevant to completion quality (e.g., docstring parsing for epilogs).
+_ARGCOMPLETE_MODE = bool(
+    os.environ.get('_ARGCOMPLETE')
+    or ('COMP_LINE' in os.environ and 'COMP_POINT' in os.environ)
+)
+
+
+def _load_api_func(command: str):
+    module_name, func_name = COMMAND_TO_API[command]
+    module = importlib.import_module(f'.{module_name}', package=__package__)
+    return getattr(module, func_name)
+
+
+def _get_cached_module_ast(module_name: str) -> ast.AST:
+    tree = _MODULE_AST_CACHE.get(module_name)
+    if tree is not None:
+        return tree
+    module_path = Path(__file__).resolve().parent / f'{module_name}.py'
+    source = module_path.read_text(encoding='utf-8')
+    tree = ast.parse(source)
+    _MODULE_AST_CACHE[module_name] = tree
+    return tree
+
+
+def _get_func_docstring(module_name: str, func_name: str) -> str:
+    cached = _FUNC_DOC_CACHE.get((module_name, func_name))
+    if cached is not None:
+        return cached
+
+    tree = _get_cached_module_ast(module_name)
+    doc = ''
+    for node in tree.body:
+        if isinstance(node, ast.FunctionDef) and node.name == func_name:
+            doc = ast.get_docstring(node, clean=True) or ''
+            break
+    _FUNC_DOC_CACHE[(module_name, func_name)] = doc
+    return doc
+
+
+def _extract_doc_notes(doc: str):
+    if not doc:
+        return []
+    lines = doc.splitlines()
+
+    start_idx = None
+    for i, line in enumerate(lines):
+        if line.strip() == 'Notes:':
+            start_idx = i + 1
+            break
+    if start_idx is None:
+        return []
+
+    section_lines = []
+    for line in lines[start_idx:]:
+        if line.strip() in _DOC_SECTION_HEADERS:
+            break
+        section_lines.append(line.rstrip())
+
+    bullets = []
+    current = None
+    for raw in section_lines:
+        text = raw.strip()
+        if not text:
+            continue
+
+        if text.startswith('- '):
+            if current:
+                bullets.append(current.strip())
+            current = text
+            continue
+
+        if text.startswith('* '):
+            sub = text[2:].strip()
+            if current:
+                current += f' {sub}'
+            else:
+                current = f'- {sub}'
+            continue
+
+        if current:
+            current += f' {text}'
+        else:
+            current = text
+
+    if current:
+        bullets.append(current.strip())
+
+    normalized = []
+    for bullet in bullets:
+        bullet = bullet.strip()
+        bullet = re.sub(r'^[*-]\s*', '', bullet).strip()
+        bullet = re.sub(r'\s+', ' ', bullet).strip()
+        bullet = re.sub(
+            r'`([a-z][a-z0-9_]*)`',
+            lambda m: (
+                f'--{m.group(1).replace("_", "-")}'
+                if '_' in m.group(1)
+                else m.group(0)
+            ),
+            bullet,
+        )
+        normalized.append(f'- {bullet}')
+    return normalized
+
+
+def _notes_epilog(command: str):
+    if _ARGCOMPLETE_MODE:
+        return None
+    module_name, func_name = COMMAND_TO_API[command]
+    notes = _extract_doc_notes(_get_func_docstring(module_name, func_name))
+    if not notes:
+        return None
+    parts = ['Notes:']
+    parts.extend(notes)
+    return '\n\n'.join(parts)
+
 
 CLI_MANUAL = '''
 Oligopool CLI Manual
@@ -56,8 +195,16 @@ Oligopool CLI Manual
 Usage:
   oligopool COMMAND --argument=<value> ...
   op COMMAND --argument=<value> ...
+  oligopool manual [TOPIC]
+  op manual [TOPIC]
+
+Examples:
+  op manual barcode
+  op manual primer
+  op manual topics
 
 Notes:
+  - Topics include all CLI commands plus a few meta topics (run: op manual topics).
   - Design/transform commands require --output-file in CLI mode.
   - Run "oligopool COMMAND" to see command-specific options.
   - Use "oligopool manual topics" to list manual topics.
@@ -90,23 +237,7 @@ ACS Synth Biol. 2024;13(12):4218-4232. doi:10.1021/acssynbio.4c00661
 Paper: https://pubs.acs.org/doi/10.1021/acssynbio.4c00661
 '''
 
-MANUAL_TOPIC_TO_OBJECT = {
-    'background': background,
-    'barcode': barcode,
-    'primer': primer,
-    'motif': motif,
-    'spacer': spacer,
-    'split': split,
-    'pad': pad,
-    'merge': merge,
-    'revcomp': revcomp,
-    'lenstat': lenstat,
-    'final': final,
-    'index': index,
-    'pack': pack,
-    'acount': acount,
-    'xcount': xcount,
-}
+MANUAL_COMMAND_TOPICS = tuple(sorted(COMMAND_TO_API))
 
 MANUAL_META_TOPICS = (
     'topics',
@@ -119,7 +250,7 @@ MANUAL_META_TOPICS = (
     'completion',
 )
 
-MANUAL_TOPIC_CHOICES = tuple(sorted(set(MANUAL_TOPIC_TO_OBJECT) | set(MANUAL_META_TOPICS)))
+MANUAL_TOPIC_CHOICES = tuple(sorted(set(MANUAL_COMMAND_TOPICS) | set(MANUAL_META_TOPICS)))
 
 # Banner toggles to prevent duplicate prints within a single process.
 _HEADER_PRINTED = False
@@ -321,6 +452,159 @@ def _print_footer():
 
 # === Common parsing helpers ===
 
+_SEQ_CONSTRAINT_MAX_LEN = 100000
+
+
+def _eval_py_string_expr(expr, *, max_len=_SEQ_CONSTRAINT_MAX_LEN):
+    '''Safely evaluate a small subset of Python string expressions.
+
+    Allowed:
+      - String literals: 'NNNN', "ATG"
+      - Repetition: 'N'*20, 20*'N'
+      - Concatenation: 'A'*10 + 'C'*10
+      - Parentheses for grouping
+
+    Disallowed: names, function calls, indexing, attributes, f-strings.
+    '''
+    try:
+        tree = ast.parse(expr, mode='eval')
+    except SyntaxError as exc:
+        raise argparse.ArgumentTypeError(
+            f'Invalid Python-style string expression: {expr!r}'
+        ) from exc
+
+    def _eval_node(node):
+        if isinstance(node, ast.Constant):
+            if isinstance(node.value, (str, int)):
+                return node.value
+            raise argparse.ArgumentTypeError(
+                f'Unsupported constant in expression: {expr!r}'
+            )
+
+        if isinstance(node, ast.BinOp):
+            left = _eval_node(node.left)
+            right = _eval_node(node.right)
+
+            if isinstance(node.op, ast.Add):
+                if not (isinstance(left, str) and isinstance(right, str)):
+                    raise argparse.ArgumentTypeError(
+                        f'Only string + string is supported: {expr!r}'
+                    )
+                combined_len = len(left) + len(right)
+                if combined_len > max_len:
+                    raise argparse.ArgumentTypeError(
+                        f'Expanded sequence constraint is too long ({combined_len} > {max_len}).'
+                    )
+                return left + right
+
+            if isinstance(node.op, ast.Mult):
+                if isinstance(left, str) and isinstance(right, int):
+                    seq, repeat = left, right
+                elif isinstance(left, int) and isinstance(right, str):
+                    seq, repeat = right, left
+                else:
+                    raise argparse.ArgumentTypeError(
+                        f'Only string * int is supported: {expr!r}'
+                    )
+                if repeat < 0:
+                    raise argparse.ArgumentTypeError(
+                        f'Repetition count must be >= 0: {expr!r}'
+                    )
+                expanded_len = len(seq) * repeat
+                if expanded_len > max_len:
+                    raise argparse.ArgumentTypeError(
+                        f'Expanded sequence constraint is too long ({expanded_len} > {max_len}).'
+                    )
+                return seq * repeat
+
+            raise argparse.ArgumentTypeError(
+                f'Unsupported operator in expression: {expr!r}'
+            )
+
+        raise argparse.ArgumentTypeError(
+            f'Unsupported Python syntax in expression: {expr!r}'
+        )
+
+    out = _eval_node(tree.body)
+    if not isinstance(out, str):
+        raise argparse.ArgumentTypeError(
+            f'Expression must evaluate to a string: {expr!r}'
+        )
+    if len(out) > max_len:
+        raise argparse.ArgumentTypeError(
+            f'Expanded sequence constraint is too long ({len(out)} > {max_len}).'
+        )
+    return out
+
+
+def _parse_sequence_constraint(value):
+    '''Parse an IUPAC constraint, expanding simple repeat/py-string forms.
+
+    Examples (quote to avoid shell globbing):
+      - N*20
+      - GCC+N*20+CCG
+      - 'N'*20
+      - 'A'*10 + 'C'*10
+    '''
+    if value is None:
+        return None
+    value = value.strip()
+    if not value:
+        return value
+
+    match = re.fullmatch(r'([A-Za-z]+)\s*\*\s*(\d+)', value)
+    if match:
+        seq, repeat_str = match.groups()
+        repeat = int(repeat_str)
+        if repeat < 0:
+            raise argparse.ArgumentTypeError('Repetition count must be >= 0.')
+        expanded_len = len(seq) * repeat
+        if expanded_len > _SEQ_CONSTRAINT_MAX_LEN:
+            raise argparse.ArgumentTypeError(
+                f'Expanded sequence constraint is too long ({expanded_len} > {_SEQ_CONSTRAINT_MAX_LEN}).'
+            )
+        return seq * repeat
+
+    # Shorthand concatenation form: GCC+N*20+CCG
+    # (This is not Python syntax; it's a CLI convenience.)
+    if ('+' in value) and ("'" not in value) and ('"' not in value):
+        parts = [part.strip() for part in value.split('+')]
+        if not parts or any(not part for part in parts):
+            raise argparse.ArgumentTypeError(
+                f'Invalid sequence constraint expression: {value!r}'
+            )
+        out = []
+        total_len = 0
+        for part in parts:
+            part_match = re.fullmatch(r'([A-Za-z]+)\s*\*\s*(\d+)', part)
+            if part_match:
+                seq, repeat_str = part_match.groups()
+                repeat = int(repeat_str)
+                if repeat < 0:
+                    raise argparse.ArgumentTypeError(
+                        'Repetition count must be >= 0.'
+                    )
+                expanded = seq * repeat
+            elif re.fullmatch(r'[A-Za-z]+', part):
+                expanded = part
+            else:
+                raise argparse.ArgumentTypeError(
+                    f'Invalid sequence constraint expression: {value!r}'
+                )
+            total_len += len(expanded)
+            if total_len > _SEQ_CONSTRAINT_MAX_LEN:
+                raise argparse.ArgumentTypeError(
+                    f'Expanded sequence constraint is too long ({total_len} > {_SEQ_CONSTRAINT_MAX_LEN}).'
+                )
+            out.append(expanded)
+        return ''.join(out)
+
+    if ("'" in value) or ('"' in value):
+        return _eval_py_string_expr(value)
+
+    return value
+
+
 def _parse_list_str(value):
     '''Parse a comma-delimited string into a list of strings.'''
     if value is None:
@@ -404,6 +688,7 @@ def _add_manual(cmdpar):
     parser = cmdpar.add_parser(
         'manual',
         help='show module documentation',
+        description='Show module documentation from the Python API (like help(...)).',
         usage=argparse.SUPPRESS,
         formatter_class=OligopoolFormatter,
         add_help=False)
@@ -423,6 +708,7 @@ def _add_cite(cmdpar):
     parser = cmdpar.add_parser(
         'cite',
         help='show citation information',
+        description='Print citation information and the paper link.',
         usage=argparse.SUPPRESS,
         formatter_class=OligopoolFormatter,
         add_help=False)
@@ -433,7 +719,8 @@ def _add_complete(cmdpar):
     '''Register the complete subcommand parser.'''
     parser = cmdpar.add_parser(
         'complete',
-        help='print/install shell completion',
+        help='print or install shell completion',
+        description='Print or install shell tab-completion setup (argcomplete).',
         usage=argparse.SUPPRESS,
         formatter_class=OligopoolFormatter,
         add_help=False)
@@ -572,7 +859,12 @@ def _print_manual(topic):
 
     key = str(topic).strip().lower()
     if key in ('list', 'topics'):
-        print('Available topics: {}'.format(', '.join(sorted(MANUAL_TOPIC_TO_OBJECT))))
+        command_topics = ', '.join(MANUAL_COMMAND_TOPICS)
+        meta_topics = 'topics/list, cli/manual, library/package, complete/completion'
+        print('Available command topics:')
+        print(textwrap.fill(command_topics, width=79, initial_indent='  ', subsequent_indent='  '))
+        print('Available meta topics:')
+        print(textwrap.fill(meta_topics, width=79, initial_indent='  ', subsequent_indent='  '))
         return 0
     if key in ('cli', 'manual'):
         print(CLI_MANUAL.strip())
@@ -588,12 +880,17 @@ def _print_manual(topic):
         print('No manual is available.')
         return 1
 
-    target = MANUAL_TOPIC_TO_OBJECT.get(key)
-    if target is None:
+    if key not in MANUAL_COMMAND_TOPICS:
         print(f'No documentation available for "{topic}".')
         return 1
 
-    doc = target.__doc__
+    try:
+        target = getattr(op, key)
+    except Exception:
+        print(f'No documentation available for "{topic}".')
+        return 1
+
+    doc = getattr(target, '__doc__', None)
     if doc:
         print(doc.strip())
         return 0
@@ -615,6 +912,8 @@ def _add_background(cmdpar):
     parser = cmdpar.add_parser(
         'background',
         help='build background k-mer database',
+        description='Build a background k-mer database for repeat exclusion.',
+        epilog=_notes_epilog('background'),
         usage=argparse.SUPPRESS,
         formatter_class=OligopoolFormatter,
         add_help=False)
@@ -653,6 +952,8 @@ def _add_barcode(cmdpar):
     parser = cmdpar.add_parser(
         'barcode',
         help='design constrained barcodes',
+        description='Design constrained barcodes and write an output CSV.',
+        epilog=_notes_epilog('barcode'),
         usage=argparse.SUPPRESS,
         formatter_class=OligopoolFormatter,
         add_help=False)
@@ -754,6 +1055,8 @@ def _add_primer(cmdpar):
     parser = cmdpar.add_parser(
         'primer',
         help='design constrained primers',
+        description='Design constrained primers and write an output CSV.',
+        epilog=_notes_epilog('primer'),
         usage=argparse.SUPPRESS,
         formatter_class=OligopoolFormatter,
         add_help=False)
@@ -776,10 +1079,12 @@ Maximum allowed oligo length for the design (>= 4).''')
     req.add_argument(
         '--primer-sequence-constraint',
         required=True,
-        type=str,
+        type=_parse_sequence_constraint,
         metavar='\b',
         help='''>>[required string]
-IUPAC degenerate sequence constraint for the primer.''')
+IUPAC degenerate sequence constraint for the primer.
+Accepts Python-style expressions (quote as one argument), e.g. "'N'*20", or shorthand
+concatenation like "GCC+N*20+CCG".''')
     req.add_argument(
         '--primer-type',
         required=True,
@@ -875,6 +1180,8 @@ def _add_motif(cmdpar):
     parser = cmdpar.add_parser(
         'motif',
         help='design or add motifs',
+        description='Design or add motifs and write an output CSV.',
+        epilog=_notes_epilog('motif'),
         usage=argparse.SUPPRESS,
         formatter_class=OligopoolFormatter,
         add_help=False)
@@ -897,10 +1204,12 @@ Maximum allowed oligo length for the design (>= 4).''')
     req.add_argument(
         '--motif-sequence-constraint',
         required=True,
-        type=str,
+        type=_parse_sequence_constraint,
         metavar='\b',
         help='''>>[required string]
-IUPAC degenerate sequence constraint or constant motif.''')
+IUPAC degenerate sequence constraint or constant motif.
+Accepts Python-style expressions (quote as one argument), e.g. "'N'*20", or shorthand
+concatenation like "GCC+N*20+CCG".''')
     req.add_argument(
         '--maximum-repeat-length',
         required=True,
@@ -969,6 +1278,8 @@ def _add_spacer(cmdpar):
     parser = cmdpar.add_parser(
         'spacer',
         help='design or insert spacers',
+        description='Design or insert spacers and write an output CSV.',
+        epilog=_notes_epilog('spacer'),
         usage=argparse.SUPPRESS,
         formatter_class=OligopoolFormatter,
         add_help=False)
@@ -1056,7 +1367,9 @@ def _add_split(cmdpar):
     '''Register the split subcommand parser.'''
     parser = cmdpar.add_parser(
         'split',
-        help='split oligos into fragments',
+        help='split long oligos into shorter ones',
+        description='Split long oligos into shorter ones and write an output CSV.',
+        epilog=_notes_epilog('split'),
         usage=argparse.SUPPRESS,
         formatter_class=OligopoolFormatter,
         add_help=False)
@@ -1127,6 +1440,8 @@ def _add_pad(cmdpar):
     parser = cmdpar.add_parser(
         'pad',
         help='pad split oligos with primers',
+        description='Pad split oligos with primers and write an output CSV.',
+        epilog=_notes_epilog('pad'),
         usage=argparse.SUPPRESS,
         formatter_class=OligopoolFormatter,
         add_help=False)
@@ -1203,7 +1518,9 @@ def _add_merge(cmdpar):
     '''Register the merge subcommand parser.'''
     parser = cmdpar.add_parser(
         'merge',
-        help='merge elements into one column',
+        help='merge oligo elements into one column',
+        description='Merge oligo elements into one column and write an output CSV.',
+        epilog=_notes_epilog('merge'),
         usage=argparse.SUPPRESS,
         formatter_class=OligopoolFormatter,
         add_help=False)
@@ -1252,7 +1569,9 @@ def _add_revcomp(cmdpar):
     '''Register the revcomp subcommand parser.'''
     parser = cmdpar.add_parser(
         'revcomp',
-        help='reverse complement elements',
+        help='reverse complement spanning elements',
+        description='Reverse complement spanning elements and write an output CSV.',
+        epilog=_notes_epilog('revcomp'),
         usage=argparse.SUPPRESS,
         formatter_class=OligopoolFormatter,
         add_help=False)
@@ -1295,6 +1614,8 @@ def _add_lenstat(cmdpar):
     parser = cmdpar.add_parser(
         'lenstat',
         help='compute length statistics',
+        description='Compute length statistics (prints results; no output file).',
+        epilog=_notes_epilog('lenstat'),
         usage=argparse.SUPPRESS,
         formatter_class=OligopoolFormatter,
         add_help=False)
@@ -1323,6 +1644,8 @@ def _add_final(cmdpar):
     parser = cmdpar.add_parser(
         'final',
         help='finalize library',
+        description='Finalize the library and write an output CSV.',
+        epilog=_notes_epilog('final'),
         usage=argparse.SUPPRESS,
         formatter_class=OligopoolFormatter,
         add_help=False)
@@ -1352,6 +1675,8 @@ def _add_index(cmdpar):
     parser = cmdpar.add_parser(
         'index',
         help='index barcodes and associates',
+        description='Index barcodes (and optionally associates) into an index file.',
+        epilog=_notes_epilog('index'),
         usage=argparse.SUPPRESS,
         formatter_class=OligopoolFormatter,
         add_help=False)
@@ -1448,7 +1773,9 @@ def _add_pack(cmdpar):
     '''Register the pack subcommand parser.'''
     parser = cmdpar.add_parser(
         'pack',
-        help='preprocess and pack fastq for counting',
+        help='preprocess and pack FastQ for counting',
+        description='Preprocess and pack FastQ reads for counting into a pack file.',
+        epilog=_notes_epilog('pack'),
         usage=argparse.SUPPRESS,
         formatter_class=OligopoolFormatter,
         add_help=False)
@@ -1555,6 +1882,8 @@ def _add_acount(cmdpar):
     parser = cmdpar.add_parser(
         'acount',
         help='execute association counting',
+        description='Execute association counting and write a count matrix CSV.',
+        epilog=_notes_epilog('acount'),
         usage=argparse.SUPPRESS,
         formatter_class=OligopoolFormatter,
         add_help=False)
@@ -1628,6 +1957,8 @@ def _add_xcount(cmdpar):
     parser = cmdpar.add_parser(
         'xcount',
         help='execute combinatorial counting',
+        description='Execute combinatorial counting and write a count matrix CSV.',
+        epilog=_notes_epilog('xcount'),
         usage=argparse.SUPPRESS,
         formatter_class=OligopoolFormatter,
         add_help=False)
@@ -1744,6 +2075,9 @@ def main(argv=None):
     if show_banner:
         _print_header()
     if not arg_list:
+        if show_banner:
+            print(MAIN_MENU_DESCRIPTION)
+            print()
         parser.print_help()
         if show_banner:
             _print_footer()
@@ -1768,12 +2102,14 @@ def main(argv=None):
                     _print_footer()
                 return exit_code
             case 'background':
+                background = _load_api_func('background')
                 result = background(
                     input_data=args.input_data,
                     maximum_repeat_length=args.maximum_repeat_length,
                     output_directory=args.output_directory,
                     verbose=args.verbose)
             case 'barcode':
+                barcode = _load_api_func('barcode')
                 result = barcode(
                     input_data=args.input_data,
                     oligo_length_limit=args.oligo_length_limit,
@@ -1789,6 +2125,7 @@ def main(argv=None):
                     verbose=args.verbose,
                     random_seed=args.random_seed)
             case 'primer':
+                primer = _load_api_func('primer')
                 result = primer(
                     input_data=args.input_data,
                     oligo_length_limit=args.oligo_length_limit,
@@ -1807,6 +2144,7 @@ def main(argv=None):
                     verbose=args.verbose,
                     random_seed=args.random_seed)
             case 'motif':
+                motif = _load_api_func('motif')
                 result = motif(
                     input_data=args.input_data,
                     oligo_length_limit=args.oligo_length_limit,
@@ -1821,6 +2159,7 @@ def main(argv=None):
                     verbose=args.verbose,
                     random_seed=args.random_seed)
             case 'spacer':
+                spacer = _load_api_func('spacer')
                 result = spacer(
                     input_data=args.input_data,
                     oligo_length_limit=args.oligo_length_limit,
@@ -1834,6 +2173,7 @@ def main(argv=None):
                     verbose=args.verbose,
                     random_seed=args.random_seed)
             case 'split':
+                split = _load_api_func('split')
                 result = split(
                     input_data=args.input_data,
                     split_length_limit=args.split_length_limit,
@@ -1845,6 +2185,7 @@ def main(argv=None):
                     verbose=args.verbose,
                     random_seed=args.random_seed)
             case 'pad':
+                pad = _load_api_func('pad')
                 result = pad(
                     input_data=args.input_data,
                     oligo_length_limit=args.oligo_length_limit,
@@ -1857,6 +2198,7 @@ def main(argv=None):
                     verbose=args.verbose,
                     random_seed=args.random_seed)
             case 'merge':
+                merge = _load_api_func('merge')
                 result = merge(
                     input_data=args.input_data,
                     merge_column=args.merge_column,
@@ -1865,6 +2207,7 @@ def main(argv=None):
                     right_context_column=args.right_context_column,
                     verbose=args.verbose)
             case 'revcomp':
+                revcomp = _load_api_func('revcomp')
                 result = revcomp(
                     input_data=args.input_data,
                     output_file=args.output_file,
@@ -1872,16 +2215,19 @@ def main(argv=None):
                     right_context_column=args.right_context_column,
                     verbose=args.verbose)
             case 'lenstat':
+                lenstat = _load_api_func('lenstat')
                 result = lenstat(
                     input_data=args.input_data,
                     oligo_length_limit=args.oligo_length_limit,
                     verbose=args.verbose)
             case 'final':
+                final = _load_api_func('final')
                 result = final(
                     input_data=args.input_data,
                     output_file=args.output_file,
                     verbose=args.verbose)
             case 'index':
+                index = _load_api_func('index')
                 result = index(
                     barcode_data=args.barcode_data,
                     barcode_column=args.barcode_column,
@@ -1896,6 +2242,7 @@ def main(argv=None):
                     associate_suffix_column=args.associate_suffix_column,
                     verbose=args.verbose)
             case 'pack':
+                pack = _load_api_func('pack')
                 result = pack(
                     r1_fastq_file=args.r1_fastq_file,
                     r1_read_type=args.r1_read_type,
@@ -1912,6 +2259,7 @@ def main(argv=None):
                     memory_limit=args.memory_limit,
                     verbose=args.verbose)
             case 'acount':
+                acount = _load_api_func('acount')
                 result = acount(
                     index_file=args.index_file,
                     pack_file=args.pack_file,
@@ -1925,6 +2273,7 @@ def main(argv=None):
                     verbose=args.verbose)
             case 'xcount':
                 index_files = [v.strip() for v in args.index_files.split(',') if v.strip()]
+                xcount = _load_api_func('xcount')
                 result = xcount(
                     index_files=index_files,
                     pack_file=args.pack_file,

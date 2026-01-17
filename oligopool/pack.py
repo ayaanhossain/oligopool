@@ -78,7 +78,7 @@ def pack(
     # Start Liner
     liner = ut.liner_engine(online=verbose)
 
-    # Packing Verbage Print
+    # Packing Verbiage Print
     liner.send('\n[Oligopool Calculator: Analysis Mode - Pack]\n')
 
     # Required Argument Parsing

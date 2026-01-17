@@ -40,7 +40,7 @@ def primer(
     Required Parameters:
         - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated oligopool variants.
         - `oligo_length_limit` (`int`): Maximum allowed oligo length (≥ 4).
-        - `primer_sequence_constraint` (`int`): IUPAC degenerate sequence constraint.
+        - `primer_sequence_constraint` (`str`): IUPAC degenerate sequence constraint.
         - `primer_type` (`int`): Primer type (0 for forward, 1 for reverse).
         - `minimum_melting_temperature` (`float`): Minimum primer Tm (≥ 25°C).
         - `maximum_melting_temperature` (`float`): Maximum primer Tm (≤ 95°C).
@@ -99,7 +99,7 @@ def primer(
     # Start Liner
     liner = ut.liner_engine(verbose)
 
-    # Primer Verbage Print
+    # Primer Verbiage Print
     liner.send('\n[Oligopool Calculator: Design Mode - Primer]\n')
 
     # Required Argument Parsing

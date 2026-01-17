@@ -17,8 +17,8 @@ def revcomp(
     right_context_column:str|None=None,
     verbose:bool=True) -> Tuple[pd.DataFrame, dict]:
     '''
-    Reverse complements a section of elements in the DataFrame starting from `left_context` to
-    `right_context`. The column content is reverse complemented and the order of the columns
+    Reverse complements a section of elements in the DataFrame starting from `left_context_column` to
+    `right_context_column`. The column content is reverse complemented and the order of the columns
     is reversed. Output DataFrame can be saved to a CSV file.
 
     Required Parameters:
@@ -32,14 +32,14 @@ def revcomp(
         - `verbose` (`bool`): If `True`, logs updates to stdout (default: `True`).
 
     Returns:
-        - A pandas DataFrame of merged elements; saves to `output_file` if specified.
+        - A pandas DataFrame of revcomped elements; saves to `output_file` if specified.
         - A dictionary of stats from the last step in pipeline.
 
     Notes:
         - `input_data` must contain a unique 'ID' column, all other columns must be non-empty DNA strings.
-        - `revcomp` module does not require the `left_context` or `right_context` to be adjacent.
-        - If the left context column is unspecified, then the first column is considered.
-        - Similarly, the the last column is considered as the right context column, if unspecified.
+        - `revcomp` module does not require `left_context_column` and `right_context_column` to be adjacent.
+        - If `left_context_column` is unspecified, then the first column is considered.
+        - Similarly, the last column is considered as the right context column, if unspecified.
     '''
 
     # Argument Aliasing
@@ -52,7 +52,7 @@ def revcomp(
     # Start Liner
     liner = ut.liner_engine(verbose)
 
-    # Reverse Complementing Verbage Print
+    # Reverse Complementing Verbiage Print
     liner.send('\n[Oligopool Calculator: Design Mode - Revcomp]\n')
 
     # Required Argument Parsing

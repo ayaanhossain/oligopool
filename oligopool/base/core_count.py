@@ -1326,8 +1326,8 @@ def acount_engine(
         exofreq   = None
         readcount = 0
 
-        verbagereach  = 0
-        verbagetarget = rn.randint(
+        verbiagereach  = 0
+        verbiagetarget = rn.randint(
             *map(round, (len(cpack) * 0.080,
                          len(cpack) * 0.120)))
 
@@ -1359,7 +1359,7 @@ def acount_engine(
                 exofreq = None
 
             # Time to Show Update?
-            if verbagereach >= verbagetarget:
+            if verbiagereach >= verbiagetarget:
 
                 # Show Update
                 liner.send(
@@ -1371,7 +1371,7 @@ def acount_engine(
                         tt.time()-launchtime))
 
                 # Update Book-keeping
-                verbagereach = 0
+                verbiagereach = 0
 
             # Continue processing pack?
             if not cpack:
@@ -1383,8 +1383,8 @@ def acount_engine(
 
             # Update Book-keeping
             cctrs['analyzedreads'] += freq
-            verbagereach += 1
-            readcount    += 1
+            verbiagereach += 1
+            readcount     += 1
 
             # Anchor Read
             (anchoredread,
@@ -1803,8 +1803,8 @@ def xcount_engine(
         exofreq   = None
         readcount = 0
 
-        verbagereach  = 0
-        verbagetarget = rn.randint(
+        verbiagereach  = 0
+        verbiagetarget = rn.randint(
             *map(round, (len(cpack) * 0.080,
                          len(cpack) * 0.120)))
 
@@ -1836,7 +1836,7 @@ def xcount_engine(
                 exofreq = None
 
             # Time to Show Update?
-            if verbagereach >= verbagetarget:
+            if verbiagereach >= verbiagetarget:
 
                 # Show Update
                 liner.send(
@@ -1848,7 +1848,7 @@ def xcount_engine(
                         tt.time()-launchtime))
 
                 # Update Book-keeping
-                verbagereach = 0
+                verbiagereach = 0
 
             # Continue processing pack?
             if not cpack:
@@ -1860,7 +1860,7 @@ def xcount_engine(
 
             # Update Book-keeping
             cctrs['analyzedreads'] += freq
-            verbagereach += 1
+            verbiagereach += 1
             readcount    += 1
 
             # Barcode Mapping Loop

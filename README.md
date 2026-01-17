@@ -4,7 +4,7 @@
     </a>
 </h1>
 
-<h4><p align="center">Version: 2026.01.16</p></h4>
+<h4><p align="center">Version: 2026.01.17</p></h4>
 
 <p align="center">
   <a style="text-decoration: none" href="#Installation">Installation</a> •
@@ -59,7 +59,7 @@ Python 3.10.9 | packaged by conda-forge | (main, Feb  2 2023, 20:20:04) [GCC 11.
 Type "help", "copyright", "credits" or "license" for more information.
 >>> import oligopool as op
 >>> op.__version__
-'2026.01.16'
+'2026.01.17'
 >>>
 ```
 
@@ -81,7 +81,7 @@ Type "help", "copyright", "credits" or "license" for more information.
 >>> import oligopool as op
 >>> help(op)
 ...
-    oligopool v2026.01.16
+    oligopool v2026.01.17
     by ah
 
     Automated design and analysis of oligopool libraries.
@@ -219,23 +219,17 @@ $ op manual topics
 $ oligopool manual barcode
 ```
 
-The CLI supports tab-completion via `argcomplete` (installed with the package):
-```bash
-# One-time install (recommended; restart your shell)
-$ op complete --install          # auto-detect shell
-$ op complete --install bash     # or: zsh|fish
+Run `op` with no arguments to see the command list, and run `op COMMAND` to see command-specific options.
 
-# Print help / snippets
-$ op complete --print-instructions
-$ op complete --shell bash       # or: zsh|fish
-```
-
-At a glance, running `op` or `oligopool` with no arguments prints available commands.
+At a glance:
 ```bash
 $ op
 
-oligopool v2026.01.16
+oligopool v2026.01.17
 by ah
+
+Oligopool Calculator is a suite of algorithms for
+automated design and analysis of oligopool libraries.
 
 usage: oligopool COMMAND --argument=<value> ...
 
@@ -250,40 +244,36 @@ COMMANDS Available:
     motif       design or add motifs
     spacer      design or insert spacers
 
-    split       split oligos into fragments
+    split       split long oligos into shorter ones
     pad         pad split oligos with primers
 
-    merge       merge elements into one column
-    revcomp     reverse complement elements
+    merge       merge oligo elements into one column
+    revcomp     reverse complement spanning elements
 
     lenstat     compute length statistics
     final       finalize library
 
     index       index barcodes and associates
-    pack        preprocess and pack fastq for counting
+    pack        preprocess and pack FastQ for counting
     acount      execute association counting
     xcount      execute combinatorial counting
 
-    complete    print/install shell completion
+    complete    print or install shell completion
 
 Note: Run "oligopool COMMAND" to see command-specific options.
 
 EST <timestamp>
 ```
 
-Most CLI subcommands write outputs to disk, so `--output-file` is required for commands that produce output DataFrames (for example: `barcode`, `primer`, `motif`, `spacer`, `split`, `pad`, `merge`, `revcomp`, `final`).
-
-Example:
+Tab-completion (recommended):
 ```bash
-$ op barcode \
-  --input-data initial_library.csv \
-  --oligo-length-limit 200 \
-  --barcode-length 20 \
-  --minimum-hamming-distance 3 \
-  --maximum-repeat-length 6 \
-  --barcode-column Barcode \
-  --output-file library_with_barcodes.csv
+$ op complete --install          # auto-detect shell (restart your shell)
+$ op complete --install bash     # or: zsh|fish
 ```
+
+Notes:
+- In CLI mode, commands that produce an output DataFrame require `--output-file`.
+- For `--primer-sequence-constraint` / `--motif-sequence-constraint`, pass either an IUPAC string (`NNNN...`) or a quoted expression like `"'N'*20"` / `'GCC+N*20+CCG'`.
 
 ## Citation
 

@@ -34,7 +34,7 @@ def motif(
     Required Parameters:
         - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated oligopool variants.
         - `oligo_length_limit` (`int`): Maximum allowed oligo length (≥ 4).
-        - `motif_sequence_constraint` (`int`): IUPAC degenerate sequence constraint, or a constant.
+        - `motif_sequence_constraint` (`str`): IUPAC degenerate sequence constraint, or a constant.
         - `maximum_repeat_length` (`int`): Max shared repeat length with oligos (≥ 4).
         - `motif_column` (`str`): Column name for inserting the designed motifs.
 
@@ -82,7 +82,7 @@ def motif(
     # Start Liner
     liner = ut.liner_engine(verbose)
 
-    # Motif Verbage Print
+    # Motif Verbiage Print
     liner.send('\n[Oligopool Calculator: Design Mode - Motif]\n')
 
     # Required Argument Parsing

@@ -15,7 +15,7 @@ setup(
     name='oligopool',
 
     # Link: https://www.python.org/dev/peps/pep-0440/#version-scheme
-    version='2026.01.16',
+    version='2026.01.17',
 
     description='Oligopool Calculator - Automated design and analysis of oligopool libraries',
 

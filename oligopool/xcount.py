@@ -23,12 +23,12 @@ def xcount(
     memory_limit:float=0.0,
     verbose:bool=True) -> Tuple[pd.DataFrame, dict]:
     '''
-    Count one or more barcode set combination in reads within specified error tolerance. Combinatorial
+    Count one or more barcode set combinations in reads within specified error tolerance. Combinatorial
     counting can be coupled with a callback function (see Notes). Count matrices are written out to disk,
-    and returned back as a DataFrame.
+    and returned as a DataFrame.
 
     Required Parameters:
-        - `index_files` (`str` / `list`): A single (or a list of) index filname(s).
+        - `index_files` (`str` / `list`): A single (or a list of) index filename(s).
         - `pack_file` (`str`): Pack file path.
         - `count_file` (`str`): Output count matrix filename.
 
@@ -70,7 +70,7 @@ def xcount(
     # Start Liner
     liner = ut.liner_engine(online=verbose)
 
-    # Counting Verbage Print
+    # Counting Verbiage Print
     liner.send('\n[Oligopool Calculator: Analysis Mode - Combinatorial Count]\n')
 
     # Required Argument Parsing

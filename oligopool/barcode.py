@@ -61,7 +61,7 @@ def barcode(
     Notes:
         - `input_data` must contain a unique 'ID' column, all other columns must be non-empty DNA strings.
         - Column names in `input_data` must be unique, and exclude `barcode_column`.
-        - Spectrum optimization saturate k-mers, terminus optimization ensure unique 5p/3p ends.
+        - Spectrum optimization saturates k-mers, terminus optimization ensures unique 5p/3p ends.
         - At least one of `left_context_column` or `right_context_column` must be specified.
         - If `excluded_motifs` is a CSV or DataFrame, it must have 'ID' and 'Exmotif' columns.
         - If barcode design is challenging, consider
@@ -94,7 +94,7 @@ def barcode(
     # Start Liner
     liner = ut.liner_engine(verbose)
 
-    # Barcoding Verbage Print
+    # Barcoding Verbiage Print
     liner.send('\n[Oligopool Calculator: Design Mode - Barcode]\n')
 
     # Required Argument Parsing
@@ -504,7 +504,7 @@ def barcode(
                'target_count': targetcount,  # Required Number of Barcodes
               'barcode_count': 0,            # Barcode Design Count
                'orphan_oligo': None,         # Orphan Oligo Indexes
-                  'type_fail': 0,            # Barcode Tyoe Failure Count
+                  'type_fail': 0,            # Barcode Type Failure Count
               'distance_fail': 0,            # Hamming Distance Fail Count
                 'repeat_fail': 0,            # Repeat Fail Count
                'exmotif_fail': 0,            # Exmotif Elimination Fail Count

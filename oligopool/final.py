@@ -44,7 +44,7 @@ def final(
     # Start Liner
     liner = ut.liner_engine(verbose)
 
-    # Finalization Verbage Print
+    # Finalization Verbiage Print
     liner.send('\n[Oligopool Calculator: Design Mode - Final]\n')
 
     # Required Argument Parsing

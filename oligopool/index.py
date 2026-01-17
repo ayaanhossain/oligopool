@@ -73,7 +73,7 @@ def index(
     # Start Liner
     liner = ut.liner_engine(verbose)
 
-    # Indexing Verbage Print
+    # Indexing Verbiage Print
     liner.send('\n[Oligopool Calculator: Analysis Mode - Index]\n')
 
     # Required Argument Parsing

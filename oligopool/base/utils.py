@@ -1277,7 +1277,7 @@ def get_parsed_oligopool_repeats(
               into a single bounter
     :: liner
        type - coroutine
-       desc - dyanamic printing
+       desc - dynamic printing
     '''
 
     # Book-keeping
@@ -1291,7 +1291,7 @@ def get_parsed_oligopool_repeats(
     freecount = None
     repeatcount = 0
 
-    # Verbage Stuff
+    # Verbiage Stuff
     plen = get_printlen(
         value=kmerspace)
     if plen > 15:

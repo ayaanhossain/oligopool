@@ -1,31 +1,7 @@
-# Core Design Functions
-from .background import background
-from .barcode import barcode
-from .primer import primer
-from .motif import motif
-from .spacer import spacer
+import importlib
+from typing import Any
 
-# Auxiliary Design Functions
-from .merge import merge
-from .revcomp import revcomp
-from .lenstat import lenstat
-from .final import final
-
-# Assembly Design Functions
-from .split import split
-from .pad import pad
-
-# Analysis Functions
-from .index import index
-from .pack import pack
-from .acount import acount
-from .xcount import xcount
-
-# Other goodies
-from .base.vectordb import vectorDB
-from .base.scry import Scry
-
-__all__ = [
+__api__ = [
     'background',
     'barcode',
     'primer',
@@ -47,10 +23,54 @@ __all__ = [
     '__version__',
 ]
 
+# Keep `help(oligopool)` focused on the package-level manual text.
+# Users can run `help(oligopool.barcode)` (etc.) for module details.
+__all__ = ['__author__', '__version__']
+
 # Setup
 __author__ = 'Ayaan Hossain'
 
-__version__ = '2026.01.16'
+__version__ = '2026.01.17'
+
+_LAZY_ATTRS = {
+    # Core design functions
+    'background': ('.background', 'background'),
+    'barcode': ('.barcode', 'barcode'),
+    'primer': ('.primer', 'primer'),
+    'motif': ('.motif', 'motif'),
+    'spacer': ('.spacer', 'spacer'),
+    # Auxiliary design functions
+    'merge': ('.merge', 'merge'),
+    'revcomp': ('.revcomp', 'revcomp'),
+    'lenstat': ('.lenstat', 'lenstat'),
+    'final': ('.final', 'final'),
+    # Assembly design functions
+    'split': ('.split', 'split'),
+    'pad': ('.pad', 'pad'),
+    # Analysis functions
+    'index': ('.index', 'index'),
+    'pack': ('.pack', 'pack'),
+    'acount': ('.acount', 'acount'),
+    'xcount': ('.xcount', 'xcount'),
+    # Other goodies
+    'vectorDB': ('.base.vectordb', 'vectorDB'),
+    'Scry': ('.base.scry', 'Scry'),
+}
+
+
+def __getattr__(name: str) -> Any:
+    target = _LAZY_ATTRS.get(name)
+    if not target:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    module_name, attr_name = target
+    module = importlib.import_module(module_name, package=__name__)
+    value = getattr(module, attr_name)
+    globals()[name] = value
+    return value
+
+
+def __dir__() -> list[str]:
+    return sorted(set(globals()) | set(_LAZY_ATTRS))
 
 __doc__ = f'''
 oligopool v{__version__}

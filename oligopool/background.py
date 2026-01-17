@@ -44,7 +44,7 @@ def background(
     # Start Liner
     liner = ut.liner_engine(verbose)
 
-    # Barcoding Verbage Print
+    # Background Verbiage Print
     liner.send('\n[Oligopool Calculator: Design Mode - Background]\n')
 
     # Required Argument Parsing

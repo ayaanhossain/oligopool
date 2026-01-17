@@ -26,7 +26,7 @@ def acount(
     '''
     Count barcoded reads with indexed associates within specified error tolerance. Reads can optionally
     be co-processed using a callback function (see Notes). Count matrices are written out to disk,
-    and also returned back as a DataFrame.
+    and also returned as a DataFrame.
 
     Required Parameters:
         - `index_file` (`str`): Index object filename.
@@ -74,7 +74,7 @@ def acount(
     # Start Liner
     liner = ut.liner_engine(online=verbose)
 
-    # Counting Verbage Print
+    # Counting Verbiage Print
     liner.send('\n[Oligopool Calculator: Analysis Mode - Associate Count]\n')
 
     # Required Argument Parsing

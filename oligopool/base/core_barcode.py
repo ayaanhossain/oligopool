@@ -90,7 +90,7 @@ def get_finite_jumper(upb, rng=None):
 
     :: upb
        type - integer
-       desc - space uppberbound
+       desc - space upper bound
     :: rng
        type - np.random.Generator / None
        desc - optional RNG instance
@@ -281,7 +281,7 @@ def get_contigsize_scheme(
     barcodelen,
     minhdist):
     '''
-    Return optimal barcode contig parition
+    Return optimal barcode contig partition
     scheme for coordinate checking.
     Internal use only.
 
@@ -290,7 +290,7 @@ def get_contigsize_scheme(
        desc - barcode length
     :: minhdist
        type - integer
-       desc - minimum pairiwise hamming
+       desc - minimum pairwise hamming
               distance between barcodes
     '''
 
@@ -377,7 +377,7 @@ def is_exmotif_feasible(
     exmotifs):
     '''
     Determine if the barcode does not contain any
-    of the exluded motifs. Internal use only.
+    of the excluded motifs. Internal use only.
 
     :: barcodeseq
        type - string
@@ -826,7 +826,7 @@ def get_distro(
     else:
         idxsample = np.arange(count)
 
-    # Compute DIstribution - Half per Edge
+    # Compute Distribution - Half per Edge
     for idx in np.arange(store.shape[0]):
 
         # Upward Distance
@@ -889,7 +889,7 @@ def barcode_engine(
        desc - maximum shared repeat length
     :: barcodetype
        type - integer
-       desc - bacode design type identifier
+       desc - barcode design type identifier
               0 = terminus optimized barcodes
               1 = spectrum optimized barcodes
     :: oligorepeats
@@ -933,7 +933,7 @@ def barcode_engine(
         dtype=np.float64)
     codes = []                   # Store Decoded Barcodes
     assignmentarray = []         # Assignment Array
-    coocache = {}                # Coorindate Dictionary
+    coocache = {}                # Coordinate Dictionary
     count    = 0                 # Barcode Count
 
     # Optimized Contig Break
@@ -941,7 +941,7 @@ def barcode_engine(
         barcodelen=barcodelen,
         minhdist=minhdist)
 
-    # Spectral Uniquness
+    # Spectral Uniqueness
     minstringlen = int(np.ceil(ut.safelog(
         A=targetcount*barcodelen,
         n=4)))
@@ -991,9 +991,9 @@ def barcode_engine(
     flcnt = 0     # Failure Count
     excnt = trial # Trial   Count
 
-    # Verbage Setup
-    verbage_reach  = 0
-    verbage_target = ut.get_sample(
+    # Verbiage Setup
+    verbiage_reach  = 0
+    verbiage_target = ut.get_sample(
         value=targetcount,
         lf=0.080,
         uf=0.120,
@@ -1035,7 +1035,7 @@ def barcode_engine(
         aidx,
         emcounter,
         subset,
-        cooridnates) = barcode_objectives(
+        coordinates) = barcode_objectives(
             store=store,
             count=count,
             barcodeseq=barcodeseq,
@@ -1054,7 +1054,7 @@ def barcode_engine(
             rightcontexttype=rightcontexttype,
             rightselector=rightselector)
 
-        # Inifinite Jumper Book-keeping Update
+        # Infinite Jumper Book-keeping Update
         if jtp == 2:
             excnt += 1
 
@@ -1087,7 +1087,7 @@ def barcode_engine(
                 substringcache.update(subset)
 
             # Update Coordinate Cache
-            for contig,index in cooridnates:
+            for contig,index in coordinates:
                 if not contig in coocache:
                     coocache[contig] = []
                     for _ in range(minhdist):
@@ -1095,7 +1095,7 @@ def barcode_engine(
                     coocache[contig] = tuple(coocache[contig])
                 coocache[contig][index].append(count-1)
 
-            # Inifinite Jumper Book-keeping Update
+            # Infinite Jumper Book-keeping Update
             if jtp == 2:
                 sscnt += 1
                 prob  = ut.get_prob(
@@ -1121,7 +1121,7 @@ def barcode_engine(
             if optstate == 5:
                 stats['vars']['type_fail']     += 1
 
-            # Inifinite Jumper Book-keeping Update
+            # Infinite Jumper Book-keeping Update
             if jtp == 2:
                 flcnt += 1
 
@@ -1129,8 +1129,8 @@ def barcode_engine(
             if not emcounter is None:
                 stats['vars']['exmotif_counter'] += emcounter
 
-        # Verbage Book-keeping
-        if verbage_reach >= verbage_target:
+        # Verbiage Book-keeping
+        if verbiage_reach >= verbiage_target:
             show_update(
                 count=count,
                 plen=plen,
@@ -1140,8 +1140,8 @@ def barcode_engine(
                 inittime=t0,
                 terminal=False,
                 liner=liner)
-            verbage_reach = -1
-        verbage_reach += 1
+            verbiage_reach = -1
+        verbiage_reach += 1
 
         # Target Reached?
         if count == targetcount:
@@ -1171,7 +1171,7 @@ def barcode_engine(
                 store,
                 stats)
 
-        # Trials Exhausted for Inifinite Jumper?
+        # Trials Exhausted for Infinite Jumper?
         if jtp == 2:
             if flcnt == trial:
 

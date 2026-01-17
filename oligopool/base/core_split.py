@@ -954,7 +954,7 @@ def aggregate_stats(
     :: overlap
        type - list
        desc - list of all (start, end)
-              split overlap cooridnates
+              split overlap coordinates
     :: stats
        type - dict
        desc - split design stats storage

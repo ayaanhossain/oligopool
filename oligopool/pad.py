@@ -79,7 +79,7 @@ def pad(
     # Start Liner
     liner = ut.liner_engine(verbose)
 
-    # Barcoding Verbage Print
+    # Padding Verbiage Print
     liner.send('\n[Oligopool Calculator: Design Mode - Pad]\n')
 
     # Required Argument Parsing

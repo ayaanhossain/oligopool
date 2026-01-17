@@ -667,7 +667,7 @@ def stream_processed_fastq(
     ambiguousreads,
     shortreads,
     survivedreads,
-    verbagetarget,
+    verbiagetarget,
     coreid,
     ncores,
     memlimit,
@@ -761,7 +761,7 @@ def stream_processed_fastq(
        type - SafeCounter
        desc - total number of filtered read
               pairs in r1file and r2file
-    :: verbagetarget
+    :: verbiagetarget
        type - integer
        desc - total number of reads to scan per
               batch before updating scannedreads
@@ -796,7 +796,7 @@ def stream_processed_fastq(
     t0 = launchtime
 
     # Book-keeping Variables
-    verbagereach     = 0
+    verbiagereach    = 0
     c_previousreads  = previousreads.value()
     c_scannedreads   = 0
     c_ambiguousreads = 0
@@ -948,11 +948,11 @@ def stream_processed_fastq(
 
         # Update Book-keeping
         c_scannedreads += 1
-        verbagereach   += 1
+        verbiagereach  += 1
         batchreach     += 1
 
         # Time to show updates?
-        if verbagereach >= verbagetarget:
+        if verbiagereach >= verbiagetarget:
 
             # Show Updates
             liner.send(
@@ -963,7 +963,7 @@ def stream_processed_fastq(
                     tt.time()-t0))
 
             # Update Book-keeping
-            verbagereach = 0
+            verbiagereach = 0
 
         # Did we complete a batch?
         if batchreach == batchsize:
@@ -1356,14 +1356,14 @@ def pack_engine(
     max_dump_reach  = 0
     max_dump_target = packsize
 
-    # Setup Verbage Variables
+    # Setup Verbiage Variables
     if packtype:
-        verbagefactor = 0.2
+        verbiagefactor = 0.2
     else:
-        verbagefactor = 1
-    verbagetarget = rn.randint(
-        *map(round, (min_dump_target * 0.080 * verbagefactor,
-                     min_dump_target * 0.120 * verbagefactor)))
+        verbiagefactor = 1
+    verbiagetarget = rn.randint(
+        *map(round, (min_dump_target * 0.080 * verbiagefactor,
+                     min_dump_target * 0.120 * verbiagefactor)))
 
     clen = ut.get_printlen(value=ncores)
     plen = ut.get_printlen(value=packsize)
@@ -1392,7 +1392,7 @@ def pack_engine(
         ambiguousreads=ambiguousreads,
         shortreads=shortreads,
         survivedreads=survivedreads,
-        verbagetarget=verbagetarget,
+        verbiagetarget=verbiagetarget,
         coreid=coreid,
         ncores=ncores,
         memlimit=memlimit,

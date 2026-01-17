@@ -1,3 +1,22 @@
+2026.01.17
+1. Development in progress.
+2. Docstring/comment spelling fixes.
+3. Internal variable spelling fixes (no behavior change).
+4. CLI main menu: added short description and refined command summaries.
+5. CLI subcommand help: added one-line descriptions.
+6. CLI subcommand help: added footer notes (from module docstrings).
+7. CLI subcommand help: fixed notes bullet formatting.
+8. CLI subcommand help: show full notes and normalize whitespace.
+9. CLI manual: clarified usage and examples.
+10. CLI manual: expanded topics listing to include meta topics.
+11. CLI manual: improved topics formatting.
+12. CLI subcommand help: translate docstring parameter names to CLI flags.
+13. `help(oligopool)`: show package manual only.
+14. CLI: allow simple Python-style sequence-constraint expressions (e.g. "'N'*20") for primer/motif constraints.
+15. Docstrings: corrected minor typos and clarified a few parameter descriptions.
+16. CLI: allow shorthand sequence-constraint concatenation (e.g. "GCC+N*20+CCG") for primer/motif constraints.
+17. CLI/argcomplete: reduced completion latency by deferring heavy imports until after argument parsing.
+
 2026.01.16
 1. Version bump.
 2. Standardized RNG seeding for stochastic design/assembly modules.

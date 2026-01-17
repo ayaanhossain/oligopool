@@ -81,7 +81,7 @@ def spacer(
     # Start Liner
     liner = ut.liner_engine(verbose)
 
-    # Spacer Verbage Print
+    # Spacer Verbiage Print
     liner.send('\n[Oligopool Calculator: Design Mode - Spacer]\n')
 
     # Required Argument Parsing

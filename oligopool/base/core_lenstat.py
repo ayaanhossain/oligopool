@@ -18,9 +18,10 @@ def lenstat_engine(
        desc - a pandas DataFrame storing
               annotated oligopool variants and their parts
     :: oligolimit
-       type - integer
+       type - integer / None
        desc - maximum oligo length allowed in the oligopool,
-              must be 4 or greater
+              must be 4 or greater; if None, only length ranges
+              are computed and overflow is reported as N/A
     '''
 
     # Book-keeping
@@ -48,6 +49,12 @@ def lenstat_engine(
         minoligolength = np.min(fraglens)
         maxoligolength = np.max(fraglens)
 
+        # Oligo length overflow?
+        if oligolimit is None:
+            overflow = 'N/A'
+        else:
+            overflow = ('Yes', 'No')[int(maxoligolength <= oligolimit)]
+
         # Update Stats
         intstats[idx] = [
             col,
@@ -55,7 +62,7 @@ def lenstat_engine(
             maxelementlen,
             minoligolength,
             maxoligolength,
-            ('Yes', 'No')[int(maxoligolength <= oligolimit)]]
+            overflow]
 
         # Show Update
         if minelementlen == maxelementlen:
@@ -70,8 +77,9 @@ def lenstat_engine(
                     minelementlen,
                     maxelementlen))
 
-    minspaceavail = oligolimit - maxoligolength
-    maxspaceavail = oligolimit - minoligolength
+    if not oligolimit is None:
+        minspaceavail = oligolimit - maxoligolength
+        maxspaceavail = oligolimit - minoligolength
 
     # Show Time Elapsed
     liner.send(

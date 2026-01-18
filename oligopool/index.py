@@ -23,9 +23,8 @@ def index(
     associate_suffix_column:str|None=None,
     verbose:bool=True) -> dict:
     '''
-    Create an index for barcode mapping and counting. Indexes barcodes, optionally with associated
-    variants, for use in `Scry` classifier. Barcode and associate data can be provided separately.
-    Resulting index is a single information unit for mapping and counting, saved locally for future.
+    Build an index object for mapping barcodes (and optional associates) in NGS reads.
+    The resulting `.oligopool.index` is used by `acount`/`xcount` for fast counting via `Scry`.
 
     Required Parameters:
         - `barcode_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated barcodes.
@@ -54,6 +53,8 @@ def index(
         - For association counting, partial presence of associate variant suffices; however, their
           `{prefix|suffix}` constants must be adjacent and present completely.
         - Multiple indices may be used simultaneously for combinatorial counting (association ignored).
+        - Anchor sequences can be designed with `motif(motif_type=1, ...)` and then referenced via
+          `{barcode|associate}_{prefix|suffix}_column`.
     '''
 
     # Alias Arguments

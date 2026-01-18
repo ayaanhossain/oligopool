@@ -14,8 +14,8 @@ def lenstat(
     oligo_length_limit:int,
     verbose:bool=True) -> dict:
     '''
-    Computes the length statistics of the elements and the resulting oligos in `input_data`.
-    Returns only the stats dictionary.
+    Compute element-wise and overall oligo length statistics under an `oligo_length_limit`.
+    Useful as a "ruler" during design mode; returns only a stats dictionary.
 
     Required Parameters:
         - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated oligopool variants.
@@ -30,6 +30,10 @@ def lenstat(
     Notes:
         - `input_data` must contain a unique 'ID' column, all other columns must be non-empty DNA strings.
         - `lenstat` module does not add anything to `input_data`, so there is no `output_file` required.
+        - Use `lenstat` throughout design mode to track free space available under `oligo_length_limit`
+          (e.g., before using the `spacer` module).
+        - `lenstat` assumes all non-ID columns are DNA strings; if your DataFrame contains annotation columns
+          or degenerate/IUPAC bases, use `verify` for a more general QC summary.
     '''
 
     # Argument Aliasing
@@ -100,19 +104,11 @@ def lenstat(
     liner.send('\n[Length Statistics]\n')
 
     # Build Stats Print String
-    statsprint = '\n'.join(
-        ' ' + line for line in pd.DataFrame.from_dict(
-            {k: [u[0]] + [str(v) + ' bp' for v in u[1:-1]] + [u[-1]] \
-                for k,u in intstats.items()},
-            orient='index',
-            columns=pd.MultiIndex.from_arrays(
-                [('', '    Min', '    Max', '   Min', '   Max', '   Oligo'),
-                 ('', 'Element', 'Element', ' Oligo', ' Oligo', '   Limit'),
-                 ('', ' Length', ' Length', 'Length', 'Length', 'Overflow')]
-                )).to_string(index=False).split('\n'))
+    statsprint = ut.get_lenstat_statsprint(
+        intstats=intstats)
 
     # Show Stats String
-    if verbose:
+    if verbose and statsprint:
         print('\n{}'.format(statsprint))
 
 
@@ -123,12 +119,8 @@ def lenstat(
         'step'    : 1,
         'step_name': 'computing-length-statistics',
         'vars'    : {
-            'len_stat'     : cx.OrderedDict({v[0]: { # Store Element-wise Length Stats
-                'min_element_len':  v[1],
-                'max_element_len':  v[2],
-                'min_oligo_len':    v[3],
-                'max_oligo_len':    v[4],
-                'limit_overflow':   v[5] == 'Yes'} for k,v in intstats.items()}),
+            'len_stat'     : ut.get_lenstat_dict(
+                intstats=intstats),             # Store Element-wise Length Stats
             'oligo_limit'    : oligolimit,            # Specified Oligo Limit
             'min_space_avail': minspaceavail,         # Minimum Space Available
             'max_space_avail': maxspaceavail},        # Maximum Space Available

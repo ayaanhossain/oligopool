@@ -23,10 +23,8 @@ def split(
     verbose:bool=True,
     random_seed:int|None=None) -> Tuple[pd.DataFrame, dict]:
     '''
-    Splits longer oligos into shorter overlapping fragments with all overlaps at particular
-    coordinates having specified minimum pairwise Hamming distances and minimum melting temperatures.
-    Overlap lengths can be controlled depending on downstream assembly strategy. Produces a derived
-    new DataFrame with 'Split' columns which can be saved to a specified CSV file.
+    Split long oligos into overlapping fragments for downstream assembly, choosing overlaps that meet
+    Tm and pairwise distance constraints. Returns a DataFrame containing `Split1`, `Split2`, ... columns.
 
     Required Parameters:
         - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated oligopool variants.
@@ -50,18 +48,21 @@ def split(
         - `input_data` must contain a unique 'ID' column, all other columns must be non-empty DNA strings.
         - `minimum_overlap_length` should always be larger than `minimum_hamming_distance`.
         - Total number of fragments is auto determined, and can be variable per oligo, depending on length.
+        - Split fragments are returned in PCR assembly order; even-numbered split columns (`Split2`, `Split4`, ...)
+          are reverse-complemented. Use `revcomp` to visualize overlaps and orientation.
         - Returned DataFrame contains split oligos, annotation from `input_data` is lost.
+        - Split outputs are commonly passed to `pad` for primer + Type IIS assembly preparation.
     '''
 
     # Argument Aliasing
-    indata     = input_data
-    splitlimit = split_length_limit
-    mintmelt   = minimum_melting_temperature
-    minhdist   = minimum_hamming_distance
-    minoverlap = minimum_overlap_length
-    maxoverlap = maximum_overlap_length
-    outfile    = output_file
-    verbose    = verbose
+    indata      = input_data
+    splitlimit  = split_length_limit
+    mintmelt    = minimum_melting_temperature
+    minhdist    = minimum_hamming_distance
+    minoverlap  = minimum_overlap_length
+    maxoverlap  = maximum_overlap_length
+    outfile     = output_file
+    verbose     = verbose
     random_seed = random_seed
 
     # Local RNG

@@ -27,9 +27,9 @@ def motif(
     verbose:bool=True,
     random_seed:int|None=None) -> Tuple[pd.DataFrame, dict]:
     '''
-    Adds a constant or designs constrained motifs free of edge-effects between the given sequence
-    contexts. Addition of motifs will not produce excluded motifs unless one was embedded in it.
-    Returned DataFrame with added motifs can optionally be saved to a CSV.
+    Add or design constrained motifs under a sequence constraint with repeat/excluded-motif screening
+    (including edge effects with context). Supports per-variant motifs and constant motif anchors for
+    building indexable architectures.
 
     Required Parameters:
         - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated oligopool variants.
@@ -41,7 +41,8 @@ def motif(
     Optional Parameters:
         - `output_file` (`str`): Filename for output DataFrame; required in CLI usage,
             optional in library usage (default: `None`).
-        - `motif_type` (`int`): Motif type to design (0 for non-constant, 1 for constant, default: 0).
+        - `motif_type` (`int`): Motif type to design
+            (0 for per-variant motifs, 1 for a single constant motif shared by all variants; default: 0).
         - `left_context_column` (`str`): Column for left DNA context (default: `None`).
         - `right_context_column` (`str`): Column for right DNA context (default: `None`).
         - `excluded_motifs` (`list` / `str` / `pd.DataFrame`): Motifs to exclude;
@@ -59,7 +60,10 @@ def motif(
         - At least one of `left_context_column` or `right_context_column` must be specified.
         - If `excluded_motifs` is a CSV or DataFrame, it must have 'ID' and 'Exmotif' columns.
         - Constant bases in sequence constraint may lead to `excluded_motifs` and be impossible to solve.
-        - Constant barcode anchors must be designed prior to barcode generation.
+        - Use `motif_type=1` to design constant motif anchors (e.g., barcode prefix/suffix anchors for indexing).
+        - For anchors, tune `maximum_repeat_length` to control how distinct the anchor is from the surrounding oligos.
+        - For anchors, `motif_sequence_constraint` can be an IUPAC pattern (e.g., 'NNNNNNNNNN') or include fixed bases.
+        - Anchors should typically be designed prior to barcode generation.
     '''
 
     # Argument Aliasing

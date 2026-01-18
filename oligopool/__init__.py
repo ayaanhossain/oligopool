@@ -9,6 +9,7 @@ __api__ = [
     'spacer',
     'merge',
     'revcomp',
+    'verify',
     'lenstat',
     'final',
     'split',
@@ -30,7 +31,7 @@ __all__ = ['__author__', '__version__']
 # Setup
 __author__ = 'Ayaan Hossain'
 
-__version__ = '2026.01.17'
+__version__ = '2026.01.18'
 
 _LAZY_ATTRS = {
     # Core design functions
@@ -42,6 +43,7 @@ _LAZY_ATTRS = {
     # Auxiliary design functions
     'merge': ('.merge', 'merge'),
     'revcomp': ('.revcomp', 'revcomp'),
+    'verify': ('.verify', 'verify'),
     'lenstat': ('.lenstat', 'lenstat'),
     'final': ('.final', 'final'),
     # Assembly design functions
@@ -115,6 +117,7 @@ Design Mode workflow
     Auxiliary modules available
         - merge
         - revcomp
+        - verify
         - lenstat
         - final
 

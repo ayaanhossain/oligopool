@@ -674,6 +674,67 @@ def format_row_examples(examples, label='Failing ID examples'):
         return ''
     return f' {label}: {examples}'
 
+def get_lenstat_statsprint(intstats):
+    '''
+    Format lenstat-style intstats into a compact, readable table string.
+    Internal use only.
+
+    :: intstats
+       type - dict / collections.OrderedDict
+       desc - output from core_lenstat.lenstat_engine
+              mapping -> [col, min_e, max_e, min_o, max_o, overflow]
+    '''
+
+    if not intstats:
+        return ''
+
+    import pandas as pd
+
+    statsprint = '\n'.join(
+        ' ' + line for line in pd.DataFrame.from_dict(
+            {k: [u[0]] + [str(v) + ' bp' for v in u[1:-1]] + [u[-1]] \
+                for k,u in intstats.items()},
+            orient='index',
+            columns=pd.MultiIndex.from_arrays(
+                [('', '    Min', '    Max', '   Min', '   Max', '   Oligo'),
+                 ('', 'Element', 'Element', ' Oligo', ' Oligo', '   Limit'),
+                 ('', ' Length', ' Length', 'Length', 'Length', 'Overflow')]
+                )).to_string(index=False).split('\n'))
+
+    return statsprint
+
+def get_lenstat_dict(intstats):
+    '''
+    Restructure lenstat-style intstats into a JSON-friendly dictionary.
+    Internal use only.
+
+    :: intstats
+       type - dict / collections.OrderedDict
+       desc - output from core_lenstat.lenstat_engine
+              mapping -> [col, min_e, max_e, min_o, max_o, overflow]
+    '''
+
+    out = cx.OrderedDict()
+
+    if not intstats:
+        return out
+
+    for _, v in intstats.items():
+        overflow = v[5]
+        if overflow == 'N/A':
+            limit_overflow = None
+        else:
+            limit_overflow = overflow == 'Yes'
+
+        out[v[0]] = {
+            'min_element_len':  int(v[1]),
+            'max_element_len':  int(v[2]),
+            'min_oligo_len':    int(v[3]),
+            'max_oligo_len':    int(v[4]),
+            'limit_overflow':   limit_overflow}
+
+    return out
+
 
 # --= DataFrame Functions =--
 
@@ -714,6 +775,83 @@ def get_uniques(iterable, typer):
             uniques.append(element)
             seen.add(element)
     return typer(uniques)
+
+def get_cross_barcode_store(
+    df,
+    crosscols,
+    barcodelen,
+    minhdist):
+    '''
+    Return cross-set cache objects for barcode Hamming screening.
+    Internal use only.
+
+    :: df
+       type - pd.DataFrame
+       desc - input pandas DataFrame
+    :: crosscols
+       type - list
+       desc - list of column names in df storing existing barcodes
+    :: barcodelen
+       type - integer
+       desc - barcode length
+    :: minhdist
+       type - integer
+       desc - minimum cross-set Hamming distance
+    '''
+
+    if crosscols is None or minhdist is None:
+        return (None, 0, None, None)
+
+    # Collect unique barcode sequences across all specified columns
+    seqs = []
+    for col in crosscols:
+        seqs.extend(df[col])
+
+    uniques = get_uniques(
+        iterable=seqs,
+        typer=tuple)
+    cross_set_size = len(uniques)
+
+    # Contig scheme (mirrors core_barcode.get_contigsize_scheme)
+    contigsize = np.zeros(minhdist, dtype=np.int32) + (barcodelen // minhdist)
+    covered = np.sum(contigsize)
+    if covered < barcodelen:
+        contigsize[:barcodelen-covered] += 1
+
+    # Coordinate cache
+    coocache = {}
+    for idx, seq in enumerate(uniques):
+        seq = seq.upper()
+        for contig, index in stream_contigs(
+            seq=seq,
+            scheme=contigsize):
+            if not contig in coocache:
+                cache = []
+                for _ in range(minhdist):
+                    cache.append([])
+                coocache[contig] = tuple(cache)
+            coocache[contig][index].append(idx)
+
+    # Numeric store (A/G/T/C -> 0/1/2/3)
+    encoder = {
+        'A': 0.,
+        'G': 1.,
+        'T': 2.,
+        'C': 3.,
+    }
+    store_plus = np.zeros(
+        (cross_set_size + 1, barcodelen),
+        dtype=np.float64)
+    for idx, seq in enumerate(uniques):
+        seq = seq.upper()
+        store_plus[idx, :] = np.array(
+            tuple(encoder[nt] for nt in seq),
+            dtype=np.float64)
+
+    return (store_plus,
+        cross_set_size,
+        contigsize,
+        coocache)
 
 def get_col_exist_idx(col, df):
     '''

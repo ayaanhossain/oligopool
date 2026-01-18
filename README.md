@@ -71,8 +71,7 @@ You can import the library and use its various functions either in a script or i
 
 There are examples of a [design parser](https://github.com/ayaanhossain/oligopool/blob/master/examples/design-parser/design_parser.py) and an [analysis pipeline](https://github.com/ayaanhossain/oligopool/blob/master/examples/analysis-pipeline/analysis_pipeline.py) inside the [`examples`](https://github.com/ayaanhossain/oligopool/tree/master/examples) directory.
 
-A notebook demonstrating [`Oligopool Calculator` in action](https://github.com/ayaanhossain/oligopool/blob/master/examples/OligopoolCalculatorInAction.ipynb) is provided there as well.
-It includes a worked example of cross-barcode set constraints (BC2 separated from the BC1 set).
+A notebook demonstrating [`Oligopool Calculator` in action](https://github.com/ayaanhossain/oligopool/blob/master/examples/OligopoolCalculatorInAction.ipynb) is provided there as well. It shows in-depth use of all major design and analysis methods.
 
 Two lightweight QC helpers are worth knowing up front.
 - `lenstat`: quick length/free-space summaries under an `oligo_length_limit` (use throughout Design Mode).

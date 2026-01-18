@@ -5,7 +5,7 @@
 4. Barcode module: refactored cross-set validation + precomputation into shared helpers (`validation_parsing.py`, `utils.py`).
 5. CLI: allow multi-value `--cross-barcode-columns` and `--index-files` (space- or comma-separated).
 6. Docs: tightened module docstring descriptions and added high-signal Notes bullets (e.g., primer chaining, motif anchors).
-7. Notebook: updated `OligopoolCalculatorInAction.ipynb` to explain cross-barcode sets, mention `merge`, and fix minor text issues.
+7. Notebook: updated `OligopoolCalculatorInAction.ipynb` to explain cross-barcode sets, introduce `lenstat`/`verify` usage, mention `merge`, and fix minor text issues.
 8. CLI: `op manual topic` is now an alias of `op manual topics`.
 9. CLI: `op complete --install` now installs a lazy hook that activates after `conda activate` / env activation.
 10. CLI/Docs: minor help text refinements (main menu footer, motif help includes anchors).

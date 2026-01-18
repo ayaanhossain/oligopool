@@ -75,7 +75,7 @@ A notebook demonstrating [`Oligopool Calculator` in action](https://github.com/a
 
 Two lightweight QC helpers are worth knowing up front.
 - `lenstat`: quick length/free-space summaries under an `oligo_length_limit` (use throughout Design Mode).
-- `verify`: quick QC summary that flags metadata and degenerate/mixed columns, and checks excluded motif emergence.
+- `verify`: quick QC summary that parses an oligopool DataFrame and verfies constraints.
 
 ```python
 $ python

@@ -281,7 +281,7 @@ $ op complete --install bash     # or: zsh|fish
 
 ## Citation
 
-If you use `Oligopool Calculator` or libraries designed or analyzed using the tool in your research publication, please cite our paper.
+If you use `Oligopool Calculator` in your research publication, please cite our paper.
 
 ```
 Hossain A, Cetnar DP, LaFleur TL, McLellan JR, Salis HM.
@@ -289,7 +289,7 @@ Automated Design of Oligopools and Rapid Analysis of Massively Parallel Barcoded
 ACS Synth Biol. 2024;13(12):4218-4232. doi:10.1021/acssynbio.4c00661
 ```
 
-You can read the complete article online at [ACS Synthetic Biology](https://doi.org/10.1021/acssynbio.4c00661).
+You can read the complete article online for free at [ACS Synthetic Biology](https://doi.org/10.1021/acssynbio.4c00661).
 
 ## License
 

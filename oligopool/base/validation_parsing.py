@@ -1381,6 +1381,229 @@ def get_parsed_column_info(
         return (parsedcol,
             col_valid)
 
+def get_parsed_cross_barcode_info(
+    crosscols,
+    crosscols_field,
+    mindist,
+    mindist_field,
+    barcodelen,
+    outcol,
+    df,
+    liner):
+    '''
+    Determine if cross barcode constraints are valid.
+    Internal use only.
+
+    :: crosscols
+       type - list / None
+       desc - list of column names in df storing existing barcodes
+    :: crosscols_field
+       type - string
+       desc - crosscols fieldname used in printing
+    :: mindist
+       type - integer / None
+       desc - minimum cross-set Hamming distance
+    :: mindist_field
+       type - string
+       desc - mindist fieldname used in printing
+    :: barcodelen
+       type - integer
+       desc - barcode length
+    :: outcol
+       type - string
+       desc - output barcode column name
+    :: df
+       type - pd.DataFrame / None
+       desc - input pandas DataFrame
+    :: liner
+       type - coroutine
+       desc - dynamic printing
+    '''
+
+    # For barcodes, accept only strict ATGC (no gaps / no degeneracy).
+    barcode_alpha = set('ATGC')
+
+    # Normalize crosscols input
+    if isinstance(crosscols, str):
+        crosscols = [crosscols]
+
+    # Cross mode disabled
+    if crosscols is None and mindist is None:
+        liner.send(
+            '{}: None Specified\n'.format(
+                crosscols_field))
+        liner.send(
+            '{}: None Specified\n'.format(
+                mindist_field))
+        return (None, None, True)
+
+    # Symmetry check
+    if (crosscols is None) ^ (mindist is None):
+        if crosscols is None:
+            liner.send(
+                '{}: None Specified [MISSING CROSS BARCODE COLUMNS]\n'.format(
+                    crosscols_field))
+        else:
+            if not isinstance(crosscols, (list, tuple)):
+                liner.send(
+                    '{}: {} [INPUT TYPE IS INVALID]\n'.format(
+                        crosscols_field,
+                        crosscols))
+            else:
+                liner.send(
+                    '{}: Input from Column(s) \'{}\'\n'.format(
+                        crosscols_field,
+                        ', '.join(str(c) for c in crosscols)))
+        if mindist is None:
+            liner.send(
+                '{}: None Specified [MISSING MINIMUM CROSS DISTANCE]\n'.format(
+                    mindist_field))
+        else:
+            if isinstance(mindist, nu.Integral):
+                liner.send(
+                    '{}: At least {} Mismatch(es) per Cross-Set Barcode Pair\n'.format(
+                        mindist_field,
+                        mindist))
+            else:
+                liner.send(
+                    '{}: {} [INPUT TYPE IS INVALID]\n'.format(
+                        mindist_field,
+                        mindist))
+        return (None, None, False)
+
+    # Type check: crosscols must be a list/tuple of strings
+    if not isinstance(crosscols, (list, tuple)) or not crosscols:
+        liner.send(
+            '{}: {} [INPUT TYPE IS INVALID]\n'.format(
+                crosscols_field,
+                crosscols))
+        liner.send(
+            '{}: {} [INPUT TYPE IS INVALID]\n'.format(
+                mindist_field,
+                mindist))
+        return (None, None, False)
+
+    if not all(isinstance(col, str) for col in crosscols):
+        liner.send(
+            '{}: {} [INPUT TYPE IS INVALID]\n'.format(
+                crosscols_field,
+                crosscols))
+        liner.send(
+            '{}: {} [INPUT TYPE IS INVALID]\n'.format(
+                mindist_field,
+                mindist))
+        return (None, None, False)
+
+    crosscols = list(crosscols)
+
+    # Output column conflict?
+    if outcol in crosscols:
+        liner.send(
+            '{}: Input from Column(s) \'{}\' [COLUMN NAME CONFLICT=\'{}\']\n'.format(
+                crosscols_field,
+                ', '.join(crosscols),
+                outcol))
+        liner.send(
+            '{}: {} [INPUT TYPE IS INVALID]\n'.format(
+                mindist_field,
+                mindist))
+        return (None, None, False)
+
+    # mindist type check
+    if not isinstance(mindist, nu.Integral):
+        liner.send(
+            '{}: Input from Column(s) \'{}\'\n'.format(
+                crosscols_field,
+                ', '.join(crosscols)))
+        liner.send(
+            '{}: {} [INPUT TYPE IS INVALID]\n'.format(
+                mindist_field,
+                mindist))
+        return (None, None, False)
+
+    mindist = int(mindist)
+
+    # mindist range check
+    if mindist < 1 or mindist > barcodelen:
+        liner.send(
+            '{}: Input from Column(s) \'{}\'\n'.format(
+                crosscols_field,
+                ', '.join(crosscols)))
+        liner.send(
+            '{}: {} [VALUE OUT OF RANGE]\n'.format(
+                mindist_field,
+                mindist))
+        return (None, None, False)
+
+    # df exists?
+    if not isinstance(df, pd.DataFrame):
+        liner.send(
+            '{}: Input from Column(s) \'{}\' [COLUMN EXISTENCE UNKNOWN]\n'.format(
+                crosscols_field,
+                ', '.join(crosscols)))
+        liner.send(
+            '{}: At least {} Mismatch(es) per Cross-Set Barcode Pair\n'.format(
+                mindist_field,
+                mindist))
+        return (crosscols, mindist, False)
+
+    # Column existence and content validity
+    for col in crosscols:
+
+        if col not in df.columns:
+            liner.send(
+                '{}: Input from Column(s) \'{}\' [MISSING COLUMN=\'{}\']\n'.format(
+                    crosscols_field,
+                    ', '.join(crosscols),
+                    col))
+            liner.send(
+                '{}: At least {} Mismatch(es) per Cross-Set Barcode Pair\n'.format(
+                    mindist_field,
+                    mindist))
+            return (None, None, False)
+
+        uniques = ut.get_uniques(
+            iterable=df[col],
+            typer=tuple)
+
+        for value in uniques:
+            if not isinstance(value, str) or not ut.is_DNA(
+                seq=value,
+                dna_alpha=barcode_alpha):
+                liner.send(
+                    '{}: Input from Column(s) \'{}\' [NON-DNA VALUE IN COLUMN=\'{}\']\n'.format(
+                        crosscols_field,
+                        ', '.join(crosscols),
+                        col))
+                liner.send(
+                    '{}: At least {} Mismatch(es) per Cross-Set Barcode Pair\n'.format(
+                        mindist_field,
+                        mindist))
+                return (None, None, False)
+            if len(value) != barcodelen:
+                liner.send(
+                    '{}: Input from Column(s) \'{}\' [INVALID LENGTH IN COLUMN=\'{}\']\n'.format(
+                        crosscols_field,
+                        ', '.join(crosscols),
+                        col))
+                liner.send(
+                    '{}: At least {} Mismatch(es) per Cross-Set Barcode Pair\n'.format(
+                        mindist_field,
+                        mindist))
+                return (None, None, False)
+
+    # Show updates
+    liner.send(
+        '{}: Input from Column(s) \'{}\'\n'.format(
+            crosscols_field,
+            ', '.join(crosscols)))
+    liner.send(
+        '{}: At least {} Mismatch(es) per Cross-Set Barcode Pair\n'.format(
+            mindist_field,
+            mindist))
+
+    return (crosscols, mindist, True)
+
 def get_parsed_exseqs_info(
     exseqs,
     exseqs_field,

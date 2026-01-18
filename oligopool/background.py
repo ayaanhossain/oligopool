@@ -15,10 +15,8 @@ def background(
     output_directory:str,
     verbose=True) -> dict:
     '''
-    The background function creates a k-mer database from a list or CSV file of background sequences.
-    This database is used during primer design to ensure primers are non-repetitive to the background,
-    minimizing off-target amplification. Non-repetitiveness is regulated by the maximum shared repeat
-    length parameter. The generated database is saved in the specified `output_directory`.
+    Build a background k-mer database for screening primer designs against off-target repeat matches.
+    Use the resulting directory with `primer(..., background_directory=...)`.
 
     Required Parameters:
         - `input_data` (`list` / `str` / `pd.DataFrame`): background for primers; can be a CSV file or a DataFrame.

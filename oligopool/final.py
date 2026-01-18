@@ -16,8 +16,8 @@ def final(
     output_file:str|None=None,
     verbose:bool=True) -> Tuple[pd.DataFrame, dict]:
     '''
-    Concatenates all columns in input_data and returns the final library DataFrame.
-    If a path is provided, a CSV file containing the library is written out.
+    Finalize a synthesis-ready library by concatenating all sequence columns into `CompleteOligo`.
+    Also computes `OligoLength` and optionally writes the resulting library CSV.
 
     Required Parameters:
         - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated oligopool variants.
@@ -34,6 +34,8 @@ def final(
     Notes:
         - `input_data` must contain a unique 'ID' column, all other columns must be non-empty DNA strings.
         - All annotations are lost in this step, so new elements can only be added as left or right context.
+        - `final` is typically the terminal design step before synthesis, after which design-mode element
+          modules are not intended to be executed for additional oligopool markups.
     '''
 
     # Argument Aliasing

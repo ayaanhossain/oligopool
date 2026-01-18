@@ -28,7 +28,7 @@ We have used `Oligopool Calculator` in multiple projects to build libraries of t
     </a>
 </h1>
 
-**Design and analysis of oligopool variants using `Oligopool Calculator`.** **(a)** In `Design Mode`, `Oligopool Calculator` can be used to generate optimized `barcode`s, `primer`s, `spacer`s, `motif`s and `split` longer oligos into shorter `pad`ded fragments for downstream synthesis and assembly. **(b)** Once the library is assembled and cloned, barcoded amplicon sequencing data can be processed via `Analysis Mode` for characterization. `Analysis Mode` proceeds by first `index`ing one or more sets of barcodes, `pack`ing the reads, and then producing count matrices either using `acount` (association counting) or `xcount` (combinatorial counting).
+**Design and analysis of oligopool variants using `Oligopool Calculator`.** **(a)** In `Design Mode`, `Oligopool Calculator` can be used to generate optimized `barcode`s, `primer`s, `spacer`s, `motif`s and `split` longer oligos into shorter `pad`ded fragments for downstream synthesis and assembly. Use `lenstat` as a fast "ruler" to track length/free space under an `oligo_length_limit`, and use `verify` to run a final constraints/QC pass before ordering/synthesis. **(b)** Once the library is assembled and cloned, barcoded amplicon sequencing data can be processed via `Analysis Mode` for characterization. `Analysis Mode` proceeds by first `index`ing one or more sets of barcodes, `pack`ing the reads, and then producing count matrices either using `acount` (association counting) or `xcount` (combinatorial counting).
 
 
 ## Installation
@@ -73,6 +73,10 @@ There are examples of a [design parser](https://github.com/ayaanhossain/oligopoo
 
 A notebook demonstrating [`Oligopool Calculator` in action](https://github.com/ayaanhossain/oligopool/blob/master/examples/OligopoolCalculatorInAction.ipynb) is provided there as well.
 It includes a worked example of cross-barcode set constraints (BC2 separated from the BC1 set).
+
+Two lightweight QC helpers are worth knowing up front:
+- `lenstat`: quick length/free-space summaries under an `oligo_length_limit` (use throughout Design Mode).
+- `verify`: final constraints/QC summary that tolerates metadata columns, flags degenerate/mixed columns, and checks excluded motif emergence.
 
 ```python
 $ python
@@ -121,8 +125,8 @@ Type "help", "copyright", "credits" or "license" for more information.
         Auxiliary modules available
             - merge
             - revcomp
-            - verify
             - lenstat
+            - verify
             - final
 
         Design Mode example sketch
@@ -249,8 +253,8 @@ COMMANDS Available:
     merge       merge oligo elements into one column
     revcomp     reverse complement spanning elements
 
-    verify      verify constraints and summarize library
     lenstat     compute length statistics
+    verify      verify constraints and summarize library
     final       finalize library
 
     index       index barcodes and associates
@@ -272,6 +276,7 @@ $ op complete --install bash     # or: zsh|fish
 ```
 
 > - In CLI mode, commands that produce an output DataFrame require `--output-file`.
+> - Use `op lenstat` during design to track free space, and `op verify` before ordering/synthesis to QC constraints.
 > - For `--primer-sequence-constraint` / `--motif-sequence-constraint`, pass either an IUPAC string (`NNNN...`) or a quoted expression like `"'N'*20"` / `'GCC+N*20+CCG'`.
 > - Barcode design supports global cross-set separation. Use `--cross-barcode-columns` together with `--minimum-cross-distance` to keep BC2/BC3 distinct from earlier barcode sets.
 

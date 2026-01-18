@@ -7,11 +7,11 @@
 <h4><p align="center">Version: 2026.01.18</p></h4>
 
 <p align="center">
-  <a style="text-decoration: none" href="#Installation">Installation</a> •
-  <a style="text-decoration: none" href="#Getting-Started">Getting Started</a> •
-  <a style="text-decoration: none" href="#Command-Line-Interface-CLI">CLI</a> •
-  <a style="text-decoration: none" href="#Citation">Citation</a> •
-  <a style="text-decoration: none" href="#License">License</a>
+  <a style="text-decoration: none" href="#installation">Installation</a> •
+  <a style="text-decoration: none" href="#getting-started">Getting Started</a> •
+  <a style="text-decoration: none" href="#command-line-interface-cli">CLI</a> •
+  <a style="text-decoration: none" href="#citation">Citation</a> •
+  <a style="text-decoration: none" href="#license">License</a>
 </p>
 
 `Oligopool Calculator` is a suite of algorithms for automated design and analysis of [oligopool libraries](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9300125/).
@@ -20,7 +20,7 @@ It enables the scalable design of universal primer sets, error-correctable barco
 
 We have used `Oligopool Calculator` in multiple projects to build libraries of tens of thousands of promoters (see [here](https://www.nature.com/articles/s41467-022-32829-5) and [here](https://www.nature.com/articles/s41587-020-0584-2)), ribozymes, and mRNA stability elements (see [here](https://www.nature.com/articles/s41467-024-54059-7)), illustrating the use of a flexible grammar to add multiple barcodes, cut sites, avoid excluded sequences, and optimize experimental constraints. These libraries were later characterized using highly efficient barcode counting provided by `Oligopool Calculator`. To learn more, please check out [our paper in ACS Synthetic Biology](https://pubs.acs.org/doi/10.1021/acssynbio.4c00661).
 
-`Oligopool Calculator` facilitates the creative design and application of massively parallel reporter assays by automating and simplifying the whole process. It has been benchmarked on simulated libraries containing millions of defined variants and to analyze billions of reads.
+`Oligopool Calculator` facilitates the creative design and application of massively parallel reporter assays by automating and simplifying the whole process. It has been benchmarked on simulated libraries containing millions of defined variants and used to analyze billions of reads.
 
 <h1 align="center">
     <a href="https://github.com/ayaanhossain/oligopool/">
@@ -33,9 +33,9 @@ We have used `Oligopool Calculator` in multiple projects to build libraries of t
 
 ## Installation
 
-`Oligopool Calculator` is a `Python3.10+`-exclusive library.
+`Oligopool Calculator` is a `Python 3.10+`-exclusive library.
 
-On `Linux`, `MacOS` and `Windows Subsystem for Linux` you can install `Oligopool Calculator` from [PyPI](https://pypi.org/project/oligopool/), where it is published as the `oligopool` package
+On `Linux`, `macOS`, and `Windows Subsystem for Linux`, you can install `Oligopool Calculator` from [PyPI](https://pypi.org/project/oligopool/), where it is published as the `oligopool` package.
 ```bash
 $ pip install --upgrade oligopool # Installs and/or upgrades oligopool
 ```
@@ -48,7 +48,7 @@ $ pip install git+https://github.com/ayaanhossain/oligopool.git
 Both approaches should install all dependencies automatically.
 > **Note** This GitHub version will always be updated with all recent fixes. The PyPI version should be more stable.
 
-If you are on `Windows` or simply prefer to, `Oligopool Calculator` can also be used via `docker` (please see [the notes](https://github.com/ayaanhossain/oligopool/blob/master/docker-notes.md)).
+If you are on `Windows` or simply prefer to, `Oligopool Calculator` can also be used via `Docker` (please see [the notes](https://github.com/ayaanhossain/oligopool/blob/master/docker-notes.md)).
 
 **Verifying Installation**
 
@@ -67,7 +67,7 @@ Type "help", "copyright", "credits" or "license" for more information.
 
 `Oligopool Calculator` is carefully designed, easy to use, and stupid fast.
 
-You can import the library and use its various functions either in a script or interactively inside a `jupyter` environment. Use `help(...)` to read the docs as necessary and follow along.
+You can import the library and use its various functions either in a script or interactively inside a `Jupyter` environment. Use `help(...)` to read the docs as necessary and follow along.
 
 There are examples of a [design parser](https://github.com/ayaanhossain/oligopool/blob/master/examples/design-parser/design_parser.py) and an [analysis pipeline](https://github.com/ayaanhossain/oligopool/blob/master/examples/analysis-pipeline/analysis_pipeline.py) inside the [`examples`](https://github.com/ayaanhossain/oligopool/tree/master/examples) directory.
 
@@ -75,7 +75,7 @@ A notebook demonstrating [`Oligopool Calculator` in action](https://github.com/a
 
 Two lightweight QC helpers are worth knowing up front.
 - `lenstat`: quick length/free-space summaries under an `oligo_length_limit` (use throughout Design Mode).
-- `verify`: quick QC summary that parses an oligopool DataFrame and verfies constraints.
+- `verify`: quick QC summary that parses an oligopool DataFrame and verifies constraints.
 
 ```python
 $ python
@@ -295,6 +295,6 @@ You can read the complete article online at [ACS Synthetic Biology](https://doi.
 
 `Oligopool Calculator` (c) 2026 Ayaan Hossain.
 
-`Oligopool Calculator` is an **open-source software** under [GPL-3.0](https://opensource.org/license/gpl-3-0) License.
+`Oligopool Calculator` is an **open-source software** under the [GPL-3.0](https://opensource.org/license/gpl-3-0) license.
 
 See [LICENSE](https://github.com/ayaanhossain/oligopool/blob/master/LICENSE) file for more details.

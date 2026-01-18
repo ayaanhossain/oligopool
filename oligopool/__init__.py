@@ -9,8 +9,8 @@ __api__ = [
     'spacer',
     'merge',
     'revcomp',
-    'verify',
     'lenstat',
+    'verify',
     'final',
     'split',
     'pad',
@@ -43,8 +43,8 @@ _LAZY_ATTRS = {
     # Auxiliary design functions
     'merge': ('.merge', 'merge'),
     'revcomp': ('.revcomp', 'revcomp'),
-    'verify': ('.verify', 'verify'),
     'lenstat': ('.lenstat', 'lenstat'),
+    'verify': ('.verify', 'verify'),
     'final': ('.final', 'final'),
     # Assembly design functions
     'split': ('.split', 'split'),
@@ -117,8 +117,8 @@ Design Mode workflow
     Auxiliary modules available
         - merge
         - revcomp
-        - verify
         - lenstat
+        - verify
         - final
 
     Design Mode example sketch

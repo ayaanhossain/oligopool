@@ -24,9 +24,8 @@ def acount(
     memory_limit:float=0.0,
     verbose:bool=True) -> Tuple[pd.DataFrame, dict]:
     '''
-    Count barcoded reads with indexed associates within specified error tolerance. Reads can optionally
-    be co-processed using a callback function (see Notes). Count matrices are written out to disk,
-    and also returned as a DataFrame.
+    Count barcoded reads against a single index (with associates) under an error tolerance.
+    Writes a count matrix to disk and returns it as a DataFrame (callbacks available via Python API).
 
     Required Parameters:
         - `index_file` (`str`): Index object filename.
@@ -48,6 +47,8 @@ def acount(
 
     Notes:
         - Reads with unresolved associates are excluded from counts.
+        - Useful for validating barcode <--> associate mappings
+          (e.g., synthesis QC, input library quantification, or post-assay verification).
         - CLI note: callback functions are not currently supported via the `op`/`oligopool` CLI
           (the CLI always runs with `callback=None`); use the Python API to supply callbacks.
         - Callback function signature: `callback_func_name(read, ID, count, coreid) -> bool`

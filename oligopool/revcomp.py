@@ -17,9 +17,8 @@ def revcomp(
     right_context_column:str|None=None,
     verbose:bool=True) -> Tuple[pd.DataFrame, dict]:
     '''
-    Reverse complements a section of elements in the DataFrame starting from `left_context_column` to
-    `right_context_column`. The column content is reverse complemented and the order of the columns
-    is reversed. Output DataFrame can be saved to a CSV file.
+    Flip the orientation of a column range by reverse-complementing sequences and reversing column order.
+    Useful for mid-pipeline maneuvers where a region must be switched between readout and synthesis orientation.
 
     Required Parameters:
         - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated oligopool variants.
@@ -40,6 +39,9 @@ def revcomp(
         - `revcomp` module does not require `left_context_column` and `right_context_column` to be adjacent.
         - If `left_context_column` is unspecified, then the first column is considered.
         - Similarly, the last column is considered as the right context column, if unspecified.
+        - Useful for inspecting or correcting split-fragment orientation (see `split` output ordering).
+        - Useful for mid-pipeline maneuvers where a region is designed in one orientation (assay/readout)
+          but must be installed/synthesized in the opposite orientation.
     '''
 
     # Argument Aliasing

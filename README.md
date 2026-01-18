@@ -74,9 +74,9 @@ There are examples of a [design parser](https://github.com/ayaanhossain/oligopoo
 A notebook demonstrating [`Oligopool Calculator` in action](https://github.com/ayaanhossain/oligopool/blob/master/examples/OligopoolCalculatorInAction.ipynb) is provided there as well.
 It includes a worked example of cross-barcode set constraints (BC2 separated from the BC1 set).
 
-Two lightweight QC helpers are worth knowing up front:
+Two lightweight QC helpers are worth knowing up front.
 - `lenstat`: quick length/free-space summaries under an `oligo_length_limit` (use throughout Design Mode).
-- `verify`: final constraints/QC summary that tolerates metadata columns, flags degenerate/mixed columns, and checks excluded motif emergence.
+- `verify`: quick QC summary that flags metadata and degenerate/mixed columns, and checks excluded motif emergence.
 
 ```python
 $ python
@@ -269,14 +269,14 @@ Run "oligopool COMMAND" to see command-specific options.
 EST <timestamp>
 ```
 
-Tab-completion (recommended):
+Install tab-completion to blaze through interactive CLI use (recommended).
 ```bash
 $ op complete --install          # auto-detect shell (restart your shell)
 $ op complete --install bash     # or: zsh|fish
 ```
 
 > - In CLI mode, commands that produce an output DataFrame require `--output-file`.
-> - Use `op lenstat` during design to track free space, and `op verify` before ordering/synthesis to QC constraints.
+> - Use `op lenstat` during design to track free space, and `op verify` to evaluate QC constraints.
 > - For `--primer-sequence-constraint` / `--motif-sequence-constraint`, pass either an IUPAC string (`NNNN...`) or a quoted expression like `"'N'*20"` / `'GCC+N*20+CCG'`.
 > - Barcode design supports global cross-set separation. Use `--cross-barcode-columns` together with `--minimum-cross-distance` to keep BC2/BC3 distinct from earlier barcode sets.
 

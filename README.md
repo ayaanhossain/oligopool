@@ -4,7 +4,7 @@
     </a>
 </h1>
 
-<h4><p align="center">Version: 2026.01.17</p></h4>
+<h4><p align="center">Version: 2026.01.18</p></h4>
 
 <p align="center">
   <a style="text-decoration: none" href="#Installation">Installation</a> •
@@ -59,7 +59,7 @@ Python 3.10.9 | packaged by conda-forge | (main, Feb  2 2023, 20:20:04) [GCC 11.
 Type "help", "copyright", "credits" or "license" for more information.
 >>> import oligopool as op
 >>> op.__version__
-'2026.01.17'
+'2026.01.18'
 >>>
 ```
 
@@ -72,6 +72,7 @@ You can import the library and use its various functions either in a script or i
 There are examples of a [design parser](https://github.com/ayaanhossain/oligopool/blob/master/examples/design-parser/design_parser.py) and an [analysis pipeline](https://github.com/ayaanhossain/oligopool/blob/master/examples/analysis-pipeline/analysis_pipeline.py) inside the [`examples`](https://github.com/ayaanhossain/oligopool/tree/master/examples) directory.
 
 A notebook demonstrating [`Oligopool Calculator` in action](https://github.com/ayaanhossain/oligopool/blob/master/examples/OligopoolCalculatorInAction.ipynb) is provided there as well.
+It includes a worked example of cross-barcode set constraints (BC2 separated from the BC1 set).
 
 ```python
 $ python
@@ -81,7 +82,7 @@ Type "help", "copyright", "credits" or "license" for more information.
 >>> import oligopool as op
 >>> help(op)
 ...
-    oligopool v2026.01.17
+    oligopool v2026.01.18
     by ah
 
     Automated design and analysis of oligopool libraries.
@@ -120,6 +121,7 @@ Type "help", "copyright", "credits" or "license" for more information.
         Auxiliary modules available
             - merge
             - revcomp
+            - verify
             - lenstat
             - final
 
@@ -222,7 +224,7 @@ Run `op` with no arguments to see the command list, and run `op COMMAND` to see 
 ```bash
 $ op
 
-oligopool v2026.01.17
+oligopool v2026.01.18
 by ah
 
 Oligopool Calculator is a suite of algorithms for
@@ -238,7 +240,7 @@ COMMANDS Available:
     background  build background k-mer database
     barcode     design constrained barcodes
     primer      design constrained primers
-    motif       design or add motifs
+    motif       design or add motifs and anchors
     spacer      design or insert spacers
 
     split       split long oligos into shorter ones
@@ -247,6 +249,7 @@ COMMANDS Available:
     merge       merge oligo elements into one column
     revcomp     reverse complement spanning elements
 
+    verify      verify constraints and summarize library
     lenstat     compute length statistics
     final       finalize library
 
@@ -257,7 +260,7 @@ COMMANDS Available:
 
     complete    print or install shell completion
 
-Note: Run "oligopool COMMAND" to see command-specific options.
+Run "oligopool COMMAND" to see command-specific options.
 
 EST <timestamp>
 ```
@@ -271,6 +274,7 @@ $ op complete --install bash     # or: zsh|fish
 Notes:
 - In CLI mode, commands that produce an output DataFrame require `--output-file`.
 - For `--primer-sequence-constraint` / `--motif-sequence-constraint`, pass either an IUPAC string (`NNNN...`) or a quoted expression like `"'N'*20"` / `'GCC+N*20+CCG'`.
+- Barcode design supports global cross-set separation. Use `--cross-barcode-columns` together with `--minimum-cross-distance` to keep BC2/BC3 distinct from earlier barcode sets.
 
 ## Citation
 

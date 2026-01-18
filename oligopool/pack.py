@@ -25,9 +25,9 @@ def pack(
     memory_limit:float=0.0,
     verbose:bool=True) -> dict:
     '''
-    Pack NGS reads with indexed barcodes and optional associated variants. Processes, filters, and
-    optionally merges reads before packing. The resulting pack file represents a single characterization
-    experiment, outcome, or replicate for subsequent index-based counting.
+    Preprocess and pack FastQ reads for index-based counting.
+    Applies filters (length/quality), optionally merges read pairs, and consolidates duplicates into a
+    `.oligopool.pack` for `acount`/`xcount`.
 
     Required Parameters:
         - `r1_fastq_file` (`str`): Path to R1 FastQ file (may be gzipped).
@@ -54,6 +54,8 @@ def pack(
         - For single-end reads, use R1 arguments only; set R2 arguments to None.
         - Read quality is average Phred score.
         - Both reads must pass criteria for paired-end acceptance.
+        - Duplicate reads are consolidated into read packs for efficient parallel counting downstream.
+        - If reads are merged externally, pass the merged reads as single-end (R1 only).
         - Concatenated storage (`pack_type` = 0) is IO bound; use 2 cores.
         - Pack size balances memory usage and computation speed.
     '''

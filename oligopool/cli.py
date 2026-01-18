@@ -4,7 +4,7 @@
 '''
 Oligopool Calculator command-line interface.
 
-This module provides the `oligopool` and `op` entry points (see `setup.py`).
+This module provides the `oligopool` and `op` entry points (see `pyproject.toml`).
 
 Behavior notes:
   - `op` prints a compact command menu.
@@ -60,6 +60,7 @@ COMMAND_TO_API = {
     'pad': ('pad', 'pad'),
     'merge': ('merge', 'merge'),
     'revcomp': ('revcomp', 'revcomp'),
+    'verify': ('verify', 'verify'),
     'lenstat': ('lenstat', 'lenstat'),
     'final': ('final', 'final'),
     'index': ('index', 'index'),
@@ -201,13 +202,14 @@ Usage:
 Examples:
   op manual barcode
   op manual primer
+  op manual topic
   op manual topics
 
 Notes:
-  - Topics include all CLI commands plus a few meta topics (run: op manual topics).
+  - Topics include all CLI commands plus a few meta topics (run: op manual topics or op manual topic).
   - Design/transform commands require --output-file in CLI mode.
   - Run "oligopool COMMAND" to see command-specific options.
-  - Use "oligopool manual topics" to list manual topics.
+  - Use "oligopool manual topics" (or "oligopool manual topic") to list manual topics.
   - Use "oligopool cite" to print citation information.
   - Use "op complete --print-instructions" to enable tab-completion.
 '''
@@ -241,6 +243,7 @@ MANUAL_COMMAND_TOPICS = tuple(sorted(COMMAND_TO_API))
 
 MANUAL_META_TOPICS = (
     'topics',
+    'topic',
     'list',
     'cli',
     'manual',
@@ -610,11 +613,23 @@ def _parse_list_str(value):
     if value is None:
         return None
     if isinstance(value, list):
-        return value
+        out = []
+        for item in value:
+            if item is None:
+                continue
+            if not isinstance(item, str):
+                out.append(item)
+                continue
+            if ',' in item:
+                out.extend([v.strip() for v in item.split(',') if v.strip()])
+            else:
+                out.append(item.strip())
+        out = [v for v in out if v]
+        return out if out else None
     if ',' in value:
         items = [v.strip() for v in value.split(',') if v.strip()]
         return items if items else None
-    return value
+    return value.strip()
 
 
 def _parse_list_int(value):
@@ -757,7 +772,7 @@ def _detect_shell():
     return 'bash'
 
 
-def _completion_snippet(shell, include_hint=False):
+def _completion_snippet(shell, include_hint=False, lazy=False):
     hint_lines = []
     if include_hint:
         hint_lines = [
@@ -768,6 +783,24 @@ def _completion_snippet(shell, include_hint=False):
             '',
         ]
     if shell == 'bash':
+        if lazy:
+            return '\n'.join(hint_lines + [
+                '__oligopool_argcomplete_init() {',
+                '  [[ -n "${_OLIGOPOOL_ARGCOMPLETE_INSTALLED:-}" ]] && return 0',
+                '  if command -v register-python-argcomplete >/dev/null 2>&1; then',
+                '    eval "$(register-python-argcomplete op)"',
+                '    eval "$(register-python-argcomplete oligopool)"',
+                '    _OLIGOPOOL_ARGCOMPLETE_INSTALLED=1',
+                '  fi',
+                '}',
+                '# Initialize now (if available), and retry on each prompt (e.g., after conda activate).',
+                '__oligopool_argcomplete_init',
+                'if [[ -n "${PROMPT_COMMAND:-}" ]]; then',
+                '  PROMPT_COMMAND="__oligopool_argcomplete_init; ${PROMPT_COMMAND}"',
+                'else',
+                '  PROMPT_COMMAND="__oligopool_argcomplete_init"',
+                'fi',
+            ])
         return '\n'.join(hint_lines + [
             'if command -v register-python-argcomplete >/dev/null 2>&1; then',
             '  eval "$(register-python-argcomplete op)"',
@@ -775,6 +808,21 @@ def _completion_snippet(shell, include_hint=False):
             'fi',
         ])
     if shell == 'zsh':
+        if lazy:
+            return '\n'.join(hint_lines + [
+                'autoload -U bashcompinit && bashcompinit',
+                '__oligopool_argcomplete_init() {',
+                '  [[ -n "${_OLIGOPOOL_ARGCOMPLETE_INSTALLED:-}" ]] && return 0',
+                '  if command -v register-python-argcomplete >/dev/null 2>&1; then',
+                '    eval "$(register-python-argcomplete op)"',
+                '    eval "$(register-python-argcomplete oligopool)"',
+                '    _OLIGOPOOL_ARGCOMPLETE_INSTALLED=1',
+                '  fi',
+                '}',
+                '# Initialize now (if available), and retry on each prompt (e.g., after conda activate).',
+                '__oligopool_argcomplete_init',
+                'precmd_functions+=(__oligopool_argcomplete_init)',
+            ])
         return '\n'.join(hint_lines + [
             'autoload -U bashcompinit && bashcompinit',
             'if command -v register-python-argcomplete >/dev/null 2>&1; then',
@@ -783,6 +831,20 @@ def _completion_snippet(shell, include_hint=False):
             'fi',
         ])
     if shell == 'fish':
+        if lazy:
+            return '\n'.join(hint_lines + [
+                'function __oligopool_argcomplete_init --on-event fish_prompt',
+                '  if set -q _OLIGOPOOL_ARGCOMPLETE_INSTALLED',
+                '    return',
+                '  end',
+                '  if type -q register-python-argcomplete',
+                '    register-python-argcomplete --shell fish op | source',
+                '    register-python-argcomplete --shell fish oligopool | source',
+                '    set -g _OLIGOPOOL_ARGCOMPLETE_INSTALLED 1',
+                '    functions -e __oligopool_argcomplete_init',
+                '  end',
+                'end',
+            ])
         return '\n'.join(hint_lines + [
             'register-python-argcomplete --shell fish op | source',
             'register-python-argcomplete --shell fish oligopool | source',
@@ -793,7 +855,7 @@ def _completion_snippet(shell, include_hint=False):
 def _upsert_rc_block(rc_path, shell):
     begin = '# >>> oligopool argcomplete >>>'
     end = '# <<< oligopool argcomplete <<<'
-    snippet = _completion_snippet(shell, include_hint=False)
+    snippet = _completion_snippet(shell, include_hint=False, lazy=True)
     block = f'{begin}\n{snippet}\n{end}\n'
 
     rc_path.parent.mkdir(parents=True, exist_ok=True)
@@ -818,8 +880,9 @@ def _install_completion(shell):
     if shell == 'fish':
         comp_dir = home / '.config' / 'fish' / 'completions'
         comp_dir.mkdir(parents=True, exist_ok=True)
-        (comp_dir / 'op.fish').write_text(_completion_snippet('fish', include_hint=False) + '\n', encoding='utf-8')
-        (comp_dir / 'oligopool.fish').write_text(_completion_snippet('fish', include_hint=False) + '\n', encoding='utf-8')
+        snippet = _completion_snippet('fish', include_hint=False, lazy=True) + '\n'
+        (comp_dir / 'op.fish').write_text(snippet, encoding='utf-8')
+        (comp_dir / 'oligopool.fish').write_text(snippet, encoding='utf-8')
         return 0
     raise ValueError(f'unsupported shell: {shell}')
 
@@ -858,9 +921,9 @@ def _print_manual(topic):
         return 0
 
     key = str(topic).strip().lower()
-    if key in ('list', 'topics'):
+    if key in ('list', 'topic', 'topics'):
         command_topics = ', '.join(MANUAL_COMMAND_TOPICS)
-        meta_topics = 'topics/list, cli/manual, library/package, complete/completion'
+        meta_topics = 'topic/topics/list, cli/manual, library/package, complete/completion'
         print('Available command topics:')
         print(textwrap.fill(command_topics, width=79, initial_indent='  ', subsequent_indent='  '))
         print('Available meta topics:')
@@ -1033,6 +1096,23 @@ At least one of --left-context-column or --right-context-column is required.''')
 Column containing right flanking context for motif exclusion.
 At least one of --left-context-column or --right-context-column is required.''')
     opt.add_argument(
+        '--cross-barcode-columns',
+        type=str,
+        default=None,
+        nargs='+',
+        metavar='\b',
+        help='''>>[optional string]
+Comma-separated or space-separated column names whose barcodes must remain
+distinct from the newly designed set. Must be used with --minimum-cross-distance.''')
+    opt.add_argument(
+        '--minimum-cross-distance',
+        type=int,
+        default=None,
+        metavar='\b',
+        help='''>>[optional integer]
+Minimum pairwise Hamming distance between the new barcodes and the cross set.
+Must be used with --cross-barcode-columns.''')
+    opt.add_argument(
         '--excluded-motifs',
         type=str,
         default=None,
@@ -1179,8 +1259,8 @@ def _add_motif(cmdpar):
     '''Register the motif subcommand parser.'''
     parser = cmdpar.add_parser(
         'motif',
-        help='design or add motifs',
-        description='Design or add motifs and write an output CSV.',
+        help='design or add motifs and anchors',
+        description='Design or add motifs/anchors and write an output CSV.',
         epilog=_notes_epilog('motif'),
         usage=argparse.SUPPRESS,
         formatter_class=OligopoolFormatter,
@@ -1609,6 +1689,43 @@ Right boundary column to reverse-complement; defaults to last column.''')
     return parser
 
 
+def _add_verify(cmdpar):
+    '''Register the verify subcommand parser.'''
+    parser = cmdpar.add_parser(
+        'verify',
+        help='verify constraints and summarize library',
+        description='Verify a library DataFrame (length/motif/degeneracy checks; no output file).',
+        epilog=_notes_epilog('verify'),
+        usage=argparse.SUPPRESS,
+        formatter_class=OligopoolFormatter,
+        add_help=False)
+    req = parser.add_argument_group('Required Arguments')
+    opt = parser.add_argument_group('Optional Arguments')
+    req.add_argument(
+        '--input-data',
+        required=True,
+        type=str,
+        metavar='\b',
+        help='''>>[required string]
+Path to input CSV with an ID column.''')
+    opt.add_argument(
+        '--oligo-length-limit',
+        type=int,
+        default=None,
+        metavar='\b',
+        help='''>>[optional integer]
+Maximum allowed oligo length for reporting (>= 4).''')
+    opt.add_argument(
+        '--excluded-motifs',
+        type=str,
+        default=None,
+        metavar='\b',
+        help='''>>[optional string]
+Comma-separated motifs or a CSV path with ID and Exmotif columns.''')
+    _add_common_options(parser, opt)
+    return parser
+
+
 def _add_lenstat(cmdpar):
     '''Register the lenstat subcommand parser.'''
     parser = cmdpar.add_parser(
@@ -1968,9 +2085,10 @@ def _add_xcount(cmdpar):
         '--index-files',
         required=True,
         type=str,
+        nargs='+',
         metavar='\b',
         help='''>>[required string]
-Comma-separated list of index files for combinatorial counting.
+Comma-separated or space-separated list of index files for combinatorial counting.
 Each path may omit the ".oligopool.index" suffix.''')
     req.add_argument(
         '--pack-file',
@@ -2028,7 +2146,7 @@ def _get_parsers():
         formatter_class=OligopoolFormatter,
         description=None,
         add_help=False,
-        epilog='''Note: Run "oligopool COMMAND" to see command-specific options.''')
+        epilog='''Run "oligopool COMMAND" to see command-specific options.''')
     mainpar._positionals.title = 'COMMANDS Available'
     mainpar._optionals.title = 'Optional Arguments'
 
@@ -2048,6 +2166,7 @@ def _get_parsers():
     _add_pad(cmdpar)
     _add_merge(cmdpar)
     _add_revcomp(cmdpar)
+    _add_verify(cmdpar)
     _add_lenstat(cmdpar)
     _add_final(cmdpar)
     _add_index(cmdpar)
@@ -2110,6 +2229,12 @@ def main(argv=None):
                     verbose=args.verbose)
             case 'barcode':
                 barcode = _load_api_func('barcode')
+                cross_columns = _parse_list_str(args.cross_barcode_columns)
+                if isinstance(cross_columns, str):
+                    cross_columns = [cross_columns]
+                if (cross_columns is None) ^ (args.minimum_cross_distance is None):
+                    raise ValueError(
+                        'cross_barcode_columns and minimum_cross_distance must be set together')
                 result = barcode(
                     input_data=args.input_data,
                     oligo_length_limit=args.oligo_length_limit,
@@ -2121,6 +2246,8 @@ def main(argv=None):
                     barcode_type=args.barcode_type,
                     left_context_column=args.left_context_column,
                     right_context_column=args.right_context_column,
+                    cross_barcode_columns=cross_columns,
+                    minimum_cross_distance=args.minimum_cross_distance,
                     excluded_motifs=_parse_list_str(args.excluded_motifs),
                     verbose=args.verbose,
                     random_seed=args.random_seed)
@@ -2214,6 +2341,13 @@ def main(argv=None):
                     left_context_column=args.left_context_column,
                     right_context_column=args.right_context_column,
                     verbose=args.verbose)
+            case 'verify':
+                verify = _load_api_func('verify')
+                result = verify(
+                    input_data=args.input_data,
+                    oligo_length_limit=args.oligo_length_limit,
+                    excluded_motifs=_parse_list_str(args.excluded_motifs),
+                    verbose=args.verbose)
             case 'lenstat':
                 lenstat = _load_api_func('lenstat')
                 result = lenstat(
@@ -2272,10 +2406,9 @@ def main(argv=None):
                     memory_limit=args.memory_limit,
                     verbose=args.verbose)
             case 'xcount':
-                index_files = [v.strip() for v in args.index_files.split(',') if v.strip()]
                 xcount = _load_api_func('xcount')
                 result = xcount(
-                    index_files=index_files,
+                    index_files=_parse_list_str(args.index_files),
                     pack_file=args.pack_file,
                     count_file=args.count_file,
                     mapping_type=args.mapping_type,

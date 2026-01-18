@@ -867,6 +867,11 @@ def barcode_engine(
     oligorepeats,
     leftcontext,
     rightcontext,
+    cross_store_plus,
+    cross_set_size,
+    cross_contigsize,
+    cross_coocache,
+    minimum_cross_distance,
     exmotifs,
     targetcount,
     stats,
@@ -906,6 +911,21 @@ def barcode_engine(
        desc - list of sequences to the
               right of barcodes,
               None otherwise
+    :: cross_store_plus
+       type - np.array / None
+       desc - cross-set store padded with candidate row
+    :: cross_set_size
+       type - integer
+       desc - number of barcodes in cross set
+    :: cross_contigsize
+       type - np.array / None
+       desc - contig scheme for cross set
+    :: cross_coocache
+       type - dict / None
+       desc - cross contig coordinate cache
+    :: minimum_cross_distance
+       type - integer / None
+       desc - cross-set minimum Hamming distance
     :: exmotifs
        type - list / None
        desc - list of motifs to exclude
@@ -1028,6 +1048,25 @@ def barcode_engine(
         # Decode Barcode Sequence
         barcodeseq = get_barcodeseq(
             barcode=barcode)
+
+        # Cross-set constraint?
+        if not cross_store_plus is None and \
+           not minimum_cross_distance is None:
+
+            # Write candidate into padded store
+            cross_store_plus[cross_set_size, :] = barcode
+            (cross_ok,
+            _) = is_hamming_feasible(
+                barcodeseq=barcodeseq,
+                store=cross_store_plus,
+                count=cross_set_size,
+                minhdist=minimum_cross_distance,
+                contigsize=cross_contigsize,
+                coocache=cross_coocache)
+
+            if not cross_ok:
+                stats['vars']['cross_distance_fail'] += 1
+                continue
 
         # Check Objectives
         (optstatus,

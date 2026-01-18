@@ -26,9 +26,8 @@ def spacer(
     verbose:bool=True,
     random_seed:int|None=None) -> Tuple[pd.DataFrame, dict]:
     '''
-    Inserts a fixed or variable length neutral spacer free of excluded motifs. If the spacer length
-    is not specified, then the spacer per oligo is such that the final length of the oligo matches
-    specified `oligo_length_limit`. Returned DataFrame can be written as a CSV file.
+    Insert neutral spacer DNA to meet length targets under repeat and excluded-motif constraints.
+    Supports fixed-length, per-variant, or auto-sized spacers (to match `oligo_length_limit`).
 
     Required Parameters:
         - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated oligopool variants.

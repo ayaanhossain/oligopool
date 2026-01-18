@@ -23,9 +23,8 @@ def xcount(
     memory_limit:float=0.0,
     verbose:bool=True) -> Tuple[pd.DataFrame, dict]:
     '''
-    Count one or more barcode set combinations in reads within specified error tolerance. Combinatorial
-    counting can be coupled with a callback function (see Notes). Count matrices are written out to disk,
-    and returned as a DataFrame.
+    Count barcode combinations using one or more indices under an error tolerance.
+    Writes a combination count matrix to disk and returns it as a DataFrame (callbacks available via Python API).
 
     Required Parameters:
         - `index_files` (`str` / `list`): A single (or a list of) index filename(s).
@@ -46,6 +45,8 @@ def xcount(
 
     Notes:
         - Partial and missing combinations are included in counts.
+        - Reads are retained if at least one barcode maps; missing barcodes are represented as
+          `'-'` (gaps) in the output combination.
         - CLI note: callback functions are not currently supported via the `op`/`oligopool` CLI
           (the CLI always runs with `callback=None`); use the Python API to supply callbacks.
         - Callback function signature: `callback_func_name(read, ID, count, coreid) -> bool`

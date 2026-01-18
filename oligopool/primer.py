@@ -32,10 +32,10 @@ def primer(
     verbose:bool=True,
     random_seed:int|None=None) -> Tuple[pd.DataFrame, dict]:
     '''
-    Designs constrained primers with specified melting temperature and non-repetitiveness
-    for all variants in the oligopool. Ensures compatibility with paired primers and minimizes
-    dimer formation. Returns a DataFrame of designed primers, optionally saving to `output_file`
-    in CSV format.
+    Design constrained forward/reverse primers under a sequence constraint with Tm/repeat/dimer
+    constraints for robust amplification and assembly. Supports background screening
+    (`background_directory`) and chained primer design by matching Tm against a paired primer
+    (`paired_primer_column`).
 
     Required Parameters:
         - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated oligopool variants.
@@ -69,10 +69,14 @@ def primer(
         - At least one of `left_context_column` or `right_context_column` must be specified.
         - The paired primer type is inferred based on the current primer type.
         - If a paired primer is specified, Tm of the designed primer is optimized within 1°C of it.
-        - `maximum_repeat_length` controls non-repetitiveness against `input_data` only, not `background`.
+        - `maximum_repeat_length` controls non-repetitiveness against `input_data` only.
+          To screen against a background, build a background DB with `background(...)` and
+          pass it via `background_directory`.
         - If `excluded_motifs` is a CSV or DataFrame, it must have 'ID' and 'Exmotif' columns.
         - Constant motifs in sequence constraint may lead to sub-optimal primers.
-        - A system of primers must be designed in the right order of dependency.
+        - Chained primer design: design one primer first, then design its partner by passing
+          `paired_primer_column` (e.g., design `primer_type=0` then design `primer_type=1` with
+          `paired_primer_column`).
     '''
 
     # Argument Aliasing

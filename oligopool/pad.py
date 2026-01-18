@@ -25,9 +25,8 @@ def pad(
     verbose:bool=True,
     random_seed:int|None=None) -> Tuple[pd.DataFrame, dict]:
     '''
-    Pads split oligos with optimized paired primers with a 3prime TypeIIS restriction site of choice
-    and adds optional flanking spacers to reach oligo length limit. Returned DataFrame adds new columns
-    to `input_data`, is compatible with `final` module, and is optionally written to a CSV file.
+    Pad split fragments with paired primers (embedding a chosen 3' Type IIS site) plus optional
+    spacers to meet `oligo_length_limit`. Produces an assembly-ready pad layout suitable for `final`.
 
     Required Parameters:
         - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated oligopool variants.
@@ -50,7 +49,9 @@ def pad(
 
     Notes:
         - `input_data` must contain a unique 'ID' column, all other columns must be non-empty DNA strings.
-        - Column names in `input_data` must be unique, and exclude `primer_column`.
+        - `pad` expects `split_column` to contain DNA fragments (typically output from `split`).
+          Other columns in `input_data` are not preserved in the output.
+        - Output columns are: `5primeSpacer`, `ForwardPrimer`, `<split_column>`, `ReversePrimer`, `3primeSpacer`.
         - Oligo rows already summing to or exceeding `oligo_length_limit` have a `'-'` (dash) as spacer.
         - Supports 34 Type IIS enzymes for scarless pad removal:
             * `AcuI`, `AlwI`,     `BbsI`,  `BccI`,  `BceAI`, `BciVI`, `BcoDI`,
@@ -62,15 +63,15 @@ def pad(
     '''
 
     # Argument Aliasing
-    indata     = input_data
-    oligolimit = oligo_length_limit
-    splitcol   = split_column
-    typeIIS    = typeIIS_system
-    mintmelt   = minimum_melting_temperature
-    maxtmelt   = maximum_melting_temperature
-    maxreplen  = maximum_repeat_length
-    outfile    = output_file
-    verbose    = verbose
+    indata      = input_data
+    oligolimit  = oligo_length_limit
+    splitcol    = split_column
+    typeIIS     = typeIIS_system
+    mintmelt    = minimum_melting_temperature
+    maxtmelt    = maximum_melting_temperature
+    maxreplen   = maximum_repeat_length
+    outfile     = output_file
+    verbose     = verbose
     random_seed = random_seed
 
     # Local RNG

@@ -18,8 +18,8 @@ def merge(
     right_context_column:str|None=None,
     verbose:bool=True) -> Tuple[pd.DataFrame, dict]:
     '''
-    Merges all elements from `left_context_column` to `right_context_column` into `merge_column` and removes the
-    original ones from the DataFrame. The modified DataFrame can be saved to a CSV file.
+    Collapse a contiguous range of columns into a single merged DNA element for downstream steps.
+    Useful for mid-pipeline maneuvers where a multi-part region should be treated as one unit.
 
     Required Parameters:
         - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated oligopool variants.
@@ -41,6 +41,9 @@ def merge(
         - `merge` module does not require `left_context_column` and `right_context_column` to be adjacent.
         - If `left_context_column` is unspecified, then the first column is considered.
         - Similarly, the last column is considered as the right context column, if unspecified.
+        - Useful for mid-pipeline maneuvers where you want to collapse a multi-column region into a single
+          element (e.g., to treat a payload/amplicon as one unit before `revcomp` or `final`).
+        - The merged source columns are removed from the output DataFrame.
     '''
 
     # Argument Aliasing

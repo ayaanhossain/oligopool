@@ -776,6 +776,32 @@ def get_uniques(iterable, typer):
             seen.add(element)
     return typer(uniques)
 
+def get_oligoset_groups(oligosets):
+    '''
+    Return unique oligo sets, per-set row
+    indices, and set sizes. Internal use only.
+
+    :: oligosets
+       type - iterable
+       desc - per-row oligo set labels
+    '''
+
+    # Book-keeping
+    uniques = get_uniques(
+        iterable=oligosets,
+        typer=tuple)
+    groups = {label: [] for label in uniques}
+
+    # Build groups
+    for idx,label in enumerate(oligosets):
+        groups[label].append(idx)
+
+    # Build set sizes
+    sizes = {label: len(groups[label]) for label in uniques}
+
+    # Return Results
+    return (uniques, groups, sizes)
+
 def get_cross_barcode_store(
     df,
     crosscols,

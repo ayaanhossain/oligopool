@@ -11,6 +11,7 @@
 10. CLI/Docs: minor help text refinements (main menu footer, motif help includes anchors).
 11. Added `verify` module (stats-only QC) and CLI subcommand for constraint/architecture checks.
 12. Verify/Lenstat: refactored shared length-stat formatting and improved `verify` reporting (module-style verdicts, aligned fields, and actionable column/motif summaries).
+13. Primer module: added per-set primer design via `oligo_sets` (cross-set dimer checks + per-set Tm pairing) and CLI flag `--oligo-sets`.
 
 2026.01.17
 1. Development in progress.

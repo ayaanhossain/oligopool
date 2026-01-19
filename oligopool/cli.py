@@ -163,7 +163,8 @@ def _extract_doc_notes(doc: str):
     normalized = []
     for bullet in bullets:
         bullet = bullet.strip()
-        bullet = re.sub(r'^[*-]\s*', '', bullet).strip()
+        # Some docstrings contain nested bullets like "- - foo"; strip all leading markers.
+        bullet = re.sub(r'^(?:[*-]\s*)+', '', bullet).strip()
         bullet = re.sub(r'\s+', ' ', bullet).strip()
         bullet = re.sub(
             r'`([a-z][a-z0-9_]*)=([^`]+)`',
@@ -406,7 +407,14 @@ class OligopoolFormatter(argparse.RawTextHelpFormatter):
     def _format_action_invocation(self, action):
         # Strip hidden metavars so help alignment stays consistent.
         text = super()._format_action_invocation(action)
-        return text.replace('\x08', '').rstrip()
+        text = text.replace('\x08', '')
+        # If a flag uses the hidden metavar sentinel (`\b`) with nargs, argparse may
+        # render an extra " [ ...]" token and leave double-spaces after stripping.
+        # Keep the invocation compact so the first help line stays on the same row.
+        if getattr(action, 'metavar', None) == '\b':
+            text = re.sub(r'\s*\[\s*\.\.\.\s*\]\s*$', '', text)
+        text = re.sub(r'\s+', ' ', text).rstrip()
+        return text
 
     def _fill_text(self, text, width, indent):
         lines = functools.reduce(
@@ -1118,6 +1126,17 @@ At least one of --left-context-column or --right-context-column is required.''')
 Column containing right flanking context for motif exclusion.
 At least one of --left-context-column or --right-context-column is required.''')
     opt.add_argument(
+        '--patch-mode',
+        dest='patch_mode',
+        action='store_true',
+        help='''>>[optional switch]
+Fill missing values in an existing barcode column instead of creating a new column.''')
+    opt.add_argument(
+        '--incremental',
+        dest='patch_mode',
+        action='store_true',
+        help=argparse.SUPPRESS)
+    opt.add_argument(
         '--cross-barcode-columns',
         type=str,
         default=None,
@@ -1246,6 +1265,17 @@ At least one of --left-context-column or --right-context-column is required.''')
 Column containing right flanking context for motif exclusion.
 At least one of --left-context-column or --right-context-column is required.''')
     opt.add_argument(
+        '--patch-mode',
+        dest='patch_mode',
+        action='store_true',
+        help='''>>[optional switch]
+Fill missing values in an existing primer column instead of creating a new column.''')
+    opt.add_argument(
+        '--incremental',
+        dest='patch_mode',
+        action='store_true',
+        help=argparse.SUPPRESS)
+    opt.add_argument(
         '--oligo-sets',
         type=str,
         default=None,
@@ -1368,6 +1398,17 @@ At least one of --left-context-column or --right-context-column is required.''')
 Column containing right flanking context for motif exclusion.
 At least one of --left-context-column or --right-context-column is required.''')
     opt.add_argument(
+        '--patch-mode',
+        dest='patch_mode',
+        action='store_true',
+        help='''>>[optional switch]
+Fill missing values in an existing motif column instead of creating a new column.''')
+    opt.add_argument(
+        '--incremental',
+        dest='patch_mode',
+        action='store_true',
+        help=argparse.SUPPRESS)
+    opt.add_argument(
         '--excluded-motifs',
         type=str,
         default=None,
@@ -1457,6 +1498,17 @@ At least one of --left-context-column or --right-context-column is required.''')
         help='''>>[optional string]
 Column containing right flanking context for motif exclusion.
 At least one of --left-context-column or --right-context-column is required.''')
+    opt.add_argument(
+        '--patch-mode',
+        dest='patch_mode',
+        action='store_true',
+        help='''>>[optional switch]
+Fill missing values in an existing spacer column instead of creating a new column.''')
+    opt.add_argument(
+        '--incremental',
+        dest='patch_mode',
+        action='store_true',
+        help=argparse.SUPPRESS)
     opt.add_argument(
         '--excluded-motifs',
         type=str,
@@ -2275,13 +2327,14 @@ def main(argv=None):
                     maximum_repeat_length=args.maximum_repeat_length,
                     barcode_column=args.barcode_column,
                     output_file=args.output_file,
-                    barcode_type=args.barcode_type,
-                    left_context_column=args.left_context_column,
-                    right_context_column=args.right_context_column,
-                    cross_barcode_columns=cross_columns,
-                    minimum_cross_distance=args.minimum_cross_distance,
-                    excluded_motifs=_parse_list_str(args.excluded_motifs),
-                    verbose=args.verbose,
+	                    barcode_type=args.barcode_type,
+	                    left_context_column=args.left_context_column,
+	                    right_context_column=args.right_context_column,
+	                    patch_mode=args.patch_mode,
+	                    cross_barcode_columns=cross_columns,
+	                    minimum_cross_distance=args.minimum_cross_distance,
+	                    excluded_motifs=_parse_list_str(args.excluded_motifs),
+	                    verbose=args.verbose,
                     random_seed=args.random_seed)
             case 'primer':
                 primer = _load_api_func('primer')
@@ -2299,13 +2352,14 @@ def main(argv=None):
                     maximum_melting_temperature=args.maximum_melting_temperature,
                     maximum_repeat_length=args.maximum_repeat_length,
                     primer_column=args.primer_column,
-                    output_file=args.output_file,
-                    left_context_column=args.left_context_column,
-                    right_context_column=args.right_context_column,
-                    oligo_sets=oligo_sets,
-                    paired_primer_column=args.paired_primer_column,
-                    excluded_motifs=_parse_list_str(args.excluded_motifs),
-                    background_directory=args.background_directory,
+	                    output_file=args.output_file,
+	                    left_context_column=args.left_context_column,
+	                    right_context_column=args.right_context_column,
+	                    patch_mode=args.patch_mode,
+	                    oligo_sets=oligo_sets,
+	                    paired_primer_column=args.paired_primer_column,
+	                    excluded_motifs=_parse_list_str(args.excluded_motifs),
+	                    background_directory=args.background_directory,
                     verbose=args.verbose,
                     random_seed=args.random_seed)
             case 'motif':
@@ -2316,13 +2370,14 @@ def main(argv=None):
                     motif_sequence_constraint=args.motif_sequence_constraint,
                     maximum_repeat_length=args.maximum_repeat_length,
                     motif_column=args.motif_column,
-                    output_file=args.output_file,
-                    motif_type=args.motif_type,
-                    left_context_column=args.left_context_column,
-                    right_context_column=args.right_context_column,
-                    excluded_motifs=_parse_list_str(args.excluded_motifs),
-                    verbose=args.verbose,
-                    random_seed=args.random_seed)
+	                    output_file=args.output_file,
+	                    motif_type=args.motif_type,
+	                    left_context_column=args.left_context_column,
+	                    right_context_column=args.right_context_column,
+	                    patch_mode=args.patch_mode,
+	                    excluded_motifs=_parse_list_str(args.excluded_motifs),
+	                    verbose=args.verbose,
+	                    random_seed=args.random_seed)
             case 'spacer':
                 spacer = _load_api_func('spacer')
                 result = spacer(
@@ -2331,12 +2386,13 @@ def main(argv=None):
                     maximum_repeat_length=args.maximum_repeat_length,
                     spacer_column=args.spacer_column,
                     output_file=args.output_file,
-                    spacer_length=_parse_list_int(args.spacer_length),
-                    left_context_column=args.left_context_column,
-                    right_context_column=args.right_context_column,
-                    excluded_motifs=_parse_list_str(args.excluded_motifs),
-                    verbose=args.verbose,
-                    random_seed=args.random_seed)
+	                    spacer_length=_parse_list_int(args.spacer_length),
+	                    left_context_column=args.left_context_column,
+	                    right_context_column=args.right_context_column,
+	                    patch_mode=args.patch_mode,
+	                    excluded_motifs=_parse_list_str(args.excluded_motifs),
+	                    verbose=args.verbose,
+	                    random_seed=args.random_seed)
             case 'split':
                 split = _load_api_func('split')
                 result = split(

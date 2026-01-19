@@ -23,6 +23,7 @@ def motif(
     motif_type:int=0,
     left_context_column:str|None=None,
     right_context_column:str|None=None,
+    patch_mode:bool=False,
     excluded_motifs:list|str|pd.DataFrame|None=None,
     verbose:bool=True,
     random_seed:int|None=None) -> Tuple[pd.DataFrame, dict]:
@@ -45,6 +46,8 @@ def motif(
             (0 for per-variant motifs, 1 for a single constant motif shared by all variants; default: 0).
         - `left_context_column` (`str`): Column for left DNA context (default: `None`).
         - `right_context_column` (`str`): Column for right DNA context (default: `None`).
+        - `patch_mode` (`bool`): If `True`, fill only missing values in an existing motif/anchor
+            column (does not overwrite existing motifs). (Default: `False`).
         - `excluded_motifs` (`list` / `str` / `pd.DataFrame`): Motifs to exclude;
             can be a CSV path or DataFrame (default: `None`).
         - `verbose` (`bool`): If `True`, logs updates to stdout (default: `True`).
@@ -64,7 +67,13 @@ def motif(
         - For anchors, tune `maximum_repeat_length` to control how distinct the anchor is from the surrounding oligos.
         - For anchors, `motif_sequence_constraint` can be an IUPAC pattern (e.g., 'NNNNNNNNNN') or include fixed bases.
         - Anchors should typically be designed prior to barcode generation.
+        - Patch mode (`patch_mode=True`) supports incremental pool extension: existing values in
+          `motif_column` are preserved and only missing values (e.g., `None`/NaN/empty/`'-'`) are
+          filled. For `motif_type=1`, an existing compatible constant anchor is reused for new rows.
     '''
+
+    # Preserve return style when the caller intentionally used ID as index.
+    id_from_index = ut.get_id_index_intent(input_data)
 
     # Argument Aliasing
     indata       = input_data
@@ -76,6 +85,7 @@ def motif(
     motiftype    = motif_type
     leftcontext  = left_context_column
     rightcontext = right_context_column
+    patch_mode   = patch_mode
     exmotifs     = excluded_motifs
     verbose      = verbose
     random_seed  = random_seed
@@ -92,20 +102,29 @@ def motif(
     # Required Argument Parsing
     liner.send('\n Required Arguments\n')
 
+    # Patch Mode (pre-parse for output column handling)
+    patch_mode_valid = isinstance(patch_mode, (bool, int, np.bool_)) and \
+        (patch_mode in (0, 1, True, False))
+    patch_mode_on = bool(patch_mode) if patch_mode_valid else False
+    allow_missing_cols = None
+    if patch_mode_on and isinstance(motifcol, str):
+        allow_missing_cols = set((motifcol,))
+
     # First Pass indata Parsing and Validation
     (indf,
     indata_valid) = vp.get_parsed_indata_info(
         indata=indata,
-        indata_field='    Input Data    ',
+        indata_field='      Input Data    ',
         required_fields=('ID',),
         precheck=False,
-        liner=liner)
+        liner=liner,
+        allow_missing_cols=allow_missing_cols)
     input_rows = len(indf.index) if isinstance(indf, pd.DataFrame) else 0
 
     # Full oligolimit Validation
     oligolimit_valid = vp.get_numeric_validity(
         numeric=oligolimit,
-        numeric_field='    Oligo Limit   ',
+        numeric_field='      Oligo Limit   ',
         numeric_pre_desc=' At most ',
         numeric_post_desc=' Base Pair(s)',
         minval=4,
@@ -116,7 +135,7 @@ def motif(
     # First Pass motifseq Validation
     motifseq_valid = vp.get_seqconstr_validity(
         seqconstr=motifseq,
-        seqconstr_field='    Motif Sequence',
+        seqconstr_field='      Motif Sequence',
         minlenval=1,
         element='MOTIF',
         liner=liner)
@@ -124,7 +143,7 @@ def motif(
     # Full maxreplen Validation
     maxreplen_valid = vp.get_numeric_validity(
         numeric=maxreplen,
-        numeric_field='   Repeat Length  ',
+        numeric_field='     Repeat Length  ',
         numeric_pre_desc=' Up to ',
         numeric_post_desc=' Base Pair(s) Oligopool Repeats',
         minval=4,
@@ -136,20 +155,21 @@ def motif(
     motifcol_valid = vp.get_parsed_column_info(
         col=motifcol,
         df=indf,
-        col_field='    Motif Column  ',
+        col_field='      Motif Column  ',
         col_desc='Output in Column',
         col_type=1,
         adjcol=None,
         adjval=None,
         iscontext=False,
         typecontext=None,
-        liner=liner)
+        liner=liner,
+        allow_existing=patch_mode_on)
 
     # Full outfile Validation
     outfile_valid = vp.get_outdf_validity(
         outdf=outfile,
         outdf_suffix='.oligopool.motif.csv',
-        outdf_field='   Output File    ',
+        outdf_field='     Output File    ',
         liner=liner)
 
     # Adjust outfile Suffix
@@ -164,7 +184,7 @@ def motif(
     # Full motiftype Validation
     motiftype_valid = vp.get_categorical_validity(
         category=motiftype,
-        category_field='    Motif Type    ',
+        category_field='      Motif Type    ',
         category_pre_desc=' ',
         category_post_desc=' Motifs',
         category_dict={
@@ -181,7 +201,7 @@ def motif(
     leftcontext_valid) = vp.get_parsed_column_info(
         col=leftcontext,
         df=indf,
-        col_field='     Left Context ',
+        col_field='       Left Context ',
         col_desc='Input from Column',
         col_type=0,
         adjcol=rightcontextname,
@@ -195,7 +215,7 @@ def motif(
     rightcontext_valid) = vp.get_parsed_column_info(
         col=rightcontext,
         df=indf,
-        col_field='    Right Context ',
+        col_field='      Right Context ',
         col_desc='Input from Column',
         col_type=0,
         adjcol=leftcontextname,
@@ -204,11 +224,21 @@ def motif(
         typecontext=1,
         liner=liner)
 
+    # Patch mode parsing (printed after context args; evaluated earlier for indata handling)
+    if patch_mode_valid:
+        liner.send('{}: {}\n'.format(
+            '      Patch Mode    ',
+            ['Disabled (Design All Motifs)', 'Enabled (Fill Missing Motifs)'][patch_mode_on]))
+    else:
+        liner.send('{}: {} [INPUT TYPE IS INVALID]\n'.format(
+            '      Patch Mode    ',
+            patch_mode))
+
     # Full exmotifs Parsing and Validation
     (exmotifs,
     exmotifs_valid) = vp.get_parsed_exseqs_info(
         exseqs=exmotifs,
-        exseqs_field=' Excluded Motifs  ',
+        exseqs_field='   Excluded Motifs  ',
         exseqs_desc='Unique Motif(s)',
         df_field='Exmotif',
         required=False,
@@ -223,6 +253,7 @@ def motif(
         motifcol_valid,
         outfile_valid,
         motiftype_valid,
+        patch_mode_valid,
         leftcontext_valid,
         rightcontext_valid,
         exmotifs_valid]):
@@ -246,6 +277,153 @@ def motif(
     stats = None
     warns = {}
 
+    # Patch mode bookkeeping
+    motifcol_exists = False
+    missing_mask = None
+    existing_mask = None
+    if patch_mode_on and isinstance(indf, pd.DataFrame):
+        (motifcol_exists,
+        _) = ut.get_col_exist_idx(
+            col=motifcol,
+            df=indf)
+        if motifcol_exists:
+            missing_mask = ut.get_missing_mask(
+                series=indf[motifcol],
+                allow_dash=True)
+            indf[motifcol] = ut.fill_missing_values(
+                series=indf[motifcol],
+                missing_mask=missing_mask,
+                fill='-')
+            existing_mask = ~missing_mask
+            targetcount = int(missing_mask.sum())
+        else:
+            missing_mask = np.ones(
+                len(indf.index),
+                dtype=bool)
+            existing_mask = ~missing_mask
+
+        # Validate existing motifs (length + DNA)
+        if motifcol_exists and existing_mask.any():
+            invalid_mask = np.zeros(
+                len(indf.index),
+                dtype=bool)
+            for idx in np.where(existing_mask)[0]:
+                value = indf[motifcol].iat[idx]
+                if (not ut.is_DNA(
+                        seq=value,
+                        dna_alpha=set('ATGC'))) or \
+                   (len(value) != len(motifseq)):
+                    invalid_mask[idx] = True
+            if invalid_mask.any():
+                examples = ut.get_row_examples(
+                    df=indf,
+                    invalid_mask=invalid_mask,
+                    id_col='ID',
+                    limit=5)
+                example_note = ut.format_row_examples(examples)
+                liner.send(
+                    '      Motif Column  : Output in Column \'{}\' [INVALID EXISTING VALUE]{}\n'.format(
+                        motifcol,
+                        example_note))
+                liner.send('\n')
+                raise RuntimeError(
+                    'Invalid Argument Input(s).')
+
+        # Constant motif anchors: reuse existing constant motif if present
+        if motiftype == 1 and \
+           motifcol_exists and \
+           existing_mask is not None and \
+           existing_mask.any() and \
+           missing_mask is not None and \
+           missing_mask.any():
+
+            uniques = ut.get_uniques(
+                iterable=indf[motifcol].iloc[existing_mask],
+                typer=tuple)
+
+            # Must already be constant (patch mode does not overwrite)
+            if len(uniques) != 1:
+                liner.send(
+                    '      Motif Column  : Output in Column \'{}\' [NON-UNIQUE EXISTING VALUES]\n'.format(
+                        motifcol))
+                liner.send('\n')
+                raise RuntimeError(
+                    'Invalid Argument Input(s).')
+
+            motif_constant = str(uniques[0]).upper()
+            motifseq_upper = str(motifseq).upper()
+            compatible = True
+            for idx, nt in enumerate(motif_constant):
+                if not nt in ut.ddna_space[motifseq_upper[idx]]:
+                    compatible = False
+                    break
+            if not compatible:
+                liner.send(
+                    '      Motif Column  : Output in Column \'{}\' [EXISTING VALUE VIOLATES SEQUENCE CONSTRAINT]\n'.format(
+                        motifcol))
+                liner.send('\n')
+                raise RuntimeError(
+                    'Invalid Argument Input(s).')
+
+            indf.loc[missing_mask, motifcol] = motif_constant
+            missing_mask = np.zeros(
+                len(indf.index),
+                dtype=bool)
+            existing_mask = ~missing_mask
+            targetcount = 0
+
+    # No missing motifs in patch mode
+    if patch_mode_on and \
+       missing_mask is not None and \
+       not missing_mask.any():
+
+        stats = {
+            'status'  : True,
+            'basis'   : 'complete',
+            'step'    : 0,
+            'step_name': 'no-missing-motifs',
+            'vars'    : {
+               'target_count': 0,
+                'motif_count': 0,
+               'orphan_oligo': [],
+                'repeat_fail': 0,
+               'exmotif_fail': 0,
+                  'edge_fail': 0,
+            'exmotif_counter': cx.Counter()},
+            'warns'   : warns}
+        stats['random_seed'] = random_seed
+
+        outdf = indf
+        if not outfile is None:
+            ut.write_df_csv(
+                df=outdf,
+                outfile=outfile,
+                sep=',')
+
+        liner.send('\n[Motif Design Statistics]\n')
+        liner.send(
+            '  Design Status   : Successful\n')
+        liner.send(
+            '  Target Count    : 0 Motif(s)\n')
+        liner.send(
+            '   Motif Count    : 0 Motif(s) (  0.00 %)\n')
+        liner.send(
+            '  Orphan Oligo    : 0 Entries\n')
+        liner.send(
+            ' Time Elapsed: {:.2f} sec\n'.format(
+                tt.time()-t0))
+
+        liner.close()
+        stats = ut.stamp_stats(
+            stats=stats,
+            module='motif',
+            input_rows=input_rows,
+            output_rows=len(outdf.index))
+        outdf_return = outdf
+        if not id_from_index:
+            outdf_return = ut.get_df_with_id_column(outdf)
+        return (outdf_return, stats)
+
     # Parse Oligopool Limit Feasibility
     liner.send('\n[Step 1: Parsing Oligo Limit]\n')
 
@@ -258,7 +436,8 @@ def motif(
     minspaceavail,
     maxspaceavail) = ut.get_parsed_oligolimit(
         indf=indf,
-        variantlens=None,
+        variantlens=None if (missing_mask is None) else ut.get_variantlens(
+            indf=indf.loc[missing_mask]),
         oligolimit=oligolimit,
         minelementlen=len(motifseq),
         maxelementlen=len(motifseq),
@@ -391,10 +570,19 @@ def motif(
         liner.send('\n[Step 4: Extracting Context Sequences]\n')
 
         # Extract Both Contexts
+        # In patch mode, only extract context for rows being designed.
+        lcontext = leftcontext
+        rcontext = rightcontext
+        if missing_mask is not None:
+            if not lcontext is None:
+                lcontext = lcontext[missing_mask]
+            if not rcontext is None:
+                rcontext = rcontext[missing_mask]
+
         (leftcontext,
         rightcontext) = ut.get_extracted_context(
-            leftcontext=leftcontext,
-            rightcontext=rightcontext,
+            leftcontext=lcontext,
+            rightcontext=rcontext,
             edgeeffectlength=edgeeffectlength,
             reduce=False,
             liner=liner)
@@ -443,7 +631,7 @@ def motif(
     fillcount,
     freecount,
     oligorepeats) = ut.get_parsed_oligopool_repeats(
-        df=indf,
+        df=indf if (missing_mask is None or motiftype == 1) else indf.loc[missing_mask],
         maxreplen=maxreplen,
         element='Motif',
         merge=motiftype == 1,
@@ -532,20 +720,24 @@ def motif(
     if stats['status']:
 
         # Update indf
-        ut.update_df(
-            indf=indf,
-            lcname=leftcontextname,
-            rcname=rightcontextname,
-            out=motifs,
-            outcol=motifcol)
+        if motifcol_exists:
+            indf.loc[missing_mask, motifcol] = motifs
+        else:
+            ut.update_df(
+                indf=indf,
+                lcname=leftcontextname,
+                rcname=rightcontextname,
+                out=motifs,
+                outcol=motifcol)
 
         # Prepare outdf
         outdf = indf
 
         # Write outdf to file
         if not outfile is None:
-            outdf.to_csv(
-                path_or_buf=outfile,
+            ut.write_df_csv(
+                df=outdf,
+                outfile=outfile,
                 sep=',')
 
     # Motif Design Statistics
@@ -652,4 +844,7 @@ def motif(
         module='motif',
         input_rows=input_rows,
         output_rows=len(outdf.index) if outdf is not None else 0)
-    return (outdf, stats)
+    outdf_return = outdf
+    if (outdf is not None) and (not id_from_index):
+        outdf_return = ut.get_df_with_id_column(outdf)
+    return (outdf_return, stats)

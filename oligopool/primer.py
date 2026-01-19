@@ -26,6 +26,7 @@ def primer(
     output_file:str|None=None,
     left_context_column:str|None=None,
     right_context_column:str|None=None,
+    patch_mode:bool=False,
     oligo_sets:list|str|pd.DataFrame|None=None,
     paired_primer_column:str|None=None,
     excluded_motifs:list|str|pd.DataFrame|None=None,
@@ -52,6 +53,8 @@ def primer(
             optional in library usage (default: `None`).
         - `left_context_column` (`str`): Column for left DNA context (default: `None`).
         - `right_context_column` (`str`): Column for right DNA context (default: `None`).
+        - `patch_mode` (`bool`): If `True`, fill only missing values in an existing primer column
+            (does not overwrite existing primers). (Default: `False`).
         - `oligo_sets` (`list` / `str` / `pd.DataFrame`): Per-oligo grouping labels to design
             set-specific primers; can be a list aligned to `input_data` or a CSV/DataFrame
             with 'ID' and 'OligoSet' columns (default: `None`).
@@ -83,7 +86,14 @@ def primer(
         - When `oligo_sets` is provided, primers are designed per set and screened for
           cross-set compatibility. If `paired_primer_column` is also provided, it must be
           constant within each set and Tm matching is applied per set.
+        - Patch mode (`patch_mode=True`) supports incremental pool extension: existing values in
+          `primer_column` are preserved and missing values (e.g., `None`/NaN/empty/`'-'`) are
+          filled. In `oligo_sets` mode, existing per-set primers are reused and only missing-only
+          sets trigger new primer design.
     '''
+
+    # Preserve return style when the caller intentionally used ID as index.
+    id_from_index = ut.get_id_index_intent(input_data)
 
     # Argument Aliasing
     indata       = input_data
@@ -98,6 +108,7 @@ def primer(
     pairedcol    = paired_primer_column
     leftcontext  = left_context_column
     rightcontext = right_context_column
+    patch_mode   = patch_mode
     oligosets    = oligo_sets
     exmotifs     = excluded_motifs
     background   = background_directory
@@ -116,6 +127,14 @@ def primer(
     # Required Argument Parsing
     liner.send('\n Required Arguments\n')
 
+    # Patch Mode (pre-parse for output column handling)
+    patch_mode_valid = isinstance(patch_mode, (bool, int, np.bool_)) and \
+        (patch_mode in (0, 1, True, False))
+    patch_mode_on = bool(patch_mode) if patch_mode_valid else False
+    allow_missing_cols = None
+    if patch_mode_on and isinstance(primercol, str):
+        allow_missing_cols = set((primercol,))
+
     # First Pass indata Parsing and Validation
     (indf,
     indata_valid) = vp.get_parsed_indata_info(
@@ -123,7 +142,8 @@ def primer(
         indata_field='      Input Data       ',
         required_fields=('ID',),
         precheck=False,
-        liner=liner)
+        liner=liner,
+        allow_missing_cols=allow_missing_cols)
     input_rows = len(indf.index) if isinstance(indf, pd.DataFrame) else 0
 
     # Full oligolimit Validation
@@ -190,7 +210,8 @@ def primer(
         adjval=None,
         iscontext=False,
         typecontext=None,
-        liner=liner)
+        liner=liner,
+        allow_existing=patch_mode_on)
 
     # Full outfile Validation
     outfile_valid = vp.get_outdf_validity(
@@ -240,6 +261,16 @@ def primer(
         typecontext=1,
         liner=liner)
 
+    # Patch mode parsing (printed after context args; evaluated earlier for indata handling)
+    if patch_mode_valid:
+        liner.send('{}: {}\n'.format(
+            '      Patch Mode       ',
+            ['Disabled (Design All Primers)', 'Enabled (Fill Missing Primers)'][patch_mode_on]))
+    else:
+        liner.send('{}: {} [INPUT TYPE IS INVALID]\n'.format(
+            '      Patch Mode       ',
+            patch_mode))
+
     # Full oligosets Parsing and Validation
     (oligosets,
     oligosets_valid) = vp.get_parsed_oligosets_info(
@@ -257,6 +288,7 @@ def primer(
         pairedcol_field='     Paired Primer     ',
         df=indf,
         oligosets=oligosets,
+        allow_missing=patch_mode_on,
         liner=liner)
 
     # Full exmotifs Parsing and Validation
@@ -286,6 +318,7 @@ def primer(
         maxreplen_valid,
         primercol_valid,
         outfile_valid,
+        patch_mode_valid,
         oligosets_valid,
         pairedprimer_valid,
         leftcontext_valid,
@@ -312,6 +345,61 @@ def primer(
     oligolimit = round(oligolimit)
     maxreplen  = round(maxreplen)
 
+    # Patch mode bookkeeping
+    primercol_exists = False
+    missing_mask = None
+    existing_mask = None
+    design_mask = None
+    targetcount = len(indf.index)
+
+    if patch_mode_on and isinstance(indf, pd.DataFrame):
+        (primercol_exists,
+        _) = ut.get_col_exist_idx(
+            col=primercol,
+            df=indf)
+        if primercol_exists:
+            missing_mask = ut.get_missing_mask(
+                series=indf[primercol],
+                allow_dash=True)
+            indf[primercol] = ut.fill_missing_values(
+                series=indf[primercol],
+                missing_mask=missing_mask,
+                fill='-')
+            existing_mask = ~missing_mask
+            targetcount = int(missing_mask.sum())
+        else:
+            missing_mask = np.ones(
+                len(indf.index),
+                dtype=bool)
+            existing_mask = ~missing_mask
+
+        # Validate existing primers (length + DNA)
+        if primercol_exists and existing_mask.any():
+            invalid_mask = np.zeros(
+                len(indf.index),
+                dtype=bool)
+            for idx in np.where(existing_mask)[0]:
+                value = indf[primercol].iat[idx]
+                if (not ut.is_DNA(
+                        seq=value,
+                        dna_alpha=set('ATGC'))) or \
+                   (len(value) != len(primerseq)):
+                    invalid_mask[idx] = True
+            if invalid_mask.any():
+                examples = ut.get_row_examples(
+                    df=indf,
+                    invalid_mask=invalid_mask,
+                    id_col='ID',
+                    limit=5)
+                example_note = ut.format_row_examples(examples)
+                liner.send(
+                    '     Primer Column     : Output in Column \'{}\' [INVALID EXISTING VALUE]{}\n'.format(
+                        primercol,
+                        example_note))
+                liner.send('\n')
+                raise RuntimeError(
+                    'Invalid Argument Input(s).')
+
     # Define Edge Effect Length
     edgeeffectlength = None
 
@@ -323,6 +411,144 @@ def primer(
     set_labels = None
     set_groups = None
     set_sizes = None
+    target_indf = indf
+    target_oligosets = oligosets
+    target_labels = None
+    target_groups = None
+    target_sizes = None
+    existing_primers = {}
+
+    # Define oligo set groups (if provided)
+    if not oligosets is None:
+        (set_labels,
+        set_groups,
+        set_sizes) = ut.get_oligoset_groups(
+            oligosets=oligosets)
+        target_labels = set_labels
+        target_groups = set_groups
+        target_sizes = set_sizes
+
+    # Patch mode set handling
+    if patch_mode_on and missing_mask is not None:
+
+        # No oligo sets: reuse a constant primer if present
+        if oligosets is None and primercol_exists and existing_mask.any():
+            uniques = ut.get_uniques(
+                iterable=indf[primercol].iloc[existing_mask],
+                typer=tuple)
+            if len(uniques) != 1:
+                liner.send(
+                    '     Primer Column     : Output in Column \'{}\' [NON-UNIQUE EXISTING VALUES]\n'.format(
+                        primercol))
+                liner.send('\n')
+                raise RuntimeError(
+                    'Invalid Argument Input(s).')
+
+            indf.loc[missing_mask, primercol] = uniques[0]
+            design_mask = np.zeros(
+                len(indf.index),
+                dtype=bool)
+        elif oligosets is None:
+            design_mask = missing_mask
+            if design_mask.any():
+                target_indf = indf.loc[design_mask]
+
+        # Oligo sets: reuse existing primers per set, design for empty sets
+        else:
+            design_labels = []
+            for label in set_labels:
+                idx = np.array(set_groups[label])
+                set_missing = missing_mask[idx]
+                set_existing = ~set_missing
+
+                # Existing primers in this set
+                if set_existing.any():
+                    values = indf[primercol].iloc[idx][set_existing]
+                    uniques = ut.get_uniques(
+                        iterable=values,
+                        typer=tuple)
+                    if len(uniques) != 1:
+                        liner.send(
+                            '     Primer Column     : Output in Column \'{}\' [NON-UNIQUE WITHIN SET=\'{}\']\n'.format(
+                                primercol,
+                                label))
+                        liner.send('\n')
+                        raise RuntimeError(
+                            'Invalid Argument Input(s).')
+
+                    existing_primers[label] = uniques[0]
+                    if set_missing.any():
+                        indf.loc[indf.index[idx][set_missing], primercol] = uniques[0]
+
+                # Missing-only set
+                else:
+                    existing_primers[label] = None
+                    design_labels.append(label)
+
+            design_mask = np.zeros(
+                len(indf.index),
+                dtype=bool)
+            for label in design_labels:
+                design_mask[set_groups[label]] = True
+
+            if design_labels:
+                target_indf = indf.loc[design_mask]
+                target_oligosets = oligosets[design_mask]
+                (target_labels,
+                target_groups,
+                target_sizes) = ut.get_oligoset_groups(
+                    oligosets=target_oligosets)
+
+    # Patch mode with no design targets
+    if patch_mode_on and \
+       design_mask is not None and \
+       not design_mask.any():
+
+        stats = {
+            'status'  : True,
+            'basis'   : 'complete',
+            'step'    : 0,
+            'step_name': 'no-missing-primers',
+            'vars'    : {
+                   'primer_Tm': None,          # Primer Melting Temperature
+                   'primer_GC': None,          # Primer GC Content
+                 'hairpin_MFE': None,          # Primer Hairpin Free Energy
+               'homodimer_MFE': None,          # Homodimer Free Energy
+             'heterodimer_MFE': None,          # Heterodimer Free Energy
+                     'Tm_fail': 0,             # Melting Temperature Fail Count
+                 'repeat_fail': 0,             # Repeat Fail Count
+              'homodimer_fail': 0,             # Homodimer Fail Count
+            'heterodimer_fail': 0,             # Heterodimer Fail Count
+             'crossdimer_fail': 0,             # Cross-primer Dimer Fail Count
+                'exmotif_fail': 0,             # Exmotif Elimination Fail Count
+                   'edge_fail': 0,             # Edge Effect Fail Count
+             'exmotif_counter': cx.Counter()}, # Exmotif Encounter Counter
+            'warns'   : warns}
+        stats['random_seed'] = random_seed
+        if not oligosets is None:
+            stats['vars']['oligo_set_count'] = len(set_labels)
+            stats['vars']['oligo_set_sizes'] = [
+                {'oligo_set': label, 'count': set_sizes[label]}
+                for label in set_labels]
+            stats['vars']['primer_sets'] = []
+
+        outdf = indf
+        if not outfile is None:
+            ut.write_df_csv(
+                df=outdf,
+                outfile=outfile,
+                sep=',')
+
+        liner.close()
+        stats = ut.stamp_stats(
+            stats=stats,
+            module='primer',
+            input_rows=input_rows,
+            output_rows=len(outdf.index))
+        outdf_return = outdf
+        if not id_from_index:
+            outdf_return = ut.get_df_with_id_column(outdf)
+        return (outdf_return, stats)
 
     # Store Full Contexts
     leftcontext_full = leftcontext
@@ -333,17 +559,15 @@ def primer(
         pairedprimer_map = pairedprimer
         pairedprimer = None
 
-    # Define oligo set groups (if provided)
-    if not oligosets is None:
-        (set_labels,
-        set_groups,
-        set_sizes) = ut.get_oligoset_groups(
-            oligosets=oligosets)
-
     # Parse Oligopool Limit Feasibility
     liner.send('\n[Step 1: Parsing Oligo Limit]\n')
 
     # Parse oligolimit
+    variantlens = None
+    if patch_mode_on and design_mask is not None:
+        variantlens = ut.get_variantlens(
+            indf=target_indf)
+
     (parsestatus,
     minoligolen,
     maxoligolen,
@@ -352,7 +576,7 @@ def primer(
     minspaceavail,
     maxspaceavail) = ut.get_parsed_oligolimit(
         indf=indf,
-        variantlens=None,
+        variantlens=variantlens,
         oligolimit=oligolimit,
         minelementlen=len(primerseq),
         maxelementlen=len(primerseq),
@@ -575,12 +799,13 @@ def primer(
         tmelt_by_set = {}
 
         # Parse paired Tm per set
-        liner.send('\n')
-        for idx,label in enumerate(set_labels):
+        for idx,label in enumerate(target_labels):
+            if idx > 0:
+                liner.send('\n')
             liner.send(
                 ' Set {}: {:,} Record(s)\n'.format(
                     label,
-                    set_sizes[label]))
+                    target_sizes[label]))
 
             (parsestatus,
             estimatedminTm,
@@ -626,8 +851,6 @@ def primer(
                 return (outdf, stats)
 
             tmelt_by_set[label] = (set_mintmelt, set_maxtmelt)
-            if idx < len(set_labels) - 1:
-                liner.send('\n')
 
     # Parse Edge Effects
     leftedges = None
@@ -646,18 +869,34 @@ def primer(
 
         # Extract Primer Contexts
         if oligosets is None:
+            leftcontext_target = leftcontext_full
+            rightcontext_target = rightcontext_full
+            if design_mask is not None:
+                if not leftcontext_full is None:
+                    leftcontext_target = leftcontext_full[design_mask]
+                if not rightcontext_full is None:
+                    rightcontext_target = rightcontext_full[design_mask]
+
             (leftcontext,
             rightcontext) = ut.get_extracted_context(
-                leftcontext=leftcontext_full,
-                rightcontext=rightcontext_full,
+                leftcontext=leftcontext_target,
+                rightcontext=rightcontext_target,
                 edgeeffectlength=edgeeffectlength,
                 reduce=True,
                 liner=liner)
         else:
+            leftcontext_target = leftcontext_full
+            rightcontext_target = rightcontext_full
+            if design_mask is not None:
+                if not leftcontext_full is None:
+                    leftcontext_target = leftcontext_full[design_mask]
+                if not rightcontext_full is None:
+                    rightcontext_target = rightcontext_full[design_mask]
+
             (leftedges,
             rightedges) = ut.get_extracted_context(
-                leftcontext=leftcontext_full,
-                rightcontext=rightcontext_full,
+                leftcontext=leftcontext_target,
+                rightcontext=rightcontext_target,
                 edgeeffectlength=edgeeffectlength,
                 reduce=False,
                 liner=liner)
@@ -701,22 +940,22 @@ def primer(
             # Compute Forbidden Prefixes and Suffixes per set
             prefixdicts = {}
             suffixdicts = {}
-            for label in set_labels:
+            for label in target_labels:
 
                 # Build per-set contexts
                 set_left = None
                 set_right = None
                 if not leftedges is None:
                     set_left = list(set(
-                        leftedges[idx] for idx in set_groups[label]))
+                        leftedges[idx] for idx in target_groups[label]))
                 if not rightedges is None:
                     set_right = list(set(
-                        rightedges[idx] for idx in set_groups[label]))
+                        rightedges[idx] for idx in target_groups[label]))
 
                 liner.send(
                     ' Set {}: {:,} Record(s)\n'.format(
                         label,
-                        set_sizes[label]))
+                        target_sizes[label]))
 
                 setwarn = {
                     'warn_count': 0,
@@ -854,13 +1093,20 @@ def primer(
     else:
         primer_by_set = {}
         crossprimers = []
+        if patch_mode_on and existing_primers:
+            crossprimers.extend(
+                [primer for primer in existing_primers.values()
+                 if not primer is None])
+
         liner.send('\n')
 
-        for idx,label in enumerate(set_labels):
+        for idx,label in enumerate(target_labels):
+            if idx > 0:
+                liner.send('\n')
             liner.send(
                 ' Set {}: {:,} Record(s)\n'.format(
                     label,
-                    set_sizes[label]))
+                    target_sizes[label]))
 
             # Per-set paired primer and Tm constraints
             set_pairedprimer = pairedprimer
@@ -974,10 +1220,8 @@ def primer(
                 stats['status'] = False
                 stats['basis'] = 'unsolved'
                 break
-            if idx < len(set_labels) - 1:
-                liner.send('\n')
 
-        if len(primer_by_set) == len(set_labels):
+        if len(primer_by_set) == len(target_labels):
             stats['status'] = True
             stats['basis'] = 'solved'
 
@@ -989,27 +1233,38 @@ def primer(
 
     # Resolve per-row primer output
     primer_out = primer
+    primer_out_mask = None
     if stats['status'] and not oligosets is None:
-        primer_out = [primer_by_set[label] for label in oligosets]
+        if patch_mode_on and design_mask is not None:
+            primer_out_mask = design_mask
+            primer_out = [primer_by_set[label] for label in target_oligosets]
+        else:
+            primer_out = [primer_by_set[label] for label in oligosets]
 
     # Insert primer into indf
     if stats['status']:
 
         # Update indf
-        ut.update_df(
-            indf=indf,
-            lcname=leftcontextname,
-            rcname=rightcontextname,
-            out=primer_out,
-            outcol=primercol)
+        if patch_mode_on and primercol_exists:
+            if primer_out_mask is None:
+                primer_out_mask = missing_mask
+            indf.loc[primer_out_mask, primercol] = primer_out
+        else:
+            ut.update_df(
+                indf=indf,
+                lcname=leftcontextname,
+                rcname=rightcontextname,
+                out=primer_out,
+                outcol=primercol)
 
         # Prepare outdf
         outdf = indf
 
         # Write outdf to file
         if not outfile is None:
-            outdf.to_csv(
-                path_or_buf=outfile,
+            ut.write_df_csv(
+                df=outdf,
+                outfile=outfile,
                 sep=',')
 
     # Primer Design Statistics
@@ -1183,4 +1438,7 @@ def primer(
         module='primer',
         input_rows=input_rows,
         output_rows=len(outdf.index) if outdf is not None else 0)
-    return (outdf, stats)
+    outdf_return = outdf
+    if (outdf is not None) and (not id_from_index):
+        outdf_return = ut.get_df_with_id_column(outdf)
+    return (outdf_return, stats)

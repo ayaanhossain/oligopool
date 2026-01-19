@@ -18,6 +18,7 @@ import multiprocess.sharedctypes as mpsct
 
 import numpy   as np
 import numba   as nb
+import pandas  as pd
 import primer3 as p3
 import psutil  as pu
 
@@ -915,6 +916,125 @@ def get_df_concat(df):
     return tuple(df.sum(
         axis=1).str.replace(
             '-', '').values)
+
+def get_missing_mask(
+    series,
+    allow_dash=False):
+    '''
+    Return a boolean mask of missing values in a
+    Series. Missing includes NaN/None/"" and,
+    optionally, "-" for gap-aware output columns.
+    Internal use only.
+
+    :: series
+       type - pd.Series / iterable
+       desc - column values to scan
+    :: allow_dash
+       type - boolean
+       desc - treat "-" as missing when True
+    '''
+
+    if not isinstance(series, pd.Series):
+        series = pd.Series(series)
+
+    missing = series.isna() | series.eq('')
+    if allow_dash:
+        missing |= series.eq('-')
+    return missing.values
+
+def fill_missing_values(
+    series,
+    missing_mask,
+    fill='-'):
+    '''
+    Fill missing positions in series with a
+    placeholder value. Internal use only.
+
+    :: series
+       type - pd.Series
+       desc - column values to update
+    :: missing_mask
+       type - np.array
+       desc - boolean mask of missing values
+    :: fill
+       type - string
+       desc - fill value for missing entries
+    '''
+
+    series = series.copy()
+    series[missing_mask] = fill
+    return series
+
+def get_id_index_intent(indata):
+    '''
+    Return True if the user provided `ID` as the DataFrame index (intentional index-style workflow).
+    Only applies when `indata` is a DataFrame. Internal use only.
+
+    :: indata
+       type - str / pd.DataFrame
+       desc - input data provided to a module
+    '''
+
+    if not isinstance(indata, pd.DataFrame):
+        return False
+
+    return (
+        (indata.index.name == 'ID') and
+        ('ID' not in indata.columns)
+    )
+
+def get_df_with_id_column(df):
+    '''
+    Return df with an explicit 'ID' column and a default RangeIndex.
+    Internal use only.
+
+    :: df
+       type - pd.DataFrame / None
+       desc - DataFrame indexed by 'ID' (typical internal representation)
+    '''
+
+    if df is None:
+        return None
+
+    if not isinstance(df, pd.DataFrame):
+        return df
+
+    if 'ID' in df.columns:
+        # Ensure we don't also write the index as a redundant CSV column.
+        return df.reset_index(drop=True)
+
+    if df.index.name == 'ID':
+        return df.reset_index()
+
+    # Fallback: preserve data and emit a stable RangeIndex.
+    return df.reset_index(drop=False)
+
+def write_df_csv(
+    df,
+    outfile,
+    sep=','):
+    '''
+    Write df to CSV in a "sane default" format: explicit 'ID' column and no
+    implicit numeric index column. Internal use only.
+
+    :: df
+       type - pd.DataFrame
+       desc - DataFrame to write
+    :: outfile
+       type - str / None
+       desc - output file path
+    :: sep
+       type - str
+       desc - CSV separator
+    '''
+
+    if outfile is None:
+        return
+    df_out = get_df_with_id_column(df)
+    df_out.to_csv(
+        path_or_buf=outfile,
+        sep=sep,
+        index=False)
 
 def update_df(
     indf,

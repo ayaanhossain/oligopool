@@ -534,6 +534,7 @@ def pad(
                  'repeat_fail': 0,             # Repeat Fail Count
               'homodimer_fail': 0,             # Homodimer Fail Count
             'heterodimer_fail': 0,             # Heterodimer Fail Count
+             'crossdimer_fail': 0,             # Cross-primer Dimer Fail Count
                 'exmotif_fail': 0,             # Exmotif Elimination Fail Count
                    'edge_fail': 0,             # Edge Effect Fail Count
              'exmotif_counter': cx.Counter()}, # Exmotif Encounter Counter
@@ -563,6 +564,7 @@ def pad(
         pairedprimer=None,
         pairedspan=None,
         pairedrepeats=pairedrepeats,
+        crossprimers=None,
         exmotifs=exmotifs,
         exmotifindex=exmotifindex,
         edgeeffectlength=edgeeffectlength,
@@ -589,6 +591,7 @@ def pad(
                  'repeat_fail': 0,             # Repeat Fail Count
               'homodimer_fail': 0,             # Homodimer Fail Count
             'heterodimer_fail': 0,             # Heterodimer Fail Count
+             'crossdimer_fail': 0,             # Cross-primer Dimer Fail Count
                 'exmotif_fail': 0,             # Exmotif Elimination Fail Count
                    'edge_fail': 0,             # Edge Effect Fail Count
              'exmotif_counter': cx.Counter()}, # Exmotif Encounter Counter
@@ -623,6 +626,7 @@ def pad(
             pairedprimer=fwdpad,
             pairedspan=fwdcore,
             pairedrepeats=pairedrepeats,
+            crossprimers=None,
             exmotifs=exmotifs,
             exmotifindex=exmotifindex,
             edgeeffectlength=edgeeffectlength,

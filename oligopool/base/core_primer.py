@@ -455,6 +455,66 @@ def get_primer_extreme(
             extbases.append(chooser(space))
     return ''.join(extbases)
 
+def get_primer_tmelt_bounds(
+    primerseq,
+    liner,
+    rng=None):
+    '''
+    Estimate the feasible melting temperature
+    range for a primer sequence constraint.
+    Internal use only.
+
+    :: primerseq
+       type - string
+       desc - primer sequence constraint
+    :: liner
+       type - coroutine
+       desc - dynamic printing
+    :: rng
+       type - np.random.Generator / None
+       desc - optional RNG instance
+    '''
+
+    # Book-keeping
+    posminTm = float('inf')
+    posmaxTm = float('-inf')
+
+    # Estimate Tm Range
+    liner.send(' Estimating Feasible Melting Temperature Range ...')
+
+    # Estimate Minimum Feasible Tm
+    for _ in range(100 * len(primerseq)):
+        minprimer = get_primer_extreme(
+            primerseq=primerseq,
+            exttype=0,
+            rng=rng)
+        posminTm = min(posminTm, ut.get_tmelt(
+            seq=minprimer))
+        liner.send(
+            ' Estimated Minimum Tm: {:.2f} °C'.format(
+                posminTm))
+
+    # Estimate Maximum Feasible Tm
+    for _ in range(100 * len(primerseq)):
+        maxprimer = get_primer_extreme(
+            primerseq=primerseq,
+            exttype=1,
+            rng=rng)
+        posmaxTm = max(posmaxTm, ut.get_tmelt(
+            seq=maxprimer))
+        liner.send(
+            ' Estimated Maximum Tm: {:.2f} °C'.format(
+                posmaxTm))
+
+    # Show Update
+    liner.send(
+        ' Possible Tm Range: {:.2f} to {:.2f} °C\n'.format(
+            posminTm,
+            posmaxTm))
+
+    # Return Results
+    return (posminTm, posmaxTm)
+
 def get_parsed_primer_tmelt_constraint(
     primerseq,
     pairedprimer,
@@ -462,7 +522,8 @@ def get_parsed_primer_tmelt_constraint(
     maxtmelt,
     element,
     liner,
-    rng=None):
+    rng=None,
+    tmelt_bounds=None):
     '''
     Determine melting temperature bounds for
     primerseq, subject to pairedprimer and
@@ -489,6 +550,10 @@ def get_parsed_primer_tmelt_constraint(
     :: rng
        type - np.random.Generator / None
        desc - optional RNG instance
+    :: tmelt_bounds
+       type - tuple / None
+       desc - optional precomputed feasible
+              melting temperature bounds
     '''
 
     # Book-keeping
@@ -525,38 +590,15 @@ def get_parsed_primer_tmelt_constraint(
                 mintmelt,
                 maxtmelt))
 
-    # Estimate Tm Range
-    liner.send(' Estimating Feasible Melting Temperature Range ...')
-
-    # Estimate Minimum Feasible Tm
-    for _ in range(100 * len(primerseq)):
-        minprimer = get_primer_extreme(
+    # Estimate or load feasible Tm range
+    if tmelt_bounds is None:
+        (posminTm,
+        posmaxTm) = get_primer_tmelt_bounds(
             primerseq=primerseq,
-            exttype=0,
+            liner=liner,
             rng=rng)
-        posminTm = min(posminTm, ut.get_tmelt(
-            seq=minprimer))
-        liner.send(
-            ' Estimated Minimum Tm: {:.2f} °C'.format(
-                posminTm))
-
-    # Estimate Maximum Feasible Tm
-    for _ in range(100 * len(primerseq)):
-        maxprimer = get_primer_extreme(
-            primerseq=primerseq,
-            exttype=1,
-            rng=rng)
-        posmaxTm = max(posmaxTm, ut.get_tmelt(
-            seq=maxprimer))
-        liner.send(
-            ' Estimated Maximum Tm: {:.2f} °C'.format(
-                posmaxTm))
-
-    # Show Update
-    liner.send(
-        ' Possible Tm Range: {:.2f} to {:.2f} °C\n'.format(
-            posminTm,
-            posmaxTm))
+    else:
+        posminTm, posmaxTm = tmelt_bounds
 
     # Compute Tm Conflicts
     conflictcount = 0
@@ -993,7 +1035,8 @@ def show_update(
         ' due to Edge Effect',
         ' due to Melting Temperature',
         ' due to Homodimer',
-        ' due to Heterodimer'][optstate]))
+        ' due to Heterodimer',
+        ' due to Cross Heterodimer'][optstate]))
 
     if terminal:
         liner.send('|* Time Elapsed: {:.2f} sec\n'.format(
@@ -1453,6 +1496,7 @@ def primer_objectives(
     oligorepeats,
     pairedprimer,
     pairedrepeats,
+    crossprimers,
     exmotifs,
     exmotifindex,
     edgeeffectlength,
@@ -1502,6 +1546,10 @@ def primer_objectives(
     :: pairedrepeats
        type - set / None
        desc - set storing paired primer repeats
+    :: crossprimers
+       type - list / None
+       desc - list of other primer sequences
+              to avoid heterodimers with
     :: exmotifs
        type - cx.deque / None
        desc - deque of all excluded motifs
@@ -1771,6 +1819,36 @@ def primer_objectives(
             # Return Traceback
             return False, traceloc
 
+        # Objective 9: Cross-Primer Heterodimer Feasibility
+        if crossprimers:
+            for crossprimer in crossprimers:
+                obj9, traceloc = is_dimer_feasible(
+                    primer=cprimer,
+                    primertype=primertype,
+                    primerspan=primerspan,
+                    pairedprimer=crossprimer,
+                    fixedbaseindex=fixedbaseindex,
+                    dimertype=1)
+
+                # Objective 9 Failed
+                if not obj9:
+
+                    # Show Update
+                    show_update(
+                        element='Primer',
+                        primer=primer,
+                        optstatus=0,
+                        optstate=9,
+                        inittime=inittime,
+                        terminal=False,
+                        liner=liner)
+
+                    # Update Stats
+                    stats['vars']['crossdimer_fail'] += 1
+
+                    # Return Traceback
+                    return False, traceloc
+
     # Show Update
     show_update(
         primer=primer,
@@ -1797,6 +1875,7 @@ def primer_engine(
     pairedprimer,
     pairedspan,
     pairedrepeats,
+    crossprimers,
     exmotifs,
     exmotifindex,
     edgeeffectlength,
@@ -1855,6 +1934,10 @@ def primer_engine(
     :: pairedrepeats
        type - set / None
        desc - set storing paired primer repeats
+    :: crossprimers
+       type - list / None
+       desc - list of other primer sequences
+              to avoid heterodimers with
     :: exmotifs
        type - cx.deque / None
        desc - deque of all excluded motifs
@@ -1916,6 +1999,9 @@ def primer_engine(
                 seq=pairedprimer)
     # Correct Free Base Index
     else:
+        if crossprimers:
+            crossprimers = [ut.get_revcomp(
+                seq=cp) for cp in crossprimers]
         fixedbaseindex = set(len(primerseq)-1-idx \
             for idx in fixedbaseindex)
 
@@ -1937,6 +2023,7 @@ def primer_engine(
         oligorepeats=oligorepeats,
         pairedprimer=pairedprimer,
         pairedrepeats=pairedrepeats,
+        crossprimers=crossprimers,
         exmotifs=exmotifs,
         exmotifindex=exmotifindex,
         edgeeffectlength=edgeeffectlength,

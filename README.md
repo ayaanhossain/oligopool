@@ -73,9 +73,7 @@ There are examples of a [design parser](https://github.com/ayaanhossain/oligopoo
 
 A notebook demonstrating [`Oligopool Calculator` in action](https://github.com/ayaanhossain/oligopool/blob/master/examples/OligopoolCalculatorInAction.ipynb) is provided there as well. It shows in-depth use of all major design and analysis methods.
 
-Two lightweight QC helpers are worth knowing up front.
-- `lenstat`: quick length/free-space summaries under an `oligo_length_limit` (use throughout Design Mode).
-- `verify`: quick QC summary that parses an oligopool DataFrame and verifies constraints.
+For quick iteration during Design Mode, use `lenstat` to monitor length/free space under an `oligo_length_limit`, and `verify` as a final QC pass before ordering/synthesis.
 
 ```python
 $ python
@@ -274,11 +272,11 @@ $ op complete --install          # auto-detect shell (restart your shell)
 $ op complete --install bash     # or: zsh|fish
 ```
 
-> - In CLI mode, commands that produce an output DataFrame require `--output-file`.
-> - Use `op lenstat` during design to track free space, and `op verify` to evaluate QC constraints.
-> - For `--primer-sequence-constraint` / `--motif-sequence-constraint`, pass either an IUPAC string (`NNNN...`) or a quoted expression like `"'N'*20"` / `'GCC+N*20+CCG'`.
-> - Primer design supports per-set multiplexing via `--oligo-sets` (comma-separated labels or a CSV with `ID` and `OligoSet`). If paired primers are supplied, they must be constant within each set.
-> - Barcode design supports global cross-set separation. Use `--cross-barcode-columns` together with `--minimum-cross-distance` to keep BC2/BC3 distinct from earlier barcode sets.
+> **CLI Notes**
+> - Commands that write a DataFrame require `--output-file` (library mode can return DataFrames in-memory).
+> - For `--primer-sequence-constraint` / `--motif-sequence-constraint`, pass an IUPAC string (`NNNN...`) or a quoted expression like `"'N'*20"` / `'GCC+N*20+CCG'`.
+> - Per-set primer multiplexing: `--oligo-sets` (labels or a CSV with `ID` and `OligoSet`); paired primers must be constant within each set.
+> - Cross-set barcode separation: `--cross-barcode-columns` + `--minimum-cross-distance`.
 
 ## Citation
 

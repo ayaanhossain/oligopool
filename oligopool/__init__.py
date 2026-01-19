@@ -104,6 +104,11 @@ Design Mode workflow
         b. All other columns in the DataFrame must be DNA sequences.
     2. Define any optional background sequences via the background module.
     3. Add necessary oligopool elements with constraints via element modules.
+        a. For multiplexing, design per-set primers via `oligo_sets` in `primer`.
+        b. For multiple barcode sets, enforce cross-set separation via
+           `cross_barcode_columns` + `minimum_cross_distance` in `barcode`.
+        c. For incremental pool extension, use Patch Mode (`patch_mode=True`) in element modules
+           to fill only missing values in an existing output column.
     4. Optionally, split long oligos and pad them via assembly modules.
     5. Perform additional maneuvers and finalize library via auxiliary modules.
 
@@ -115,11 +120,6 @@ Design Mode workflow
         - barcode
         - motif
         - spacer
-
-    Notes:
-        - Primer supports per-set multiplexing via `oligo_sets`.
-        - Barcode supports cross-set separation via `cross_barcode_columns` + `minimum_cross_distance`.
-        - Element modules support incremental pool extension via `patch_mode=True`.
 
     Assembly modules available
         - split

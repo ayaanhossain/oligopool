@@ -24,18 +24,18 @@ def primer(
     maximum_repeat_length:int,
     primer_column:str,
     output_file:str|None=None,
-    paired_primer_column:str|None=None,
     left_context_column:str|None=None,
     right_context_column:str|None=None,
+    oligo_sets:list|str|pd.DataFrame|None=None,
+    paired_primer_column:str|None=None,
     excluded_motifs:list|str|pd.DataFrame|None=None,
     background_directory:str|None=None,
     verbose:bool=True,
     random_seed:int|None=None) -> Tuple[pd.DataFrame, dict]:
     '''
     Design constrained forward/reverse primers under a sequence constraint with Tm/repeat/dimer
-    constraints for robust amplification and assembly. Supports background screening
-    (`background_directory`) and chained primer design by matching Tm against a paired primer
-    (`paired_primer_column`).
+    constraints for robust amplification and assembly. Supports background screening,
+    chained primer design via Tm matching, and multiplexed primer design using `oligo_sets`.
 
     Required Parameters:
         - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated oligopool variants.
@@ -50,9 +50,12 @@ def primer(
     Optional Parameters:
         - `output_file` (`str`): Filename for output DataFrame; required in CLI usage,
             optional in library usage (default: `None`).
-        - `paired_primer_column` (`str`): Column for paired primer sequence (default: `None`).
         - `left_context_column` (`str`): Column for left DNA context (default: `None`).
         - `right_context_column` (`str`): Column for right DNA context (default: `None`).
+        - `oligo_sets` (`list` / `str` / `pd.DataFrame`): Per-oligo grouping labels to design
+            set-specific primers; can be a list aligned to `input_data` or a CSV/DataFrame
+            with 'ID' and 'OligoSet' columns (default: `None`).
+        - `paired_primer_column` (`str`): Column for paired primer sequence (default: `None`).
         - `excluded_motifs` (`list` / `str` / `pd.DataFrame`): Motifs to exclude;
             can be a CSV path or DataFrame (default: `None`).
         - `background_directory` (`str`): Directory for background k-mer sequences (default: `None`).
@@ -77,6 +80,9 @@ def primer(
         - Chained primer design: design one primer first, then design its partner by passing
           `paired_primer_column` (e.g., design `primer_type=0` then design `primer_type=1` with
           `paired_primer_column`).
+        - When `oligo_sets` is provided, primers are designed per set and screened for
+          cross-set compatibility. If `paired_primer_column` is also provided, it must be
+          constant within each set and Tm matching is applied per set.
     '''
 
     # Argument Aliasing
@@ -92,6 +98,7 @@ def primer(
     pairedcol    = paired_primer_column
     leftcontext  = left_context_column
     rightcontext = right_context_column
+    oligosets    = oligo_sets
     exmotifs     = excluded_motifs
     background   = background_directory
     verbose      = verbose
@@ -201,14 +208,6 @@ def primer(
     # Optional Argument Parsing
     liner.send('\n Optional Arguments\n')
 
-    # Full pairedprimer Validation
-    (pairedprimer,
-    pairedprimer_valid) = vp.get_constantcol_validity(
-        constantcol=pairedcol,
-        constantcol_field='     Paired Primer     ',
-        df=indf,
-        liner=liner)
-
     # Store Context Names
     leftcontextname  = leftcontext
     rightcontextname = rightcontext
@@ -241,6 +240,25 @@ def primer(
         typecontext=1,
         liner=liner)
 
+    # Full oligosets Parsing and Validation
+    (oligosets,
+    oligosets_valid) = vp.get_parsed_oligosets_info(
+        oligosets=oligosets,
+        oligosets_field='      Oligo Sets       ',
+        df_field='OligoSet',
+        indf=indf,
+        indata_valid=indata_valid,
+        liner=liner)
+
+    # Full pairedprimer Validation
+    (pairedprimer,
+    pairedprimer_valid) = vp.get_parsed_pairedprimer_info(
+        pairedcol=pairedcol,
+        pairedcol_field='     Paired Primer     ',
+        df=indf,
+        oligosets=oligosets,
+        liner=liner)
+
     # Full exmotifs Parsing and Validation
     (exmotifs,
     exmotifs_valid) = vp.get_parsed_exseqs_info(
@@ -268,6 +286,7 @@ def primer(
         maxreplen_valid,
         primercol_valid,
         outfile_valid,
+        oligosets_valid,
         pairedprimer_valid,
         leftcontext_valid,
         rightcontext_valid,
@@ -300,6 +319,26 @@ def primer(
     outdf = None
     stats = None
     warns = {}
+    pairedprimer_map = None
+    set_labels = None
+    set_groups = None
+    set_sizes = None
+
+    # Store Full Contexts
+    leftcontext_full = leftcontext
+    rightcontext_full = rightcontext
+
+    # Track per-set paired primer usage
+    if isinstance(pairedprimer, dict):
+        pairedprimer_map = pairedprimer
+        pairedprimer = None
+
+    # Define oligo set groups (if provided)
+    if not oligosets is None:
+        (set_labels,
+        set_groups,
+        set_sizes) = ut.get_oligoset_groups(
+            oligosets=oligosets)
 
     # Parse Oligopool Limit Feasibility
     liner.send('\n[Step 1: Parsing Oligo Limit]\n')
@@ -465,104 +504,243 @@ def primer(
         return (outdf, stats)
 
     # Define pairedrepeats
-    if not pairedprimer is None:
+    pairedrepeats = None
+    if pairedprimer_map is None and \
+       not pairedprimer is None:
         pairedrepeats = set(ut.stream_canon_spectrum(
             seq=pairedprimer,
             k=6))
-    else:
-        pairedrepeats = None
 
     # Parse Melting Temperature
     liner.send('\n[Step 4: Parsing Melting Temperature]\n')
 
-    # Parse mintmelt and maxtmelt
-    (parsestatus,
-    estimatedminTm,
-    estimatedmaxTm,
-    higherminTm,
-    lowermaxTm,
-    mintmelt,
-    maxtmelt) = cp.get_parsed_primer_tmelt_constraint(
-        primerseq=primerseq,
-        pairedprimer=pairedprimer,
-        mintmelt=mintmelt,
-        maxtmelt=maxtmelt,
-        element='Primer',
-        liner=liner,
-        rng=rng)
+    tmelt_bounds = None
+    tmelt_by_set = None
 
-    # mintmelt and maxtmelt infeasible
-    if not parsestatus:
+    # Paired primer is global or absent
+    if pairedprimer_map is None:
 
-        # Prepare stats
-        stats = {
-            'status'  : False,
-            'basis'   : 'infeasible',
-            'step'    : 4,
-            'step_name': 'parsing-melting-temperature',
-            'vars'    : {
-                'estimated_min_Tm': estimatedminTm,
-                'estimated_max_Tm': estimatedmaxTm,
-                   'higher_min_Tm': higherminTm,
-                    'lower_max_Tm': lowermaxTm},
-            'warns'   : warns}
-        stats['random_seed'] = random_seed
-        stats = ut.stamp_stats(
-            stats=stats,
-            module='primer',
-            input_rows=input_rows,
-            output_rows=0)
+        # Parse mintmelt and maxtmelt
+        (parsestatus,
+        estimatedminTm,
+        estimatedmaxTm,
+        higherminTm,
+        lowermaxTm,
+        mintmelt,
+        maxtmelt) = cp.get_parsed_primer_tmelt_constraint(
+            primerseq=primerseq,
+            pairedprimer=pairedprimer,
+            mintmelt=mintmelt,
+            maxtmelt=maxtmelt,
+            element='Primer',
+            liner=liner,
+            rng=rng)
 
-        # Return results
-        liner.close()
-        return (outdf, stats)
+        # mintmelt and maxtmelt infeasible
+        if not parsestatus:
+
+            # Prepare stats
+            stats = {
+                'status'  : False,
+                'basis'   : 'infeasible',
+                'step'    : 4,
+                'step_name': 'parsing-melting-temperature',
+                'vars'    : {
+                    'estimated_min_Tm': estimatedminTm,
+                    'estimated_max_Tm': estimatedmaxTm,
+                       'higher_min_Tm': higherminTm,
+                        'lower_max_Tm': lowermaxTm},
+                'warns'   : warns}
+            stats['random_seed'] = random_seed
+            stats = ut.stamp_stats(
+                stats=stats,
+                module='primer',
+                input_rows=input_rows,
+                output_rows=0)
+
+            # Return results
+            liner.close()
+            return (outdf, stats)
+
+    # Paired primer is set-specific
+    else:
+
+        # Compute feasible Tm bounds once
+        (posminTm,
+        posmaxTm) = cp.get_primer_tmelt_bounds(
+            primerseq=primerseq,
+            liner=liner,
+            rng=rng)
+        tmelt_bounds = (posminTm, posmaxTm)
+        tmelt_by_set = {}
+
+        # Parse paired Tm per set
+        liner.send('\n')
+        for idx,label in enumerate(set_labels):
+            liner.send(
+                ' Set {}: {:,} Record(s)\n'.format(
+                    label,
+                    set_sizes[label]))
+
+            (parsestatus,
+            estimatedminTm,
+            estimatedmaxTm,
+            higherminTm,
+            lowermaxTm,
+            set_mintmelt,
+            set_maxtmelt) = cp.get_parsed_primer_tmelt_constraint(
+                primerseq=primerseq,
+                pairedprimer=pairedprimer_map[label],
+                mintmelt=mintmelt,
+                maxtmelt=maxtmelt,
+                element='Primer',
+                liner=liner,
+                rng=rng,
+                tmelt_bounds=tmelt_bounds)
+
+            # mintmelt and maxtmelt infeasible for this set
+            if not parsestatus:
+
+                # Prepare stats
+                stats = {
+                    'status'  : False,
+                    'basis'   : 'infeasible',
+                    'step'    : 4,
+                    'step_name': 'parsing-melting-temperature',
+                    'vars'    : {
+                        'estimated_min_Tm': estimatedminTm,
+                        'estimated_max_Tm': estimatedmaxTm,
+                           'higher_min_Tm': higherminTm,
+                            'lower_max_Tm': lowermaxTm,
+                             'failed_set': label},
+                    'warns'   : warns}
+                stats['random_seed'] = random_seed
+                stats = ut.stamp_stats(
+                    stats=stats,
+                    module='primer',
+                    input_rows=input_rows,
+                    output_rows=0)
+
+                # Return results
+                liner.close()
+                return (outdf, stats)
+
+            tmelt_by_set[label] = (set_mintmelt, set_maxtmelt)
+            if idx < len(set_labels) - 1:
+                liner.send('\n')
 
     # Parse Edge Effects
+    leftedges = None
+    rightedges = None
+    prefixdicts = None
+    suffixdicts = None
+    prefixdict = None
+    suffixdict = None
+
     if not exmotifs is None and \
-       ((not leftcontext  is None) or \
-        (not rightcontext is None)):
+       ((not leftcontext_full  is None) or \
+        (not rightcontext_full is None)):
 
         # Show update
         liner.send('\n[Step 5: Extracting Context Sequences]\n')
 
         # Extract Primer Contexts
-        (leftcontext,
-        rightcontext) = ut.get_extracted_context(
-            leftcontext=leftcontext,
-            rightcontext=rightcontext,
-            edgeeffectlength=edgeeffectlength,
-            reduce=True,
-            liner=liner)
+        if oligosets is None:
+            (leftcontext,
+            rightcontext) = ut.get_extracted_context(
+                leftcontext=leftcontext_full,
+                rightcontext=rightcontext_full,
+                edgeeffectlength=edgeeffectlength,
+                reduce=True,
+                liner=liner)
+        else:
+            (leftedges,
+            rightedges) = ut.get_extracted_context(
+                leftcontext=leftcontext_full,
+                rightcontext=rightcontext_full,
+                edgeeffectlength=edgeeffectlength,
+                reduce=False,
+                liner=liner)
 
         # Show update
-        liner.send('\n[Step 6: Parsing Edge Effects]\n')
+        if oligosets is None:
+            liner.send('\n[Step 6: Parsing Edge Effects]\n')
 
-        # Update Step 6 Warning
-        warns[6] = {
-            'warn_count': 0,
-            'step_name' : 'parsing-edge-effects',
-            'vars': None}
+            # Update Step 6 Warning
+            warns[6] = {
+                'warn_count': 0,
+                'step_name' : 'parsing-edge-effects',
+                'vars': None}
 
-        # Compute Forbidden Prefixes and Suffixes
-        (prefixdict,
-        suffixdict) = cp.get_parsed_edgeeffects(
-            primerseq=primerseq,
-            leftcontext=leftcontext,
-            rightcontext=rightcontext,
-            leftpartition=leftpartition,
-            rightpartition=rightpartition,
-            exmotifs=exmotifs,
-            element='Primer',
-            warn=warns[6],
-            liner=liner)
+            # Compute Forbidden Prefixes and Suffixes
+            (prefixdict,
+            suffixdict) = cp.get_parsed_edgeeffects(
+                primerseq=primerseq,
+                leftcontext=leftcontext,
+                rightcontext=rightcontext,
+                leftpartition=leftpartition,
+                rightpartition=rightpartition,
+                exmotifs=exmotifs,
+                element='Primer',
+                warn=warns[6],
+                liner=liner)
 
-        # Remove Step 6 Warning
-        if not warns[6]['warn_count']:
-            warns.pop(6)
+            # Remove Step 6 Warning
+            if not warns[6]['warn_count']:
+                warns.pop(6)
 
-    else:
-        (prefixdict,
-        suffixdict) = None, None
+        else:
+            liner.send('\n[Step 6: Parsing Edge Effects (Per-Set)]\n')
+
+            # Update Step 6 Warning
+            warns[6] = {
+                'warn_count': 0,
+                'step_name' : 'parsing-edge-effects',
+                'vars': None}
+
+            # Compute Forbidden Prefixes and Suffixes per set
+            prefixdicts = {}
+            suffixdicts = {}
+            for label in set_labels:
+
+                # Build per-set contexts
+                set_left = None
+                set_right = None
+                if not leftedges is None:
+                    set_left = list(set(
+                        leftedges[idx] for idx in set_groups[label]))
+                if not rightedges is None:
+                    set_right = list(set(
+                        rightedges[idx] for idx in set_groups[label]))
+
+                liner.send(
+                    ' Set {}: {:,} Record(s)\n'.format(
+                        label,
+                        set_sizes[label]))
+
+                setwarn = {
+                    'warn_count': 0,
+                    'vars': None}
+
+                (prefixdict,
+                suffixdict) = cp.get_parsed_edgeeffects(
+                    primerseq=primerseq,
+                    leftcontext=set_left,
+                    rightcontext=set_right,
+                    leftpartition=leftpartition,
+                    rightpartition=rightpartition,
+                    exmotifs=exmotifs,
+                    element='Primer',
+                    warn=setwarn,
+                    liner=liner)
+
+                prefixdicts[label] = prefixdict
+                suffixdicts[label] = suffixdict
+                warns[6]['warn_count'] += setwarn['warn_count']
+
+            # Remove Step 6 Warning
+            if not warns[6]['warn_count']:
+                warns.pop(6)
 
     # Parse Oligopool Repeats
     liner.send('\n[Step 7: Parsing Oligopool Repeats]\n')
@@ -625,47 +803,194 @@ def primer(
                  'repeat_fail': 0,             # Repeat Fail Count
               'homodimer_fail': 0,             # Homodimer Fail Count
             'heterodimer_fail': 0,             # Heterodimer Fail Count
+             'crossdimer_fail': 0,             # Cross-primer Dimer Fail Count
                 'exmotif_fail': 0,             # Exmotif Elimination Fail Count
                    'edge_fail': 0,             # Edge Effect Fail Count
              'exmotif_counter': cx.Counter()}, # Exmotif Encounter Counter
         'warns'   : warns}
     stats['random_seed'] = random_seed
+    if not oligosets is None:
+        stats['vars']['oligo_set_count'] = len(set_labels)
+        stats['vars']['oligo_set_sizes'] = [
+            {'oligo_set': label, 'count': set_sizes[label]}
+            for label in set_labels]
+        stats['vars']['primer_sets'] = []
 
     # Schedule outfile deletion
     ofdeletion = ae.register(
         ut.remove_file,
         outfile)
 
-    # Design Primer
-    (primer,
-    stats) = cp.primer_engine(
-        primerseq=primerseq,
-        primerspan=None,
-        homology=homology,
-        primertype=primertype,
-        fixedbaseindex=fixedbaseindex,
-        mintmelt=mintmelt,
-        maxtmelt=maxtmelt,
-        maxreplen=maxreplen,
-        oligorepeats=oligorepeats,
-        pairedprimer=pairedprimer,
-        pairedspan=None,
-        pairedrepeats=pairedrepeats,
-        exmotifs=exmotifs,
-        exmotifindex=exmotifindex,
-        edgeeffectlength=edgeeffectlength,
-        prefixdict=prefixdict,
-        suffixdict=suffixdict,
-        background=background,
-        stats=stats,
-        liner=liner,
-        rng=rng)
+    # Design Primer(s)
+    primer = None
+    primer_by_set = None
+
+    if oligosets is None:
+        (primer,
+        stats) = cp.primer_engine(
+            primerseq=primerseq,
+            primerspan=None,
+            homology=homology,
+            primertype=primertype,
+            fixedbaseindex=fixedbaseindex,
+            mintmelt=mintmelt,
+            maxtmelt=maxtmelt,
+            maxreplen=maxreplen,
+            oligorepeats=oligorepeats,
+            pairedprimer=pairedprimer,
+            pairedspan=None,
+            pairedrepeats=pairedrepeats,
+            crossprimers=None,
+            exmotifs=exmotifs,
+            exmotifindex=exmotifindex,
+            edgeeffectlength=edgeeffectlength,
+            prefixdict=prefixdict,
+            suffixdict=suffixdict,
+            background=background,
+            stats=stats,
+            liner=liner,
+            rng=rng)
+
+    else:
+        primer_by_set = {}
+        crossprimers = []
+        liner.send('\n')
+
+        for idx,label in enumerate(set_labels):
+            liner.send(
+                ' Set {}: {:,} Record(s)\n'.format(
+                    label,
+                    set_sizes[label]))
+
+            # Per-set paired primer and Tm constraints
+            set_pairedprimer = pairedprimer
+            if not pairedprimer_map is None:
+                set_pairedprimer = pairedprimer_map[label]
+
+            set_pairedrepeats = None
+            if not set_pairedprimer is None:
+                set_pairedrepeats = set(ut.stream_canon_spectrum(
+                    seq=set_pairedprimer,
+                    k=6))
+
+            set_mintmelt = mintmelt
+            set_maxtmelt = maxtmelt
+            if not tmelt_by_set is None:
+                set_mintmelt, set_maxtmelt = tmelt_by_set[label]
+
+            # Per-set edge effects
+            set_prefixdict = prefixdict
+            set_suffixdict = suffixdict
+            if not prefixdicts is None:
+                set_prefixdict = prefixdicts[label]
+                set_suffixdict = suffixdicts[label]
+
+            # Per-set stats
+            setstats = {
+                'status'  : False,
+                'basis'   : 'unsolved',
+                'step'    : 8,
+                'step_name': 'computing-primer',
+                'vars'    : {
+                       'primer_Tm': None,          # Primer Melting Temperature
+                       'primer_GC': None,          # Primer GC Content
+                     'hairpin_MFE': None,          # Primer Hairpin Free Energy
+                   'homodimer_MFE': None,          # Homodimer Free Energy
+                 'heterodimer_MFE': None,          # Heterodimer Free Energy
+                         'Tm_fail': 0,             # Melting Temperature Fail Count
+                     'repeat_fail': 0,             # Repeat Fail Count
+                  'homodimer_fail': 0,             # Homodimer Fail Count
+                'heterodimer_fail': 0,             # Heterodimer Fail Count
+                 'crossdimer_fail': 0,             # Cross-primer Dimer Fail Count
+                    'exmotif_fail': 0,             # Exmotif Elimination Fail Count
+                       'edge_fail': 0,             # Edge Effect Fail Count
+                 'exmotif_counter': cx.Counter()}, # Exmotif Encounter Counter
+                'warns'   : warns}
+            setstats['random_seed'] = random_seed
+
+            # Design primer for the set
+            (setprimer,
+            setstats) = cp.primer_engine(
+                primerseq=primerseq,
+                primerspan=None,
+                homology=homology,
+                primertype=primertype,
+                fixedbaseindex=fixedbaseindex,
+                mintmelt=set_mintmelt,
+                maxtmelt=set_maxtmelt,
+                maxreplen=maxreplen,
+                oligorepeats=oligorepeats,
+                pairedprimer=set_pairedprimer,
+                pairedspan=None,
+                pairedrepeats=set_pairedrepeats,
+                crossprimers=crossprimers,
+                exmotifs=exmotifs,
+                exmotifindex=exmotifindex,
+                edgeeffectlength=edgeeffectlength,
+                prefixdict=set_prefixdict,
+                suffixdict=set_suffixdict,
+                background=background,
+                stats=setstats,
+                liner=liner,
+                rng=rng)
+
+            # Aggregate stats
+            stats['vars']['Tm_fail'] += setstats['vars']['Tm_fail']
+            stats['vars']['repeat_fail'] += setstats['vars']['repeat_fail']
+            stats['vars']['homodimer_fail'] += setstats['vars']['homodimer_fail']
+            stats['vars']['heterodimer_fail'] += setstats['vars']['heterodimer_fail']
+            stats['vars']['crossdimer_fail'] += setstats['vars']['crossdimer_fail']
+            stats['vars']['exmotif_fail'] += setstats['vars']['exmotif_fail']
+            stats['vars']['edge_fail'] += setstats['vars']['edge_fail']
+            stats['vars']['exmotif_counter'] += setstats['vars']['exmotif_counter']
+
+            # Design status
+            if setstats['status']:
+                primer_by_set[label] = setprimer
+                crossprimers.append(setprimer)
+
+                # Extend oligopool repeats with designed primer
+                if not oligorepeats is None:
+                    oligorepeats.update(ut.stream_canon_spectrum(
+                        seq=setprimer,
+                        k=maxreplen+1))
+
+                # Record per-set metrics
+                stats['vars']['primer_sets'].append({
+                    'oligo_set'      : label,
+                    'primer'         : setprimer,
+                    'primer_Tm'      : setstats['vars']['primer_Tm'],
+                    'primer_GC'      : setstats['vars']['primer_GC'],
+                    'hairpin_MFE'    : setstats['vars']['hairpin_MFE'],
+                    'homodimer_MFE'  : setstats['vars']['homodimer_MFE'],
+                    'heterodimer_MFE': setstats['vars']['heterodimer_MFE'],
+                })
+
+            else:
+                stats['vars']['failed_set'] = label
+                stats['vars']['failed_set_size'] = set_sizes[label]
+                stats['step'] = setstats['step']
+                stats['step_name'] = setstats['step_name']
+                stats['status'] = False
+                stats['basis'] = 'unsolved'
+                break
+            if idx < len(set_labels) - 1:
+                liner.send('\n')
+
+        if len(primer_by_set) == len(set_labels):
+            stats['status'] = True
+            stats['basis'] = 'solved'
 
     # Primer Status
     if stats['status']:
         primerstatus = 'Successful'
     else:
         primerstatus = 'Failed'
+
+    # Resolve per-row primer output
+    primer_out = primer
+    if stats['status'] and not oligosets is None:
+        primer_out = [primer_by_set[label] for label in oligosets]
 
     # Insert primer into indf
     if stats['status']:
@@ -675,7 +1000,7 @@ def primer(
             indf=indf,
             lcname=leftcontextname,
             rcname=rightcontextname,
-            out=primer,
+            out=primer_out,
             outcol=primercol)
 
         # Prepare outdf
@@ -696,24 +1021,45 @@ def primer(
 
     # Success Relevant Stats
     if stats['status']:
-
-        liner.send(
-            '     Melting Temperature: {:6.2f} °C\n'.format(
-                stats['vars']['primer_Tm']))
-        liner.send(
-            '          GC Content    : {:6.2f} %\n'.format(
-                stats['vars']['primer_GC']))
-        liner.send(
-            '     Hairpin MFE        : {:6.2f} kcal/mol\n'.format(
-                stats['vars']['hairpin_MFE']))
-        liner.send(
-            '   Homodimer MFE        : {:6.2f} kcal/mol\n'.format(
-                stats['vars']['homodimer_MFE']))
-
-        if not pairedprimer is None:
+        if oligosets is None:
             liner.send(
-                ' Heterodimer MFE        : {:6.2f} kcal/mol\n'.format(
-                    stats['vars']['heterodimer_MFE']))
+                '     Melting Temperature: {:6.2f} °C\n'.format(
+                    stats['vars']['primer_Tm']))
+            liner.send(
+                '          GC Content    : {:6.2f} %\n'.format(
+                    stats['vars']['primer_GC']))
+            liner.send(
+                '     Hairpin MFE        : {:6.2f} kcal/mol\n'.format(
+                    stats['vars']['hairpin_MFE']))
+            liner.send(
+                '   Homodimer MFE        : {:6.2f} kcal/mol\n'.format(
+                    stats['vars']['homodimer_MFE']))
+
+            if not pairedprimer is None:
+                liner.send(
+                    ' Heterodimer MFE        : {:6.2f} kcal/mol\n'.format(
+                        stats['vars']['heterodimer_MFE']))
+        else:
+            liner.send(
+                '      Primer Sets       : {:,} Set(s)\n'.format(
+                    len(stats['vars']['primer_sets'])))
+            liner.send(
+                '   Primer Set Summary\n')
+
+            for entry in stats['vars']['primer_sets']:
+                line = (
+                    '     - Set {}: Tm {:6.2f} °C, GC {:6.2f} %, '
+                    'Hairpin {:6.2f} kcal/mol, Homodimer {:6.2f} kcal/mol'
+                ).format(
+                    entry['oligo_set'],
+                    entry['primer_Tm'],
+                    entry['primer_GC'],
+                    entry['hairpin_MFE'],
+                    entry['homodimer_MFE'])
+                if not pairedprimer_map is None:
+                    line += ', Heterodimer {:6.2f} kcal/mol'.format(
+                        entry['heterodimer_MFE'])
+                liner.send('{}\n'.format(line))
 
     # Failure Relavant Stats
     else:
@@ -722,6 +1068,7 @@ def primer(
             'repeat_fail',
             'homodimer_fail',
             'heterodimer_fail',
+            'crossdimer_fail',
             'exmotif_fail',
             'edge_fail'))
 
@@ -733,6 +1080,7 @@ def primer(
                           stats['vars']['repeat_fail']      + \
                           stats['vars']['homodimer_fail']   + \
                           stats['vars']['heterodimer_fail'] + \
+                          stats['vars']['crossdimer_fail']  + \
                           stats['vars']['exmotif_fail']     + \
                           stats['vars']['edge_fail']
 
@@ -768,6 +1116,15 @@ def primer(
                 ut.safediv(
                     A=stats['vars']['heterodimer_fail'] * 100.,
                     B=total_conflicts)))
+        if not oligosets is None:
+            liner.send(
+                ' Crossdimer Conflicts  : {:{},{}} Event(s) ({:6.2f} %)\n'.format(
+                    stats['vars']['crossdimer_fail'],
+                    plen,
+                    sntn,
+                    ut.safediv(
+                        A=stats['vars']['crossdimer_fail'] * 100.,
+                        B=total_conflicts)))
         liner.send(
             '     Exmotif Conflicts  : {:{},{}} Event(s) ({:6.2f} %)\n'.format(
                 stats['vars']['exmotif_fail'],

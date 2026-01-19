@@ -166,6 +166,11 @@ def _extract_doc_notes(doc: str):
         bullet = re.sub(r'^[*-]\s*', '', bullet).strip()
         bullet = re.sub(r'\s+', ' ', bullet).strip()
         bullet = re.sub(
+            r'`([a-z][a-z0-9_]*)=([^`]+)`',
+            lambda m: f"--{m.group(1).replace('_', '-')} {m.group(2).strip()}",
+            bullet,
+        )
+        bullet = re.sub(
             r'`([a-z][a-z0-9_]*)`',
             lambda m: (
                 f'--{m.group(1).replace("_", "-")}'
@@ -649,6 +654,23 @@ def _parse_list_int(value):
     if value.lstrip('-').isdigit():
         return int(value)
     return value
+
+
+def _looks_like_path(value):
+    '''Return True if a CLI argument looks like a filesystem path.'''
+    if value is None:
+        return False
+    value = str(value).strip()
+    if not value:
+        return False
+    lowered = value.lower()
+    if lowered.startswith(('./', '../', '~/', '~\\')):
+        return True
+    if any(sep in value for sep in ('/', '\\')):
+        return True
+    if lowered.endswith(('.csv', '.tsv')):
+        return True
+    return os.path.exists(value)
 
 
 def _dump_stats(stats, args):
@@ -1208,13 +1230,6 @@ Column name to store primers (overwrites if present).''')
         help='''>>[required string]
 Output CSV filename. A ".oligopool.primer.csv" suffix is added if missing.''')
     opt.add_argument(
-        '--paired-primer-column',
-        type=str,
-        default=None,
-        metavar='\b',
-        help='''>>[optional string]
-Column containing the paired primer to match Tm against.''')
-    opt.add_argument(
         '--left-context-column',
         type=str,
         default=None,
@@ -1230,6 +1245,23 @@ At least one of --left-context-column or --right-context-column is required.''')
         help='''>>[optional string]
 Column containing right flanking context for motif exclusion.
 At least one of --left-context-column or --right-context-column is required.''')
+    opt.add_argument(
+        '--oligo-sets',
+        type=str,
+        default=None,
+        nargs='+',
+        metavar='\b',
+        help='''>>[optional string]
+Comma-separated or space-separated per-oligo set labels (one per input row), or a CSV path
+with ID and OligoSet columns.
+Primers are designed per set and checked for cross-set compatibility.''')
+    opt.add_argument(
+        '--paired-primer-column',
+        type=str,
+        default=None,
+        metavar='\b',
+        help='''>>[optional string]
+Column containing the paired primer to match Tm against.''')
     opt.add_argument(
         '--excluded-motifs',
         type=str,
@@ -2253,6 +2285,11 @@ def main(argv=None):
                     random_seed=args.random_seed)
             case 'primer':
                 primer = _load_api_func('primer')
+                oligo_sets = args.oligo_sets
+                if isinstance(oligo_sets, list):
+                    oligo_sets = _parse_list_str(oligo_sets)
+                    if isinstance(oligo_sets, list) and len(oligo_sets) == 1 and _looks_like_path(oligo_sets[0]):
+                        oligo_sets = oligo_sets[0]
                 result = primer(
                     input_data=args.input_data,
                     oligo_length_limit=args.oligo_length_limit,
@@ -2263,9 +2300,10 @@ def main(argv=None):
                     maximum_repeat_length=args.maximum_repeat_length,
                     primer_column=args.primer_column,
                     output_file=args.output_file,
-                    paired_primer_column=args.paired_primer_column,
                     left_context_column=args.left_context_column,
                     right_context_column=args.right_context_column,
+                    oligo_sets=oligo_sets,
+                    paired_primer_column=args.paired_primer_column,
                     excluded_motifs=_parse_list_str(args.excluded_motifs),
                     background_directory=args.background_directory,
                     verbose=args.verbose,

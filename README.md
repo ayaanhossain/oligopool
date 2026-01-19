@@ -16,7 +16,7 @@
 
 `Oligopool Calculator` is a suite of algorithms for automated design and analysis of [oligopool libraries](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9300125/).
 
-It enables the scalable design of universal primer sets, error-correctable barcodes, the splitting of long constructs into multiple oligos, and the rapid packing and counting of barcoded reads -- all on a regular 8-core desktop computer.
+It enables the scalable design of universal multiplexed primer sets, error-correctable cross-set barcodes, the splitting of long constructs into multiple shorter oligos for assembly, and the rapid packing and counting of barcoded reads for activity quantification -- all on a regular 8-core desktop computer.
 
 We have used `Oligopool Calculator` in multiple projects to build libraries of tens of thousands of promoters (see [here](https://www.nature.com/articles/s41467-022-32829-5) and [here](https://www.nature.com/articles/s41587-020-0584-2)), ribozymes, and mRNA stability elements (see [here](https://www.nature.com/articles/s41467-024-54059-7)), illustrating the use of a flexible grammar to add multiple barcodes, cut sites, avoid excluded sequences, and optimize experimental constraints. These libraries were later characterized using highly efficient barcode counting provided by `Oligopool Calculator`. To learn more, please check out [our paper in ACS Synthetic Biology](https://pubs.acs.org/doi/10.1021/acssynbio.4c00661).
 
@@ -277,6 +277,7 @@ $ op complete --install bash     # or: zsh|fish
 > - In CLI mode, commands that produce an output DataFrame require `--output-file`.
 > - Use `op lenstat` during design to track free space, and `op verify` to evaluate QC constraints.
 > - For `--primer-sequence-constraint` / `--motif-sequence-constraint`, pass either an IUPAC string (`NNNN...`) or a quoted expression like `"'N'*20"` / `'GCC+N*20+CCG'`.
+> - Primer design supports per-set multiplexing via `--oligo-sets` (comma-separated labels or a CSV with `ID` and `OligoSet`). If paired primers are supplied, they must be constant within each set.
 > - Barcode design supports global cross-set separation. Use `--cross-barcode-columns` together with `--minimum-cross-distance` to keep BC2/BC3 distinct from earlier barcode sets.
 
 ## Citation

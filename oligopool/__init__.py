@@ -117,9 +117,9 @@ Design Mode workflow
         - spacer
 
     Notes:
-        - Primer supports per-set multiplexing via oligo sets.
-        - Barcode supports cross-set barcode separation.
-        - All element modules support incremental pool extension.
+        - Primer supports per-set multiplexing via `oligo_sets`.
+        - Barcode supports cross-set separation via `cross_barcode_columns` + `minimum_cross_distance`.
+        - Element modules support incremental pool extension via `patch_mode=True`.
 
     Assembly modules available
         - split

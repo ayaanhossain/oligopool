@@ -7,6 +7,7 @@
 <h4><p align="center">Version: 2026.01.18</p></h4>
 
 <p align="center">
+  <a style="text-decoration: none" href="#features">Features</a> •
   <a style="text-decoration: none" href="#installation">Installation</a> •
   <a style="text-decoration: none" href="#getting-started">Getting Started</a> •
   <a style="text-decoration: none" href="#command-line-interface-cli">CLI</a> •
@@ -16,9 +17,9 @@
 
 `Oligopool Calculator` is a suite of algorithms for automated design and analysis of [oligopool libraries](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9300125/).
 
-It enables the scalable design of universal, multiplexed primer sets, error-correctable, cross-set barcodes, the splitting of long constructs into multiple shorter oligos for assembly, and the rapid packing and counting of barcoded reads for activity quantification -- all on a regular 8-core desktop computer.
+It supports scalable design of primers, barcodes, motifs/anchors, and spacers; splitting/padding of long constructs for assembly; and rapid packing/counting of barcoded reads for activity quantification.
 
-We have used `Oligopool Calculator` in multiple projects to build libraries of tens of thousands of promoters (see [here](https://www.nature.com/articles/s41467-022-32829-5) and [here](https://www.nature.com/articles/s41587-020-0584-2)), ribozymes, and mRNA stability elements (see [here](https://www.nature.com/articles/s41467-024-54059-7)), illustrating the use of a flexible grammar to add multiple barcodes, cut sites, avoid excluded sequences, and optimize experimental constraints. These libraries were later characterized using highly efficient barcode counting provided by `Oligopool Calculator`. To learn more, please check out [our paper in ACS Synthetic Biology](https://pubs.acs.org/doi/10.1021/acssynbio.4c00661).
+We have used `Oligopool Calculator` in multiple projects to build libraries of tens of thousands of promoters (see [here](https://www.nature.com/articles/s41467-022-32829-5) and [here](https://www.nature.com/articles/s41587-020-0584-2)), ribozymes, and mRNA stability elements (see [here](https://www.nature.com/articles/s41467-024-54059-7)). To learn more, please check out [our paper in ACS Synthetic Biology](https://pubs.acs.org/doi/10.1021/acssynbio.4c00661).
 
 `Oligopool Calculator` streamlines the design and analysis of massively parallel reporter assays (MPRAs), including iterative workflows where new oligos are appended to an existing pool. It has been benchmarked on simulated libraries containing millions of defined variants and used to analyze billions of reads.
 
@@ -29,6 +30,15 @@ We have used `Oligopool Calculator` in multiple projects to build libraries of t
 </h1>
 
 **Design and analysis of oligopool variants using `Oligopool Calculator`.** **(a)** In `Design Mode`, `Oligopool Calculator` can be used to generate optimized `barcode`s, `primer`s, `spacer`s, `motif`s and `split` longer oligos into shorter `pad`ded fragments for downstream synthesis and assembly. **(b)** Once the library is assembled and cloned, barcoded amplicon sequencing data can be processed via `Analysis Mode` for characterization. `Analysis Mode` proceeds by first `index`ing one or more sets of barcodes, `pack`ing the reads, and then producing count matrices either using `acount` (association counting) or `xcount` (combinatorial counting).
+
+## Features
+
+- **Design Mode (library construction):** `background`, `primer`, `barcode`, `motif` (motifs/anchors), `spacer`, `split`, `pad`, `merge`, `revcomp`, `lenstat`, `verify`, `final`.
+- **Iterative pool extension (Patch Mode):** element modules support `patch_mode=True` / `--patch-mode` to fill only missing values in an existing output column without overwriting prior designs.
+- **Cross-set barcodes:** enforce separation from existing barcode columns via `cross_barcode_columns` + `minimum_cross_distance`.
+- **Multiplexed primer sets:** design primers per group via `oligo_sets` and screen for cross-set compatibility (optional per-set paired-primer Tm matching).
+- **Analysis Mode (counting readouts):** `index`, `pack`, `acount`, `xcount` for fast packing and barcode/associate counting.
+- **CLI + completion:** `op` / `oligopool` for pipelines, built-in `manual`/`cite`, and tab completion via `op complete --install`.
 
 
 ## Installation

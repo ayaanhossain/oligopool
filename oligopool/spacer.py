@@ -22,6 +22,7 @@ def spacer(
     spacer_length:int|list|str|pd.DataFrame|None=None,
     left_context_column:str|None=None,
     right_context_column:str|None=None,
+    patch_mode:bool=False,
     excluded_motifs:list|str|pd.DataFrame|None=None,
     verbose:bool=True,
     random_seed:int|None=None) -> Tuple[pd.DataFrame, dict]:
@@ -43,6 +44,8 @@ def spacer(
             is determined automatically to match `oligo_length_limit` (default: `None`).
         - `left_context_column` (`str`): Column for left DNA context (default: `None`).
         - `right_context_column` (`str`): Column for right DNA context (default: `None`).
+        - `patch_mode` (`bool`): If `True`, fill only missing values in an existing spacer column
+            (does not overwrite existing spacers). (Default: `False`).
         - `excluded_motifs` (`list` / `str` / `pd.DataFrame`): Motifs to exclude;
             can be a CSV path or DataFrame (default: `None`).
         - `verbose` (`bool`): If `True`, logs updates to stdout (default: `True`).
@@ -59,7 +62,13 @@ def spacer(
         - When `spacer_length` is a CSV or DataFrame, it must have 'ID' and 'Length' columns.
         - If `excluded_motifs` is a CSV or DataFrame, it must have 'ID' and 'Exmotif' columns.
         - Oligo rows already summing to or exceeding `oligo_length_limit` have a `'-'` (dash) as spacer.
+        - Patch mode (`patch_mode=True`) supports incremental pool extension: existing values in
+          `spacer_column` are preserved and only missing values (e.g., `None`/NaN/empty/`'-'`) are
+          filled (some rows may still get `'-'` if no spacer can fit under `oligo_length_limit`).
     '''
+
+    # Preserve return style when the caller intentionally used ID as index.
+    id_from_index = ut.get_id_index_intent(input_data)
 
     # Argument Aliasing
     indata       = input_data
@@ -70,6 +79,7 @@ def spacer(
     spacerlen    = spacer_length
     leftcontext  = left_context_column
     rightcontext = right_context_column
+    patch_mode   = patch_mode
     exmotifs     = excluded_motifs
     verbose      = verbose
     random_seed  = random_seed
@@ -86,20 +96,29 @@ def spacer(
     # Required Argument Parsing
     liner.send('\n Required Arguments\n')
 
+    # Patch Mode (pre-parse for output column handling)
+    patch_mode_valid = isinstance(patch_mode, (bool, int, np.bool_)) and \
+        (patch_mode in (0, 1, True, False))
+    patch_mode_on = bool(patch_mode) if patch_mode_valid else False
+    allow_missing_cols = None
+    if patch_mode_on and isinstance(spacercol, str):
+        allow_missing_cols = set((spacercol,))
+
     # First Pass indata Parsing and Validation
     (indf,
     indata_valid) = vp.get_parsed_indata_info(
         indata=indata,
-        indata_field='    Input Data   ',
+        indata_field='      Input Data   ',
         required_fields=('ID',),
         precheck=False,
-        liner=liner)
+        liner=liner,
+        allow_missing_cols=allow_missing_cols)
     input_rows = len(indf.index) if isinstance(indf, pd.DataFrame) else 0
 
     # Full oligolimit Validation
     oligolimit_valid = vp.get_numeric_validity(
         numeric=oligolimit,
-        numeric_field='    Oligo Limit  ',
+        numeric_field='      Oligo Limit  ',
         numeric_pre_desc=' At most ',
         numeric_post_desc=' Base Pair(s)',
         minval=4,
@@ -110,7 +129,7 @@ def spacer(
     # Full maxreplen Validation
     maxreplen_valid = vp.get_numeric_validity(
         numeric=maxreplen,
-        numeric_field='   Repeat Length ',
+        numeric_field='     Repeat Length ',
         numeric_pre_desc=' Up to ',
         numeric_post_desc=' Base Pair(s) Oligopool Repeats',
         minval=4,
@@ -122,20 +141,21 @@ def spacer(
     spacercol_valid = vp.get_parsed_column_info(
         col=spacercol,
         df=indf,
-        col_field='   Spacer Column ',
+        col_field='     Spacer Column ',
         col_desc='Output in Column',
         col_type=1,
         adjcol=None,
         adjval=None,
         iscontext=False,
         typecontext=None,
-        liner=liner)
+        liner=liner,
+        allow_existing=patch_mode_on)
 
     # Full outfile Validation
     outfile_valid = vp.get_outdf_validity(
         outdf=outfile,
         outdf_suffix='.oligopool.spacer.csv',
-        outdf_field='   Output File   ',
+        outdf_field='     Output File   ',
         liner=liner)
 
     # Adjust outfile Suffix
@@ -151,7 +171,7 @@ def spacer(
     (spacerlen,
     spacerlen_valid) = vp.get_parsed_spacerlen_info(
         spacerlen=spacerlen,
-        spacerlen_field='   Spacer Length ',
+        spacerlen_field='     Spacer Length ',
         df_field='Length',
         oligolimit=oligolimit,
         oligolimit_valid=oligolimit_valid,
@@ -168,7 +188,7 @@ def spacer(
     leftcontext_valid) = vp.get_parsed_column_info(
         col=leftcontext,
         df=indf,
-        col_field='     Left Context',
+        col_field='       Left Context',
         col_desc='Input from Column',
         col_type=0,
         adjcol=rightcontextname,
@@ -182,7 +202,7 @@ def spacer(
     rightcontext_valid) = vp.get_parsed_column_info(
         col=rightcontext,
         df=indf,
-        col_field='    Right Context',
+        col_field='      Right Context',
         col_desc='Input from Column',
         col_type=0,
         adjcol=leftcontextname,
@@ -191,11 +211,21 @@ def spacer(
         typecontext=1,
         liner=liner)
 
+    # Patch mode parsing (printed after context args; evaluated earlier for indata handling)
+    if patch_mode_valid:
+        liner.send('{}: {}\n'.format(
+            '      Patch Mode   ',
+            ['Disabled (Design All Spacers)', 'Enabled (Fill Missing Spacers)'][patch_mode_on]))
+    else:
+        liner.send('{}: {} [INPUT TYPE IS INVALID]\n'.format(
+            '      Patch Mode   ',
+            patch_mode))
+
     # Full exmotifs Parsing and Validation
     (exmotifs,
     exmotifs_valid) = vp.get_parsed_exseqs_info(
         exseqs=exmotifs,
-        exseqs_field=' Excluded Motifs ',
+        exseqs_field='   Excluded Motifs ',
         exseqs_desc='Unique Motif(s)',
         df_field='Exmotif',
         required=False,
@@ -209,6 +239,7 @@ def spacer(
         spacercol_valid,
         outfile_valid,
         spacerlen_valid,
+        patch_mode_valid,
         leftcontext_valid,
         rightcontext_valid,
         exmotifs_valid]):
@@ -233,6 +264,109 @@ def spacer(
     stats = None
     warns = {}
 
+    # Patch mode bookkeeping
+    spacercol_exists = False
+    missing_mask = None
+    existing_mask = None
+    if patch_mode_on and isinstance(indf, pd.DataFrame):
+        (spacercol_exists,
+        _) = ut.get_col_exist_idx(
+            col=spacercol,
+            df=indf)
+        if spacercol_exists:
+            missing_mask = ut.get_missing_mask(
+                series=indf[spacercol],
+                allow_dash=True)
+            indf[spacercol] = ut.fill_missing_values(
+                series=indf[spacercol],
+                missing_mask=missing_mask,
+                fill='-')
+            existing_mask = ~missing_mask
+            targetcount = int(missing_mask.sum())
+        else:
+            missing_mask = np.ones(
+                len(indf.index),
+                dtype=bool)
+            existing_mask = ~missing_mask
+
+        # Validate existing spacers (DNA only)
+        if spacercol_exists and existing_mask.any():
+            invalid_mask = np.zeros(
+                len(indf.index),
+                dtype=bool)
+            for idx in np.where(existing_mask)[0]:
+                value = indf[spacercol].iat[idx]
+                if not ut.is_DNA(
+                        seq=value,
+                        dna_alpha=set('ATGC')):
+                    invalid_mask[idx] = True
+            if invalid_mask.any():
+                examples = ut.get_row_examples(
+                    df=indf,
+                    invalid_mask=invalid_mask,
+                    id_col='ID',
+                    limit=5)
+                example_note = ut.format_row_examples(examples)
+                liner.send(
+                    '     Spacer Column : Output in Column \'{}\' [INVALID EXISTING VALUE]{}\n'.format(
+                        spacercol,
+                        example_note))
+                liner.send('\n')
+                raise RuntimeError(
+                    'Invalid Argument Input(s).')
+
+    # No missing spacers in patch mode
+    if patch_mode_on and \
+       missing_mask is not None and \
+       not missing_mask.any():
+
+        stats = {
+            'status'  : True,
+            'basis'   : 'complete',
+            'step'    : 0,
+            'step_name': 'no-missing-spacers',
+            'vars'    : {
+               'target_count': 0,
+                'spacer_count': 0,
+               'orphan_oligo': [],
+                'repeat_fail': 0,
+               'exmotif_fail': 0,
+                  'edge_fail': 0,
+            'exmotif_counter': cx.Counter()},
+            'warns'   : warns}
+        stats['random_seed'] = random_seed
+
+        outdf = indf
+        if not outfile is None:
+            ut.write_df_csv(
+                df=outdf,
+                outfile=outfile,
+                sep=',')
+
+        liner.send('\n[Spacer Design Statistics]\n')
+        liner.send(
+            '  Design Status   : Successful\n')
+        liner.send(
+            '  Target Count    : 0 Spacer(s)\n')
+        liner.send(
+            '  Spacer Count    : 0 Spacer(s) (  0.00 %)\n')
+        liner.send(
+            '  Orphan Oligo    : 0 Entries\n')
+        liner.send(
+            ' Time Elapsed: {:.2f} sec\n'.format(
+                tt.time()-t0))
+
+        liner.close()
+        stats = ut.stamp_stats(
+            stats=stats,
+            module='spacer',
+            input_rows=input_rows,
+            output_rows=len(outdf.index))
+        outdf_return = outdf
+        if not id_from_index:
+            outdf_return = ut.get_df_with_id_column(outdf)
+        return (outdf_return, stats)
+
     # Extract spacerlen (Auto-Inference)
     if spacerlen is None:
         liner.send('\n[Step 1: Extracting Spacer Length]\n')
@@ -241,6 +375,14 @@ def spacer(
             indf=indf,
             oligolimit=oligolimit,
             liner=liner)
+
+    # Target spacer lengths (patch mode)
+    spacerlen_target = spacerlen
+    variantlens_target = variantlens
+    if missing_mask is not None:
+        spacerlen_target = spacerlen[missing_mask]
+        if not variantlens is None:
+            variantlens_target = variantlens[missing_mask]
 
     # Parse Oligopool Limit Feasibility
     liner.send('\n[Step 2: Parsing Oligo Limit]\n')
@@ -254,10 +396,10 @@ def spacer(
     minspaceavail,
     maxspaceavail) = ut.get_parsed_oligolimit(
         indf=indf,
-        variantlens=variantlens,
+        variantlens=variantlens_target,
         oligolimit=oligolimit,
-        minelementlen=np.min(spacerlen),
-        maxelementlen=np.max(spacerlen),
+        minelementlen=np.min(spacerlen_target),
+        maxelementlen=np.max(spacerlen_target),
         element='Spacer',
         liner=liner)
 
@@ -296,7 +438,7 @@ def spacer(
 
     # Group spacerlen
     spacergroup = cm.get_grouped_spacerlen(
-        spacerlen=spacerlen,
+        spacerlen=spacerlen_target,
         liner=liner)
 
     # Parse Excluded Motifs
@@ -370,10 +512,19 @@ def spacer(
             liner.send('\n[Step 5: Extracting Context Sequences]\n')
 
             # Extract Both Contexts
+            # In patch mode, only extract context for rows being designed.
+            lcontext = leftcontext
+            rcontext = rightcontext
+            if missing_mask is not None:
+                if not lcontext is None:
+                    lcontext = lcontext[missing_mask]
+                if not rcontext is None:
+                    rcontext = rcontext[missing_mask]
+
             (leftcontext,
             rightcontext) = ut.get_extracted_context(
-                leftcontext=leftcontext,
-                rightcontext=rightcontext,
+                leftcontext=lcontext,
+                rightcontext=rcontext,
                 edgeeffectlength=edgeeffectlength,
                 reduce=False,
                 liner=liner)
@@ -422,7 +573,7 @@ def spacer(
     fillcount,
     freecount,
     oligorepeats) = ut.get_parsed_oligopool_repeats(
-        df=indf,
+        df=indf if missing_mask is None else indf.loc[missing_mask],
         maxreplen=maxreplen,
         element='Spacer',
         merge=False,
@@ -506,20 +657,24 @@ def spacer(
     if stats['status']:
 
         # Update indf
-        ut.update_df(
-            indf=indf,
-            lcname=leftcontextname,
-            rcname=rightcontextname,
-            out=spacers,
-            outcol=spacercol)
+        if spacercol_exists:
+            indf.loc[missing_mask, spacercol] = spacers
+        else:
+            ut.update_df(
+                indf=indf,
+                lcname=leftcontextname,
+                rcname=rightcontextname,
+                out=spacers,
+                outcol=spacercol)
 
         # Prepare outdf
         outdf = indf
 
         # Write outdf to file
         if not outfile is None:
-            outdf.to_csv(
-                path_or_buf=outfile,
+            ut.write_df_csv(
+                df=outdf,
+                outfile=outfile,
                 sep=',')
 
     # Spacer Design Statistics
@@ -626,4 +781,7 @@ def spacer(
         module='spacer',
         input_rows=input_rows,
         output_rows=len(outdf.index) if outdf is not None else 0)
-    return (outdf, stats)
+    outdf_return = outdf
+    if (outdf is not None) and (not id_from_index):
+        outdf_return = ut.get_df_with_id_column(outdf)
+    return (outdf_return, stats)

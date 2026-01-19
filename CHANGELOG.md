@@ -12,6 +12,12 @@
 11. Added `verify` module (stats-only QC) and CLI subcommand for constraint/architecture checks.
 12. Verify/Lenstat: refactored shared length-stat formatting and improved `verify` reporting (module-style verdicts, aligned fields, and actionable column/motif summaries).
 13. Primer module: added per-set primer design via `oligo_sets` (cross-set dimer checks + per-set Tm pairing) and CLI flag `--oligo-sets`.
+14. Element modules: added Patch Mode (`patch_mode` / `--patch-mode`) for barcode/primer/motif/spacer, including reuse of existing per-set primers.
+15. Validation/CLI: small robustness fixes for Patch Mode fills (context concatenation tolerates missing values; Notes epilog handles nested bullets).
+16. Added smoke tests for Patch Mode fill behavior under `smoketest/` (barcode, primer, motif, spacer).
+17. Bugfix: Patch Mode context extraction now slices to missing rows before edge parsing (avoids list/boolean indexing crash in barcode/motif/spacer).
+18. CLI help: hide argparse multi-value `[...]` token for cleaner alignment (e.g., `--cross-barcode-columns`).
+19. DataFrame UX: normalize `ID` to string, return DataFrames with an explicit `ID` column by default (preserve `ID` as index only when the input DataFrame used it), and write CSVs without an extra numeric index column.
 
 2026.01.17
 1. Development in progress.

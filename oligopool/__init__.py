@@ -87,6 +87,12 @@ The various modules in Oligopool Calculator can be used
 interactively in a jupyter notebook, or be used to define
 scripts for design and analysis pipelines on the cloud.
 
+Oligopool Calculator is designed for composable and iterative
+workflows: modules can be chained to add new elements as new
+columns, and element modules support Patch Mode (`patch_mode=True`)
+to fill only missing values when extending an existing pool
+without overwriting prior designs.
+
 Oligopool Calculator offers two modes of operation
     -   Design Mode for designing oligopool libraries, and
     - Analysis Mode for analyzing oligopool datasets.
@@ -109,6 +115,11 @@ Design Mode workflow
         - barcode
         - motif
         - spacer
+
+    Notes:
+        - Primer supports per-set multiplexing via oligo sets.
+        - Barcode supports cross-set barcode separation.
+        - All element modules support incremental pool extension.
 
     Assembly modules available
         - split
@@ -201,4 +212,8 @@ You can learn more about each module using help.
 For advanced uses, the following classes are also available.
     - vectorDB
     - Scry
+
+CLI
+    The `oligopool` / `op` CLI exposes the same modules for scripting pipelines
+    and includes tab completion setup. See the README for usage.
 '''

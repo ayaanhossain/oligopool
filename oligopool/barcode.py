@@ -24,6 +24,7 @@ def barcode(
     barcode_type:int=0,
     left_context_column:str|None=None,
     right_context_column:str|None=None,
+    patch_mode:bool=False,
     cross_barcode_columns:list[str]|None=None,
     minimum_cross_distance:int|None=None,
     excluded_motifs:list|str|pd.DataFrame|None=None,
@@ -50,6 +51,8 @@ def barcode(
             (default: 0)
         - `left_context_column` (`str`): Column for left DNA context (default: `None`).
         - `right_context_column` (`str`): Column for right DNA context (default: `None`).
+        - `patch_mode` (`bool`): If `True`, fill only missing values in an existing barcode column
+            (does not overwrite existing barcodes). (Default: `False`).
         - `cross_barcode_columns` (`str` / `list[str]` / `None`): Existing barcode column(s) to
             enforce cross-set separation against (default: `None`).
         - `minimum_cross_distance` (`int` / `None`): Minimum Hamming distance enforced between each
@@ -82,7 +85,13 @@ def barcode(
         - When enabled, each candidate barcode must be at least `minimum_cross_distance` mismatches
           away from every barcode in the union of sequences across `cross_barcode_columns`.
         - Cross-set barcodes must have length `barcode_length`.
+        - Patch mode (`patch_mode=True`) supports incremental pool extension: existing values in
+          `barcode_column` are preserved and only missing values (e.g., `None`/NaN/empty/`'-'`) are
+          designed (existing values must already be strict ATGC and length `barcode_length`).
     '''
+
+    # Preserve return style when the caller intentionally used ID as index.
+    id_from_index = ut.get_id_index_intent(input_data)
 
     # Argument Aliasing
     indata       = input_data
@@ -95,6 +104,7 @@ def barcode(
     barcodetype  = barcode_type
     leftcontext  = left_context_column
     rightcontext = right_context_column
+    patch_mode   = patch_mode
     cross_cols   = cross_barcode_columns
     cross_mind   = minimum_cross_distance
     exmotifs     = excluded_motifs
@@ -113,20 +123,29 @@ def barcode(
     # Required Argument Parsing
     liner.send('\n Required Arguments\n')
 
+    # Patch Mode (pre-parse for output column handling)
+    patch_mode_valid = isinstance(patch_mode, (bool, int, np.bool_)) and \
+        (patch_mode in (0, 1, True, False))
+    patch_mode_on = bool(patch_mode) if patch_mode_valid else False
+    allow_missing_cols = None
+    if patch_mode_on and isinstance(barcodecol, str):
+        allow_missing_cols = set((barcodecol,))
+
     # First Pass indata Parsing and Validation
     (indf,
     indata_valid) = vp.get_parsed_indata_info(
         indata=indata,
-        indata_field='    Input Data    ',
+        indata_field='      Input Data    ',
         required_fields=('ID',),
         precheck=False,
-        liner=liner)
+        liner=liner,
+        allow_missing_cols=allow_missing_cols)
     input_rows = len(indf.index) if isinstance(indf, pd.DataFrame) else 0
 
     # Full oligolimit Validation
     oligolimit_valid = vp.get_numeric_validity(
         numeric=oligolimit,
-        numeric_field='    Oligo Limit   ',
+        numeric_field='      Oligo Limit   ',
         numeric_pre_desc=' At most ',
         numeric_post_desc=' Base Pair(s)',
         minval=4,
@@ -137,7 +156,7 @@ def barcode(
     # Full barcodelen Validation
     barcodelen_valid = vp.get_numeric_validity(
         numeric=barcodelen,
-        numeric_field='  Barcode Length  ',
+        numeric_field='    Barcode Length  ',
         numeric_pre_desc=' Exactly ',
         numeric_post_desc=' Base Pair(s)',
         minval=4,
@@ -148,7 +167,7 @@ def barcode(
     # Full minhdist Validation
     minhdist_valid = vp.get_numeric_validity(
         numeric=minhdist,
-        numeric_field='  Hamming Distance',
+        numeric_field='    Hamming Distance',
         numeric_pre_desc=' At least ',
         numeric_post_desc=' Mismatch(es) per Barcode Pair',
         minval=1,
@@ -159,7 +178,7 @@ def barcode(
     # Full maxreplen Validation
     maxreplen_valid = vp.get_numeric_validity(
         numeric=maxreplen,
-        numeric_field='   Repeat Length  ',
+        numeric_field='     Repeat Length  ',
         numeric_pre_desc=' Up to ',
         numeric_post_desc=' Base Pair(s) Oligopool Repeats',
         minval=4,
@@ -171,20 +190,21 @@ def barcode(
     barcodecol_valid = vp.get_parsed_column_info(
         col=barcodecol,
         df=indf,
-        col_field='  Barcode Column  ',
+        col_field='    Barcode Column  ',
         col_desc='Output in Column',
         col_type=1,
         adjcol=None,
         adjval=None,
         iscontext=False,
         typecontext=None,
-        liner=liner)
+        liner=liner,
+        allow_existing=patch_mode_on)
 
     # Full outfile Validation
     outfile_valid = vp.get_outdf_validity(
         outdf=outfile,
         outdf_suffix='.oligopool.barcode.csv',
-        outdf_field='   Output File    ',
+        outdf_field='     Output File    ',
         liner=liner)
 
     # Adjust outfile Suffix
@@ -199,7 +219,7 @@ def barcode(
     # Full barcodetype Validation
     barcodetype_valid = vp.get_categorical_validity(
         category=barcodetype,
-        category_field='  Barcode Type    ',
+        category_field='    Barcode Type    ',
         category_pre_desc=' ',
         category_post_desc=' Barcodes',
         category_dict={
@@ -216,7 +236,7 @@ def barcode(
     leftcontext_valid) = vp.get_parsed_column_info(
         col=leftcontext,
         df=indf,
-        col_field='     Left Context ',
+        col_field='       Left Context ',
         col_desc='Input from Column',
         col_type=0,
         adjcol=rightcontextname,
@@ -230,7 +250,7 @@ def barcode(
     rightcontext_valid) = vp.get_parsed_column_info(
         col=rightcontext,
         df=indf,
-        col_field='    Right Context ',
+        col_field='      Right Context ',
         col_desc='Input from Column',
         col_type=0,
         adjcol=leftcontextname,
@@ -238,6 +258,16 @@ def barcode(
         iscontext=True,
         typecontext=1,
         liner=liner)
+
+    # Patch mode parsing (printed after context args; evaluated earlier for indata handling)
+    if patch_mode_valid:
+        liner.send('{}: {}\n'.format(
+            '      Patch Mode    ',
+            ['Disabled (Design All Barcodes)', 'Enabled (Fill Missing Barcodes)'][patch_mode_on]))
+    else:
+        liner.send('{}: {} [INPUT TYPE IS INVALID]\n'.format(
+            '      Patch Mode    ',
+            patch_mode))
 
     # Normalize crosscols input
     if isinstance(cross_cols, str):
@@ -248,9 +278,9 @@ def barcode(
     cross_mind,
     cross_valid) = vp.get_parsed_cross_barcode_info(
         crosscols=cross_cols,
-        crosscols_field='    Cross Barcodes',
+        crosscols_field='      Cross Barcodes',
         mindist=cross_mind,
-        mindist_field='    Cross Distance',
+        mindist_field='      Cross Distance',
         barcodelen=barcodelen if barcodelen_valid else 0,
         outcol=barcodecol,
         df=indf,
@@ -260,7 +290,7 @@ def barcode(
     (exmotifs,
     exmotifs_valid) = vp.get_parsed_exseqs_info(
         exseqs=exmotifs,
-        exseqs_field=' Excluded Motifs  ',
+        exseqs_field='   Excluded Motifs  ',
         exseqs_desc='Unique Motif(s)',
         df_field='Exmotif',
         required=False,
@@ -278,6 +308,7 @@ def barcode(
         barcodetype_valid,
         leftcontext_valid,
         rightcontext_valid,
+        patch_mode_valid,
         cross_valid,
         exmotifs_valid,]):
         liner.send('\n')
@@ -295,6 +326,59 @@ def barcode(
     if not cross_mind is None:
         cross_mind = round(cross_mind)
 
+    # Patch mode bookkeeping
+    barcodecol_exists = False
+    missing_mask = None
+    existing_mask = None
+    targetcount = len(indf.index)
+    if patch_mode_on and isinstance(indf, pd.DataFrame):
+        (barcodecol_exists,
+        _) = ut.get_col_exist_idx(
+            col=barcodecol,
+            df=indf)
+        if barcodecol_exists:
+            missing_mask = ut.get_missing_mask(
+                series=indf[barcodecol],
+                allow_dash=True)
+            indf[barcodecol] = ut.fill_missing_values(
+                series=indf[barcodecol],
+                missing_mask=missing_mask,
+                fill='-')
+            existing_mask = ~missing_mask
+            targetcount = int(missing_mask.sum())
+        else:
+            missing_mask = np.ones(
+                len(indf.index),
+                dtype=bool)
+            existing_mask = ~missing_mask
+
+        # Validate existing barcodes (length + DNA)
+        if barcodecol_exists and existing_mask.any():
+            invalid_mask = np.zeros(
+                len(indf.index),
+                dtype=bool)
+            for idx in np.where(existing_mask)[0]:
+                value = indf[barcodecol].iat[idx]
+                if (not ut.is_DNA(
+                        seq=value,
+                        dna_alpha=set('ATGC'))) or \
+                   (len(value) != barcodelen):
+                    invalid_mask[idx] = True
+            if invalid_mask.any():
+                examples = ut.get_row_examples(
+                    df=indf,
+                    invalid_mask=invalid_mask,
+                    id_col='ID',
+                    limit=5)
+                example_note = ut.format_row_examples(examples)
+                liner.send(
+                    '    Barcode Column  : Output in Column \'{}\' [INVALID EXISTING VALUE]{}\n'.format(
+                        barcodecol,
+                        example_note))
+                liner.send('\n')
+                raise RuntimeError(
+                    'Invalid Argument Input(s).')
+
     # Define Edge Effect Length
     edgeeffectlength = None
 
@@ -303,6 +387,70 @@ def barcode(
     outdf = None
     stats = None
     warns = {}
+
+    # No missing barcodes in patch mode
+    if patch_mode_on and \
+       missing_mask is not None and \
+       not missing_mask.any():
+
+        stats = {
+            'status'  : True,
+            'basis'   : 'complete',
+            'step'    : 0,
+            'step_name': 'no-missing-barcodes',
+            'vars'    : {
+                  'target_count': 0,
+                 'barcode_count': 0,
+                 'orphan_oligo': [],
+                     'type_fail': 0,
+                 'distance_fail': 0,
+           'existing_distance_fail': 0,
+           'cross_distance_fail': 0,
+                   'repeat_fail': 0,
+                  'exmotif_fail': 0,
+                     'edge_fail': 0,
+               'distance_distro': None,
+               'exmotif_counter': cx.Counter(),
+               'space_exhausted': False,
+               'trial_exhausted': False,
+            },
+            'warns'   : warns}
+        stats['random_seed'] = random_seed
+        if not cross_cols is None:
+            stats['vars']['cross_barcode_columns'] = tuple(cross_cols)
+            stats['vars']['minimum_cross_distance'] = cross_mind
+            stats['vars']['cross_set_size'] = 0
+
+        outdf = indf
+        if not outfile is None:
+            ut.write_df_csv(
+                df=outdf,
+                outfile=outfile,
+                sep=',')
+
+        liner.send('\n[Barcode Design Statistics]\n')
+        liner.send(
+            '   Design Status   : Successful\n')
+        liner.send(
+            '   Target Count    : 0 Barcode(s)\n')
+        liner.send(
+            '  Barcode Count    : 0 Barcode(s) (  0.00 %)\n')
+        liner.send(
+            '   Orphan Oligo    : 0 Entries\n')
+        liner.send(
+            ' Time Elapsed: {:.2f} sec\n'.format(
+                tt.time()-t0))
+
+        liner.close()
+        stats = ut.stamp_stats(
+            stats=stats,
+            module='barcode',
+            input_rows=input_rows,
+            output_rows=len(outdf.index))
+        outdf_return = outdf
+        if not id_from_index:
+            outdf_return = ut.get_df_with_id_column(outdf)
+        return (outdf_return, stats)
 
     # Parse Oligopool Limit Feasibility
     liner.send('\n[Step 1: Parsing Oligo Limit]\n')
@@ -316,7 +464,8 @@ def barcode(
     minspaceavail,
     maxspaceavail) = ut.get_parsed_oligolimit(
         indf=indf,
-        variantlens=None,
+        variantlens=None if (missing_mask is None) else ut.get_variantlens(
+            indf=indf.loc[missing_mask]),
         oligolimit=oligolimit,
         minelementlen=barcodelen,
         maxelementlen=barcodelen,
@@ -361,7 +510,7 @@ def barcode(
     designspace,
     targetcount) = cb.get_parsed_barcode_length(
         barcodelen=barcodelen,
-        indf=indf,
+        indf=indf if missing_mask is None else indf.loc[missing_mask],
         liner=liner)
 
     # barcodelen infeasible
@@ -470,10 +619,19 @@ def barcode(
         liner.send('\n[Step 4: Extracting Context Sequences]\n')
 
         # Extract Both Contexts
+        # In patch mode, only extract context for rows being designed.
+        lcontext = leftcontext
+        rcontext = rightcontext
+        if missing_mask is not None:
+            if not lcontext is None:
+                lcontext = lcontext[missing_mask]
+            if not rcontext is None:
+                rcontext = rcontext[missing_mask]
+
         (leftcontext,
         rightcontext) = ut.get_extracted_context(
-            leftcontext=leftcontext,
-            rightcontext=rightcontext,
+            leftcontext=lcontext,
+            rightcontext=rcontext,
             edgeeffectlength=edgeeffectlength,
             reduce=False,
             liner=liner)
@@ -481,6 +639,17 @@ def barcode(
     # Finalize Context
     if not has_context:
         leftcontext,rightcontext = None, None
+    elif missing_mask is not None:
+        if not leftcontext is None:
+            if len(leftcontext) == len(missing_mask):
+                leftcontext = [
+                    seq for seq, keep in zip(leftcontext, missing_mask)
+                    if keep]
+        if not rightcontext is None:
+            if len(rightcontext) == len(missing_mask):
+                rightcontext = [
+                    seq for seq, keep in zip(rightcontext, missing_mask)
+                    if keep]
 
     # Parse Oligopool Repeats
     liner.send('\n[Step 5: Parsing Oligopool Repeats]\n')
@@ -492,7 +661,7 @@ def barcode(
     fillcount,
     freecount,
     oligorepeats) = ut.get_parsed_oligopool_repeats(
-        df=indf,
+        df=indf if missing_mask is None else indf.loc[missing_mask],
         maxreplen=maxreplen,
         element='Barcode',
         merge=False,
@@ -539,6 +708,7 @@ def barcode(
                   'orphan_oligo': None,         # Orphan Oligo Indexes
                      'type_fail': 0,            # Barcode Type Failure Count
                  'distance_fail': 0,            # Hamming Distance Fail Count
+           'existing_distance_fail': 0,        # Existing Barcode Distance Fail Count
            'cross_distance_fail': 0,        # Cross Distance Fail Count
                    'repeat_fail': 0,            # Repeat Fail Count
                   'exmotif_fail': 0,            # Exmotif Elimination Fail Count
@@ -558,6 +728,28 @@ def barcode(
     ofdeletion = ae.register(
         ut.remove_file,
         outfile)
+
+    # Existing barcode constraints setup (patch mode; enforce distance vs existing)
+    existing_store_plus = None
+    existing_contigsize = None
+    existing_coocache = None
+    existing_set_size = 0
+    if patch_mode_on and \
+       barcodecol_exists and \
+       existing_mask is not None and \
+       existing_mask.any():
+        liner.send(' Preparing Existing Barcodes ...\n')
+        (existing_store_plus,
+        existing_set_size,
+        existing_contigsize,
+        existing_coocache) = ut.get_cross_barcode_store(
+            df=indf.loc[existing_mask, [barcodecol]],
+            crosscols=[barcodecol],
+            barcodelen=barcodelen,
+            minhdist=minhdist)
+        liner.send(
+            ' Existing Set Size: {:,} Unique Barcode(s)\n'.format(
+                existing_set_size))
 
     # Cross-set constraints setup (if enabled)
     cross_store_plus = None
@@ -596,6 +788,11 @@ def barcode(
         cross_contigsize=cross_contigsize,
         cross_coocache=cross_coocache,
         minimum_cross_distance=cross_mind,
+        existing_store_plus=existing_store_plus,
+        existing_set_size=existing_set_size,
+        existing_contigsize=existing_contigsize,
+        existing_coocache=existing_coocache,
+        existing_min_distance=minhdist,
         exmotifs=exmotifs,
         targetcount=targetcount,
         stats=stats,
@@ -624,20 +821,24 @@ def barcode(
     if stats['status']:
 
         # Update indf
-        ut.update_df(
-            indf=indf,
-            lcname=leftcontextname,
-            rcname=rightcontextname,
-            out=codes,
-            outcol=barcodecol)
+        if barcodecol_exists:
+            indf.loc[missing_mask, barcodecol] = codes
+        else:
+            ut.update_df(
+                indf=indf,
+                lcname=leftcontextname,
+                rcname=rightcontextname,
+                out=codes,
+                outcol=barcodecol)
 
         # Prepare outdf
         outdf = indf
 
         # Write outdf to file
         if not outfile is None:
-            outdf.to_csv(
-                path_or_buf=outfile,
+            ut.write_df_csv(
+                df=outdf,
+                outfile=outfile,
                 sep=',')
 
     # Barcoding Statistics
@@ -689,6 +890,7 @@ def barcode(
     else:
         maxval = max(stats['vars'][field] for field in (
             'distance_fail',
+            'existing_distance_fail',
             'cross_distance_fail',
             'repeat_fail',
             'exmotif_fail',
@@ -699,6 +901,7 @@ def barcode(
                 value=maxval))
 
         total_conflicts = stats['vars']['distance_fail']       + \
+                          stats['vars']['existing_distance_fail'] + \
                           stats['vars']['cross_distance_fail'] + \
                           stats['vars']['repeat_fail']         + \
                           stats['vars']['exmotif_fail']        + \
@@ -711,6 +914,17 @@ def barcode(
                 ut.safediv(
                     A=stats['vars']['distance_fail'] * 100.,
                     B=total_conflicts)))
+        if patch_mode_on and \
+           existing_mask is not None and \
+           existing_mask.any():
+            liner.send(
+                ' Existing Conflicts: {:{},{}} Event(s) ({:6.2f} %)\n'.format(
+                    stats['vars']['existing_distance_fail'],
+                    plen,
+                    sntn,
+                    ut.safediv(
+                        A=stats['vars']['existing_distance_fail'] * 100.,
+                        B=total_conflicts)))
         if not cross_cols is None:
             liner.send(
                 '    Cross Conflicts: {:{},{}} Event(s) ({:6.2f} %)\n'.format(
@@ -784,4 +998,7 @@ def barcode(
         module='barcode',
         input_rows=input_rows,
         output_rows=len(outdf.index) if outdf is not None else 0)
-    return (outdf, stats)
+    outdf_return = outdf
+    if (outdf is not None) and (not id_from_index):
+        outdf_return = ut.get_df_with_id_column(outdf)
+    return (outdf_return, stats)

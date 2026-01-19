@@ -16,11 +16,11 @@
 
 `Oligopool Calculator` is a suite of algorithms for automated design and analysis of [oligopool libraries](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9300125/).
 
-It enables the scalable design of universal multiplexed primer sets, error-correctable cross-set barcodes, the splitting of long constructs into multiple shorter oligos for assembly, and the rapid packing and counting of barcoded reads for activity quantification -- all on a regular 8-core desktop computer.
+It enables the scalable design of universal, multiplexed primer sets, error-correctable, cross-set barcodes, the splitting of long constructs into multiple shorter oligos for assembly, and the rapid packing and counting of barcoded reads for activity quantification -- all on a regular 8-core desktop computer.
 
 We have used `Oligopool Calculator` in multiple projects to build libraries of tens of thousands of promoters (see [here](https://www.nature.com/articles/s41467-022-32829-5) and [here](https://www.nature.com/articles/s41587-020-0584-2)), ribozymes, and mRNA stability elements (see [here](https://www.nature.com/articles/s41467-024-54059-7)), illustrating the use of a flexible grammar to add multiple barcodes, cut sites, avoid excluded sequences, and optimize experimental constraints. These libraries were later characterized using highly efficient barcode counting provided by `Oligopool Calculator`. To learn more, please check out [our paper in ACS Synthetic Biology](https://pubs.acs.org/doi/10.1021/acssynbio.4c00661).
 
-`Oligopool Calculator` facilitates the creative design and application of massively parallel reporter assays by automating and simplifying the whole process. It has been benchmarked on simulated libraries containing millions of defined variants and used to analyze billions of reads.
+`Oligopool Calculator` facilitates the creative design and application of massively parallel reporter assays by automating and simplifying the whole process, including the ability to incrementally add new oligos to pre-existing pools. It has been benchmarked on simulated libraries containing millions of defined variants and used to analyze billions of reads.
 
 <h1 align="center">
     <a href="https://github.com/ayaanhossain/oligopool/">
@@ -46,7 +46,7 @@ Or install it directly from GitHub:
 $ pip install git+https://github.com/ayaanhossain/oligopool.git
 ```
 Both approaches should install all dependencies automatically.
-> **Note** This GitHub version will always be updated with all recent fixes. The PyPI version should be more stable.
+> **Note** The GitHub version will always be updated with all recent fixes. The PyPI version should be more stable.
 
 If you are on `Windows` or simply prefer to, `Oligopool Calculator` can also be used via `Docker` (please see [the notes](https://github.com/ayaanhossain/oligopool/blob/master/docker-notes.md)).
 
@@ -73,7 +73,7 @@ There are examples of a [design parser](https://github.com/ayaanhossain/oligopoo
 
 A notebook demonstrating [`Oligopool Calculator` in action](https://github.com/ayaanhossain/oligopool/blob/master/examples/OligopoolCalculatorInAction.ipynb) is provided there as well. It shows in-depth use of all major design and analysis methods.
 
-For quick iteration during Design Mode, use `lenstat` to monitor length/free space under an `oligo_length_limit`, and `verify` as a final QC pass before ordering/synthesis.
+For quick iteration during Design Mode, use `lenstat` to monitor length/free space under an `oligo_length_limit`, and `verify` as a final QC pass before ordering/synthesis. Element modules (`barcode`, `primer`, `motif`, `spacer`) also support Patch Mode for iterative workflows: extend a pool without overwriting existing designs by filling only missing values in an existing output column (`patch_mode=True` in Python or `--patch-mode` in the CLI).
 
 ```python
 $ python
@@ -277,6 +277,7 @@ $ op complete --install bash     # or: zsh|fish
 > - For `--primer-sequence-constraint` / `--motif-sequence-constraint`, pass an IUPAC string (`NNNN...`) or a quoted expression like `"'N'*20"` / `'GCC+N*20+CCG'`.
 > - Per-set primer multiplexing: `--oligo-sets` (labels or a CSV with `ID` and `OligoSet`); paired primers must be constant within each set.
 > - Cross-set barcode separation: `--cross-barcode-columns` + `--minimum-cross-distance`.
+> - Patch Mode for pool extension: `--patch-mode` (fills only missing values in an existing output column; does not overwrite existing entries).
 
 ## Citation
 

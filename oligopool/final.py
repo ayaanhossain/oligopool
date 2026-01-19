@@ -38,6 +38,9 @@ def final(
           modules are not intended to be executed for additional oligopool markups.
     '''
 
+    # Preserve return style when the caller intentionally used ID as index.
+    id_from_index = ut.get_id_index_intent(input_data)
+
     # Argument Aliasing
     indata  = input_data
     outfile = output_file
@@ -107,8 +110,9 @@ def final(
 
     # Write outdf to file
     if not outfile is None:
-        outdf.to_csv(
-            path_or_buf=outfile,
+        ut.write_df_csv(
+            df=outdf,
+            outfile=outfile,
             sep=',')
 
     # Compute Stats
@@ -167,4 +171,7 @@ def final(
         module='final',
         input_rows=input_rows,
         output_rows=len(outdf.index) if outdf is not None else 0)
-    return (outdf, stats)
+    outdf_return = outdf
+    if (outdf is not None) and (not id_from_index):
+        outdf_return = ut.get_df_with_id_column(outdf)
+    return (outdf_return, stats)

@@ -14,6 +14,14 @@ from . import vectordb as db
 from . import utils    as ut
 
 
+def _normalize_field(field):
+    '''
+    Normalize field padding for display.
+    '''
+
+    return field
+
+
 def get_infile_validity(
     infile,
     infile_suffix,
@@ -38,6 +46,8 @@ def get_infile_validity(
        type - coroutine
        desc - dynamic printing
     '''
+
+    infile_field = _normalize_field(infile_field)
 
     # infile exists and non-empty?
     infile_status = ut.get_path_status(
@@ -111,6 +121,8 @@ def get_indir_validity(
        type - coroutine
        desc - dynamic printing
     '''
+
+    indir_field = _normalize_field(indir_field)
 
     # indir exists and non-empty?
     indir_status = ut.get_path_status(
@@ -614,7 +626,8 @@ def get_parsed_data_info(
     data,
     data_field,
     required_fields,
-    liner):
+    liner,
+    allow_missing_cols=None):
     '''
     Determine if given data is a valid,
     non-empty CSV file or a DataFrame.
@@ -635,7 +648,13 @@ def get_parsed_data_info(
     :: liner
        type - coroutine
        desc - dynamic printing
+    :: allow_missing_cols
+       type - set / None
+       desc - column names allowed to
+              contain missing values
     '''
+
+    data_field = _normalize_field(data_field)
 
     # data flags
     data_type   = None
@@ -716,12 +735,17 @@ def get_parsed_data_info(
 
     if df_nonempty:
 
-        # Check column-wise emptiness
+        # Check column-wise missing values
         for col in df.columns:
-            if df[col].isnull().values.any():
+            if allow_missing_cols and col in allow_missing_cols:
+                continue
+            missing_mask = ut.get_missing_mask(
+                series=df[col],
+                allow_dash=False)
+            if missing_mask.any():
                 examples = ut.get_row_examples(
                     df=df,
-                    invalid_mask=df[col].isnull(),
+                    invalid_mask=missing_mask,
                     id_col='ID',
                     limit=5)
                 example_note = ut.format_row_examples(examples)
@@ -787,8 +811,31 @@ def get_parsed_data_info(
                         example_note))
                 df_indexible = False
             else:
-                # Everything checked out
-                df_indexible = True
+                # Normalize ID values to strings for consistent downstream behavior.
+                df.index = df.index.map(str)
+
+                # Ensure uniqueness is preserved after casting (e.g., 1 and "1").
+                if not df.index.is_unique:
+                    duplicates = []
+                    for value in df.index[df.index.duplicated()]:
+                        sval = str(value)
+                        if sval not in duplicates:
+                            duplicates.append(sval)
+                        if len(duplicates) >= 5:
+                            break
+                    example_note = ut.format_row_examples(
+                        duplicates,
+                        label='Duplicate ID examples')
+                    liner.send(
+                        '{}: {} w/ {:,} Record(s) [NON-UNIQUE COLUMN=\'ID\' AFTER STRING CAST]{}\n'.format(
+                            data_field,
+                            data,
+                            len(df.index),
+                            example_note))
+                    df_indexible = False
+                else:
+                    # Everything checked out
+                    df_indexible = True
 
     # df contains required columns?
     df_contains_required_cols = False
@@ -849,7 +896,8 @@ def get_parsed_indata_info(
     indata_field,
     required_fields,
     precheck,
-    liner):
+    liner,
+    allow_missing_cols=None):
     '''
     Determine if indata consisting of DNA columns
     only is valid. Internal use only.
@@ -874,7 +922,13 @@ def get_parsed_indata_info(
     :: liner
        type - coroutine
        desc - dynamic printing
+    :: allow_missing_cols
+       type - set / None
+       desc - column names allowed to
+              contain missing values
     '''
+
+    indata_field = _normalize_field(indata_field)
 
     # Is indata valid CSV or DataFrame?
     (df,
@@ -883,7 +937,8 @@ def get_parsed_indata_info(
         data=indata,
         data_field=indata_field,
         required_fields=required_fields,
-        liner=liner)
+        liner=liner,
+        allow_missing_cols=allow_missing_cols)
 
     # df columns contain DNA strings only?
     df_contains_DNA_only = False
@@ -897,8 +952,19 @@ def get_parsed_indata_info(
         # Loop through all columns
         for column in df.columns:
 
+            # Missing allowed?
+            missing_mask = None
+            if allow_missing_cols and column in allow_missing_cols:
+                missing_mask = ut.get_missing_mask(
+                    series=df[column],
+                    allow_dash=True)
+
             # Loop through all entires in column
-            for value in df[column]:
+            for idx, value in enumerate(df[column]):
+
+                # Skip missing in allowed column
+                if missing_mask is not None and missing_mask[idx]:
+                    continue
 
                 # A Non-DNA entry?
                 if not ut.is_DNA(seq=value):
@@ -990,6 +1056,8 @@ def get_outfile_validity(
        desc - dynamic printing
     '''
 
+    outfile_field = _normalize_field(outfile_field)
+
     # Append suffix to path?
 
     # outfile is an existing empty file or
@@ -1072,6 +1140,8 @@ def get_outdir_validity(
        desc - dynamic printing
     '''
 
+    outdir_field = _normalize_field(outdir_field)
+
     # Append suffix to path?
 
     # outdir is an existing empty directory
@@ -1153,6 +1223,8 @@ def get_outdf_validity(
        desc - dynamic printing
     '''
 
+    outdf_field = _normalize_field(outdf_field)
+
     # outdf is None?
     if outdf is None:
         liner.send(
@@ -1177,7 +1249,8 @@ def get_parsed_column_info(
     adjval,
     iscontext,
     typecontext,
-    liner):
+    liner,
+    allow_existing=False):
     '''
     Determine if col is a valid column in/for df
     depending on col_type. Internal use only.
@@ -1219,7 +1292,13 @@ def get_parsed_column_info(
     :: liner
        type - coroutine
        desc - dynamic printing
+    :: allow_existing
+       type - boolean
+       desc - if True, allow output
+              column to already exist
     '''
+
+    col_field = _normalize_field(col_field)
 
     # Is col None?
     if col is None:
@@ -1277,7 +1356,7 @@ def get_parsed_column_info(
             if  ((col_type == 0 and    #  Input Column
                   col_existence) or    #  Input Column
                  (col_type == 1 and    # Output Column
-                  not col_existence)): # Output Column
+                  (not col_existence or allow_existing))): # Output Column
                 col_existence_valid = True
             else:
                 col_existence_valid = False
@@ -1347,11 +1426,21 @@ def get_parsed_column_info(
         col_is_adjacent])
 
     if col_valid:
-        liner.send(
-            '{}: {} \'{}\'\n'.format(
-                col_field,
-                col_desc,
-                col))
+        if col_type == 1 and allow_existing:
+            # Output Column (may already exist)
+            suffix = ' (Existing)' if col in df.columns else ''
+            liner.send(
+                '{}: {} \'{}\'{}\n'.format(
+                    col_field,
+                    col_desc,
+                    col,
+                    suffix))
+        else:
+            liner.send(
+                '{}: {} \'{}\'\n'.format(
+                    col_field,
+                    col_desc,
+                    col))
 
         # Output Column
         if col_type == 1:
@@ -1368,6 +1457,9 @@ def get_parsed_column_info(
                     parsedcol = df.loc[:, :col]
                 else:                # Right Context
                     parsedcol = df.loc[:, col:]
+                # Robust to allowed missing values in output columns (Patch Mode fills):
+                # treat NaN/None as empty during context concatenation.
+                parsedcol = parsedcol.fillna('')
                 parsedcol = parsedcol.sum(
                     axis=1).str.upper().str.replace(
                         '-', '')
@@ -1419,6 +1511,9 @@ def get_parsed_cross_barcode_info(
        type - coroutine
        desc - dynamic printing
     '''
+
+    crosscols_field = _normalize_field(crosscols_field)
+    mindist_field = _normalize_field(mindist_field)
 
     # For barcodes, accept only strict ATGC (no gaps / no degeneracy).
     barcode_alpha = set('ATGC')
@@ -1639,6 +1734,8 @@ def get_parsed_exseqs_info(
        desc - dynamic printing
     '''
 
+    exseqs_field = _normalize_field(exseqs_field)
+
     # Is exseqs None?
     if exseqs is None:
         liner.send(
@@ -1773,6 +1870,8 @@ def get_numeric_validity(
        desc - dynamic printing
     '''
 
+    numeric_field = _normalize_field(numeric_field)
+
     # numeric is real?
     numeric_valid = False
     if not isinstance(numeric, nu.Real):
@@ -1905,6 +2004,8 @@ def get_parsed_spacerlen_info(
        desc - dynamic printing
     '''
 
+    spacerlen_field = _normalize_field(spacerlen_field)
+
     # Is spacerlen None?
     if spacerlen is None:
         liner.send(
@@ -1931,7 +2032,7 @@ def get_parsed_spacerlen_info(
         spacerlen_valid = get_numeric_validity(
             numeric=spacerlen,
             numeric_field=spacerlen_field,
-            numeric_pre_desc=' Exact1y ',
+            numeric_pre_desc=' Exactly ',
             numeric_post_desc=' Base Pair(s)',
             minval=1,
             maxval=oligolimit,
@@ -2147,6 +2248,8 @@ def get_parsed_oligosets_info(
        desc - dynamic printing
     '''
 
+    oligosets_field = _normalize_field(oligosets_field)
+
     # Is oligosets None?
     if oligosets is None:
         liner.send(
@@ -2295,6 +2398,7 @@ def get_parsed_pairedprimer_info(
     pairedcol_field,
     df,
     oligosets,
+    allow_missing,
     liner):
     '''
     Determine if paired primer input is valid,
@@ -2315,10 +2419,16 @@ def get_parsed_pairedprimer_info(
     :: oligosets
        type - np.array / None
        desc - per-row oligo set labels
+    :: allow_missing
+       type - boolean
+       desc - if True, allow sets with all
+              missing paired primers
     :: liner
        type - coroutine
        desc - dynamic printing
     '''
+
+    pairedcol_field = _normalize_field(pairedcol_field)
 
     # Is pairedcol None?
     if pairedcol is None:
@@ -2353,12 +2463,50 @@ def get_parsed_pairedprimer_info(
         return None, False
 
     # No oligosets: require a single constant primer
-    if oligosets is None:
+    if oligosets is None and not allow_missing:
         return get_constantcol_validity(
             constantcol=pairedcol,
             constantcol_field=pairedcol_field,
             df=df,
             liner=liner)
+
+    # Missing-aware parsing
+    if allow_missing:
+
+        # No oligosets: allow all-missing column
+        if oligosets is None:
+            missing_mask = ut.get_missing_mask(
+                series=df[pairedcol],
+                allow_dash=True)
+            if missing_mask.all():
+                liner.send(
+                    '{}: None Specified\n'.format(
+                        pairedcol_field))
+                return None, True
+            if missing_mask.any():
+                liner.send(
+                    '{}: Input from Column \'{}\' [MISSING VALUE(S)]\n'.format(
+                        pairedcol_field,
+                        pairedcol))
+                return None, False
+
+            # Extract unique candidates
+            uniques = ut.get_uniques(
+                iterable=df[pairedcol],
+                typer=tuple)
+            if len(uniques) > 1:
+                liner.send(
+                    '{}: Input from Column \'{}\' [NON-UNIQUE COLUMN=\'{}\']\n'.format(
+                        pairedcol_field,
+                        pairedcol,
+                        pairedcol))
+                return None, False
+
+            liner.send(
+                '{}: A {:,} Base Pair DNA Sequence\n'.format(
+                    pairedcol_field,
+                    len(uniques[0])))
+            return uniques[0], True
 
     # Oligosets provided: require constant per set
     (uniques,
@@ -2369,18 +2517,29 @@ def get_parsed_pairedprimer_info(
 
     for label in uniques:
         idx = groups[label]
-        values = ut.get_uniques(
-            iterable=df[pairedcol].iloc[idx],
-            typer=tuple)
+        values = df[pairedcol].iloc[idx]
+        missing_mask = ut.get_missing_mask(
+            series=values,
+            allow_dash=True)
+        values = values[~missing_mask]
 
-        # Missing value?
-        if any(pd.isna(v) for v in values):
+        # Missing-only set?
+        if allow_missing and values.empty:
+            paired_map[label] = None
+            continue
+
+        # Missing with values?
+        if allow_missing and missing_mask.any():
             liner.send(
                 '{}: Input from Column \'{}\' [MISSING VALUE IN SET=\'{}\']\n'.format(
                     pairedcol_field,
                     pairedcol,
                     label))
             return None, False
+
+        values = ut.get_uniques(
+            iterable=values,
+            typer=tuple)
 
         # Non-unique per set?
         if len(values) != 1:
@@ -2540,6 +2699,8 @@ def get_categorical_validity(
        type - coroutine
        desc - dynamic printing
     '''
+
+    category_field = _normalize_field(category_field)
 
     # Is category numeric?
     cat_is_numeric = get_numeric_validity(
@@ -2720,6 +2881,8 @@ def get_seqconstr_validity(
        desc - dynamic printing
     '''
 
+    seqconstr_field = _normalize_field(seqconstr_field)
+
     # Is seqconstr string?
     seqconstr_is_string = False
     if not isinstance(seqconstr, str):
@@ -2797,6 +2960,8 @@ def get_constantcol_validity(
        type - coroutine
        desc - dynamic printing
     '''
+
+    constantcol_field = _normalize_field(constantcol_field)
 
     # Is constantcol None?
     if constantcol is None:
@@ -2886,6 +3051,8 @@ def get_parsed_range_info(
        type - coroutine
        desc - dynamic printing
     '''
+
+    range_field = _normalize_field(range_field)
 
     # Define value range
     vrange = (minval, maxval)
@@ -2980,6 +3147,8 @@ def get_parsed_background(
        type - coroutine
        desc - dynamic printing
     '''
+
+    background_field = _normalize_field(background_field)
 
     # Is background None?
     if background is None:

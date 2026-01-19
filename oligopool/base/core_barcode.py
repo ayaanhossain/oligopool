@@ -876,7 +876,12 @@ def barcode_engine(
     targetcount,
     stats,
     liner,
-    rng=None):
+    rng=None,
+    existing_store_plus=None,
+    existing_set_size=0,
+    existing_contigsize=None,
+    existing_coocache=None,
+    existing_min_distance=None):
     '''
     Return barcodes fulfilling all constraints.
     Internal use only.
@@ -926,6 +931,21 @@ def barcode_engine(
     :: minimum_cross_distance
        type - integer / None
        desc - cross-set minimum Hamming distance
+    :: existing_store_plus
+       type - np.array / None
+       desc - existing-barcode store padded with candidate row
+    :: existing_set_size
+       type - integer
+       desc - number of existing barcodes
+    :: existing_contigsize
+       type - np.array / None
+       desc - contig scheme for existing barcodes
+    :: existing_coocache
+       type - dict / None
+       desc - existing contig coordinate cache
+    :: existing_min_distance
+       type - integer / None
+       desc - minimum Hamming distance from existing barcodes
     :: exmotifs
        type - list / None
        desc - list of motifs to exclude
@@ -1048,6 +1068,26 @@ def barcode_engine(
         # Decode Barcode Sequence
         barcodeseq = get_barcodeseq(
             barcode=barcode)
+
+        # Existing-barcode constraint? (Patch Mode fill)
+        if not existing_store_plus is None and \
+           not existing_min_distance is None and \
+           existing_set_size > 0:
+
+            # Write candidate into padded store
+            existing_store_plus[existing_set_size, :] = barcode
+            (existing_ok,
+            _) = is_hamming_feasible(
+                barcodeseq=barcodeseq,
+                store=existing_store_plus,
+                count=existing_set_size,
+                minhdist=existing_min_distance,
+                contigsize=existing_contigsize,
+                coocache=existing_coocache)
+
+            if not existing_ok:
+                stats['vars']['existing_distance_fail'] += 1
+                continue
 
         # Cross-set constraint?
         if not cross_store_plus is None and \

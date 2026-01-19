@@ -2113,6 +2113,293 @@ def get_parsed_spacerlen_info(
     # Return Results
     return (spacerlen, True)
 
+def get_parsed_oligosets_info(
+    oligosets,
+    oligosets_field,
+    df_field,
+    indf,
+    indata_valid,
+    liner):
+    '''
+    Determine if oligosets input is valid.
+    Internal use only.
+
+    :: oligosets
+       type - iterable / string / pd.DataFrame / None
+       desc - iterable of set labels per oligo; optionally
+              a DataFrame or a path to a CSV file with such
+              labels
+    :: oligosets_field
+       type - string
+       desc - oligosets fieldname used in printing
+    :: df_field
+       type - string
+       desc - name of the column in DataFrame storing
+              oligo set labels
+    :: indf
+       type - pd.DataFrame / None
+       desc - associated input DataFrame
+    :: indata_valid
+       type - boolean
+       desc - associated input DataFrame validity
+    :: liner
+       type - coroutine
+       desc - dynamic printing
+    '''
+
+    # Is oligosets None?
+    if oligosets is None:
+        liner.send(
+            '{}: None Specified\n'.format(
+                oligosets_field))
+        return (None, True)
+
+    # Quick compute indexlen
+    if indata_valid:
+        lenindex = len(indf.index)
+    else:
+        lenindex = 1
+
+    # Is oligosets iterable?
+    if not isinstance(oligosets, pd.DataFrame) and \
+       not isinstance(oligosets, str):
+
+        # Try extracting oligosets
+        try:
+            oligosets = list(o for o in oligosets)
+
+        # Error during extraction
+        except:
+            liner.send(
+                '{}: {} [INPUT TYPE IS INVALID]\n'.format(
+                    oligosets_field,
+                    oligosets))
+            return (None, False)
+
+        # Do we have enough set labels?
+        if indata_valid:
+            if len(oligosets) != len(indf.index):
+
+                # Compute category of mismatch
+                catm = ['FEWER', 'MORE'][len(oligosets) > len(indf.index)]
+
+                # Show Update
+                liner.send(
+                    '{}: Iterable of {:,} Record(s) [{} THAN {:,} SET LABELS SPECIFIED]\n'.format(
+                        oligosets_field,
+                        len(oligosets),
+                        catm,
+                        len(indf.index)))
+
+                # Return Results
+                return (None, False)
+
+        # No basis for matching, so show indifference
+        # here, return and fail later on
+        else:
+            liner.send(
+                '{}: Iterable of {:,} Record(s)\n'.format(
+                    oligosets_field,
+                    len(oligosets)))
+            return (None, False)
+
+    # Is oligosets a CSV file or DataFrame?
+    else:
+
+        # Compute oligosets data validity
+        (df,
+        data_name,
+        df_valid) = get_parsed_data_info(
+            data=oligosets,
+            data_field=oligosets_field,
+            required_fields=('ID', df_field,),
+            liner=liner)
+
+        # Is oligosets df valid?
+        if df_valid:
+
+            # Are the indexes matching?
+            idx_match = False
+            if indata_valid:
+
+                # Matching IDs?
+                idx_match = len(df.index)    == len(indf.index) and \
+                            sorted(df.index) == sorted(indf.index)
+
+                # Everything OK!
+                if idx_match:
+                    df = df.reindex(indf.index)
+                    oligosets = list(o for o in df[df_field])
+
+            # No basis for matching, so show indifference
+            # here, return and fail later on
+            else:
+                liner.send(
+                    '{}: {} w/ {:,} Record(s)\n'.format(
+                        oligosets_field,
+                        data_name,
+                        len(df.index)))
+                return (None, False)
+
+            # Indexes don't match
+            if not idx_match:
+                liner.send(
+                    '{}: {} w/ {:,} Record(s) [COLUMN=\'ID\' DOES NOT MATCH INPUT DATA]\n'.format(
+                        oligosets_field,
+                        data_name,
+                        len(df.index)))
+                return (None, False)
+
+        else:
+            # Note: We've already shown how
+            # invalidity impacts oligosets,
+            # so we're directly returning
+            return (None, False)
+
+    # Validate set labels (hashable, non-missing)
+    for label in oligosets:
+
+        # Unhashable label?
+        try:
+            hash(label)
+        except TypeError:
+            liner.send(
+                '{}: {:,} Record(s) [UNHASHABLE SET LABEL=\'{}\']\n'.format(
+                    oligosets_field,
+                    len(oligosets),
+                    label))
+            return (None, False)
+
+        # Missing label?
+        if pd.isna(label):
+            liner.send(
+                '{}: {:,} Record(s) [MISSING SET LABEL]\n'.format(
+                    oligosets_field,
+                    len(oligosets)))
+            return (None, False)
+
+    # Count unique sets
+    uniques = ut.get_uniques(
+        iterable=oligosets,
+        typer=tuple)
+    liner.send(
+        '{}: {:,} Unique Set(s)\n'.format(
+            oligosets_field,
+            len(uniques)))
+
+    # Return Results
+    return (np.array(oligosets, dtype=object), True)
+
+def get_parsed_pairedprimer_info(
+    pairedcol,
+    pairedcol_field,
+    df,
+    oligosets,
+    liner):
+    '''
+    Determine if paired primer input is valid,
+    including per-set pairing when oligosets
+    is provided. Internal use only.
+
+    :: pairedcol
+       type - string / None
+       desc - column name in df storing paired
+              primer sequences
+    :: pairedcol_field
+       type - string
+       desc - pairedcol fieldname used in printing
+    :: df
+       type - pd.DataFrame / None
+       desc - input DataFrame where paired primers
+              are present
+    :: oligosets
+       type - np.array / None
+       desc - per-row oligo set labels
+    :: liner
+       type - coroutine
+       desc - dynamic printing
+    '''
+
+    # Is pairedcol None?
+    if pairedcol is None:
+        liner.send(
+            '{}: None Specified\n'.format(
+                pairedcol_field))
+        return None, True
+
+    # Is pairedcol a string?
+    if not isinstance(pairedcol, str):
+        liner.send(
+            '{}: Input from Column \'{}\' [INPUT TYPE IS INVALID]\n'.format(
+                pairedcol_field,
+                pairedcol))
+        return None, False
+
+    # Do we have a DataFrame?
+    if not isinstance(df, pd.DataFrame):
+        liner.send(
+            '{}: Input from Column \'{}\' [COLUMN EXISTENCE UNKNOWN]\n'.format(
+                pairedcol_field,
+                pairedcol))
+        return None, False
+
+    # Column missing?
+    if pairedcol not in df.columns:
+        liner.send(
+            '{}: Input from Column \'{}\' [MISSING COLUMN=\'{}\']\n'.format(
+                pairedcol_field,
+                pairedcol,
+                pairedcol))
+        return None, False
+
+    # No oligosets: require a single constant primer
+    if oligosets is None:
+        return get_constantcol_validity(
+            constantcol=pairedcol,
+            constantcol_field=pairedcol_field,
+            df=df,
+            liner=liner)
+
+    # Oligosets provided: require constant per set
+    (uniques,
+    groups,
+    _) = ut.get_oligoset_groups(
+        oligosets=oligosets)
+    paired_map = {}
+
+    for label in uniques:
+        idx = groups[label]
+        values = ut.get_uniques(
+            iterable=df[pairedcol].iloc[idx],
+            typer=tuple)
+
+        # Missing value?
+        if any(pd.isna(v) for v in values):
+            liner.send(
+                '{}: Input from Column \'{}\' [MISSING VALUE IN SET=\'{}\']\n'.format(
+                    pairedcol_field,
+                    pairedcol,
+                    label))
+            return None, False
+
+        # Non-unique per set?
+        if len(values) != 1:
+            liner.send(
+                '{}: Input from Column \'{}\' [NON-UNIQUE WITHIN SET=\'{}\']\n'.format(
+                    pairedcol_field,
+                    pairedcol,
+                    label))
+            return None, False
+
+        paired_map[label] = values[0]
+
+    liner.send(
+        '{}: Input from Column \'{}\' (Per-Set)\n'.format(
+            pairedcol_field,
+            pairedcol))
+
+    return paired_map, True
+
 def get_parsed_associatedata_info(
     associatedata,
     associatedata_field,

@@ -83,7 +83,7 @@ There are examples of a [design parser](https://github.com/ayaanhossain/oligopoo
 
 A notebook demonstrating [`Oligopool Calculator` in action](https://github.com/ayaanhossain/oligopool/blob/master/examples/OligopoolCalculatorInAction.ipynb) is provided there as well. It shows in-depth use of all major design and analysis methods.
 
-For quick iteration during Design Mode, use `lenstat` to monitor length/free space under an `oligo_length_limit`, and `verify` as a final QC pass before ordering/synthesis. Element modules (`barcode`, `primer`, `motif`, `spacer`) also support Patch Mode for iterative workflows: extend a pool without overwriting existing designs by filling only missing values in an existing output column (`patch_mode=True` in Python or `--patch-mode` in the CLI).
+For quick iteration during Design Mode, use `lenstat` to monitor length/free space under an `oligo_length_limit`, and `verify` as a final QC pass before ordering/synthesis.
 
 ```python
 $ python
@@ -296,9 +296,7 @@ $ op complete --install bash     # or: zsh|fish
 > **CLI Notes**
 > - Commands that write a DataFrame require `--output-file` (library mode can return DataFrames in-memory).
 > - For `--primer-sequence-constraint` / `--motif-sequence-constraint`, pass an IUPAC string (`NNNN...`) or a quoted expression like `"'N'*20"` / `'GCC+N*20+CCG'`.
-> - Per-set primer multiplexing: `--oligo-sets` (labels or a CSV with `ID` and `OligoSet`); paired primers must be constant within each set.
-> - Cross-set barcode separation: `--cross-barcode-columns` + `--minimum-cross-distance`.
-> - Patch Mode for pool extension: `--patch-mode` (fills only missing values in an existing output column; does not overwrite existing entries).
+> - Run `op COMMAND` to see all options (including `--patch-mode`, `--oligo-sets`, and `--cross-barcode-columns`).
 
 ## Citation
 

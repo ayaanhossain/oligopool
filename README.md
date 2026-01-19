@@ -1,5 +1,5 @@
 <h1 align="center">
-    <a href="https://github.com/ayaanhossain/oligopool/">
+    <a href="https://github.com/ayaanhossain/oligopool/" style="text-decoration: none !important;">
         <img src="https://raw.githubusercontent.com/ayaanhossain/repfmt/main/oligopool/img/logo.svg"  alt="Oligopool Calculator" width="460" class="center"/>
     </a>
 </h1>
@@ -7,12 +7,12 @@
 <h4><p align="center">Version: 2026.01.18</p></h4>
 
 <p align="center">
-  <a style="text-decoration: none" href="#features">✨ Features</a> •
-  <a style="text-decoration: none" href="#installation">📦 Installation</a> •
-  <a style="text-decoration: none" href="#getting-started">🚀 Getting Started</a> •
-  <a style="text-decoration: none" href="#command-line-interface-cli">💻 CLI</a> •
-  <a style="text-decoration: none" href="#citation">📖 Citation</a> •
-  <a style="text-decoration: none" href="#license">⚖️ License</a>
+  <a href="#features" style="text-decoration: none !important;">✨ Features</a> •
+  <a href="#installation" style="text-decoration: none !important;">📦 Installation</a> •
+  <a href="#getting-started" style="text-decoration: none !important;">🚀 Getting Started</a> •
+  <a href="#command-line-interface-cli" style="text-decoration: none !important;">💻 CLI</a> •
+  <a href="#citation" style="text-decoration: none !important;">📖 Citation</a> •
+  <a href="#license" style="text-decoration: none !important;">⚖️ License</a>
 </p>
 
 `Oligopool Calculator` is a suite of algorithms for automated design and analysis of [oligopool libraries](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9300125/).
@@ -21,31 +21,33 @@ It supports scalable design of primers, barcodes, motifs/anchors, and spacers; a
 
 We have used `Oligopool Calculator` in multiple projects to build libraries of tens of thousands of promoters (see [here](https://www.nature.com/articles/s41467-022-32829-5) and [here](https://www.nature.com/articles/s41587-020-0584-2)), ribozymes, and mRNA stability elements (see [here](https://www.nature.com/articles/s41467-024-54059-7)). To learn more, please check out [our paper in ACS Synthetic Biology](https://pubs.acs.org/doi/10.1021/acssynbio.4c00661).
 
-`Oligopool Calculator` streamlines the design and analysis of massively parallel reporter assays (MPRAs), including iterative workflows where new oligos are appended to an existing pool. It has been benchmarked on simulated libraries containing millions of defined variants and used to analyze billions of reads.
+`Oligopool Calculator` streamlines the design and analysis of massively parallel barcoded measurements (including MPRAs), including iterative workflows where new oligos are appended to an existing pool. It has been benchmarked to design millions of compact barcodes and to process hundreds of millions of sequencing reads per hour on a desktop.
 
 <h1 align="center">
-    <a href="https://github.com/ayaanhossain/oligopool/">
+    <a href="https://github.com/ayaanhossain/oligopool/" style="text-decoration: none !important;">
         <img src="https://raw.githubusercontent.com/ayaanhossain/repfmt/refs/heads/main/oligopool/img/workflow.svg"  alt="Oligopool Calculator Workflow" width="3840" class="center"/>
     </a>
 </h1>
 
 **Design and analysis of oligopool variants using `Oligopool Calculator`.** **(a)** In `Design Mode`, `Oligopool Calculator` can be used to generate optimized `barcode`s, `primer`s, `spacer`s, `motif`s and `split` longer oligos into shorter `pad`ded fragments for downstream synthesis and assembly. **(b)** Once the library is assembled and cloned, barcoded amplicon sequencing data can be processed via `Analysis Mode` for characterization. `Analysis Mode` proceeds by first `index`ing one or more sets of barcodes, `pack`ing the reads, and then producing count matrices either using `acount` (association counting) or `xcount` (combinatorial counting).
 
+<a id="features"></a>
 ## ✨ Features
 
 - 🧬 **Design Mode:** constraint-based design of primers, barcodes, motifs/anchors, and spacers, with optional repeat screening via `background`, plus assembly helpers (`split`, `pad`) and utilities (`merge`, `revcomp`, `lenstat`, `verify`, `final`).
 - 🔒 **Rich constraints:** IUPAC sequence constraints, motif exclusion, repeat screening, Hamming-distance barcodes, and primer thermodynamic constraints (including optional paired-primer Tm matching).
-- 🧾 **DataFrame-first API:** most modules take a CSV/DataFrame and return either an updated DataFrame + `stats` or a `stats` dictionary.
+- 🧠 **Algorithmic core:** orthogonally symmetric barcode design, adaptive decision trees for primer design, a Scry barcode classifier, and efficient read packing.
+- ⚡ **Performance (benchmarked):** design >4 million compact barcodes in ~1.2 h, design universal primer binding sites for 1 million 200-mer oligos in ~15 min, and analyze ~500 million reads/hour on an 8-core desktop (see paper).
+- 🧾 **DataFrame + stats:** most modules take a CSV/DataFrame and return either an updated DataFrame + `stats` or a `stats` dictionary; the CLI can emit JSON (`--stats-json` / `--stats-file`) and stochastic modules accept `random_seed`.
 - 🔁 **Patch Mode (iterative pool extension):** `patch_mode=True` / `--patch-mode` fills only missing values in an existing output column without overwriting prior designs.
 - 🧷 **Cross-set barcodes:** enforce separation from existing barcode columns via `cross_barcode_columns` + `minimum_cross_distance`.
 - 🧫 **Multiplexed primer sets:** design primers per group via `oligo_sets` and screen for cross-set compatibility (supports chained primer design via `paired_primer_column`, including per-set pairing).
-- 🎲 **Reproducibility:** stochastic modules accept `random_seed` for deterministic runs.
 - ✅ **QC + summaries:** `lenstat` (length/free-space) and `verify` (constraint checks and motif emergence) before ordering/synthesis.
 - 🧪 **Analysis Mode (counting readouts):** `index`, `pack`, `acount`, `xcount` for fast packing and barcode/associate counting.
-- 📊 **Stats everywhere:** modules expose machine-readable stats; the CLI can emit JSON (`--stats-json` / `--stats-file`).
 - 💻 **CLI + completion:** `op` / `oligopool` for pipelines, built-in `manual`/`cite`, and tab completion via `op complete --install`.
 
 
+<a id="installation"></a>
 ## 📦 Installation
 
 `Oligopool Calculator` is a `Python 3.10+`-exclusive library.
@@ -78,6 +80,7 @@ Type "help", "copyright", "credits" or "license" for more information.
 >>>
 ```
 
+<a id="getting-started"></a>
 ## 🚀 Getting Started
 
 `Oligopool Calculator` is carefully designed, easy to use, and stupid fast.
@@ -235,6 +238,7 @@ Type "help", "copyright", "credits" or "license" for more information.
 ...
 ```
 
+<a id="command-line-interface-cli"></a>
 ### 💻 Command Line Interface (CLI)
 
 The `oligopool` package installs a CLI with two equivalent entry points: `oligopool` and `op`.
@@ -303,6 +307,7 @@ $ op complete --install bash     # or: zsh|fish
 > - For `--primer-sequence-constraint` / `--motif-sequence-constraint`, pass an IUPAC string (`NNNN...`) or a quoted expression like `"'N'*20"` / `'GCC+N*20+CCG'`.
 > - Run `op COMMAND` to see all options (including `--patch-mode`, `--oligo-sets`, and `--cross-barcode-columns`).
 
+<a id="citation"></a>
 ## 📖 Citation
 
 If you use `Oligopool Calculator` in your research publication, please cite our paper.
@@ -330,7 +335,9 @@ BibTeX:
 ```
 
 You can read the complete article online for free at [ACS Synthetic Biology](https://doi.org/10.1021/acssynbio.4c00661).
+PMCID: `PMC11669329` • PMID: `39641628`
 
+<a id="license"></a>
 ## ⚖️ License
 
 `Oligopool Calculator` (c) 2026 Ayaan Hossain.

@@ -301,7 +301,7 @@ $ op complete --install bash     # or: zsh|fish
 ```
 
 > **CLI Notes**
-> - Commands that write a DataFrame require `--output-file` (library mode can return DataFrames in-memory).
+> - Commands that write a DataFrame require `--output-file` (unlike in library mode where it is optional).
 > - For `--primer-sequence-constraint` / `--motif-sequence-constraint`, pass an IUPAC string (`NNNN...`) or a quoted expression like `"'N'*20"` / `'GCC+N*20+CCG'`.
 > - Run `op manual COMMAND` (e.g. `op manual barcode`) for details regarding `barcode` command.
 

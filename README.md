@@ -21,7 +21,7 @@ It supports scalable design of primers, barcodes, motifs/anchors, and spacers; a
 
 We have used `Oligopool Calculator` in multiple projects to build libraries of tens of thousands of promoters (see [here](https://www.nature.com/articles/s41467-022-32829-5) and [here](https://www.nature.com/articles/s41587-020-0584-2)), ribozymes, and mRNA stability elements (see [here](https://www.nature.com/articles/s41467-024-54059-7)). To learn more, please check out [our paper in ACS Synthetic Biology](https://pubs.acs.org/doi/10.1021/acssynbio.4c00661).
 
-`Oligopool Calculator` streamlines the design and analysis of massively parallel barcoded measurements (including MPRAs), including iterative workflows where new oligos are appended to an existing pool. It has been benchmarked to design millions of compact barcodes and primer binding sites, and to process hundreds of millions of sequencing reads per hour on an 8-core desktop.
+`Oligopool Calculator` streamlines the design and analysis of massively parallel barcoded measurements, including iterative workflows where new oligos are continuosly added to an existing pool. It has been benchmarked to design millions of compact barcodes and universal primer binding sites, and to process hundreds of millions of sequencing reads per hour on an 8-core desktop.
 
 <h1 align="center">
     <a href="https://github.com/ayaanhossain/oligopool/" style="text-decoration: none !important;">
@@ -34,17 +34,14 @@ We have used `Oligopool Calculator` in multiple projects to build libraries of t
 <a id="features"></a>
 ## ✨ Features
 
-- 🧬 **Design Mode:** constraint-based design of primers, barcodes, motifs/anchors, and spacers, with optional repeat screening via `background`, plus assembly helpers (`split`, `pad`) and utilities (`merge`, `revcomp`, `lenstat`, `verify`, `final`).
+- 🧬 **Design mode:** constraint-based design of primers, barcodes, motifs/anchors, and spacers, with repeat/background screening, assembly helpers (`split`, `pad`), and utilities (`merge`, `revcomp`, `lenstat`, `verify`, `final`).
 - 🔒 **Rich constraints:** IUPAC sequence constraints, motif exclusion, repeat screening, Hamming-distance barcodes, and primer thermodynamic constraints (including optional paired-primer Tm matching).
-- 🧠 **Algorithmic core:** orthogonally symmetric barcode design, adaptive decision trees for primer design, a Scry barcode classifier, and efficient read packing.
-- ⚡ **Performance (benchmarked):** design >4 million compact barcodes in ~1.2 h, design universal primer binding sites for 1 million 200-mer oligos in ~15 min, and analyze ~500 million reads/hour on an 8-core desktop (see paper).
-- 🧾 **DataFrame + stats:** most modules take a CSV/DataFrame and return either an updated DataFrame + `stats` or a `stats` dictionary; the CLI can emit JSON (`--stats-json` / `--stats-file`) and stochastic modules accept `random_seed`.
-- 🔁 **Patch Mode (iterative pool extension):** `patch_mode=True` / `--patch-mode` fills only missing values in an existing output column without overwriting prior designs.
-- 🧷 **Cross-set barcodes:** enforce separation from existing barcode columns via `cross_barcode_columns` + `minimum_cross_distance`.
-- 🧫 **Multiplexed primer sets:** design primers per group via `oligo_sets` and screen for cross-set compatibility (supports chained primer design via `paired_primer_column`, including per-set pairing).
-- ✅ **QC + summaries:** `lenstat` (length/free-space) and `verify` (constraint checks and motif emergence) before ordering/synthesis.
-- 🧪 **Analysis Mode (counting readouts):** `index`, `pack`, `acount`, `xcount` for fast packing and barcode/associate counting.
-- 💻 **CLI + completion:** `op` / `oligopool` for pipelines, built-in `manual`/`cite`, and tab completion via `op complete --install`.
+- 🧠 **Algorithmic core:** orthogonally symmetric barcode design, adaptive decision trees for primer design, Scry barcode classification, and efficient read packing.
+- ⚡ **Performance:** scalable to very large libraries and high-throughput sequencing datasets, with published benchmarks demonstrating efficient design and analysis on commodity hardware (see paper).
+- 🧾 **DataFrame-centric:** modules operate on CSV/DataFrames and return updated tables plus `stats`; the CLI can emit JSON and supports reproducible stochastic runs (`random_seed`).
+- 🔁 **Iterative & multiplexed workflows:** patch mode for extending existing pools, cross-set barcode separation, and per-group primer design with cross-compatibility screening.
+- 📈 **Analysis mode:** fast read indexing, packing, and barcode/associate counting (`index`, `pack`, `acount`, `xcount`).
+- 💻 **CLI + library-first:** full-featured command-line pipelines **and** a composable Python API for interactive use in scripts and Jupyter notebooks.
 
 
 <a id="installation"></a>
@@ -89,7 +86,7 @@ You can import the library and use its various functions either in a script or i
 
 There are examples of a [design parser](https://github.com/ayaanhossain/oligopool/blob/master/examples/design-parser/design_parser.py) and an [analysis pipeline](https://github.com/ayaanhossain/oligopool/blob/master/examples/analysis-pipeline/analysis_pipeline.py) inside the [`examples`](https://github.com/ayaanhossain/oligopool/tree/master/examples) directory.
 
-A notebook demonstrating [`Oligopool Calculator` in action](https://github.com/ayaanhossain/oligopool/blob/master/examples/OligopoolCalculatorInAction.ipynb) is provided there as well. It shows in-depth use of all major design and analysis methods.
+A notebook demonstrating [`Oligopool Calculator` in action](https://github.com/ayaanhossain/oligopool/blob/master/examples/OligopoolCalculatorInAction.ipynb) is provided there as well.
 
 For quick iteration during Design Mode, use `lenstat` to monitor length/free space under an `oligo_length_limit`, and `verify` as a final QC pass before ordering/synthesis.
 
@@ -305,14 +302,12 @@ $ op complete --install bash     # or: zsh|fish
 > **CLI Notes**
 > - Commands that write a DataFrame require `--output-file` (library mode can return DataFrames in-memory).
 > - For `--primer-sequence-constraint` / `--motif-sequence-constraint`, pass an IUPAC string (`NNNN...`) or a quoted expression like `"'N'*20"` / `'GCC+N*20+CCG'`.
-> - Run `op COMMAND` to see all options (including `--patch-mode`, `--oligo-sets`, and `--cross-barcode-columns`).
+> - Run `op manual COMMAND` (e.g. `op manual barcode`) for details regarding `barcode` command.
 
 <a id="citation"></a>
 ## 📖 Citation
 
 If you use `Oligopool Calculator` in your research publication, please cite our paper.
-
-You can also run `op cite` / `oligopool cite`.
 
 ```
 Hossain A, Cetnar DP, LaFleur TL, McLellan JR, Salis HM.
@@ -322,19 +317,19 @@ ACS Synth Biol. 2024;13(12):4218-4232. doi:10.1021/acssynbio.4c00661
 
 BibTeX:
 ```bibtex
-@article{hossain2024oligopool,
+@article{Hossain2024Oligopool,
   title   = {Automated Design of Oligopools and Rapid Analysis of Massively Parallel Barcoded Measurements},
-  author  = {Hossain, Ayaan and Cetnar, David P. and LaFleur, Tyler L. and McLellan, James R. and Salis, Howard M.},
+  author  = {Hossain, Ayaan and Cetnar, Daniel P. and LaFleur, Travis L. and McLellan, James R. and Salis, Howard M.},
   journal = {ACS Synthetic Biology},
   year    = {2024},
   volume  = {13},
   number  = {12},
   pages   = {4218--4232},
-  doi     = {10.1021/acssynbio.4c00661},
+  doi     = {10.1021/acssynbio.4c00661}
 }
 ```
 
-You can read the complete article online for free at [ACS Synthetic Biology](https://doi.org/10.1021/acssynbio.4c00661).
+You can read the paper online for free at [ACS Synthetic Biology](https://doi.org/10.1021/acssynbio.4c00661).
 PMCID: `PMC11669329` • PMID: `39641628`
 
 <a id="license"></a>

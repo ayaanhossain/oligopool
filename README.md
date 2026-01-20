@@ -38,7 +38,6 @@ To learn more, please check out [our paper in ACS Synthetic Biology](https://pub
 
 - 🧬 **Design mode:** constraint-based design of primers, barcodes, motifs/anchors, and spacers, with repeat/background screening, assembly helpers (`split`, `pad`), and utilities (`merge`, `revcomp`, `lenstat`, `verify`, `final`).
 - 🔒 **Rich constraints:** IUPAC sequence constraints, motif exclusion, repeat screening, Hamming-distance barcodes, and primer thermodynamic constraints (including optional paired-primer Tm matching).
-- 🧠 **Algorithmic core:** orthogonally symmetric barcode design, adaptive decision trees for primer design, Scry barcode classification, and efficient read packing.
 - ⚡ **Performance:** scalable to very large libraries and high-throughput sequencing datasets, with published benchmarks demonstrating efficient design and analysis on commodity hardware (see paper).
 - 🧾 **DataFrame-centric:** modules operate on CSV/DataFrames and return updated tables plus `stats`; the CLI can emit JSON and supports reproducible stochastic runs (`random_seed`).
 - 🔁 **Iterative & multiplexed workflows:** patch mode for extending existing pools, cross-set barcode separation, and per-group primer design with cross-compatibility screening.

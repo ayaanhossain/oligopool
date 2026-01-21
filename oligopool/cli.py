@@ -2241,8 +2241,8 @@ def _get_parsers():
 
     _add_manual(cmdpar)
     _add_cite(cmdpar)
-    _add_background(cmdpar)
     _add_barcode(cmdpar)
+    _add_background(cmdpar)
     _add_primer(cmdpar)
     _add_motif(cmdpar)
     _add_spacer(cmdpar)

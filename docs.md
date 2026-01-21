@@ -41,6 +41,7 @@ Welcome to the Oligopool Calculator docs! Whether you're designing your first ba
 - [Workflows](#workflows)
 - [CLI Reference](#cli-reference)
 - [Tips & Tricks](#tips--tricks)
+- [Advanced Modules](#advanced-modules)
 - [Troubleshooting](#troubleshooting)
 
 ---
@@ -114,7 +115,7 @@ df, stats = op.barcode(..., patch_mode=True)
 
 Patch mode fills only missing values (`None`, `NaN`, `'-'`, empty). Your existing designs stay untouched. Your sanity stays intact.
 
-### Context Columns
+### Context Columns and Edge Effects
 
 Most design modules need to know what's next to the element being designed:
 
@@ -126,7 +127,7 @@ df, stats = op.barcode(
 )
 ```
 
-This prevents repeat collisions at element boundaries. Edge effects are real, folks.
+**Edge effects** occur when an undesired sequence (excluded motif, repeat) emerges at the fusion boundary when inserting an element. For example, inserting barcode `GAATT` next to context ending in `...G` creates `...GGAATT`, which contains `GAATTC` (EcoRI site) spanning the junction. Context columns let the algorithm check and prevent these.
 
 ### Reproducibility
 
@@ -844,6 +845,34 @@ op complete --install
 2. **Use fast barcode mode**: `barcode_type=0` is usually sufficient and much faster.
 
 3. **Pack once, count many**: The pack file can be reused across multiple counting runs.
+
+---
+
+## Advanced Modules
+
+[↑ Back to TOC](#table-of-contents)
+
+For power users who want to peek under the hood:
+
+### vectorDB
+
+LevelDB-based k-mer storage. Created by `background()`, but you can access it directly:
+
+```python
+db = op.vectorDB(path='ecoli_bg.oligopool.background')
+```
+
+Useful for inspecting or manipulating background databases.
+
+### Scry
+
+1-nearest-neighbor barcode classifier. Powers `acount`/`xcount` internally:
+
+```python
+classifier = op.Scry(barcodes=['ATGC...', 'GCTA...'], errors=1)
+```
+
+Useful for building custom counting pipelines or debugging classification issues.
 
 ---
 

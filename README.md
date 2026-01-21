@@ -38,10 +38,10 @@ To learn more, please check out [our paper in ACS Synthetic Biology](https://pub
 ## ✨ Features
 
 - 🧬 **Design mode:** constraint-based design of primers, barcodes, motifs/anchors, and spacers, with background screening, assembly helpers (`split`, `pad`), and utilities (`merge`, `revcomp`, `lenstat`, `verify`, `final`).
+- 🔁 **Iterative & multiplexed workflows:** patch mode for extending existing pools, cross-set barcode separation, and per-group primer design with cross-compatibility screening.
 - 📈 **Analysis mode:** fast activity quantification with read indexing, packing, and barcode/associate counting (`index`, `pack`, `acount`, `xcount`) extensible with callback methods (via Python library).
 - ⚡ **Performance:** scalable to very large libraries and high-throughput sequencing datasets, with published benchmarks demonstrating efficient design and analysis on commodity hardware (see paper).
 - 🔒 **Rich constraints:** IUPAC sequence constraints, motif exclusion, repeat screening, Hamming-distance barcodes, and primer thermodynamic constraints (including optional paired-primer Tm matching).
-- 🔁 **Iterative & multiplexed workflows:** patch mode for extending existing pools, cross-set barcode separation, and per-group primer design with cross-compatibility screening.
 - 📊 **DataFrame-centric:** modules operate on CSV/DataFrames and return updated tables plus `stats`; the CLI can emit JSON and supports reproducible stochastic runs (`random_seed`).
 - 💻 **CLI + library-first:** full-featured command-line pipelines **and** a composable Python API for interactive use in scripts and Jupyter notebooks.
 

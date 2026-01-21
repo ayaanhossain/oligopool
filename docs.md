@@ -86,10 +86,15 @@ That's it. You just designed unique barcodes with guaranteed Hamming distance. N
 
 ### The DataFrame Flow
 
-Most modules follow one of these patterns:
+Most modules return both a DataFrame and a stats dictionary:
 
 ```python
 out_df, stats = op.barcode(input_data=df, ...)
+```
+
+A few modules only return stats (no DataFrame to speak of):
+
+```python
 stats = op.verify(input_data=df, ...)
 ```
 
@@ -183,19 +188,30 @@ df, stats = op.barcode(
 )
 ```
 
-**Excluded motifs** (restriction sites, repetitive sequences, etc.):
-```python
-# Simple list - applied globally to all variants
-df, stats = op.barcode(..., excluded_motifs=['GAATTC', 'GGATCC'])
+**Excluded motifs** let you ban restriction sites, repetitive sequences, or anything else you don't want appearing in your barcodes.
 
-# Via DataFrame - just needs an 'Exmotif' column
-exmotifs_df = pd.DataFrame({
-    'Exmotif': ['GAATTC', 'GGATCC', 'AAGCTT']  # All excluded from ALL variants
-})
-df, stats = op.barcode(..., excluded_motifs=exmotifs_df)  # Or 'exmotifs.csv'
+The simplest approach - just pass a list:
+
+```python
+df, stats = op.barcode(..., excluded_motifs=['GAATTC', 'GGATCC'])
 ```
 
-> **Note**: Excluded motifs are applied globally to all variants (no per-variant exclusion). The DataFrame/CSV only needs an `Exmotif` column, and you can also pass a FASTA path (each record treated as an excluded motif).
+Got a longer list? Use a DataFrame or CSV with an `Exmotif` column:
+
+```python
+exmotifs_df = pd.DataFrame({
+    'Exmotif': ['GAATTC', 'GGATCC', 'AAGCTT']
+})
+df, stats = op.barcode(..., excluded_motifs=exmotifs_df)
+```
+
+You can also point to a CSV file or even a FASTA (each record becomes an excluded motif):
+
+```python
+df, stats = op.barcode(..., excluded_motifs='restriction_sites.csv')
+```
+
+> **Note**: Excluded motifs are applied globally to all variants (no per-variant exclusion).
 
 **Pro tips**:
 - Start with `barcode_type=0` (fast). Switch to `1` only if you're packing barcodes tight.
@@ -286,49 +302,55 @@ df, stats = op.primer(
 )
 ```
 
-**Paired primer design** (Tm matching within 1°C):
-```python
-# First, design the forward primer
-df, stats = op.primer(..., primer_column='FwdPrimer', primer_type=0)
+**Paired primer design** ensures your forward and reverse primers have matched Tm (within 1°C). Design the inner primer first:
 
-# Then design reverse primer matched to forward
+```python
+df, stats = op.primer(..., primer_column='FwdPrimer', primer_type=0)
+```
+
+Then design the outer primer, telling it to match Tm with the first:
+
+```python
 df, stats = op.primer(
     ...,
     primer_column='RevPrimer',
     primer_type=1,
-    paired_primer_column='FwdPrimer',  # Match Tm to this
+    paired_primer_column='FwdPrimer',
 )
 ```
 
-**Per-set primers** (for multiplexed pools):
+**Per-set primers** let you design different primers for different groups in your pool. Pass group labels as a list (aligned to input rows):
+
 ```python
-# Via list (aligned to input rows)
 df, stats = op.primer(
     ...,
-    oligo_sets=['SetA', 'SetA', 'SetB', 'SetB'],  # Group labels
+    oligo_sets=['SetA', 'SetA', 'SetB', 'SetB'],
 )
+```
 
-# Via DataFrame - IDs must match input DataFrame!
+Or use a DataFrame with `ID` and `OligoSet` columns (IDs must match your input):
+
+```python
 sets_df = pd.DataFrame({
-    'ID': ['V1', 'V2', 'V3', 'V4'],               # Must match input_data IDs
+    'ID': ['V1', 'V2', 'V3', 'V4'],
     'OligoSet': ['SetA', 'SetA', 'SetB', 'SetB']
 })
-df, stats = op.primer(
-    ...,
-    oligo_sets=sets_df,                          # Or 'sets.csv'
-)
+df, stats = op.primer(..., oligo_sets=sets_df)
 ```
 
-**Background screening**:
+**Background screening** keeps your primers from binding to off-target sequences (host genome, plasmid backbone, etc.). First, build a background database:
+
 ```python
-# First build a background database
 op.background(
-    input_data='genome.csv',
+    input_data='genome.fasta',
     maximum_repeat_length=15,
     output_directory='my_background'
 )
+```
 
-# Then use it
+Then point to it during primer design:
+
+```python
 df, stats = op.primer(
     ...,
     background_directory='my_background',
@@ -399,22 +421,26 @@ df, stats = op.primer(
 - Regulatory elements with sequence constraints
 - Any fixed or semi-fixed sequence insertion
 
+For per-variant motifs (different sequence for each row), use `motif_type=0`:
+
 ```python
-# Per-variant motifs (different for each row)
 df, stats = op.motif(
     input_data=df,
     oligo_length_limit=200,
-    motif_sequence_constraint='NNNNNNNN',  # 8N = any 8-mer
+    motif_sequence_constraint='NNNNNNNN',
     maximum_repeat_length=6,
     motif_column='Spacer',
-    motif_type=0,                          # 0=per-variant
+    motif_type=0,
     left_context_column='BC1',
 )
+```
 
-# Constant anchor (same for all rows - great for indexing!)
+For constant anchors (same sequence for all rows - great for indexing!), use `motif_type=1`:
+
+```python
 df, stats = op.motif(
     ...,
-    motif_type=1,                          # 1=constant anchor
+    motif_type=1,
     motif_column='BC1_Prefix',
 )
 ```
@@ -473,38 +499,39 @@ df, stats = op.motif(
 
 **When to use it**: Your oligos need to hit a specific length (e.g., synthesis array constraints).
 
+Need a fixed-length spacer? Just say how long:
+
 ```python
-# Fixed length spacer
 df, stats = op.spacer(
     input_data=df,
     oligo_length_limit=200,
     maximum_repeat_length=8,
     spacer_column='Spacer3',
-    spacer_length=15,                      # Fixed 15 bp
+    spacer_length=15,
     left_context_column='Gene',
 )
+```
 
-# Auto-fill to oligo_length_limit
-df, stats = op.spacer(
-    ...,
-    spacer_length=None,                    # Auto-size to fill remaining space
-)
+Want spacers to auto-fill whatever space remains? Leave `spacer_length` as `None`:
 
-# Per-variant lengths (list)
-df, stats = op.spacer(
-    ...,
-    spacer_length=[10, 15, 12, 8],         # Different per row
-)
+```python
+df, stats = op.spacer(..., spacer_length=None)
+```
 
-# Per-variant lengths (DataFrame) - IDs must match input DataFrame!
+Need different lengths for different variants? Pass a list (aligned to input rows):
+
+```python
+df, stats = op.spacer(..., spacer_length=[10, 15, 12, 8])
+```
+
+Or use a DataFrame with `ID` and `Length` columns:
+
+```python
 lengths_df = pd.DataFrame({
-    'ID': ['V1', 'V2', 'V3', 'V4'],         # Must match input_data IDs
+    'ID': ['V1', 'V2', 'V3', 'V4'],
     'Length': [10, 15, 12, 8]
 })
-df, stats = op.spacer(
-    ...,
-    spacer_length=lengths_df,              # Or 'lengths.csv'
-)
+df, stats = op.spacer(..., spacer_length=lengths_df)
 ```
 
 <details>
@@ -561,26 +588,30 @@ df, stats = op.spacer(
 
 **When to use it**: You want primers that won't bind to host genome, plasmid backbone, etc.
 
-```python
-# From a FASTA file (genome, plasmid, etc.)
-stats = op.background(
-    input_data='ecoli_genome.fasta',       # Also supports .fa, .fna, .gz
-    maximum_repeat_length=15,              # Screen k-mers up to this length
-    output_directory='ecoli_bg',           # Creates ecoli_bg.oligopool.background
-)
+Build a background from a FASTA file (genome, plasmid, whatever you want to avoid):
 
-# Or from a CSV/DataFrame with 'Sequence' column
+```python
+stats = op.background(
+    input_data='ecoli_genome.fasta',
+    maximum_repeat_length=15,
+    output_directory='ecoli_bg',
+)
+```
+
+Works with `.fa`, `.fna`, and gzipped files too. Prefer CSV? Just include a `Sequence` column:
+
+```python
 stats = op.background(
     input_data='plasmid_sequences.csv',
     maximum_repeat_length=15,
     output_directory='plasmid_bg',
 )
+```
 
-# Now use it in primer design
-df, stats = op.primer(
-    ...,
-    background_directory='ecoli_bg',
-)
+Then use your background database during primer design:
+
+```python
+df, stats = op.primer(..., background_directory='ecoli_bg')
 ```
 
 <details>
@@ -1159,25 +1190,28 @@ counts_df, stats = op.acount(
 
 **When to use it**: Pure barcode counting (single or multiple indices), combinatorial barcode designs (BC1 × BC2).
 
+For single barcode counting, point to one index:
+
 ```python
-# Single barcode index
 df, stats = op.xcount(
     index_files=['bc1_index'],
     pack_file='sample',
     count_file='barcode_counts',
 )
+```
 
-# Multiple barcode indices (combinatorial)
+For combinatorial counting (BC1 × BC2), list multiple indices:
+
+```python
 df, stats = op.xcount(
     index_files=['bc1_index', 'bc2_index'],
     pack_file='sample',
     count_file='combo_counts',
-    mapping_type=1,                          # 0=fast, 1=sensitive
-    barcode_errors=-1,                       # Auto-infer
+    mapping_type=1,
 )
 ```
 
-Output includes all observed combinations, with `'-'` for missing barcodes in partial reads.
+Output includes all observed combinations. Reads missing a barcode show `'-'` for that position.
 
 **acount vs xcount**: Use `acount` when you need barcode+variant association verification; use `xcount` for barcode-only counting (single or combinatorial).
 
@@ -1232,14 +1266,18 @@ counts_df, stats = op.xcount(
 
 ### Basic Library Design
 
+Start with your variants in a CSV (must have an `ID` column):
+
 ```python
 import pandas as pd
 import oligopool as op
 
-# 1. Start with variants
-df = pd.read_csv('variants.csv')  # Must have 'ID' column
+df = pd.read_csv('variants.csv')
+```
 
-# 2. Add forward primer
+Add a forward primer. It'll sit to the left of your variants:
+
+```python
 df, _ = op.primer(
     input_data=df,
     oligo_length_limit=200,
@@ -1251,8 +1289,11 @@ df, _ = op.primer(
     primer_column='FwdPrimer',
     right_context_column='Variant',
 )
+```
 
-# 3. Add barcode
+Add barcodes between the primer and variants:
+
+```python
 df, _ = op.barcode(
     input_data=df,
     oligo_length_limit=200,
@@ -1263,8 +1304,11 @@ df, _ = op.barcode(
     left_context_column='FwdPrimer',
     right_context_column='Variant',
 )
+```
 
-# 4. Add reverse primer (Tm-matched)
+Add a reverse primer on the other side, Tm-matched to the forward:
+
+```python
 df, _ = op.primer(
     input_data=df,
     oligo_length_limit=200,
@@ -1277,23 +1321,30 @@ df, _ = op.primer(
     left_context_column='Variant',
     paired_primer_column='FwdPrimer',
 )
+```
 
-# 5. Check length
+Check that everything fits within your length budget:
+
+```python
 op.lenstat(input_data=df, oligo_length_limit=200)
+```
 
-# 6. Verify and finalize
+Run QC, save your annotated design, and finalize for synthesis:
+
+```python
 op.verify(input_data=df, oligo_length_limit=200)
-# Save the annotated library (for indexing/counting) before `final`, which drops annotation columns.
-df.to_csv('library_design.csv', index=False)
+
+df.to_csv('library_design.csv', index=False)  # Keep this for indexing later!
 final_df, _ = op.final(input_data=df, output_file='library_for_synthesis')
 ```
 
 ### Analysis Pipeline
 
+First, index your barcodes. The anchors (constant flanking sequences) help locate barcodes in reads:
+
 ```python
 import oligopool as op
 
-# 1. Index your barcodes
 op.index(
     barcode_data='library_design.csv',
     barcode_column='BC1',
@@ -1303,8 +1354,11 @@ op.index(
     associate_suffix_column='RevPrimer',
     index_file='bc1_assoc',
 )
+```
 
-# 2. Pack your reads
+Pack your sequencing reads (filters, deduplicates, and optionally merges paired-ends):
+
+```python
 op.pack(
     r1_fastq_file='experiment_R1.fq.gz',
     r2_fastq_file='experiment_R2.fq.gz',
@@ -1315,8 +1369,11 @@ op.pack(
     pack_type=1,
     pack_file='experiment',
 )
+```
 
-# 3. Count!
+Count! This verifies barcode-variant associations:
+
+```python
 counts_df, stats = op.acount(
     index_file='bc1_assoc',
     pack_file='experiment',
@@ -1332,20 +1389,27 @@ print(counts_df)
 
 [↑ Back to TOC](#table-of-contents)
 
-Every module is available via command line:
+Every module is available via command line. See all commands:
 
 ```bash
-# See all commands
 op
+```
 
-# Get help on a specific command
+Get help on a specific command (shows options and defaults):
+
+```bash
 op barcode
+```
 
-# Read the manual
+Read the full manual for a command:
+
+```bash
 op manual barcode
-op cite
+```
 
-# Run a command
+Run a command:
+
+```bash
 op barcode \
     --input-data variants.csv \
     --oligo-length-limit 200 \
@@ -1357,7 +1421,8 @@ op barcode \
     --output-file with_barcodes
 ```
 
-**Install tab completion** (highly recommended):
+Install tab completion (you'll thank yourself later):
+
 ```bash
 op complete --install
 ```
@@ -1433,13 +1498,29 @@ For power users who want to peek under the hood:
 
 ### vectorDB
 
-LevelDB-based k-mer storage. Created by `background()`, but you can access it directly:
+LevelDB-based k-mer storage. Created by `background()`, but you can access it directly.
+
+Open or create a database:
 
 ```python
 db = op.vectorDB(
     path='ecoli_bg.oligopool.background',
-    maximum_repeat_length=15,  # ignored if reopening an existing DB
+    maximum_repeat_length=15,
 )
+```
+
+Check if a sequence has k-mers in the database:
+
+```python
+if 'ATGCATGCATGC' in db:
+    print("Found matching k-mers!")
+```
+
+Add or remove sequences:
+
+```python
+db.add('ATGCATGCATGC')
+db.remove('ATGCATGCATGC')
 ```
 
 Useful for inspecting or manipulating background databases.
@@ -1472,13 +1553,25 @@ db.drop()                 # delete DB from disk
 
 ### Scry
 
-1-nearest-neighbor barcode classifier. Powers `acount`/`xcount` internally:
+1-nearest-neighbor barcode classifier. Powers `acount`/`xcount` internally.
+
+Create and train a model with your barcodes:
 
 ```python
 model = op.Scry()
-model.train(X=['ATGC...','GCTA...'], Y=[0,1], n=8, k=6, t=1)
-model.prime(t=1, mode=0)   # 0 fast, 1 sensitive
-label, score = model.predict('ATGC....')
+model.train(X=['ATGCATGC', 'GCTAGCTA'], Y=['bc1', 'bc2'], n=8, k=6, t=1)
+```
+
+Prime for prediction (set error tolerance and mode):
+
+```python
+model.prime(t=1, mode=0)  # 0=fast, 1=sensitive
+```
+
+Predict labels:
+
+```python
+label, score = model.predict('ATGCATGC')  # Returns ('bc1', 1.0)
 ```
 
 Useful for building custom counting pipelines or debugging classification issues.

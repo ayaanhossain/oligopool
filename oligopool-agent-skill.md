@@ -4,7 +4,8 @@ This document is designed for AI assistants to understand and help users with ol
 
 ## Package Overview
 
-**Oligopool Calculator** is a Python library for designing and analyzing oligonucleotide pool (oligopool) libraries used in massively parallel reporter assays (MPRAs) and similar high-throughput experiments.
+**Oligopool Calculator** is a Python library for designing and analyzing oligonucleotide pool (oligopool)
+libraries used in massively parallel reporter assays (MPRAs) and similar high-throughput experiments.
 
 **Core workflow:**
 1. **Design Mode**: Build a library of oligos with barcodes, primers, motifs, and spacers
@@ -23,32 +24,40 @@ import oligopool as op
 ## Key Concepts
 
 ### DataFrame-Centric Design
-- All modules operate on pandas DataFrames
-- Input: DataFrame with `ID` column + DNA sequence columns
-- Output: `(updated_df, stats_dict)` tuple
-- Chain modules to build libraries iteratively
+- Most design/transform modules operate on pandas DataFrames and return `(out_df, stats_dict)`
+- Input is a CSV path or DataFrame with an `ID` primary-key column (and DNA sequence columns)
+- Some modules return only a `stats` dict (no DataFrame): `background`, `lenstat`, `verify`, `index`, `pack`
+- Counting modules return `(counts_df, stats_dict)`: `acount`, `xcount`
+- When a DataFrame is passed with `ID` already set as the index, the library preserves that on return;
+  otherwise it returns a DataFrame with an explicit `ID` column
+- Chain modules to build libraries iteratively (new columns) and use Patch Mode to extend pools (new rows)
 
 ### The Stats Dictionary
 Every module returns a `stats` dict:
 ```python
 stats = {
     'status': True/False,      # Success or failure
-    'basis': 'completed',      # Reason for status (see common values below)
+    'basis': 'solved',         # Short reason code (see common values below)
     'step': 1,                 # Pipeline step number
     'step_name': 'designing',  # Step name
-    'module': 'barcode',       # Module name
-    'input_rows': 100,         # Input row count
-    'output_rows': 100,        # Output row count
     'vars': {...},             # Module-specific variables
     'warns': {...},            # Any warnings
+    'module': 'barcode',       # Module name (standardized)
+    'input_rows': 100,         # Input row count (standardized)
+    'output_rows': 100,        # Output row count (standardized)
+    'random_seed': None,       # Present for stochastic modules
 }
 ```
 
 **Common `basis` values:**
-- `'completed'` - Success
-- `'infeasible'` - Design constraints too strict (relax parameters)
-- `'exhausted'` - Search space exhausted (increase length, reduce distance)
-- `'impossible'` - Mathematically impossible (check constraints)
+- `'solved'` - A valid solution was found (or a deterministic step completed successfully)
+- `'complete'` - Early-success (e.g., Patch Mode with no missing values to fill)
+- `'unsolved'` - Search finished without reaching the target; check `stats['vars']` for exhaustion flags
+- `'infeasible'` - Constraints/inputs make the requested design impossible at a given step
+
+**Important**:
+- Invalid argument types/paths/columns typically raise `RuntimeError('Invalid Argument Input(s).')` and do
+  not return `stats`. Algorithmic failures return `stats['status'] = False` with a descriptive `step_name`.
 
 ### The Oligo Architecture
 A typical oligo has this structure:
@@ -64,7 +73,10 @@ A typical oligo has this structure:
 ### Context Columns and Edge Effects
 Most modules require `left_context_column` and/or `right_context_column`.
 
-**Edge Effect**: The emergence of an undesired sequence (excluded motif, repeat, etc.) at the fusion boundary when inserting an element between or next to existing sequence contexts. For example, inserting barcode `GAATT` next to context ending in `...G` creates `...GGAATT`, which contains `GAATTC` (EcoRI site) spanning the junction.
+**Edge Effect**: The emergence of an undesired sequence (excluded motif, repeat, etc.) at the fusion boundary
+when inserting an element between or next to existing sequence contexts.
+For example, inserting barcode `GAATT` next to context ending in `...G` creates `...GGAATT`, which contains
+`GAATTC` (EcoRI site) spanning the junction.
 
 Context columns prevent edge effects by:
 - Checking that no excluded motifs emerge at element-context junctions
@@ -78,6 +90,29 @@ Use `patch_mode=True` to extend existing pools:
 - Useful for iterative pool expansion
 
 ---
+
+## Working Modes (Notebook / Script / CLI)
+
+### Notebook mode (Jupyter)
+- Prefer the Python API (`import oligopool as op`) so you can pass/inspect DataFrames directly.
+- Keep `verbose=True` while iterating; use `lenstat` mid-pipeline and `verify` before ordering.
+- Use `random_seed` in stochastic modules (`barcode`, `primer`, `motif`, `spacer`, `split`, `pad`) for reproducible results.
+- Read docs inline: `help(op)`, `help(op.barcode)`, etc.
+
+### Scripting mode (Python)
+- Treat invalid arguments as exceptions: modules raise `RuntimeError('Invalid Argument Input(s).')` during parsing.
+- Treat algorithmic failures as data: check `stats['status']` and `stats['basis']` and branch accordingly.
+- For file-based pipelines, pass `output_file=...` to write CSVs; outputs always include an explicit `ID` column
+  and omit the pandas index column.
+- Use Patch Mode (`patch_mode=True`) to extend pools without overwriting existing designs.
+
+### CLI mode (`op` / `oligopool`)
+- The CLI is best for reproducible, file-first pipelines (e.g., in bash scripts or workflows).
+- DataFrame-producing commands require `--output-file`; `--quiet` suppresses verbose printing.
+- `--stats-json` prints the stats dictionary as JSON to stdout; `--stats-file` writes stats JSON to a file.
+- Callbacks for `acount`/`xcount` are Python-only; the CLI always runs with `callback=None`.
+- Discover options and docs with `op COMMAND` and `op manual COMMAND`; print citation info with `op cite`;
+  enable completion via `op complete --install`.
 
 ## Design Mode - Full API Reference
 
@@ -115,6 +150,8 @@ df, stats = op.barcode(
 - Use `barcode_type=0` for large libraries (faster)
 - Use `barcode_type=1` for maximum barcode diversity
 - For multi-barcode designs, use `cross_barcode_columns` to ensure BC2 is separated from BC1
+- Cross-set separation is strict: provide both `cross_barcode_columns` and `minimum_cross_distance`;
+  all cross-set barcode values must already be A/T/G/C strings of length `barcode_length`.
 
 ---
 
@@ -135,7 +172,7 @@ df, stats = op.primer(
     primer_column,                 # str - Column name for designed primer
 
     # Optional
-    output_file=None,              # str - Output CSV path
+    output_file=None,              # str - Output CSV path (required for CLI, optional for library)
     left_context_column=None,      # str - Column for left DNA context
     right_context_column=None,     # str - Column for right DNA context
     patch_mode=False,              # bool - Fill only missing values
@@ -172,7 +209,7 @@ df, stats = op.motif(
     motif_column,                  # str - Column name for designed motif
 
     # Optional
-    output_file=None,              # str - Output CSV path
+    output_file=None,              # str - Output CSV path (required for CLI, optional for library)
     motif_type=0,                  # int - 0=per-variant motifs, 1=constant anchor for all
     left_context_column=None,      # str - Column for left DNA context
     right_context_column=None,     # str - Column for right DNA context
@@ -205,7 +242,7 @@ df, stats = op.spacer(
     spacer_column,                 # str - Column name for designed spacer
 
     # Optional
-    output_file=None,              # str - Output CSV path
+    output_file=None,              # str - Output CSV path (required for CLI, optional for library)
     spacer_length=None,            # int | list | str | pd.DataFrame - Fixed, per-variant, or None for auto-fill
     left_context_column=None,      # str - Column for left DNA context
     right_context_column=None,     # str - Column for right DNA context
@@ -267,8 +304,9 @@ df, stats = op.split(
     maximum_overlap_length,        # int - Maximum overlap length
 
     # Optional
-    output_file=None,              # str - Output CSV path
+    output_file=None,              # str - Output CSV path (required for CLI, optional for library)
     verbose=True,                  # bool - Print progress
+    random_seed=None,              # int - RNG seed for reproducibility
 )
 ```
 
@@ -284,23 +322,26 @@ df, stats = op.split(
 df, stats = op.pad(
     # Required
     input_data,                    # str | pd.DataFrame - DataFrame from split()
+    oligo_length_limit,            # int - Maximum padded oligo length (≥ 60)
     split_column,                  # str - Which fragment column to pad
     typeIIS_system,                # str - Restriction enzyme (e.g., 'BsaI', 'BbsI', 'BsmBI')
+    minimum_melting_temperature,   # float - Pad primer minimum Tm (≥ 25°C)
+    maximum_melting_temperature,   # float - Pad primer maximum Tm (≤ 95°C)
+    maximum_repeat_length,         # int - Max repeat length (between 6 and 20)
 
     # Optional
-    oligo_length_limit=None,       # int - Maximum padded oligo length
-    minimum_melting_temperature=None,  # float - Pad primer minimum Tm
-    maximum_melting_temperature=None,  # float - Pad primer maximum Tm
-    maximum_repeat_length=None,    # int - Max repeat length
-    output_file=None,              # str - Output CSV path
+    output_file=None,              # str - Output CSV path (required for CLI, optional for library)
     verbose=True,                  # bool - Print progress
+    random_seed=None,              # int - RNG seed for reproducibility
 )
 ```
 
 **When to use**: After split, for each fragment.
 
 **Supported Type IIS enzymes (34 total):**
-`AcuI`, `AlwI`, `BbsI`, `BccI`, `BceAI`, `BciVI`, `BcoDI`, `BmrI`, `BpuEI`, `BsaI`, `BseRI`, `BsmAI`, `BsmBI`, `BsmFI`, `BsmI`, `BspCNI`, `BspQI`, `BsrDI`, `BsrI`, `BtgZI`, `BtsCI`, `BtsI`, `BtsIMutI`, `EarI`, `EciI`, `Esp3I`, `FauI`, `HgaI`, `HphI`, `HpyAV`, `MlyI`, `MnlI`, `SapI`, `SfaNI`
+`AcuI`, `AlwI`, `BbsI`, `BccI`, `BceAI`, `BciVI`, `BcoDI`, `BmrI`, `BpuEI`, `BsaI`, `BseRI`, `BsmAI`,
+`BsmBI`, `BsmFI`, `BsmI`, `BspCNI`, `BspQI`, `BsrDI`, `BsrI`, `BtgZI`, `BtsCI`, `BtsI`, `BtsIMutI`,
+`EarI`, `EciI`, `Esp3I`, `FauI`, `HgaI`, `HphI`, `HpyAV`, `MlyI`, `MnlI`, `SapI`, `SfaNI`
 
 For unsupported enzymes, design primers/sites manually with `primer` or `motif`.
 
@@ -314,12 +355,12 @@ For unsupported enzymes, design primers/sites manually with `primer` or `motif`.
 df, stats = op.merge(
     # Required
     input_data,                    # str | pd.DataFrame - CSV path or DataFrame
-    left_context_column,           # str - First column to merge
-    right_context_column,          # str - Last column to merge
     merge_column,                  # str - Name for merged column
 
     # Optional
-    output_file=None,              # str - Output CSV path
+    output_file=None,              # str - Output CSV path (required for CLI, optional for library)
+    left_context_column=None,      # str - First column to merge (defaults to first column if None)
+    right_context_column=None,     # str - Last column to merge (defaults to last column if None)
     verbose=True,                  # bool - Print progress
 )
 ```
@@ -336,11 +377,11 @@ df, stats = op.merge(
 df, stats = op.revcomp(
     # Required
     input_data,                    # str | pd.DataFrame - CSV path or DataFrame
-    left_context_column,           # str - First column to reverse complement
-    right_context_column,          # str - Last column to reverse complement
 
     # Optional
-    output_file=None,              # str - Output CSV path
+    output_file=None,              # str - Output CSV path (required for CLI, optional for library)
+    left_context_column=None,      # str - First column to revcomp (defaults to first column if None)
+    right_context_column=None,     # str - Last column to revcomp (defaults to last column if None)
     verbose=True,                  # bool - Print progress
 )
 ```
@@ -358,8 +399,7 @@ stats = op.lenstat(
     # Required
     input_data,                    # str | pd.DataFrame - CSV path or DataFrame
 
-    # Optional
-    oligo_length_limit=None,       # int - Reference length limit for free space calculation
+    oligo_length_limit,            # int - Reference length limit for free space calculation (≥ 4)
     verbose=True,                  # bool - Print progress
 )
 ```
@@ -398,12 +438,13 @@ df, stats = op.final(
     input_data,                    # str | pd.DataFrame - CSV path or DataFrame
 
     # Optional
-    output_file=None,              # str - Output CSV path
+    output_file=None,              # str - Output CSV path (required for CLI, optional for library)
     verbose=True,                  # bool - Print progress
 )
 ```
 
-**Output**: DataFrame with 'ID', 'CompleteOligo', and 'OligoLength' columns.
+**Output**: DataFrame with `CompleteOligo` and `OligoLength` (plus an explicit `ID` column unless the caller
+provided `ID` as the DataFrame index).
 
 **When to use**: Final step before synthesis.
 
@@ -436,8 +477,9 @@ stats = op.index(
 ```
 
 **Tips**:
-- For `acount`, must specify `associate_column` and at least one associate prefix/suffix
-- Anchors should match sequences designed with `motif(motif_type=1, ...)`
+- Prefix/suffix anchors must be constant (single unique sequence, ≥6 bp) and adjacent to the indexed column.
+- For `acount`, specify `associate_data`/`associate_column` and at least one constant adjacent associate prefix/suffix.
+- Design anchors with `motif(motif_type=1, ...)` (or use universal primers if they are constant).
 
 ---
 
@@ -469,6 +511,7 @@ stats = op.pack(
 
 **Tips**:
 - For single-end reads, use R1 arguments only
+- For paired-end merging (`pack_type=1`), provide both `r2_fastq_file` and `r2_read_type`
 - For pre-merged reads (e.g., from FLASH), use as single-end
 
 ---
@@ -495,7 +538,7 @@ df, stats = op.acount(
 )
 ```
 
-**Output columns**: ID, BarcodeCounts, AssociationCounts
+**Output columns**: one `<indexname>.ID` column per index (typically one), plus `BarcodeCounts`, `AssociationCounts`
 
 **When to use**:
 - Validating synthesis accuracy
@@ -525,7 +568,7 @@ df, stats = op.xcount(
 )
 ```
 
-**Output**: Columns for each barcode ID + CombinatorialCounts. Missing barcodes shown as '-'.
+**Output**: one `<indexname>.ID` column per index, plus `CombinatorialCounts`. Missing barcodes shown as `'-'`.
 
 **When to use**:
 - Pure barcode counting (single index)
@@ -761,7 +804,27 @@ df, _ = op.barcode(
 
 ### Analysis Pipeline
 ```python
-# 1. Index barcodes
+# 1. Build index files
+#
+# IMPORTANT: `index()` requires at least one constant (library-wide) prefix/suffix anchor
+# for barcodes (and for associates, if used). These anchors must be:
+#   - adjacent to the indexed column in the DataFrame
+#   - a single unique sequence across the library (≥ 6 bp)
+#
+# Example architecture for association counting:
+#   Primer1 | BC1 | Variant | Primer2
+op.index(
+    barcode_data='library.csv',
+    barcode_column='BC1',
+    barcode_prefix_column='Primer1',
+    associate_data='library.csv',
+    associate_column='Variant',
+    associate_suffix_column='Primer2',
+    index_file='bc1_assoc_idx',
+)
+
+# Example architecture for combinatorial barcode counting:
+#   Primer1 | BC1 | ...payload... | BC2 | Primer2
 op.index(
     barcode_data='library.csv',
     barcode_column='BC1',
@@ -772,11 +835,7 @@ op.index(
 op.index(
     barcode_data='library.csv',
     barcode_column='BC2',
-    barcode_prefix_column='Variant',
     barcode_suffix_column='Primer2',
-    associate_data='library.csv',
-    associate_column='Variant',
-    associate_suffix_column='Variant',
     index_file='bc2_idx',
 )
 
@@ -794,8 +853,8 @@ op.pack(
 
 # 3a. Association counting (verify barcode-variant coupling)
 ac_df, _ = op.acount(
-    index_file='bc2_idx.oligopool.index',
-    pack_file='reads.oligopool.pack',
+    index_file='bc1_assoc_idx',
+    pack_file='reads',
     count_file='association_counts',
     mapping_type=1,
 )
@@ -803,7 +862,7 @@ ac_df, _ = op.acount(
 # 3b. Combinatorial counting (BC1 × BC2)
 xc_df, _ = op.xcount(
     index_files=['bc1_idx', 'bc2_idx'],
-    pack_file='reads.oligopool.pack',
+    pack_file='reads',
     count_file='combo_counts',
     mapping_type=1,
 )
@@ -918,6 +977,15 @@ v3,TTAACCGGTTAACCGG
 
 ### Output Files
 - `.oligopool.background` - k-mer database directory
+- `.oligopool.primer.csv` - primer-annotated library CSV
+- `.oligopool.barcode.csv` - barcode-annotated library CSV
+- `.oligopool.motif.csv` - motif/anchor-annotated library CSV
+- `.oligopool.spacer.csv` - spacer-annotated library CSV
+- `.oligopool.split.csv` - split-fragment library CSV
+- `.oligopool.pad.csv` - padded fragment library CSV
+- `.oligopool.merge.csv` - merged element library CSV
+- `.oligopool.revcomp.csv` - reverse-complemented library CSV
+- `.oligopool.final.csv` - synthesis-ready concatenated library CSV
 - `.oligopool.index` - barcode index file
 - `.oligopool.pack` - packed reads file
 - `.oligopool.acount.csv` - association counts
@@ -932,8 +1000,9 @@ Every module is available via command line:
 ```bash
 # Get help
 op                           # List all commands
-op barcode --help            # Command-specific help
+op barcode                   # Command-specific options (run without args)
 op manual barcode            # Detailed documentation
+op cite                      # Citation information
 
 # Design
 op barcode \
@@ -944,7 +1013,7 @@ op barcode \
     --maximum-repeat-length 6 \
     --barcode-column BC1 \
     --left-context-column Variant \
-    --output-file with_barcodes.csv
+    --output-file with_barcodes
 
 # Analysis
 op index \
@@ -955,13 +1024,15 @@ op index \
 
 op pack \
     --r1-fastq-file reads_R1.fq.gz \
+    --r2-fastq-file reads_R2.fq.gz \
     --r1-read-type 0 \
+    --r2-read-type 1 \
     --pack-type 1 \
     --pack-file reads
 
 op xcount \
-    --index-files bc1_idx bc2_idx \
-    --pack-file reads.oligopool.pack \
+    --index-files bc1_idx \
+    --pack-file reads \
     --count-file counts
 
 # Tab completion (recommended)
@@ -969,9 +1040,14 @@ op complete --install
 ```
 
 ### CLI-Specific Notes
-- `--output-file` is required (unlike Python API where it's optional)
+- DataFrame-producing commands require `--output-file` (e.g., `barcode`, `primer`, `motif`, `spacer`, `split`,
+  `pad`, `merge`, `revcomp`, `final`). Stats-only commands do not (`background`, `lenstat`, `verify`, `index`, `pack`).
+- Most output paths auto-append a suffix if missing (e.g., `.oligopool.barcode.csv`), so prefer using a basename like
+  `--output-file my_library` to avoid doubled extensions.
+- Patch Mode is enabled via `--patch-mode` on element modules (fills missing values without overwriting existing ones).
 - Sequence constraints: `--primer-sequence-constraint "'N'*20"` or `--primer-sequence-constraint GCC+N*20+CCG`
 - Callbacks are Python-only (not available in CLI)
+- Exit codes: `0` success, `1` runtime error, `404` CLI argument parsing error (e.g., missing required args).
 
 ---
 
@@ -1022,7 +1098,9 @@ op complete --install
 
 **"Input requirements?"**
 - DataFrame must have unique `ID` column
-- All other columns must contain DNA strings (ATGC only, no gaps)
+- For element-design modules (`barcode`, `primer`, `motif`, `spacer`), all non-ID columns must be non-empty DNA strings
+  (A/T/G/C) except the target output column in Patch Mode, which may contain missing values (None/NaN/empty/`'-'`).
+- `verify` is more permissive and will summarize metadata columns and degenerate/IUPAC columns rather than failing.
 - At least one context column required for element design
 
 ---

@@ -1801,27 +1801,76 @@ def get_parsed_exseqs_info(
 
         return (exseqs, True)
 
-     # Is exseqs a CSV file or DataFrame?
-    (df, _,
-    df_valid) = get_parsed_indata_info(
-        indata=exseqs,
-        indata_field=exseqs_field,
-        required_fields=('ID', df_field,),
-        precheck=True,
-        liner=liner)
+    # Is exseqs a CSV file or DataFrame?
+    df = None
+    df_valid = False
 
-    # Is exseqs df valid?
-    if df_valid:
+    # Handle DataFrame directly
+    if isinstance(exseqs, pd.DataFrame):
+        df = exseqs.copy()
+        data_name = 'DataFrame'
+    # Handle CSV file path
+    elif isinstance(exseqs, str):
+        try:
+            df = pd.read_csv(exseqs, sep=',', header=0, engine='c')
+            data_name = exseqs
+        except:
+            liner.send(
+                '{}: {} [INVALID CSV FILE]\n'.format(
+                    exseqs_field,
+                    exseqs))
+            return (None, False)
+
+    # Check if df_field column exists
+    if df is not None:
+        if df_field not in df.columns:
+            liner.send(
+                '{}: {} [MISSING COLUMN=\'{}\']\n'.format(
+                    exseqs_field,
+                    data_name,
+                    df_field))
+            return (None, False)
+
+        # Check for missing values in the motif column
+        missing_mask = ut.get_missing_mask(series=df[df_field], allow_dash=False)
+        if missing_mask.any():
+            liner.send(
+                '{}: {} w/ {:,} Record(s) [MISSING VALUES IN COLUMN=\'{}\']\n'.format(
+                    exseqs_field,
+                    data_name,
+                    len(df.index),
+                    df_field))
+            return (None, False)
+
+        # Extract unique motifs
         exseqs = list(map(lambda x: x.upper(), ut.get_uniques(
             iterable=df[df_field].to_list(),
             typer=list)))
+
+        # Validate all are DNA strings
+        for seq in exseqs:
+            if not ut.is_DNA(seq=seq):
+                liner.send(
+                    '{}: {:,} {} [NON-DNA SEQUENCE=\'{}\']\n'.format(
+                        exseqs_field,
+                        len(exseqs),
+                        exseqs_desc,
+                        seq))
+                return (None, False)
+
         liner.send(
             '{}: {:,} {}\n'.format(
                 exseqs_field,
                 len(exseqs),
                 exseqs_desc,))
+        df_valid = True
     else:
-        exseqs = None
+        # Should not reach here if logic is correct
+        liner.send(
+            '{}: {} [INPUT TYPE IS INVALID]\n'.format(
+                exseqs_field,
+                exseqs))
+        return (None, False)
 
     # Return Results
     return (exseqs, df_valid)

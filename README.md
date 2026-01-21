@@ -10,6 +10,7 @@
   <a href="#features" style="text-decoration: none !important;">✨ Features</a> •
   <a href="#installation" style="text-decoration: none !important;">📦 Installation</a> •
   <a href="#getting-started" style="text-decoration: none !important;">🚀 Getting Started</a> •
+  <a href="https://github.com/ayaanhossain/oligopool/blob/master/docs.md" style="text-decoration: none !important;">📚 Docs</a> •
   <a href="#command-line-interface-cli" style="text-decoration: none !important;">💻 CLI</a> •
   <a href="#citation" style="text-decoration: none !important;">📖 Citation</a> •
   <a href="#license" style="text-decoration: none !important;">⚖️ License</a>
@@ -23,7 +24,7 @@ We have used `Oligopool Calculator` in multiple projects to build libraries of t
 
 To learn more, please check out [our paper in ACS Synthetic Biology](https://pubs.acs.org/doi/10.1021/acssynbio.4c00661).
 
-`Oligopool Calculator` streamlines the design and analysis of massively parallel barcoded measurements, including iterative workflows where new oligos are continuosly added to an existing pool. It has been benchmarked to design millions of compact barcodes and universal primer binding sites, and to process hundreds of millions of sequencing reads per hour on an 8-core desktop.
+`Oligopool Calculator` streamlines the design and analysis of massively parallel barcoded measurements, including iterative workflows where new oligos are continuously added to an existing pool. It has been benchmarked to design millions of compact barcodes and universal primer binding sites, and to process hundreds of millions of sequencing reads per hour on an 8-core desktop.
 
 <h1 align="center">
     <a href="https://github.com/ayaanhossain/oligopool/" style="text-decoration: none !important;">
@@ -88,6 +89,8 @@ You can import the library and use its various functions either in a script or i
 There are examples of a [design parser](https://github.com/ayaanhossain/oligopool/blob/master/examples/design-parser/design_parser.py) and an [analysis pipeline](https://github.com/ayaanhossain/oligopool/blob/master/examples/analysis-pipeline/analysis_pipeline.py) inside the [`examples`](https://github.com/ayaanhossain/oligopool/tree/master/examples) directory.
 
 A notebook demonstrating [`Oligopool Calculator` in action](https://github.com/ayaanhossain/oligopool/blob/master/examples/OligopoolCalculatorInAction.ipynb) is provided there as well.
+
+For comprehensive documentation with examples and workflows, see [`docs.md`](https://github.com/ayaanhossain/oligopool/blob/master/docs.md).
 
 For quick iteration during Design Mode, use `lenstat` to monitor length/free space under an `oligo_length_limit`, and `verify` as a final QC pass before ordering/synthesis.
 

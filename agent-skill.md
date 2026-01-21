@@ -299,6 +299,11 @@ df, stats = op.pad(
 
 **When to use**: After split, for each fragment.
 
+**Supported Type IIS enzymes (34 total):**
+`AcuI`, `AlwI`, `BbsI`, `BccI`, `BceAI`, `BciVI`, `BcoDI`, `BmrI`, `BpuEI`, `BsaI`, `BseRI`, `BsmAI`, `BsmBI`, `BsmFI`, `BsmI`, `BspCNI`, `BspQI`, `BsrDI`, `BsrI`, `BtgZI`, `BtsCI`, `BtsI`, `BtsIMutI`, `EarI`, `EciI`, `Esp3I`, `FauI`, `HgaI`, `HphI`, `HpyAV`, `MlyI`, `MnlI`, `SapI`, `SfaNI`
+
+For unsupported enzymes, design primers/sites manually with `primer` or `motif`.
+
 ---
 
 ### merge

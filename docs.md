@@ -440,7 +440,10 @@ df, stats = op.pad(
 )
 ```
 
-Supports 34 Type IIS enzymes: BsaI, BbsI, BsmBI, SapI, and many more.
+**Supported Type IIS enzymes (34 total):**
+`AcuI`, `AlwI`, `BbsI`, `BccI`, `BceAI`, `BciVI`, `BcoDI`, `BmrI`, `BpuEI`, `BsaI`, `BseRI`, `BsmAI`, `BsmBI`, `BsmFI`, `BsmI`, `BspCNI`, `BspQI`, `BsrDI`, `BsrI`, `BtgZI`, `BtsCI`, `BtsI`, `BtsIMutI`, `EarI`, `EciI`, `Esp3I`, `FauI`, `HgaI`, `HphI`, `HpyAV`, `MlyI`, `MnlI`, `SapI`, `SfaNI`
+
+For other enzymes, design primers manually with the appropriate recognition/cut sites using `primer` or `motif`.
 
 ---
 

@@ -23,6 +23,7 @@
 22. API: `excluded_motifs` DataFrame/CSV now only requires an `Exmotif` column (removed unnecessary `ID` column requirement).
 23. API: `background` and `excluded_motifs` now accept FASTA files (.fa/.fasta/.fna, optionally gzipped).
 24. Docstrings: clarified `acount` (barcode+variant verification) vs `xcount` (barcode-only counting, single or combinatorial).
+25. Docs: added `agent-skill.md` for AI assistant integration.
 
 2026.01.17
 1. Development in progress.

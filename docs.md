@@ -776,6 +776,21 @@ op barcode \
 op complete --install
 ```
 
+### CLI-Specific Notes
+
+**`--output-file` is required**: Unlike the Python API where `output_file=None` returns results in-memory, CLI commands that produce a DataFrame require `--output-file`.
+
+**Sequence constraint shorthand**: For `--primer-sequence-constraint` and `--motif-sequence-constraint`, you can use:
+```bash
+# Quoted Python-style expression
+--primer-sequence-constraint "'N'*20"
+
+# Shorthand concatenation (no quotes needed)
+--motif-sequence-constraint GCC+N*20+CCG
+```
+
+**Callbacks are Python-only**: The `callback` parameter in `acount`/`xcount` is not available via CLI. For custom read processing logic, use the Python API.
+
 ---
 
 ## Tips & Tricks

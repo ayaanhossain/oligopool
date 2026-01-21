@@ -601,9 +601,9 @@ stats = op.pack(
 
 [↑ Back to TOC](#table-of-contents)
 
-**What it does**: Association counting - maps reads to barcodes AND their associated variants.
+**What it does**: Association counting - verifies that the expected variant is indeed coupled to its target barcode in each read.
 
-**When to use it**: When you need barcode-to-variant mapping (e.g., variant activity assays).
+**When to use it**: Validating synthesis/cloning accuracy, confirming barcode-variant associations after library construction.
 
 ```python
 df, stats = op.acount(
@@ -620,13 +620,21 @@ df, stats = op.acount(
 
 [↑ Back to TOC](#table-of-contents)
 
-**What it does**: Combinatorial counting - maps reads to multiple barcode combinations.
+**What it does**: Barcode-focused counting - maps reads to one or more barcode indices without associate verification.
 
-**When to use it**: Multi-barcode designs (BC1 × BC2), combinatorial libraries.
+**When to use it**: Pure barcode counting (single or multiple indices), combinatorial barcode designs (BC1 × BC2).
 
 ```python
+# Single barcode index
 df, stats = op.xcount(
-    index_files=['bc1_index', 'bc2_index'],  # Multiple indices
+    index_files=['bc1_index'],
+    pack_file='sample.oligopool.pack',
+    count_file='barcode_counts',
+)
+
+# Multiple barcode indices (combinatorial)
+df, stats = op.xcount(
+    index_files=['bc1_index', 'bc2_index'],
     pack_file='sample.oligopool.pack',
     count_file='combo_counts',
     mapping_type=1,                          # 0=fast, 1=sensitive
@@ -635,6 +643,8 @@ df, stats = op.xcount(
 ```
 
 Output includes all observed combinations, with `'-'` for missing barcodes in partial reads.
+
+**acount vs xcount**: Use `acount` when you need barcode+variant association verification; use `xcount` for barcode-only counting (single or combinatorial).
 
 **Custom callbacks** (Python API only):
 ```python

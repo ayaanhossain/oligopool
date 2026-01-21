@@ -47,7 +47,7 @@ def spacer(
         - `patch_mode` (`bool`): If `True`, fill only missing values in an existing spacer column
             (does not overwrite existing spacers). (Default: `False`).
         - `excluded_motifs` (`list` / `str` / `pd.DataFrame`): Motifs to exclude;
-            can be a CSV path or DataFrame (default: `None`).
+            can be a list, CSV, DataFrame, or FASTA file (default: `None`).
         - `verbose` (`bool`): If `True`, logs updates to stdout (default: `True`).
         - `random_seed` (`int` / `None`): Seed for local RNG (default: `None`).
 

@@ -60,7 +60,7 @@ def primer(
             with 'ID' and 'OligoSet' columns (default: `None`).
         - `paired_primer_column` (`str`): Column for paired primer sequence (default: `None`).
         - `excluded_motifs` (`list` / `str` / `pd.DataFrame`): Motifs to exclude;
-            can be a CSV path or DataFrame (default: `None`).
+            can be a list, CSV, DataFrame, or FASTA file (default: `None`).
         - `background_directory` (`str`): Directory for background k-mer sequences (default: `None`).
         - `verbose` (`bool`): If `True`, logs updates to stdout (default: `True`).
         - `random_seed` (`int` / `None`): Seed for local RNG (default: `None`).

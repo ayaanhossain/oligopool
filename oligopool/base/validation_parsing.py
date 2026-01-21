@@ -1760,6 +1760,64 @@ def get_parsed_exseqs_info(
                     exseqs_desc,))
             return ([exseqs.upper()], True)
 
+        # Is exseqs a FASTA file?
+        fasta_exts = ('.fa', '.fasta', '.fna', '.fa.gz', '.fasta.gz', '.fna.gz')
+        is_fasta = exseqs.lower().endswith(fasta_exts)
+
+        # Also check content if extension doesn't match
+        if not is_fasta:
+            import os
+            if os.path.isfile(exseqs):
+                try:
+                    import gzip
+                    opener = gzip.open if exseqs.endswith('.gz') else open
+                    with opener(exseqs, 'rt') as f:
+                        first_char = f.read(1)
+                        is_fasta = (first_char == '>')
+                except:
+                    pass
+
+        if is_fasta:
+            try:
+                import os
+                import pyfastx
+                if not os.path.isfile(exseqs):
+                    liner.send(
+                        '{}: {} [FILE NOT FOUND]\n'.format(
+                            exseqs_field,
+                            exseqs))
+                    return (None, False)
+
+                # Parse FASTA file using pyfastx (handles gzip automatically)
+                sequences = [seq.upper() for _, seq in pyfastx.Fasta(exseqs, build_index=False)]
+
+                # Get unique sequences
+                exseqs = list(ut.get_uniques(iterable=sequences, typer=list))
+
+                # Validate all are DNA strings
+                for seq in exseqs:
+                    if not ut.is_DNA(seq=seq):
+                        liner.send(
+                            '{}: {:,} {} [NON-DNA SEQUENCE IN FASTA]\n'.format(
+                                exseqs_field,
+                                len(exseqs),
+                                exseqs_desc))
+                        return (None, False)
+
+                liner.send(
+                    '{}: {:,} {} (from FASTA)\n'.format(
+                        exseqs_field,
+                        len(exseqs),
+                        exseqs_desc))
+                return (exseqs, True)
+
+            except Exception as e:
+                liner.send(
+                    '{}: {} [INVALID FASTA FILE]\n'.format(
+                        exseqs_field,
+                        exseqs))
+                return (None, False)
+
     # Is exseqs iterable?
     if not isinstance(exseqs, pd.DataFrame) and \
        not isinstance(exseqs, str):

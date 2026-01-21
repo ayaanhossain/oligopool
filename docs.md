@@ -371,10 +371,18 @@ df, stats = op.spacer(
 **When to use it**: You want primers that won't bind to host genome, plasmid backbone, etc.
 
 ```python
+# From a FASTA file (genome, plasmid, etc.)
 stats = op.background(
-    input_data='ecoli_genome.csv',         # CSV with ID, Sequence columns
+    input_data='ecoli_genome.fasta',       # Also supports .fa, .fna, .gz
     maximum_repeat_length=15,              # Screen k-mers up to this length
     output_directory='ecoli_bg',           # Creates ecoli_bg.oligopool.background
+)
+
+# Or from a CSV/DataFrame with 'Sequence' column
+stats = op.background(
+    input_data='plasmid_sequences.csv',
+    maximum_repeat_length=15,
+    output_directory='plasmid_bg',
 )
 
 # Now use it in primer design

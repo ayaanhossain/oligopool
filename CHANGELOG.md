@@ -17,6 +17,7 @@
 16. Bugfix: Patch Mode context extraction now slices to missing rows before edge parsing (avoids list/boolean indexing crash in barcode/motif/spacer).
 17. CLI help: hide argparse multi-value `[...]` token for cleaner alignment (e.g., `--cross-barcode-columns`).
 18. DataFrame UX: normalize `ID` to string, return DataFrames with an explicit `ID` column by default (preserve `ID` as index only when the input DataFrame used it), and write CSVs without an extra numeric index column.
+19. CLI/Docs: reordered modules to list `barcode` first in CLI menu, `__init__.py` API exports, and README documentation.
 
 2026.01.17
 1. Development in progress.

@@ -88,8 +88,8 @@ Chain them to build libraries iteratively; use Patch Mode (`patch_mode=True`)
 to extend existing pools without overwriting prior designs.
 
 Design Mode
-    barcode     Hamming-distance barcodes with cross-set separation
-    primer      thermodynamic primers with Tm matching and background screening
+    barcode     orthogonal barcodes with cross-set separation
+    primer      thermodynamic primers with Tm matching
     motif       sequence motifs or constant anchors
     spacer      neutral spacers to meet length targets
     background  k-mer database for off-target screening

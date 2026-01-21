@@ -10,6 +10,16 @@ This document is designed for AI assistants to understand and help users with ol
 1. **Design Mode**: Build a library of oligos with barcodes, primers, motifs, and spacers
 2. **Analysis Mode**: Count barcoded reads from NGS data to quantify variant activity
 
+**Installation:**
+```bash
+pip install oligopool
+```
+
+**Import:**
+```python
+import oligopool as op
+```
+
 ## Key Concepts
 
 ### DataFrame-Centric Design
@@ -41,137 +51,486 @@ Use `patch_mode=True` to extend existing pools:
 - Preserves existing designs
 - Useful for iterative pool expansion
 
-## Design Mode Modules
+---
+
+## Design Mode - Full API Reference
 
 ### barcode
+
 **Purpose**: Generate Hamming-distance separated barcodes for unique variant identification.
 
-**Key parameters**:
-- `barcode_length`: Length of barcodes (typically 8-16 bp)
-- `minimum_hamming_distance`: Minimum mismatches between any two barcodes (typically 2-4)
-- `barcode_type`: 0=terminus-optimized (fast), 1=spectrum-optimized (thorough)
-- `cross_barcode_columns` + `minimum_cross_distance`: Enforce separation from existing barcode sets
+```python
+df, stats = op.barcode(
+    # Required
+    input_data,                    # str | pd.DataFrame - CSV path or DataFrame with ID + DNA columns
+    oligo_length_limit,            # int - Maximum allowed oligo length (≥4)
+    barcode_length,                # int - Length of designed barcodes (≥4)
+    minimum_hamming_distance,      # int - Minimum pairwise Hamming distance (≥1)
+    maximum_repeat_length,         # int - Max shared repeat length with oligos (≥4)
+    barcode_column,                # str - Column name for designed barcodes
 
-**When to use**: Always needed for variant identification in counting.
+    # Optional
+    output_file=None,              # str - Output CSV path (required for CLI, optional for library)
+    barcode_type=0,                # int - 0=terminus-optimized (fast), 1=spectrum-optimized (thorough)
+    left_context_column=None,      # str - Column for left DNA context
+    right_context_column=None,     # str - Column for right DNA context
+    patch_mode=False,              # bool - Fill only missing values in existing column
+    cross_barcode_columns=None,    # list[str] - Existing barcode columns for cross-set separation
+    minimum_cross_distance=None,   # int - Min Hamming distance to cross set (use with cross_barcode_columns)
+    excluded_motifs=None,          # list | str | pd.DataFrame - Motifs to exclude (list, CSV, DataFrame, or FASTA)
+    verbose=True,                  # bool - Print progress
+    random_seed=None,              # int - RNG seed for reproducibility
+)
+```
 
 **Design order**: After primers/motifs, before spacers.
 
+**Tips**:
+- Use `barcode_type=0` for large libraries (faster)
+- Use `barcode_type=1` for maximum barcode diversity
+- For multi-barcode designs, use `cross_barcode_columns` to ensure BC2 is separated from BC1
+
+---
+
 ### primer
+
 **Purpose**: Design thermodynamically optimal primers for amplification.
 
-**Key parameters**:
-- `primer_sequence_constraint`: IUPAC constraint (e.g., `'SS' + 'N'*18` for GC clamp)
-- `primer_type`: 0=forward, 1=reverse
-- `minimum/maximum_melting_temperature`: Tm range (typically 53-55°C)
-- `paired_primer_column`: For Tm-matched primer pairs
-- `background_directory`: Screen against off-target sequences
-- `oligo_sets`: Design set-specific primers for multiplexed libraries
+```python
+df, stats = op.primer(
+    # Required
+    input_data,                    # str | pd.DataFrame - CSV path or DataFrame
+    oligo_length_limit,            # int - Maximum allowed oligo length (≥4)
+    primer_sequence_constraint,    # str - IUPAC constraint (e.g., 'SS' + 'N'*18 for GC clamp)
+    primer_type,                   # int - 0=forward, 1=reverse
+    minimum_melting_temperature,   # float - Minimum Tm (≥25°C)
+    maximum_melting_temperature,   # float - Maximum Tm (≤95°C)
+    maximum_repeat_length,         # int - Max shared repeat length (≥6)
+    primer_column,                 # str - Column name for designed primer
 
-**When to use**: When amplification is needed.
+    # Optional
+    output_file=None,              # str - Output CSV path
+    left_context_column=None,      # str - Column for left DNA context
+    right_context_column=None,     # str - Column for right DNA context
+    patch_mode=False,              # bool - Fill only missing values
+    oligo_sets=None,               # list | str | pd.DataFrame - Per-oligo set labels for set-specific primers
+    paired_primer_column=None,     # str - Column of paired primer for Tm matching
+    excluded_motifs=None,          # list | str | pd.DataFrame - Motifs to exclude
+    background_directory=None,     # str - Background k-mer database for off-target screening
+    verbose=True,                  # bool - Print progress
+    random_seed=None,              # int - RNG seed
+)
+```
 
 **Design order**: Design primers early. For paired primers: design inner primer first, then outer with `paired_primer_column`.
 
+**Tips**:
+- Use `'SS' + 'N'*18` for 5' GC clamp
+- Use `'N'*18 + 'WW'` for 3' AT clamp
+- Build background with `op.background()` before primer design for off-target screening
+- For multiplexed libraries, use `oligo_sets` to design set-specific primers
+
+---
+
 ### motif
+
 **Purpose**: Add sequence motifs or constant anchors.
 
-**Key parameters**:
-- `motif_sequence_constraint`: IUPAC pattern or constant sequence
-- `motif_type`: 0=per-variant motifs, 1=constant anchor shared by all
+```python
+df, stats = op.motif(
+    # Required
+    input_data,                    # str | pd.DataFrame - CSV path or DataFrame
+    oligo_length_limit,            # int - Maximum allowed oligo length (≥4)
+    motif_sequence_constraint,     # str - IUPAC pattern or constant sequence
+    maximum_repeat_length,         # int - Max shared repeat length (≥4)
+    motif_column,                  # str - Column name for designed motif
 
-**When to use**:
-- Restriction sites (e.g., `'GAATTC'` for EcoRI)
-- Barcode anchors for indexing (design before barcodes)
-- Degenerate regions with specific constraints
+    # Optional
+    output_file=None,              # str - Output CSV path
+    motif_type=0,                  # int - 0=per-variant motifs, 1=constant anchor for all
+    left_context_column=None,      # str - Column for left DNA context
+    right_context_column=None,     # str - Column for right DNA context
+    patch_mode=False,              # bool - Fill only missing values
+    excluded_motifs=None,          # list | str | pd.DataFrame - Motifs to exclude
+    verbose=True,                  # bool - Print progress
+    random_seed=None,              # int - RNG seed
+)
+```
 
-**Design order**: Before barcodes if designing anchors.
+**Use cases**:
+- Restriction sites: `motif_sequence_constraint='GAATTC'` (EcoRI)
+- Barcode anchors: `motif_type=1` with `'N'*10` for constant anchor
+- Degenerate regions: `'NNNGGATCCNNN'` (BamHI with flanking Ns)
+
+**Design order**: Before barcodes if designing anchors for indexing.
+
+---
 
 ### spacer
+
 **Purpose**: Add neutral filler DNA to reach target oligo length.
 
-**Key parameters**:
-- `spacer_length`: Fixed length, per-variant list/DataFrame, or `None` for auto-fill to `oligo_length_limit`
+```python
+df, stats = op.spacer(
+    # Required
+    input_data,                    # str | pd.DataFrame - CSV path or DataFrame
+    oligo_length_limit,            # int - Maximum allowed oligo length (≥4)
+    maximum_repeat_length,         # int - Max shared repeat length (≥4)
+    spacer_column,                 # str - Column name for designed spacer
 
-**When to use**: As final design step to equalize oligo lengths.
+    # Optional
+    output_file=None,              # str - Output CSV path
+    spacer_length=None,            # int | list | str | pd.DataFrame - Fixed, per-variant, or None for auto-fill
+    left_context_column=None,      # str - Column for left DNA context
+    right_context_column=None,     # str - Column for right DNA context
+    patch_mode=False,              # bool - Fill only missing values
+    excluded_motifs=None,          # list | str | pd.DataFrame - Motifs to exclude
+    verbose=True,                  # bool - Print progress
+    random_seed=None,              # int - RNG seed
+)
+```
+
+**spacer_length options**:
+- `None`: Auto-fill to reach `oligo_length_limit`
+- `int`: Fixed length for all oligos
+- `list`: Per-variant lengths aligned to input
+- `DataFrame`: With 'ID' and 'Length' columns
 
 **Design order**: Last, after all other elements.
 
+---
+
 ### background
+
 **Purpose**: Build k-mer database for primer off-target screening.
 
-**Key parameters**:
-- `input_data`: Sequences to screen against (list, CSV, DataFrame, or FASTA file)
-- `maximum_repeat_length`: k-mer size for screening (6-20)
+```python
+stats = op.background(
+    # Required
+    input_data,                    # list | str | pd.DataFrame - Sequences (list, CSV, DataFrame, or FASTA)
+    maximum_repeat_length,         # int - k-mer size for screening (6-20)
+    output_directory,              # str - Output directory path
 
-**When to use**: Before primer design when you have host genome/plasmid sequences.
+    # Optional
+    verbose=True,                  # bool - Print progress
+)
+```
+
+**input_data formats**:
+- List of DNA strings: `['ATGC...', 'GCTA...']`
+- CSV file: With 'Sequence' column
+- DataFrame: With 'Sequence' column
+- FASTA file: `.fa`, `.fasta`, `.fna` (optionally gzipped)
+
+**When to use**: Before primer design when screening against host genome/plasmid.
+
+---
 
 ### split
+
 **Purpose**: Break long oligos into overlapping fragments for assembly.
 
-**Key parameters**:
-- `split_length_limit`: Maximum fragment length
-- `minimum/maximum_overlap_length`: Overlap range for assembly
-- `minimum_melting_temperature`: Assembly Tm
+```python
+df, stats = op.split(
+    # Required
+    input_data,                    # str | pd.DataFrame - CSV path or DataFrame
+    split_length_limit,            # int - Maximum fragment length
+    minimum_melting_temperature,   # float - Assembly overlap Tm
+    minimum_hamming_distance,      # int - Minimum distance between overlaps
+    minimum_overlap_length,        # int - Minimum overlap length
+    maximum_overlap_length,        # int - Maximum overlap length
 
-**When to use**: When oligos exceed synthesis length limits.
+    # Optional
+    output_file=None,              # str - Output CSV path
+    verbose=True,                  # bool - Print progress
+)
+```
+
+**When to use**: When oligos exceed synthesis length limits (typically >200 bp).
+
+---
 
 ### pad
+
 **Purpose**: Add amplification primers with Type IIS sites for assembly.
 
-**Key parameters**:
-- `split_column`: Which fragment to pad
-- `typeIIS_system`: Restriction enzyme (e.g., 'BsaI')
+```python
+df, stats = op.pad(
+    # Required
+    input_data,                    # str | pd.DataFrame - DataFrame from split()
+    split_column,                  # str - Which fragment column to pad
+    typeIIS_system,                # str - Restriction enzyme (e.g., 'BsaI', 'BbsI', 'BsmBI')
+
+    # Optional
+    oligo_length_limit=None,       # int - Maximum padded oligo length
+    minimum_melting_temperature=None,  # float - Pad primer minimum Tm
+    maximum_melting_temperature=None,  # float - Pad primer maximum Tm
+    maximum_repeat_length=None,    # int - Max repeat length
+    output_file=None,              # str - Output CSV path
+    verbose=True,                  # bool - Print progress
+)
+```
 
 **When to use**: After split, for each fragment.
 
-### Utility Modules
+---
 
-- **lenstat**: Check length statistics and remaining space (non-destructive)
-- **verify**: QC check before synthesis (validates constraints, flags issues)
-- **final**: Concatenate columns into synthesis-ready oligos
-- **merge**: Collapse multiple columns into one
-- **revcomp**: Reverse complement a column range
+### merge
 
-## Analysis Mode Modules
+**Purpose**: Collapse multiple contiguous columns into one.
+
+```python
+df, stats = op.merge(
+    # Required
+    input_data,                    # str | pd.DataFrame - CSV path or DataFrame
+    left_context_column,           # str - First column to merge
+    right_context_column,          # str - Last column to merge
+    merge_column,                  # str - Name for merged column
+
+    # Optional
+    output_file=None,              # str - Output CSV path
+    verbose=True,                  # bool - Print progress
+)
+```
+
+**When to use**: Combine multiple elements into single column before `revcomp` or `final`.
+
+---
+
+### revcomp
+
+**Purpose**: Reverse complement a column range.
+
+```python
+df, stats = op.revcomp(
+    # Required
+    input_data,                    # str | pd.DataFrame - CSV path or DataFrame
+    left_context_column,           # str - First column to reverse complement
+    right_context_column,          # str - Last column to reverse complement
+
+    # Optional
+    output_file=None,              # str - Output CSV path
+    verbose=True,                  # bool - Print progress
+)
+```
+
+**When to use**: When you need reverse complement of designed elements.
+
+---
+
+### lenstat
+
+**Purpose**: Check length statistics and remaining space (non-destructive).
+
+```python
+stats = op.lenstat(
+    # Required
+    input_data,                    # str | pd.DataFrame - CSV path or DataFrame
+
+    # Optional
+    oligo_length_limit=None,       # int - Reference length limit for free space calculation
+    verbose=True,                  # bool - Print progress
+)
+```
+
+**When to use**: Frequently during design to monitor remaining space.
+
+---
+
+### verify
+
+**Purpose**: QC check before synthesis.
+
+```python
+stats = op.verify(
+    # Required
+    input_data,                    # str | pd.DataFrame - CSV path or DataFrame
+
+    # Optional
+    oligo_length_limit=None,       # int - Check for length violations
+    excluded_motifs=None,          # list | str | pd.DataFrame - Check for motif violations
+    verbose=True,                  # bool - Print progress
+)
+```
+
+**When to use**: Before `final()` to catch constraint violations.
+
+---
+
+### final
+
+**Purpose**: Concatenate columns into synthesis-ready oligos.
+
+```python
+df, stats = op.final(
+    # Required
+    input_data,                    # str | pd.DataFrame - CSV path or DataFrame
+
+    # Optional
+    output_file=None,              # str - Output CSV path
+    verbose=True,                  # bool - Print progress
+)
+```
+
+**Output**: DataFrame with 'ID', 'CompleteOligo', and 'OligoLength' columns.
+
+**When to use**: Final step before synthesis.
+
+---
+
+## Analysis Mode - Full API Reference
 
 ### index
+
 **Purpose**: Build barcode index for counting.
 
-**Key parameters**:
-- `barcode_column`: Which barcode to index
-- `barcode_prefix/suffix_column`: Constant anchors flanking barcode
-- `associate_column`: Variant column for association counting (optional)
+```python
+stats = op.index(
+    # Required
+    barcode_data,                  # str | pd.DataFrame - CSV path or DataFrame with barcodes
+    barcode_column,                # str - Column containing barcodes
+    index_file,                    # str - Output index filename (creates .oligopool.index)
 
-**When to use**: Before counting, for each barcode set.
+    # Optional
+    barcode_prefix_column=None,    # str - Column for constant prefix anchor
+    barcode_suffix_column=None,    # str - Column for constant suffix anchor
+    barcode_prefix_gap=0,          # int - Distance between prefix and barcode
+    barcode_suffix_gap=0,          # int - Distance between suffix and barcode
+    associate_data=None,           # str | pd.DataFrame - DataFrame with associated variants
+    associate_column=None,         # str - Column for associate elements
+    associate_prefix_column=None,  # str - Column for associate prefix
+    associate_suffix_column=None,  # str - Column for associate suffix
+    verbose=True,                  # bool - Print progress
+)
+```
+
+**Tips**:
+- For `acount`, must specify `associate_column` and at least one associate prefix/suffix
+- Anchors should match sequences designed with `motif(motif_type=1, ...)`
+
+---
 
 ### pack
+
 **Purpose**: Preprocess and deduplicate FASTQ reads.
 
-**Key parameters**:
-- `r1/r2_fastq_file`: Input FASTQ files (supports gzip)
-- `pack_type`: 0=concatenate, 1=merge paired reads
-- `minimum_r1/r2_read_quality`: Phred score filter
+```python
+stats = op.pack(
+    # Required
+    r1_fastq_file,                 # str - Path to R1 FASTQ (supports .gz)
+    r1_read_type,                  # int - 0=forward, 1=reverse orientation
+    pack_type,                     # int - 0=concatenate, 1=merge paired reads
+    pack_file,                     # str - Output pack filename (creates .oligopool.pack)
 
-**When to use**: After sequencing, before counting.
+    # Optional
+    minimum_r1_read_length=1,      # int - Minimum R1 read length
+    minimum_r1_read_quality=20,    # int - Minimum average R1 Phred score
+    r2_fastq_file=None,            # str - Path to R2 FASTQ
+    r2_read_type=None,             # int - R2 orientation
+    minimum_r2_read_length=None,   # int - Minimum R2 read length
+    minimum_r2_read_quality=None,  # int - Minimum average R2 Phred score
+    pack_size=3.0,                 # float - Million unique reads per pack (0.1-5.0)
+    core_count=0,                  # int - CPU cores (0=auto)
+    memory_limit=0.0,              # float - GB per core (0=auto)
+    verbose=True,                  # bool - Print progress
+)
+```
+
+**Tips**:
+- For single-end reads, use R1 arguments only
+- For pre-merged reads (e.g., from FLASH), use as single-end
+
+---
 
 ### acount
+
 **Purpose**: Association counting - verify barcode-variant coupling.
+
+```python
+df, stats = op.acount(
+    # Required
+    index_file,                    # str - Index filename (from index())
+    pack_file,                     # str - Pack filename (from pack())
+    count_file,                    # str - Output count filename (creates .oligopool.acount.csv)
+
+    # Optional
+    mapping_type=0,                # int - 0=fast, 1=sensitive
+    barcode_errors=-1,             # int - Max barcode errors (-1=auto)
+    associate_errors=-1,           # int - Max associate errors (-1=auto)
+    callback=None,                 # callable - Custom read processing function (Python API only)
+    core_count=0,                  # int - CPU cores (0=auto)
+    memory_limit=0.0,              # float - GB per core (0=auto)
+    verbose=True,                  # bool - Print progress
+)
+```
+
+**Output columns**: ID, BarcodeCounts, AssociationCounts
 
 **When to use**:
 - Validating synthesis accuracy
-- Confirming barcode-variant associations
 - Input library QC
+- Post-assay barcode-variant verification
 
-**Key insight**: Counts reads where the expected variant IS coupled with its barcode.
+---
 
 ### xcount
+
 **Purpose**: Barcode-only counting (single or combinatorial).
 
-**When to use**:
-- Pure barcode counting without variant verification
-- Multi-barcode combinations (BC1 × BC2)
-- Cleaved vs uncleaved product quantification
+```python
+df, stats = op.xcount(
+    # Required
+    index_files,                   # str | list - Single index or list of index filenames
+    pack_file,                     # str - Pack filename
+    count_file,                    # str - Output count filename (creates .oligopool.xcount.csv)
 
-**Key insight**: No associate verification; works with one or more barcode indices.
+    # Optional
+    mapping_type=0,                # int - 0=fast, 1=sensitive
+    barcode_errors=-1,             # int - Max barcode errors (-1=auto)
+    callback=None,                 # callable - Custom read processing function (Python API only)
+    core_count=0,                  # int - CPU cores (0=auto)
+    memory_limit=0.0,              # float - GB per core (0=auto)
+    verbose=True,                  # bool - Print progress
+)
+```
+
+**Output**: Columns for each barcode ID + CombinatorialCounts. Missing barcodes shown as '-'.
+
+**When to use**:
+- Pure barcode counting (single index)
+- Multi-barcode combinations (BC1 × BC2)
+- Cleaved vs uncleaved quantification (ribozymes, etc.)
+
+---
+
+### Callback Functions (Python API only)
+
+For `acount` and `xcount`, custom callbacks enable additional analysis:
+
+```python
+def my_callback(read, ID, count, coreid):
+    """
+    Args:
+        read: str - The processed read sequence
+        ID: tuple - Identified barcode IDs (e.g., ('BC1_v1', 'BC2_v1') or ('BC1_v1', '-'))
+        count: int - Read/ID frequency in current pack
+        coreid: int - CPU core ID processing this read
+
+    Returns:
+        bool - True to accept read for counting, False to reject
+    """
+    # Custom logic here
+    return True
+
+df, stats = op.xcount(..., callback=my_callback)
+```
+
+**Use cases**:
+- Filter reads by additional criteria
+- Extract cleavage sites
+- Record custom metrics with `multiprocessing.Manager().dict()`
+
+---
 
 ## Common Workflows
 
@@ -182,40 +541,181 @@ import pandas as pd
 
 # 1. Start with variants
 df = pd.DataFrame({
-    'ID': ['v1', 'v2', ...],
-    'Variant': ['ATGC...', 'GCTA...', ...]
+    'ID': ['v1', 'v2', 'v3'],
+    'Variant': ['ATGCATGC...', 'GCTAGCTA...', 'TTAACCGG...']
 })
 
-# 2. Add primers (inner first if paired)
-df, _ = op.primer(input_data=df, primer_column='Primer1', ...)
-df, _ = op.primer(input_data=df, primer_column='Primer2', paired_primer_column='Primer1', ...)
+# 2. Build background (optional, for primer screening)
+op.background(
+    input_data='plasmid.fasta',
+    maximum_repeat_length=12,
+    output_directory='plasmid_bg'
+)
 
-# 3. Add barcodes
-df, _ = op.barcode(input_data=df, barcode_column='BC1', ...)
+# 3. Add primers (inner first if paired)
+df, _ = op.primer(
+    input_data=df,
+    oligo_length_limit=200,
+    primer_sequence_constraint='SS' + 'N'*18,
+    primer_type=0,
+    minimum_melting_temperature=53,
+    maximum_melting_temperature=55,
+    maximum_repeat_length=10,
+    primer_column='Primer1',
+    left_context_column='Variant',
+    background_directory='plasmid_bg',
+    excluded_motifs=['GAATTC', 'GGATCC'],
+)
 
-# 4. Add spacers to reach target length
-df, _ = op.spacer(input_data=df, spacer_column='Spacer', spacer_length=None, ...)
+df, _ = op.primer(
+    input_data=df,
+    oligo_length_limit=200,
+    primer_sequence_constraint='N'*18 + 'WW',
+    primer_type=1,
+    minimum_melting_temperature=53,
+    maximum_melting_temperature=55,
+    maximum_repeat_length=10,
+    primer_column='Primer2',
+    paired_primer_column='Primer1',
+    right_context_column='Variant',
+    background_directory='plasmid_bg',
+    excluded_motifs=['GAATTC', 'GGATCC'],
+)
 
-# 5. QC and finalize
-_ = op.verify(input_data=df, ...)
+# 4. Add barcodes
+df, _ = op.barcode(
+    input_data=df,
+    oligo_length_limit=200,
+    barcode_length=12,
+    minimum_hamming_distance=3,
+    maximum_repeat_length=6,
+    barcode_column='BC1',
+    left_context_column='Primer1',
+    right_context_column='Variant',
+    excluded_motifs=['GAATTC', 'GGATCC'],
+)
+
+# 5. Check length
+op.lenstat(input_data=df, oligo_length_limit=200)
+
+# 6. Add spacers to reach target length
+df, _ = op.spacer(
+    input_data=df,
+    oligo_length_limit=200,
+    maximum_repeat_length=6,
+    spacer_column='Spacer',
+    spacer_length=None,  # Auto-fill
+    left_context_column='Primer2',
+    excluded_motifs=['GAATTC', 'GGATCC'],
+)
+
+# 7. QC and finalize
+op.verify(input_data=df, oligo_length_limit=200, excluded_motifs=['GAATTC', 'GGATCC'])
 final_df, _ = op.final(input_data=df)
+final_df.to_csv('library_for_synthesis.csv', index=False)
+```
+
+### Multi-Barcode Design (BC1 × BC2)
+```python
+# Design BC1
+df, _ = op.barcode(
+    input_data=df,
+    barcode_length=11,
+    minimum_hamming_distance=3,
+    barcode_column='BC1',
+    left_context_column='Primer1',
+    right_context_column='Variant',
+    ...
+)
+
+# Design BC2 with cross-set separation from BC1
+df, _ = op.barcode(
+    input_data=df,
+    barcode_length=11,
+    minimum_hamming_distance=3,
+    barcode_column='BC2',
+    left_context_column='Variant',
+    right_context_column='Primer2',
+    cross_barcode_columns=['BC1'],
+    minimum_cross_distance=3,
+    ...
+)
 ```
 
 ### Analysis Pipeline
 ```python
 # 1. Index barcodes
-op.index(barcode_data=df, barcode_column='BC1', index_file='bc1_idx', ...)
+op.index(
+    barcode_data='library.csv',
+    barcode_column='BC1',
+    barcode_prefix_column='Primer1',
+    index_file='bc1_idx',
+)
+
+op.index(
+    barcode_data='library.csv',
+    barcode_column='BC2',
+    barcode_prefix_column='Variant',
+    barcode_suffix_column='Primer2',
+    associate_data='library.csv',
+    associate_column='Variant',
+    associate_suffix_column='Variant',
+    index_file='bc2_idx',
+)
 
 # 2. Pack reads
-op.pack(r1_fastq_file='reads_R1.fq.gz', pack_file='reads', ...)
+op.pack(
+    r1_fastq_file='reads_R1.fq.gz',
+    r2_fastq_file='reads_R2.fq.gz',
+    r1_read_type=0,
+    r2_read_type=1,
+    pack_type=1,  # Merge
+    minimum_r1_read_quality=30,
+    minimum_r2_read_quality=30,
+    pack_file='reads',
+)
 
-# 3. Count (choose based on need)
-# For barcode-variant verification:
-counts_df, _ = op.acount(index_file='bc1_idx', pack_file='reads.oligopool.pack', ...)
+# 3a. Association counting (verify barcode-variant coupling)
+ac_df, _ = op.acount(
+    index_file='bc2_idx.oligopool.index',
+    pack_file='reads.oligopool.pack',
+    count_file='association_counts',
+    mapping_type=1,
+)
 
-# For barcode-only or combinatorial:
-counts_df, _ = op.xcount(index_files=['bc1_idx', 'bc2_idx'], pack_file='reads.oligopool.pack', ...)
+# 3b. Combinatorial counting (BC1 × BC2)
+xc_df, _ = op.xcount(
+    index_files=['bc1_idx', 'bc2_idx'],
+    pack_file='reads.oligopool.pack',
+    count_file='combo_counts',
+    mapping_type=1,
+)
 ```
+
+### Extending an Existing Pool (Patch Mode)
+```python
+# Load existing library
+df = pd.read_csv('existing_library.csv')
+
+# Add new variants
+new_variants = pd.DataFrame({
+    'ID': ['v101', 'v102'],
+    'Variant': ['ATGC...', 'GCTA...'],
+    'BC1': [None, None],  # Missing - will be designed
+    'Primer1': [df['Primer1'].iloc[0], df['Primer1'].iloc[0]],  # Reuse existing
+})
+df = pd.concat([df, new_variants], ignore_index=True)
+
+# Patch mode fills only missing values
+df, _ = op.barcode(
+    input_data=df,
+    barcode_column='BC1',
+    patch_mode=True,  # Only design for v101, v102
+    ...
+)
+```
+
+---
 
 ## Troubleshooting Guide
 
@@ -226,46 +726,77 @@ counts_df, _ = op.xcount(index_files=['bc1_idx', 'bc2_idx'], pack_file='reads.ol
    - Relax `excluded_motifs`
    - Increase `maximum_repeat_length`
    - Widen Tm range for primers
+   - Try `barcode_type=0` (faster, may find solutions faster)
 
 ### Oligo too long
 - Use `lenstat` to check remaining space
 - Reduce element lengths
 - Use `split` + `pad` for assembly
 
-### No barcodes mapping
-- Verify anchor sequences in `index` match designed anchors
+### No barcodes mapping in analysis
+- Verify anchor sequences in `index` match designed anchors exactly
 - Check `barcode_prefix/suffix_gap` settings
 - Use `mapping_type=1` for sensitive mode
+- Verify read orientation (`r1_read_type`, `r2_read_type`)
 
 ### Cross-contamination in counts
 - Increase `minimum_hamming_distance`
 - Add `cross_barcode_columns` for multi-barcode designs
+- Check for index hopping in sequencing
+
+### Memory issues
+- Reduce `pack_size` in `pack()`
+- Use `core_count` to limit parallelism
+- Set `memory_limit` to constrain per-core memory
+
+---
 
 ## Parameter Quick Reference
 
-### Excluded Motifs
+### Excluded Motifs Formats
 All element modules accept `excluded_motifs`:
-- List: `['GAATTC', 'GGATCC']`
-- CSV: File with 'Exmotif' column
-- DataFrame: With 'Exmotif' column
-- FASTA: .fa/.fasta/.fna (optionally gzipped)
+- **List**: `['GAATTC', 'GGATCC', 'AAAAA']`
+- **CSV**: File with 'Exmotif' column
+- **DataFrame**: With 'Exmotif' column
+- **FASTA**: `.fa`, `.fasta`, `.fna` (optionally gzipped)
 
 ### Context Columns
 - Always specify at least one of `left_context_column` or `right_context_column`
 - Use adjacent columns in the oligo architecture
 - Critical for preventing edge-effect motifs
 
-### Random Seed
-- Use `random_seed=42` (or any int) for reproducible designs
-- Important for version control and debugging
+### IUPAC Codes for Constraints
+```
+A = A          W = A or T
+T = T          S = G or C
+G = G          M = A or C
+C = C          K = G or T
+N = any        R = A or G
+               Y = C or T
+               B = C, G, or T
+               D = A, G, or T
+               H = A, C, or T
+               V = A, C, or G
+```
+
+### Common Restriction Sites
+```
+EcoRI  = GAATTC    BamHI  = GGATCC
+HindIII = AAGCTT   XbaI   = TCTAGA
+BsaI   = GGTCTC    BbsI   = GAAGAC
+BsmBI  = CGTCTC    AatII  = GACGTC
+```
+
+---
 
 ## File Formats
 
 ### Input CSV
 ```csv
 ID,Variant
-v1,ATGCATGC...
-v2,GCTAGCTA...
+v1,ATGCATGCATGCATGC
+v2,GCTAGCTAGCTAGCTA
+v3,TTAACCGGTTAACCGG
 ```
 
 ### Output Files
@@ -275,17 +806,57 @@ v2,GCTAGCTA...
 - `.oligopool.acount.csv` - association counts
 - `.oligopool.xcount.csv` - combinatorial counts
 
+---
+
 ## CLI Usage
 
+Every module is available via command line:
+
 ```bash
+# Get help
+op                           # List all commands
+op barcode --help            # Command-specific help
+op manual barcode            # Detailed documentation
+
 # Design
-op barcode --input-data variants.csv --barcode-length 12 --minimum-hamming-distance 3 --output-file result.csv
+op barcode \
+    --input-data variants.csv \
+    --oligo-length-limit 200 \
+    --barcode-length 12 \
+    --minimum-hamming-distance 3 \
+    --maximum-repeat-length 6 \
+    --barcode-column BC1 \
+    --left-context-column Variant \
+    --output-file with_barcodes.csv
 
 # Analysis
-op index --barcode-data library.csv --barcode-column BC1 --index-file bc1_idx
-op pack --r1-fastq-file reads.fq.gz --pack-file reads
-op xcount --index-files bc1_idx --pack-file reads.oligopool.pack --count-file counts
+op index \
+    --barcode-data library.csv \
+    --barcode-column BC1 \
+    --barcode-prefix-column Primer1 \
+    --index-file bc1_idx
+
+op pack \
+    --r1-fastq-file reads_R1.fq.gz \
+    --r1-read-type 0 \
+    --pack-type 1 \
+    --pack-file reads
+
+op xcount \
+    --index-files bc1_idx bc2_idx \
+    --pack-file reads.oligopool.pack \
+    --count-file counts
+
+# Tab completion (recommended)
+op complete --install
 ```
+
+### CLI-Specific Notes
+- `--output-file` is required (unlike Python API where it's optional)
+- Sequence constraints: `--primer-sequence-constraint "'N'*20"` or `--primer-sequence-constraint GCC+N*20+CCG`
+- Callbacks are Python-only (not available in CLI)
+
+---
 
 ## Best Practices
 
@@ -295,9 +866,14 @@ op xcount --index-files bc1_idx --pack-file reads.oligopool.pack --count-file co
 4. **Set random_seed**: For reproducible designs
 5. **Run verify before synthesis**: Catch constraint violations early
 6. **Use Patch Mode for extensions**: Don't redesign existing elements
+7. **Use cross_barcode_columns**: For multi-barcode designs to ensure separation
+8. **Build background first**: If you have host/plasmid sequences to screen against
+
+---
 
 ## Links
 
 - Repository: https://github.com/ayaanhossain/oligopool
-- Documentation: See `docs.md` in repository
+- Documentation: `docs.md` in repository
 - Paper: https://doi.org/10.1021/acssynbio.4c00661
+- CLI help: `op manual <command>`

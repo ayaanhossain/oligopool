@@ -162,9 +162,6 @@ $ op
 oligopool v2026.01.18
 by ah
 
-Oligopool Calculator is a suite of algorithms for
-automated design and analysis of oligopool libraries.
-
 usage: oligopool COMMAND --argument=<value> ...
 
 COMMANDS Available:
@@ -172,32 +169,30 @@ COMMANDS Available:
     manual      show module documentation
     cite        show citation information
 
-    barcode     design constrained barcodes
-    background  build background k-mer database
-    primer      design constrained primers
-    motif       design or add motifs and anchors
-    spacer      design or insert spacers
+    barcode     Hamming-distance barcodes with cross-set separation
+    primer      thermodynamic primers with Tm matching
+    motif       sequence motifs or constant anchors
+    spacer      neutral spacers to meet length targets
 
-    split       split long oligos into shorter ones
-    pad         pad split oligos with primers
+    background  k-mer database for off-target screening
+    split       break long oligos into overlapping fragments
+    pad         add primers + Type IIS sites for assembly
 
-    merge       merge oligo elements into one column
-    revcomp     reverse complement spanning elements
+    merge       collapse contiguous columns
+    revcomp     reverse complement a column range
 
-    lenstat     compute length statistics
-    verify      verify constraints and summarize library
-    final       finalize library
+    lenstat     length statistics and free-space check
+    verify      QC constraints before synthesis
+    final       concatenate columns into synthesis-ready oligos
 
-    index       index barcodes and associates
-    pack        preprocess and pack FastQ for counting
-    acount      execute association counting
-    xcount      execute combinatorial counting
+    index       build barcode/associate index
+    pack        preprocess and deduplicate FastQ reads
+    acount      association counting (single index)
+    xcount      combinatorial counting (multiple indexes)
 
     complete    print or install shell completion
 
 Run "oligopool COMMAND" to see command-specific options.
-
-EST <timestamp>
 ```
 
 Install tab-completion to blaze through interactive CLI use (recommended).

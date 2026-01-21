@@ -2,8 +2,8 @@ import importlib
 from typing import Any
 
 __api__ = [
-    'background',
     'barcode',
+    'background',
     'primer',
     'motif',
     'spacer',
@@ -35,8 +35,8 @@ __version__ = '2026.01.18'
 
 _LAZY_ATTRS = {
     # Core design functions
-    'background': ('.background', 'background'),
     'barcode': ('.barcode', 'barcode'),
+    'background': ('.background', 'background'),
     'primer': ('.primer', 'primer'),
     'motif': ('.motif', 'motif'),
     'spacer': ('.spacer', 'spacer'),
@@ -116,8 +116,8 @@ Design Mode workflow
         - background
 
     Element modules available
-        - primer
         - barcode
+        - primer
         - motif
         - spacer
 
@@ -204,8 +204,8 @@ Analysis Mode workflow
 You can learn more about each module using help.
     >>> import oligopool as op
     >>> help(op)
-    >>> help(op.primer)
     >>> help(op.barcode)
+    >>> help(op.primer)
     ...
     >>> help(op.xcount)
 

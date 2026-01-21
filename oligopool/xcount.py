@@ -23,8 +23,8 @@ def xcount(
     memory_limit:float=0.0,
     verbose:bool=True) -> Tuple[pd.DataFrame, dict]:
     '''
-    Count barcode combinations using one or more indices under an error tolerance.
-    Writes a combination count matrix to disk and returns it as a DataFrame (callbacks available via Python API).
+    Count barcodes (single or combinatorial) using one or more indices; no associate verification.
+    Writes a count matrix to disk and returns it as a DataFrame (callbacks available via Python API).
 
     Required Parameters:
         - `index_files` (`str` / `list`): A single (or a list of) index filename(s).

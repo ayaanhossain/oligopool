@@ -12,7 +12,7 @@
 
 Welcome to the Oligopool Calculator docs! Whether you're designing your first barcode library or optimizing a million-variant MPRA, you're in the right place.
 
-**TL;DR**: Design oligopool libraries with `barcode`, `primer`, `motif`, `spacer`. Analyze sequencing data with `index`, `pack`, `acount`/`xcount`. All modules take DataFrames in, spit DataFrames out. Chain them together. Ship it.
+**TL;DR**: Design oligopool libraries with `barcode`, `primer`, `motif`, `spacer`. Analyze sequencing data with `index`, `pack`, `acount`/`xcount`. Most modules take CSV/DataFrames in and return `(out_df, stats)` (a few return stats only). Chain them together. Ship it.
 
 ---
 
@@ -86,14 +86,19 @@ That's it. You just designed unique barcodes with guaranteed Hamming distance. N
 
 ### The DataFrame Flow
 
-Every module follows the same pattern:
+Most modules follow one of these patterns:
 
 ```python
-output_df, stats = op.module_name(input_data=input_df, ...)
+out_df, stats = op.barcode(input_data=df, ...)
+stats = op.verify(input_data=df, ...)
 ```
 
 - **Input**: CSV path or pandas DataFrame with an `ID` column
-- **Output**: Updated DataFrame + stats dictionary
+- **Output**:
+  - **Design/transform modules** return `(out_df, stats)`
+  - **Stats-only modules** return `stats` (`background`, `lenstat`, `verify`, `index`, `pack`)
+  - **Counting modules** return `(counts_df, stats)` (`acount`, `xcount`)
+- **ID handling**: If you pass a DataFrame with `ID` as the index, outputs preserve it; files written to disk always include an explicit `ID` column (no pandas index column).
 - **Chainable**: Output of one module feeds into the next
 
 ### The Stats Dictionary
@@ -404,18 +409,18 @@ df, stats = op.primer(
 **When to use it**: Your oligos exceed synthesis length limits (~200 bp).
 
 ```python
-df, stats = op.split(
+split_df, stats = op.split(
     input_data=df,
     split_length_limit=150,               # Max fragment length
     minimum_melting_temperature=55.0,     # Overlap Tm
     minimum_hamming_distance=3,           # Overlap uniqueness
     minimum_overlap_length=20,
     maximum_overlap_length=30,
-    output_file='split_library.csv',
+    output_file='split_library',
 )
 ```
 
-Output contains `Split-1`, `Split-2`, etc. columns with fragments ready for assembly.
+Output contains `Split1`, `Split2`, ... columns with fragments ready for assembly.
 
 ---
 
@@ -428,15 +433,15 @@ Output contains `Split-1`, `Split-2`, etc. columns with fragments ready for asse
 **When to use it**: After `split`, to make fragments synthesis-ready and assembly-compatible.
 
 ```python
-df, stats = op.pad(
+pad_df, stats = op.pad(
     input_data=split_df,
-    split_column='Split-1',               # Which fragment to pad
+    split_column='Split1',                # Which fragment to pad (from split output)
     typeIIS_system='BsaI',                # Enzyme for Golden Gate
     oligo_length_limit=200,
     minimum_melting_temperature=52.0,
     maximum_melting_temperature=58.0,
     maximum_repeat_length=10,
-    output_file='padded_split1.csv',
+    output_file='padded_split1',
 )
 ```
 
@@ -535,12 +540,14 @@ Checks:
 **When to use it**: Last step before ordering.
 
 ```python
-df, stats = op.final(
+final_df, stats = op.final(
     input_data=df,
-    output_file='synthesis_ready.csv',
+    output_file='synthesis_ready',
 )
-# Adds 'CompleteOligo' and 'OligoLength' columns
+# Output contains 'CompleteOligo' and 'OligoLength' columns
 ```
+
+> **Tip**: `final` does not preserve annotation columns (it returns only the concatenated oligo + length). Save the annotated design DataFrame separately if you need it for indexing/counting.
 
 ---
 
@@ -620,7 +627,7 @@ stats = op.pack(
 ```python
 df, stats = op.acount(
     index_file='bc1_index',
-    pack_file='sample.oligopool.pack',
+    pack_file='sample',
     count_file='counts',                   # Creates counts.oligopool.acount.csv
     barcode_errors=1,                      # Allow 1 mismatch (-1=auto)
 )
@@ -640,14 +647,14 @@ df, stats = op.acount(
 # Single barcode index
 df, stats = op.xcount(
     index_files=['bc1_index'],
-    pack_file='sample.oligopool.pack',
+    pack_file='sample',
     count_file='barcode_counts',
 )
 
 # Multiple barcode indices (combinatorial)
 df, stats = op.xcount(
     index_files=['bc1_index', 'bc2_index'],
-    pack_file='sample.oligopool.pack',
+    pack_file='sample',
     count_file='combo_counts',
     mapping_type=1,                          # 0=fast, 1=sensitive
     barcode_errors=-1,                       # Auto-infer
@@ -703,7 +710,8 @@ df, _ = op.barcode(
     minimum_hamming_distance=3,
     maximum_repeat_length=8,
     barcode_column='BC1',
-    left_context_column='Variant',
+    left_context_column='FwdPrimer',
+    right_context_column='Variant',
 )
 
 # 4. Add reverse primer (Tm-matched)
@@ -716,7 +724,7 @@ df, _ = op.primer(
     maximum_melting_temperature=60,
     maximum_repeat_length=10,
     primer_column='RevPrimer',
-    left_context_column='BC1',
+    left_context_column='Variant',
     paired_primer_column='FwdPrimer',
 )
 
@@ -725,7 +733,9 @@ op.lenstat(input_data=df, oligo_length_limit=200)
 
 # 6. Verify and finalize
 op.verify(input_data=df, oligo_length_limit=200)
-df, _ = op.final(input_data=df, output_file='library.csv')
+# Save the annotated library (for indexing/counting) before `final`, which drops annotation columns.
+df.to_csv('library_design.csv', index=False)
+final_df, _ = op.final(input_data=df, output_file='library_for_synthesis')
 ```
 
 ### Analysis Pipeline
@@ -735,10 +745,13 @@ import oligopool as op
 
 # 1. Index your barcodes
 op.index(
-    barcode_data='library.csv',
+    barcode_data='library_design.csv',
     barcode_column='BC1',
     barcode_prefix_column='FwdPrimer',
-    index_file='bc1',
+    associate_data='library_design.csv',
+    associate_column='Variant',
+    associate_suffix_column='RevPrimer',
+    index_file='bc1_assoc',
 )
 
 # 2. Pack your reads
@@ -755,8 +768,8 @@ op.pack(
 
 # 3. Count!
 counts_df, stats = op.acount(
-    index_file='bc1',
-    pack_file='experiment.oligopool.pack',
+    index_file='bc1_assoc',
+    pack_file='experiment',
     count_file='results',
 )
 
@@ -776,10 +789,11 @@ Every module is available via command line:
 op
 
 # Get help on a specific command
-op barcode --help
+op barcode
 
 # Read the manual
 op manual barcode
+op cite
 
 # Run a command
 op barcode \
@@ -790,7 +804,7 @@ op barcode \
     --maximum-repeat-length 8 \
     --barcode-column BC1 \
     --left-context-column Variant \
-    --output-file with_barcodes.csv
+    --output-file with_barcodes
 ```
 
 **Install tab completion** (highly recommended):
@@ -800,7 +814,17 @@ op complete --install
 
 ### CLI-Specific Notes
 
-**`--output-file` is required**: Unlike the Python API where `output_file=None` returns results in-memory, CLI commands that produce a DataFrame require `--output-file`.
+**`--output-file` is required for DataFrame-producing commands**: Unlike the Python API where `output_file=None` returns results in-memory, CLI commands that produce a DataFrame require `--output-file`.
+
+**Output filenames are auto-suffixed**: Most commands append a suffix if missing (e.g., `.oligopool.barcode.csv`), so prefer basenames like `--output-file my_library` to avoid doubled extensions.
+
+**Stats output**: Use `--stats-json` to print the stats dict as JSON to stdout, or `--stats-file path.json` to write it to disk.
+
+**Quiet mode**: Use `--quiet` to suppress verbose module output (sets `verbose=False`).
+
+**Patch mode**: For `barcode`/`primer`/`motif`/`spacer`, use `--patch-mode` to fill only missing values in an existing column (no overwrites).
+
+**Cross-set barcodes**: For multi-barcode designs (BC1 vs BC2), use `--cross-barcode-columns BC1` with `--minimum-cross-distance N` on the subsequent barcode designs.
 
 **Sequence constraint shorthand**: For `--primer-sequence-constraint` and `--motif-sequence-constraint`, you can use:
 ```bash

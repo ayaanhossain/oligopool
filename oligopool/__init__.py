@@ -83,9 +83,9 @@ by ah
 
 Automated design and analysis of oligopool libraries.
 
-Modules operate on DataFrames and return (output_df, stats). Chain them
-to build libraries iteratively; use Patch Mode (`patch_mode=True`) to
-extend existing pools without overwriting prior designs.
+Modules operate on CSV/DataFrames and return (output_df, stats) or stats.
+Chain them to build libraries iteratively; use Patch Mode (`patch_mode=True`)
+to extend existing pools without overwriting prior designs.
 
 Design Mode
     barcode     Hamming-distance barcodes with cross-set separation

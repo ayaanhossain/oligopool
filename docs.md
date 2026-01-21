@@ -41,6 +41,7 @@ Welcome to the Oligopool Calculator docs! Whether you're designing your first ba
 - [Workflows](#workflows)
 - [CLI Reference](#cli-reference)
 - [Tips & Tricks](#tips--tricks)
+- [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -55,7 +56,7 @@ import oligopool as op
 # Start with your variants
 df = pd.DataFrame({
     'ID': ['V1', 'V2', 'V3'],
-    'Promoter': ['ATGCATGC...', 'GCTAGCTA...', 'TTAATTAA...']
+    'Promoter': ['ATGCATGCATGCATGC', 'GCTAGCTAGCTAGCTA', 'TTAATTAATTAATTAA']
 })
 
 # Add a barcode (yes, it's that easy)
@@ -127,6 +128,24 @@ df, stats = op.barcode(
 
 This prevents repeat collisions at element boundaries. Edge effects are real, folks.
 
+### Reproducibility
+
+All stochastic design modules support `random_seed` for reproducible results:
+
+```python
+df, stats = op.barcode(..., random_seed=42)
+```
+
+Same seed + same inputs = same outputs. Great for debugging and publications.
+
+### Verbose Mode
+
+Control output verbosity with `verbose` (default: `True`):
+
+```python
+df, stats = op.barcode(..., verbose=False)  # Silent mode
+```
+
 ---
 
 ## Design Mode
@@ -158,10 +177,25 @@ df, stats = op.barcode(
 )
 ```
 
+**Excluded motifs** (restriction sites, repetitive sequences, etc.):
+```python
+# Simple list - applied globally to all variants
+df, stats = op.barcode(..., excluded_motifs=['GAATTC', 'GGATCC'])
+
+# Via DataFrame - just needs an 'Exmotif' column
+exmotifs_df = pd.DataFrame({
+    'Exmotif': ['GAATTC', 'GGATCC', 'AAGCTT']  # All excluded from ALL variants
+})
+df, stats = op.barcode(..., excluded_motifs=exmotifs_df)  # Or 'exmotifs.csv'
+```
+
+> **Note**: Excluded motifs are applied globally to all variants (no per-variant exclusion). The DataFrame/CSV only needs an `Exmotif` column.
+
 **Pro tips**:
 - Start with `barcode_type=0` (fast). Switch to `1` only if you're packing barcodes tight.
 - Higher Hamming distance = more error tolerance, fewer possible barcodes.
 - Use `cross_barcode_columns` + `minimum_cross_distance` for multi-barcode designs (BC1 vs BC2).
+- `excluded_motifs` works the same way in `primer`, `motif`, and `spacer` modules.
 
 **Cross-set separation** (for multiplexed designs):
 ```python
@@ -214,9 +248,20 @@ df, stats = op.primer(
 
 **Per-set primers** (for multiplexed pools):
 ```python
+# Via list (aligned to input rows)
 df, stats = op.primer(
     ...,
     oligo_sets=['SetA', 'SetA', 'SetB', 'SetB'],  # Group labels
+)
+
+# Via DataFrame - IDs must match input DataFrame!
+sets_df = pd.DataFrame({
+    'ID': ['V1', 'V2', 'V3', 'V4'],               # Must match input_data IDs
+    'OligoSet': ['SetA', 'SetA', 'SetB', 'SetB']
+})
+df, stats = op.primer(
+    ...,
+    oligo_sets=sets_df,                          # Or 'sets.csv'
 )
 ```
 
@@ -298,10 +343,20 @@ df, stats = op.spacer(
     spacer_length=None,                    # Auto-size to fill remaining space
 )
 
-# Per-variant lengths
+# Per-variant lengths (list)
 df, stats = op.spacer(
     ...,
     spacer_length=[10, 15, 12, 8],         # Different per row
+)
+
+# Per-variant lengths (DataFrame) - IDs must match input DataFrame!
+lengths_df = pd.DataFrame({
+    'ID': ['V1', 'V2', 'V3', 'V4'],         # Must match input_data IDs
+    'Length': [10, 15, 12, 8]
+})
+df, stats = op.spacer(
+    ...,
+    spacer_length=lengths_df,              # Or 'lengths.csv'
 )
 ```
 
@@ -756,6 +811,57 @@ op complete --install
 2. **Use fast barcode mode**: `barcode_type=0` is usually sufficient and much faster.
 
 3. **Pack once, count many**: The pack file can be reused across multiple counting runs.
+
+---
+
+## Troubleshooting
+
+[↑ Back to TOC](#table-of-contents)
+
+### Design Failures
+
+**"Barcode Design Infeasible"**
+- Reduce `minimum_hamming_distance`
+- Increase `barcode_length`
+- Switch to `barcode_type=0` (terminus optimized)
+- Relax `maximum_repeat_length`
+- Remove some `excluded_motifs`
+
+**"Primer Design Infeasible"**
+- Widen the Tm range (`minimum/maximum_melting_temperature`)
+- Use more degenerate constraint (more `N`s)
+- Relax `maximum_repeat_length`
+- Check if background is too restrictive
+
+**"Not enough free space"**
+- Your oligos are too long for `oligo_length_limit`
+- Run `lenstat` to see where space is being used
+- Consider splitting with `split` + `pad`
+
+### Analysis Issues
+
+**Low barcode mapping rate**
+- Check your anchors are correct and present in reads
+- Try `mapping_type=1` (sensitive)
+- Increase `barcode_errors` tolerance
+- Verify read orientation (`r1_read_type`, `r2_read_type`)
+
+**Missing combinations in xcount**
+- Partial reads get `'-'` for missing barcodes (this is expected)
+- Check if anchors for all indexes are present in reads
+- Verify read length covers all barcode positions
+
+### General
+
+**"ID column missing/invalid"**
+- Input DataFrame must have a unique `ID` column
+- IDs must be unique (no duplicates)
+- IDs should be strings
+
+**Memory issues**
+- Use `memory_limit` parameter in analysis functions
+- Process in batches for very large datasets
+- Pack files are chunked for efficient processing
 
 ---
 

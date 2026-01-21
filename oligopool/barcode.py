@@ -58,7 +58,7 @@ def barcode(
         - `minimum_cross_distance` (`int` / `None`): Minimum Hamming distance enforced between each
             newly designed barcode and the cross set (default: `None`).
         - `excluded_motifs` (`list` / `str` / `pd.DataFrame`): Motifs to exclude;
-            can be a CSV path or DataFrame (default: `None`).
+            can be a list, CSV, DataFrame, or FASTA file (default: `None`).
         - `verbose` (`bool`): If `True`, logs updates to stdout (default: `True`).
         - `random_seed` (`int` / `None`): Seed for local RNG (default: `None`).
 

@@ -19,7 +19,9 @@ def background(
     Use the resulting directory with `primer(..., background_directory=...)`.
 
     Required Parameters:
-        - `input_data` (`list` / `str` / `pd.DataFrame`): background for primers; can be a CSV file or a DataFrame.
+        - `input_data` (`list` / `str` / `pd.DataFrame`): Background sequences for primers;
+            can be a list of DNA strings, a CSV/DataFrame (with 'Sequence' column),
+            or a FASTA file (.fa/.fasta/.fna, optionally gzipped).
         - `maximum_repeat_length` (`int`): Max repeat length between primers and background (between 6 and 20).
         - `output_directory` (`str`): Directory to store the generated background k-mer database.
         - `verbose` (`bool`): If `True`, logs updates to stdout (default: `True`).
@@ -28,7 +30,7 @@ def background(
         - A dictionary of stats from the last step in pipeline.
 
     Notes:
-        - If `input_data` is a CSV or DataFrame, must contain 'ID' and a 'Sequence' column with DNA strings.
+        - If `input_data` is a CSV or DataFrame, it must have a 'Sequence' column with DNA strings.
         - `maximum_repeat_length` here controls non-repetitiveness of primers to `background` only.
         - For manipulation, use `vectorDB` to operate on the background (see `help(oligopool.vectorDB)`).
     '''

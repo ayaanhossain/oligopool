@@ -137,8 +137,8 @@ Type "help", "copyright", "credits" or "license" for more information.
             - background
 
         Element modules available
-            - primer
             - barcode
+            - primer
             - motif
             - spacer
 
@@ -225,8 +225,8 @@ Type "help", "copyright", "credits" or "license" for more information.
     You can learn more about each module using help.
         >>> import oligopool as op
         >>> help(op)
-        >>> help(op.primer)
         >>> help(op.barcode)
+        >>> help(op.primer)
         ...
         >>> help(op.xcount)
 
@@ -266,8 +266,8 @@ COMMANDS Available:
     manual      show module documentation
     cite        show citation information
 
-    background  build background k-mer database
     barcode     design constrained barcodes
+    background  build background k-mer database
     primer      design constrained primers
     motif       design or add motifs and anchors
     spacer      design or insert spacers

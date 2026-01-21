@@ -78,7 +78,7 @@ def primer(
         - `maximum_repeat_length` controls non-repetitiveness against `input_data` only.
           To screen against a background, build a background DB with `background(...)` and
           pass it via `background_directory`.
-        - If `excluded_motifs` is a CSV or DataFrame, it must have 'ID' and 'Exmotif' columns.
+        - If `excluded_motifs` is a CSV or DataFrame, it must have an 'Exmotif' column.
         - Constant motifs in sequence constraint may lead to sub-optimal primers.
         - Chained primer design: design one primer first, then design its partner by passing
           `paired_primer_column` (e.g., design `primer_type=0` then design `primer_type=1` with

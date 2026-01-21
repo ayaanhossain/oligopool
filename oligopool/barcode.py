@@ -71,7 +71,7 @@ def barcode(
         - Column names in `input_data` must be unique, and exclude `barcode_column`.
         - Spectrum optimization saturates k-mers, terminus optimization ensures unique 5p/3p ends.
         - At least one of `left_context_column` or `right_context_column` must be specified.
-        - If `excluded_motifs` is a CSV or DataFrame, it must have 'ID' and 'Exmotif' columns.
+        - If `excluded_motifs` is a CSV or DataFrame, it must have an 'Exmotif' column.
         - If barcode design is challenging, consider
             * altering `barcode_length`, or
             * reducing `minimum_hamming_distance`, or

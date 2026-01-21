@@ -31,8 +31,8 @@ def main():
     # Index the Second Barcode
     op.index(
         barcode_data='ribozyme_architecture.csv',
-        barcode_column='BC2',                        # Index BC1 only
-        barcode_prefix_column='PinkForwardPrimer',   # which should be next to OrangeForwardPrimer
+        barcode_column='BC2',                        # Index BC2 only
+        barcode_prefix_column='PinkForwardPrimer',   # which should be next to PinkForwardPrimer
         barcode_suffix_column='YellowReversePrimer', # and YellowReversePrimer as flanking right constant
         barcode_prefix_gap=0,
         barcode_suffix_gap=0,

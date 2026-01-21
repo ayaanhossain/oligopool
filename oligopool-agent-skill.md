@@ -2,23 +2,23 @@
 
 This document is designed for AI assistants to understand and help users with oligopool library design and analysis.
 
-## Operation Policy
+## Operation Policy (Keep This Useful)
 
-This guide is kept in sync with `docs.md` and provides everything an AI agent needs to effectively use the oligopool package.
+- **Source of truth**: `docs.md` + runtime docs (`help(op)` / `help(op.<module>)`) + real CLI behavior.
+- **This guide**: Agent-facing contracts, gotchas, and workflow scaffolding (Notebook / Script / CLI).
+- **If anything disagrees**: Trust runtime behavior, then update `docs.md` and this guide together.
 
-**Key points for working with this package:**
-
-- **Entry points**: Both `op` and `oligopool` CLI commands are equivalent and fully functional.
-- **CLI usage**: Run `op COMMAND` to see command-specific options. Run `op manual COMMAND` for detailed documentation.
-- **Output files**: Prefer basenames for `--output-file`; the CLI auto-appends appropriate `.oligopool.*` suffixes.
+**Quick facts (the ones that matter in practice):**
+- **Entry points**: `op` and `oligopool` are equivalent CLIs.
+- **CLI help model**: There is no `--help` flag. Use `op COMMAND` for command options and `op manual COMMAND` for docstrings.
+- **Basenames**: Prefer basenames for all outputs (`--output-file`, `--index-file`, `--pack-file`, `--count-file`); suffixes are auto-appended as needed.
 - **Return shapes**:
-  - Design/transform modules: `(out_df, stats_dict)`
-  - Stats-only modules: `stats_dict` (`background`, `lenstat`, `verify`, `index`, `pack`)
-  - Counting modules: `(counts_df, stats_dict)` (`acount`, `xcount`)
-- **ID column**: All modules expect a unique `ID` column. CSV outputs include an explicit `ID` column.
-- **Patch Mode**: Use `patch_mode=True` / `--patch-mode` to extend existing pools by filling only missing values.
-- **Cross-set barcodes**: Specify both `cross_barcode_columns` and `minimum_cross_distance` together for multi-barcode designs.
-- **Runtime help**: Use `help(op)` or `help(op.<module>)` in Python for inline documentation.
+  - Design/transform: `(out_df, stats_dict)`
+  - Stats-only: `stats_dict` (`background`, `lenstat`, `verify`, `index`, `pack`)
+  - Counting: `(counts_df, stats_dict)` (`acount`, `xcount`)
+- **ID handling**: Input requires a unique `ID`. CSV outputs include an explicit `ID` column (no pandas index column).
+- **Patch Mode**: `patch_mode=True` / `--patch-mode` fills only missing values (None/NaN/empty/`'-'`) and never overwrites existing designs.
+- **Cross-set barcodes**: `cross_barcode_columns` and `minimum_cross_distance` must be provided together.
 
 ## Package Overview
 
@@ -154,7 +154,7 @@ df, stats = op.barcode(
     left_context_column=None,      # str - Column for left DNA context
     right_context_column=None,     # str - Column for right DNA context
     patch_mode=False,              # bool - Fill only missing values in existing column
-    cross_barcode_columns=None,    # list[str] - Existing barcode columns for cross-set separation
+    cross_barcode_columns=None,    # str | list[str] - Existing barcode column(s) for cross-set separation
     minimum_cross_distance=None,   # int - Min Hamming distance to cross set (use with cross_barcode_columns)
     excluded_motifs=None,          # list | str | pd.DataFrame - Motifs to exclude (list, CSV, DataFrame, or FASTA)
     verbose=True,                  # bool - Print progress
@@ -196,7 +196,7 @@ df, stats = op.primer(
     patch_mode=False,              # bool - Fill only missing values
     oligo_sets=None,               # list | str | pd.DataFrame - Per-oligo set labels for set-specific primers
     paired_primer_column=None,     # str - Column of paired primer for Tm matching
-    excluded_motifs=None,          # list | str | pd.DataFrame - Motifs to exclude
+    excluded_motifs=None,          # list | str | pd.DataFrame - Motifs to exclude (list, CSV, DataFrame, or FASTA)
     background_directory=None,     # str - Background k-mer database for off-target screening
     verbose=True,                  # bool - Print progress
     random_seed=None,              # int - RNG seed
@@ -232,7 +232,7 @@ df, stats = op.motif(
     left_context_column=None,      # str - Column for left DNA context
     right_context_column=None,     # str - Column for right DNA context
     patch_mode=False,              # bool - Fill only missing values
-    excluded_motifs=None,          # list | str | pd.DataFrame - Motifs to exclude
+    excluded_motifs=None,          # list | str | pd.DataFrame - Motifs to exclude (list, CSV, DataFrame, or FASTA)
     verbose=True,                  # bool - Print progress
     random_seed=None,              # int - RNG seed
 )
@@ -265,7 +265,7 @@ df, stats = op.spacer(
     left_context_column=None,      # str - Column for left DNA context
     right_context_column=None,     # str - Column for right DNA context
     patch_mode=False,              # bool - Fill only missing values
-    excluded_motifs=None,          # list | str | pd.DataFrame - Motifs to exclude
+    excluded_motifs=None,          # list | str | pd.DataFrame - Motifs to exclude (list, CSV, DataFrame, or FASTA)
     verbose=True,                  # bool - Print progress
     random_seed=None,              # int - RNG seed
 )
@@ -437,7 +437,7 @@ stats = op.verify(
 
     # Optional
     oligo_length_limit=None,       # int - Check for length violations
-    excluded_motifs=None,          # list | str | pd.DataFrame - Check for motif violations
+    excluded_motifs=None,          # list | str | pd.DataFrame - Check for motif violations (list, CSV, DataFrame, or FASTA)
     verbose=True,                  # bool - Print progress
 )
 ```
@@ -486,8 +486,8 @@ stats = op.index(
     barcode_suffix_column=None,    # str - Column for constant suffix anchor
     barcode_prefix_gap=0,          # int - Distance between prefix and barcode
     barcode_suffix_gap=0,          # int - Distance between suffix and barcode
-    associate_data=None,           # str | pd.DataFrame - DataFrame with associated variants
-    associate_column=None,         # str - Column for associate elements
+    associate_data=None,           # str | pd.DataFrame | None - CSV path or DataFrame with associates
+    associate_column=None,         # str | None - Column for associate elements
     associate_prefix_column=None,  # str - Column for associate prefix
     associate_suffix_column=None,  # str - Column for associate suffix
     verbose=True,                  # bool - Print progress
@@ -539,7 +539,7 @@ stats = op.pack(
 **Purpose**: Association counting - verify barcode-variant coupling.
 
 ```python
-df, stats = op.acount(
+counts_df, stats = op.acount(
     # Required
     index_file,                    # str - Index filename (from index())
     pack_file,                     # str - Pack filename (from pack())
@@ -570,7 +570,7 @@ df, stats = op.acount(
 **Purpose**: Barcode-only counting (single or combinatorial).
 
 ```python
-df, stats = op.xcount(
+counts_df, stats = op.xcount(
     # Required
     index_files,                   # str | list - Single index or list of index filenames
     pack_file,                     # str - Pack filename
@@ -614,7 +614,7 @@ def my_callback(read, ID, count, coreid):
     # Custom logic here
     return True
 
-df, stats = op.xcount(..., callback=my_callback)
+counts_df, stats = op.xcount(..., callback=my_callback)
 ```
 
 **Use cases**:
@@ -641,9 +641,11 @@ db = op.vectorDB(
 ```python
 # Add sequence k-mers to database
 db.add(seq, rna=True)              # seq: DNA string, rna: convert U→T if True
+db.multiadd(seq_list, rna=True)    # add many sequences
 
 # Check if any k-mer from seq exists in database
 seq in db                          # Returns bool (uses __contains__)
+db.multicheck(seq_list, rna=True)  # list[bool]
 
 # Iterate over stored k-mers
 for kmer in db:
@@ -652,10 +654,15 @@ for kmer in db:
 # Get number of stored k-mers
 len(db)
 
+# Remove k-mers
+db.remove(seq, rna=True)
+db.multiremove(seq_list, rna=True, clear=False)
+
 # Clear all k-mers (optionally set new maxreplen)
 db.clear(maxreplen=None)
 
-# Drop/close the database
+# Close vs drop
+db.close()                         # close handle, keep files
 db.drop()
 ```
 
@@ -689,7 +696,7 @@ model.prime(
 )
 
 # Predict label
-label = model.predict(x)           # x: sequence string, returns predicted label
+label, score = model.predict(x)    # returns (label, score) or (None, None)
 ```
 
 **When to use**: Building custom counting pipelines, debugging barcode classification, custom analysis workflows.
@@ -705,7 +712,7 @@ model.train(
     t=1
 )
 model.prime(t=1, mode=0)
-label = model.predict('ATGCATGC')  # Returns 'bc1'
+label, score = model.predict('ATGCATGC')  # Returns ('bc1', 1.0) for exact/near-exact hits
 ```
 
 ---

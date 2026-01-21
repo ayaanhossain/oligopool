@@ -66,8 +66,6 @@ Both approaches should install all dependencies automatically.
 
 If you are on `Windows` or simply prefer to, `Oligopool Calculator` can also be used via `Docker` (please see [the notes](https://github.com/ayaanhossain/oligopool/blob/master/docker-notes.md)).
 
-**Verifying Installation**
-
 Successful installation will look like this.
 ```python
 $ python

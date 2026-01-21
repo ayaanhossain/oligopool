@@ -60,7 +60,7 @@ def spacer(
         - Column names in `input_data` must be unique, and exclude `spacer_column`.
         - At least one of `left_context_column` or `right_context_column` must be specified.
         - When `spacer_length` is a CSV or DataFrame, it must have 'ID' and 'Length' columns.
-        - If `excluded_motifs` is a CSV or DataFrame, it must have 'ID' and 'Exmotif' columns.
+        - If `excluded_motifs` is a CSV or DataFrame, it must have an 'Exmotif' column.
         - Oligo rows already summing to or exceeding `oligo_length_limit` have a `'-'` (dash) as spacer.
         - Patch mode (`patch_mode=True`) supports incremental pool extension: existing values in
           `spacer_column` are preserved and only missing values (e.g., `None`/NaN/empty/`'-'`) are

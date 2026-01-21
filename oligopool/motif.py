@@ -61,7 +61,7 @@ def motif(
         - `input_data` must contain a unique 'ID' column, all other columns must be non-empty DNA strings.
         - Column names in `input_data` must be unique, and exclude `motif_column`.
         - At least one of `left_context_column` or `right_context_column` must be specified.
-        - If `excluded_motifs` is a CSV or DataFrame, it must have 'ID' and 'Exmotif' columns.
+        - If `excluded_motifs` is a CSV or DataFrame, it must have an 'Exmotif' column.
         - Constant bases in sequence constraint may lead to `excluded_motifs` and be impossible to solve.
         - Use `motif_type=1` to design constant motif anchors (e.g., barcode prefix/suffix anchors for indexing).
         - For anchors, tune `maximum_repeat_length` to control how distinct the anchor is from the surrounding oligos.

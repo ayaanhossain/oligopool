@@ -20,6 +20,7 @@
 19. CLI/Docs: reordered modules to list `barcode` first; synced module ordering and descriptions across CLI, `__init__.py`, and README.
 20. Docs: streamlined `help(op)` docstring for scannable Jupyter/REPL usage (compact module listing with one-line descriptions).
 21. Docs: added comprehensive `docs.md` with TOC, examples, workflows, and tips.
+22. API: `excluded_motifs` DataFrame/CSV now only requires an `Exmotif` column (removed unnecessary `ID` column requirement).
 
 2026.01.17
 1. Development in progress.

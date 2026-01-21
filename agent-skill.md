@@ -28,6 +28,28 @@ import oligopool as op
 - Output: `(updated_df, stats_dict)` tuple
 - Chain modules to build libraries iteratively
 
+### The Stats Dictionary
+Every module returns a `stats` dict:
+```python
+stats = {
+    'status': True/False,      # Success or failure
+    'basis': 'completed',      # Reason for status (see common values below)
+    'step': 1,                 # Pipeline step number
+    'step_name': 'designing',  # Step name
+    'module': 'barcode',       # Module name
+    'input_rows': 100,         # Input row count
+    'output_rows': 100,        # Output row count
+    'vars': {...},             # Module-specific variables
+    'warns': {...},            # Any warnings
+}
+```
+
+**Common `basis` values:**
+- `'completed'` - Success
+- `'infeasible'` - Design constraints too strict (relax parameters)
+- `'exhausted'` - Search space exhausted (increase length, reduce distance)
+- `'impossible'` - Mathematically impossible (check constraints)
+
 ### The Oligo Architecture
 A typical oligo has this structure:
 ```
@@ -39,11 +61,15 @@ A typical oligo has this structure:
 - **Motifs/Anchors**: Constant sequences for indexing or restriction sites
 - **Spacers**: Neutral filler to reach target oligo length
 
-### Context Columns
-Most modules require `left_context_column` and/or `right_context_column` to:
-- Prevent repeats at element boundaries (edge effects)
-- Ensure excluded motifs don't emerge at junctions
-- At least one context column is required
+### Context Columns and Edge Effects
+Most modules require `left_context_column` and/or `right_context_column`.
+
+**Edge Effect**: The emergence of an undesired sequence (excluded motif, repeat, etc.) at the fusion boundary when inserting an element between or next to existing sequence contexts. For example, inserting barcode `GAATT` next to context ending in `...G` creates `...GGAATT`, which contains `GAATTC` (EcoRI site) spanning the junction.
+
+Context columns prevent edge effects by:
+- Checking that no excluded motifs emerge at element-context junctions
+- Ensuring no repeats span the insertion boundaries
+- At least one context column is required for proper edge-effect screening
 
 ### Patch Mode
 Use `patch_mode=True` to extend existing pools:
@@ -532,6 +558,36 @@ df, stats = op.xcount(..., callback=my_callback)
 
 ---
 
+## Advanced Modules
+
+### vectorDB
+
+**Purpose**: LevelDB-based k-mer storage for background databases.
+
+```python
+# Typically used internally by background(), but can be accessed directly
+db = op.vectorDB(path='my_db.oligopool.background')
+db.multicheck(seqs=['ATGC...'])  # Check sequences against database
+```
+
+**When to use**: Direct manipulation of background k-mer databases (advanced users only).
+
+---
+
+### Scry
+
+**Purpose**: 1-nearest-neighbor barcode classifier used internally by `acount`/`xcount`.
+
+```python
+# Typically used internally, but can be accessed for custom analysis
+classifier = op.Scry(barcodes=['ATGC...', 'GCTA...'], errors=1)
+result = classifier.classify(query='ATGC...')
+```
+
+**When to use**: Building custom counting pipelines or debugging barcode classification (advanced users only).
+
+---
+
 ## Common Workflows
 
 ### Basic Library Design
@@ -763,7 +819,7 @@ All element modules accept `excluded_motifs`:
 ### Context Columns
 - Always specify at least one of `left_context_column` or `right_context_column`
 - Use adjacent columns in the oligo architecture
-- Critical for preventing edge-effect motifs
+- Critical for preventing edge effects (undesired motifs/repeats emerging at fusion junctions)
 
 ### IUPAC Codes for Constraints
 ```
@@ -868,6 +924,45 @@ op complete --install
 6. **Use Patch Mode for extensions**: Don't redesign existing elements
 7. **Use cross_barcode_columns**: For multi-barcode designs to ensure separation
 8. **Build background first**: If you have host/plasmid sequences to screen against
+
+---
+
+## Decision Guide for Common Questions
+
+**"Which module do I use to...?"**
+- Add unique identifiers → `barcode`
+- Add amplification sites → `primer`
+- Add restriction sites or anchors → `motif`
+- Fill to target length → `spacer`
+- Screen against genome/plasmid → `background` then `primer` with `background_directory`
+- Handle long oligos → `split` + `pad`
+- Count reads → `index` + `pack` + `acount` or `xcount`
+
+**"acount or xcount?"**
+- Need to verify barcode-variant pairing → `acount`
+- Just counting barcodes (no variant verification) → `xcount`
+- Combinatorial counting (BC1 × BC2) → `xcount`
+
+**"Design is failing, what do I relax?"**
+- Barcodes: increase `barcode_length`, decrease `minimum_hamming_distance`, use `barcode_type=0`
+- Primers: widen Tm range, more `N`s in constraint, increase `maximum_repeat_length`
+- General: reduce `excluded_motifs`, increase `maximum_repeat_length`
+
+**"What order should I design elements?"**
+1. `background` (if screening needed)
+2. `primer` (inner primers first if paired)
+3. `motif` (anchors for indexing)
+4. `barcode`
+5. `spacer`
+6. `verify` → `final`
+
+**"How do I extend an existing pool?"**
+- Use `patch_mode=True` - only fills missing values, preserves existing designs
+
+**"Input requirements?"**
+- DataFrame must have unique `ID` column
+- All other columns must contain DNA strings (ATGC only, no gaps)
+- At least one context column required for element design
 
 ---
 

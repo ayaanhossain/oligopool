@@ -361,7 +361,7 @@ class OligopoolParser(argparse.ArgumentParser):
             return text
 
         middle_lines = [line for line in command_lines if line not in (manual_line, cite_line, complete_line)]
-        gap_after = {'spacer', 'pad', 'revcomp', 'final'}
+        gap_after = {'spacer', 'background', 'pad', 'revcomp', 'final'}
         middle_out = []
         for line in middle_lines:
             middle_out.append(line)
@@ -1044,7 +1044,7 @@ def _add_barcode(cmdpar):
     '''Register the barcode subcommand parser.'''
     parser = cmdpar.add_parser(
         'barcode',
-        help='Hamming-distance barcodes with cross-set separation',
+        help='orthogonal barcodes with cross-set separation',
         description='Design constrained barcodes and write an output CSV.',
         epilog=_notes_epilog('barcode'),
         usage=argparse.SUPPRESS,

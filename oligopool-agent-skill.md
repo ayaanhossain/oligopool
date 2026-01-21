@@ -2,26 +2,23 @@
 
 This document is designed for AI assistants to understand and help users with oligopool library design and analysis.
 
-## Sync Policy (Avoid Drift)
+## Operation Policy
 
-- **Human docs source of truth**: `docs.md` is the canonical human-facing reference.
-- **This guide**: Focuses on contracts, CLI behavior, I/O expectations, and common failure modes for assistants.
-- **If docs disagree**: Prefer real runtime behavior + `help(oligopool)` / `help(op.<module>)`, then update `docs.md`
-  and this guide together.
+This guide is kept in sync with `docs.md` and provides everything an AI agent needs to effectively use the oligopool package.
 
-**Quick sync checklist** (update this guide if any of these change):
-- CLI help model: `op COMMAND` shows options (no `--help` flag).
-- Entry points: `op` and `oligopool` are both installed and equivalent.
-- Output naming: prefer basenames; commands auto-append `.oligopool.*` suffixes when missing.
-- Return shapes:
-  - Most design/transform: `(out_df, stats)`
-  - Stats-only: `stats` (`background`, `lenstat`, `verify`, `index`, `pack`)
-  - Counting: `(counts_df, stats)` (`acount`, `xcount`)
-- ID handling: internal index-by-`ID` is common; outputs preserve `ID`-as-index intent for DataFrame inputs; CSV outputs
-  include an explicit `ID` column (no implicit pandas index column).
-- Patch Mode (`patch_mode=True` / `--patch-mode`): fills missing only (None/NaN/empty/`'-'`), no overwrites.
-- Cross-set barcodes (`cross_barcode_columns` + `minimum_cross_distance` / CLI flags) semantics remain strict and symmetric.
-- Multiplex primer sets (`oligo_sets`) behavior and per-set pairing (`paired_primer_column`) remain accurate.
+**Key points for working with this package:**
+
+- **Entry points**: Both `op` and `oligopool` CLI commands are equivalent and fully functional.
+- **CLI usage**: Run `op COMMAND` to see command-specific options. Run `op manual COMMAND` for detailed documentation.
+- **Output files**: Prefer basenames for `--output-file`; the CLI auto-appends appropriate `.oligopool.*` suffixes.
+- **Return shapes**:
+  - Design/transform modules: `(out_df, stats_dict)`
+  - Stats-only modules: `stats_dict` (`background`, `lenstat`, `verify`, `index`, `pack`)
+  - Counting modules: `(counts_df, stats_dict)` (`acount`, `xcount`)
+- **ID column**: All modules expect a unique `ID` column. CSV outputs include an explicit `ID` column.
+- **Patch Mode**: Use `patch_mode=True` / `--patch-mode` to extend existing pools by filling only missing values.
+- **Cross-set barcodes**: Specify both `cross_barcode_columns` and `minimum_cross_distance` together for multi-barcode designs.
+- **Runtime help**: Use `help(op)` or `help(op.<module>)` in Python for inline documentation.
 
 ## Package Overview
 

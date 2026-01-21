@@ -1004,7 +1004,7 @@ def _add_background(cmdpar):
     '''Register the background subcommand parser.'''
     parser = cmdpar.add_parser(
         'background',
-        help='build background k-mer database',
+        help='k-mer database for off-target screening',
         description='Build a background k-mer database for repeat exclusion.',
         epilog=_notes_epilog('background'),
         usage=argparse.SUPPRESS,
@@ -1044,7 +1044,7 @@ def _add_barcode(cmdpar):
     '''Register the barcode subcommand parser.'''
     parser = cmdpar.add_parser(
         'barcode',
-        help='design constrained barcodes',
+        help='Hamming-distance barcodes with cross-set separation',
         description='Design constrained barcodes and write an output CSV.',
         epilog=_notes_epilog('barcode'),
         usage=argparse.SUPPRESS,
@@ -1175,7 +1175,7 @@ def _add_primer(cmdpar):
     '''Register the primer subcommand parser.'''
     parser = cmdpar.add_parser(
         'primer',
-        help='design constrained primers',
+        help='thermodynamic primers with Tm matching',
         description='Design constrained primers and write an output CSV.',
         epilog=_notes_epilog('primer'),
         usage=argparse.SUPPRESS,
@@ -1321,7 +1321,7 @@ def _add_motif(cmdpar):
     '''Register the motif subcommand parser.'''
     parser = cmdpar.add_parser(
         'motif',
-        help='design or add motifs and anchors',
+        help='sequence motifs or constant anchors',
         description='Design or add motifs/anchors and write an output CSV.',
         epilog=_notes_epilog('motif'),
         usage=argparse.SUPPRESS,
@@ -1430,7 +1430,7 @@ def _add_spacer(cmdpar):
     '''Register the spacer subcommand parser.'''
     parser = cmdpar.add_parser(
         'spacer',
-        help='design or insert spacers',
+        help='neutral spacers to meet length targets',
         description='Design or insert spacers and write an output CSV.',
         epilog=_notes_epilog('spacer'),
         usage=argparse.SUPPRESS,
@@ -1531,7 +1531,7 @@ def _add_split(cmdpar):
     '''Register the split subcommand parser.'''
     parser = cmdpar.add_parser(
         'split',
-        help='split long oligos into shorter ones',
+        help='break long oligos into overlapping fragments',
         description='Split long oligos into shorter ones and write an output CSV.',
         epilog=_notes_epilog('split'),
         usage=argparse.SUPPRESS,
@@ -1603,7 +1603,7 @@ def _add_pad(cmdpar):
     '''Register the pad subcommand parser.'''
     parser = cmdpar.add_parser(
         'pad',
-        help='pad split oligos with primers',
+        help='add primers + Type IIS sites for assembly',
         description='Pad split oligos with primers and write an output CSV.',
         epilog=_notes_epilog('pad'),
         usage=argparse.SUPPRESS,
@@ -1682,7 +1682,7 @@ def _add_merge(cmdpar):
     '''Register the merge subcommand parser.'''
     parser = cmdpar.add_parser(
         'merge',
-        help='merge oligo elements into one column',
+        help='collapse contiguous columns',
         description='Merge oligo elements into one column and write an output CSV.',
         epilog=_notes_epilog('merge'),
         usage=argparse.SUPPRESS,
@@ -1733,7 +1733,7 @@ def _add_revcomp(cmdpar):
     '''Register the revcomp subcommand parser.'''
     parser = cmdpar.add_parser(
         'revcomp',
-        help='reverse complement spanning elements',
+        help='reverse complement a column range',
         description='Reverse complement spanning elements and write an output CSV.',
         epilog=_notes_epilog('revcomp'),
         usage=argparse.SUPPRESS,
@@ -1777,7 +1777,7 @@ def _add_verify(cmdpar):
     '''Register the verify subcommand parser.'''
     parser = cmdpar.add_parser(
         'verify',
-        help='verify constraints and summarize library',
+        help='QC constraints before synthesis',
         description='Verify a library DataFrame (length/motif/degeneracy checks; no output file).',
         epilog=_notes_epilog('verify'),
         usage=argparse.SUPPRESS,
@@ -1814,7 +1814,7 @@ def _add_lenstat(cmdpar):
     '''Register the lenstat subcommand parser.'''
     parser = cmdpar.add_parser(
         'lenstat',
-        help='compute length statistics',
+        help='length statistics and free-space check',
         description='Compute length statistics (prints results; no output file).',
         epilog=_notes_epilog('lenstat'),
         usage=argparse.SUPPRESS,
@@ -1844,7 +1844,7 @@ def _add_final(cmdpar):
     '''Register the final subcommand parser.'''
     parser = cmdpar.add_parser(
         'final',
-        help='finalize library',
+        help='concatenate columns into synthesis-ready oligos',
         description='Finalize the library and write an output CSV.',
         epilog=_notes_epilog('final'),
         usage=argparse.SUPPRESS,
@@ -1875,7 +1875,7 @@ def _add_index(cmdpar):
     '''Register the index subcommand parser.'''
     parser = cmdpar.add_parser(
         'index',
-        help='index barcodes and associates',
+        help='build barcode/associate index',
         description='Index barcodes (and optionally associates) into an index file.',
         epilog=_notes_epilog('index'),
         usage=argparse.SUPPRESS,
@@ -1974,7 +1974,7 @@ def _add_pack(cmdpar):
     '''Register the pack subcommand parser.'''
     parser = cmdpar.add_parser(
         'pack',
-        help='preprocess and pack FastQ for counting',
+        help='preprocess and deduplicate FastQ reads',
         description='Preprocess and pack FastQ reads for counting into a pack file.',
         epilog=_notes_epilog('pack'),
         usage=argparse.SUPPRESS,
@@ -2082,7 +2082,7 @@ def _add_acount(cmdpar):
     '''Register the acount subcommand parser.'''
     parser = cmdpar.add_parser(
         'acount',
-        help='execute association counting',
+        help='association counting (single index)',
         description='Execute association counting and write a count matrix CSV.',
         epilog=_notes_epilog('acount'),
         usage=argparse.SUPPRESS,
@@ -2157,7 +2157,7 @@ def _add_xcount(cmdpar):
     '''Register the xcount subcommand parser.'''
     parser = cmdpar.add_parser(
         'xcount',
-        help='execute combinatorial counting',
+        help='combinatorial counting (multiple indexes)',
         description='Execute combinatorial counting and write a count matrix CSV.',
         epilog=_notes_epilog('xcount'),
         usage=argparse.SUPPRESS,
@@ -2242,10 +2242,10 @@ def _get_parsers():
     _add_manual(cmdpar)
     _add_cite(cmdpar)
     _add_barcode(cmdpar)
-    _add_background(cmdpar)
     _add_primer(cmdpar)
     _add_motif(cmdpar)
     _add_spacer(cmdpar)
+    _add_background(cmdpar)
     _add_split(cmdpar)
     _add_pad(cmdpar)
     _add_merge(cmdpar)

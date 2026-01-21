@@ -567,15 +567,40 @@ df, stats = op.xcount(..., callback=my_callback)
 
 ### vectorDB
 
-**Purpose**: LevelDB-based k-mer storage for background databases.
+**Purpose**: LevelDB-based scalable on-disk k-mer storage for background databases.
 
 ```python
-# Typically used internally by background(), but can be accessed directly
-db = op.vectorDB(path='my_db.oligopool.background')
-db.multicheck(seqs=['ATGC...'])  # Check sequences against database
+db = op.vectorDB(
+    path,                          # str - Path to store/load vectorDB instance
+    maximum_repeat_length,         # int - Max shared repeat length (k-mer size = maximum_repeat_length + 1)
+)
 ```
 
-**When to use**: Direct manipulation of background k-mer databases (advanced users only).
+**Methods:**
+```python
+# Add sequence k-mers to database
+db.add(seq, rna=True)              # seq: DNA string, rna: convert U→T if True
+
+# Check if any k-mer from seq exists in database
+seq in db                          # Returns bool (uses __contains__)
+
+# Iterate over stored k-mers
+for kmer in db:
+    print(kmer)
+
+# Get number of stored k-mers
+len(db)
+
+# Clear all k-mers (optionally set new maxreplen)
+db.clear(maxreplen=None)
+
+# Drop/close the database
+db.drop()
+```
+
+**When to use**: Direct manipulation of background k-mer databases, custom screening pipelines.
+
+**Note**: When reopening an existing vectorDB, `maximum_repeat_length` is ignored and loaded from the instance.
 
 ---
 
@@ -584,12 +609,43 @@ db.multicheck(seqs=['ATGC...'])  # Check sequences against database
 **Purpose**: 1-nearest-neighbor barcode classifier used internally by `acount`/`xcount`.
 
 ```python
-# Typically used internally, but can be accessed for custom analysis
-classifier = op.Scry(barcodes=['ATGC...', 'GCTA...'], errors=1)
-result = classifier.classify(query='ATGC...')
+model = op.Scry()
+
+# Train the model
+model.train(
+    X,                             # iterable - Sequences to fit
+    Y,                             # iterable - Labels for sequences
+    n,                             # int - Length of each sequence
+    k,                             # int - k-mer length for sequences
+    t,                             # int - Maximum errors in sequence variants
+    liner=None,                    # coroutine - For dynamic printing (optional)
+)
+
+# Prime for prediction
+model.prime(
+    t=0,                           # int - Number of errors to consider (default: 0)
+    mode=0,                        # int - 0=fast/near-exact, 1=slow/sensitive (default: 0)
+)
+
+# Predict label
+label = model.predict(x)           # x: sequence string, returns predicted label
 ```
 
-**When to use**: Building custom counting pipelines or debugging barcode classification (advanced users only).
+**When to use**: Building custom counting pipelines, debugging barcode classification, custom analysis workflows.
+
+**Example:**
+```python
+model = op.Scry()
+model.train(
+    X=['ATGCATGC', 'GCTAGCTA', 'TTAATTAA'],
+    Y=['bc1', 'bc2', 'bc3'],
+    n=8,
+    k=4,
+    t=1
+)
+model.prime(t=1, mode=0)
+label = model.predict('ATGCATGC')  # Returns 'bc1'
+```
 
 ---
 

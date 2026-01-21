@@ -24,7 +24,7 @@ def acount(
     memory_limit:float=0.0,
     verbose:bool=True) -> Tuple[pd.DataFrame, dict]:
     '''
-    Count barcoded reads against a single index (with associates) under an error tolerance.
+    Count barcoded reads while verifying each barcode is coupled with its expected associated variant.
     Writes a count matrix to disk and returns it as a DataFrame (callbacks available via Python API).
 
     Required Parameters:

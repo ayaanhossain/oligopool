@@ -24,6 +24,8 @@ def background(
             or a FASTA file (.fa/.fasta/.fna, optionally gzipped).
         - `maximum_repeat_length` (`int`): Max repeat length between primers and background (between 6 and 20).
         - `output_directory` (`str`): Directory to store the generated background k-mer database.
+
+    Optional Parameters:
         - `verbose` (`bool`): If `True`, logs updates to stdout (default: `True`).
 
     Returns:

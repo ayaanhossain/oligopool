@@ -4,7 +4,7 @@
     </a>
 </h1>
 
-<h4><p align="center">Version: 2026.01.18</p></h4>
+<h4><p align="center">Version: 2026.01.22</p></h4>
 
 <p align="center">
   <a href="#features" style="text-decoration: none !important;">✨ Features</a> •
@@ -74,7 +74,7 @@ Python 3.10.9 | packaged by conda-forge | (main, Feb  2 2023, 20:20:04) [GCC 11.
 Type "help", "copyright", "credits" or "license" for more information.
 >>> import oligopool as op
 >>> op.__version__
-'2026.01.18'
+'2026.01.22'
 >>>
 ```
 
@@ -103,7 +103,7 @@ Type "help", "copyright", "credits" or "license" for more information.
 >>> import oligopool as op
 >>> help(op)
 ...
-    oligopool v2026.01.18
+    oligopool v2026.01.22
     by ah
 
     Automated design and analysis of oligopool libraries.
@@ -163,7 +163,7 @@ Run `op` with no arguments to see the command list, and run `op COMMAND` to see 
 ```bash
 $ op
 
-oligopool v2026.01.18
+oligopool v2026.01.22
 by ah
 
 usage: oligopool COMMAND --argument=<value> ...

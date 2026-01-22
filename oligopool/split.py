@@ -9,7 +9,7 @@ from .base import utils as ut
 from .base import validation_parsing  as vp
 from .base import core_split as cs
 
-from typing import Tuple
+from typing import Tuple, Union
 
 
 def split(
@@ -20,11 +20,13 @@ def split(
     minimum_overlap_length:int,
     maximum_overlap_length:int,
     output_file:str|None=None,
-    verbose:bool=True,
-    random_seed:int|None=None) -> Tuple[pd.DataFrame, dict]:
+    separate_outputs:bool=False,
+    random_seed:int|None=None,
+    verbose:bool=True) -> Tuple[Union[pd.DataFrame, list[pd.DataFrame]], dict]:
     '''
     Split long oligos into overlapping fragments for downstream assembly, choosing overlaps that meet
-    Tm and distance constraints. Returns a DataFrame containing `Split1`, `Split2`, ... columns.
+    Tm and distance constraints. Returns a DataFrame containing `Split1`, `Split2`, ... columns (or a
+    list of separate DataFrames when `separate_outputs=True`).
 
     Required Parameters:
         - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated oligopool variants.
@@ -37,21 +39,30 @@ def split(
     Optional Parameters:
         - `output_file` (`str`): Filename for output DataFrame; required in CLI usage,
             optional in library usage (default: `None`).
-        - `verbose` (`bool`): If `True`, logs updates to stdout (default: `True`).
+        - `separate_outputs` (`bool`): If `True`, returns a list of DataFrames (one per split column)
+            instead of a single combined DataFrame. When `output_file` is also provided, writes separate
+            files named `{base}.SplitN.oligopool.split.csv` (default: `False`).
         - `random_seed` (`int` / `None`): Seed for local RNG (default: `None`).
+        - `verbose` (`bool`): If `True`, logs updates to stdout (default: `True`).
 
     Returns:
-        - A pandas DataFrame with split oligos; saves to `output_file` if specified.
+        - When `separate_outputs` is disabled: A single pandas DataFrame with `Split1`, `Split2`, ... columns.
+        - When `separate_outputs` is enabled: A list of DataFrames `[df_Split1, df_Split2, ...]`, each containing
+          the corresponding `SplitN` column.
         - A dictionary of stats from the last step in pipeline.
+        - Saves to `output_file` if specified (separate files when `separate_outputs=True`).
 
     Notes:
         - `input_data` must contain a unique 'ID' column, all other columns must be non-empty DNA strings.
         - `minimum_overlap_length` should always be larger than `minimum_hamming_distance`.
         - Fragment count is auto-determined and can vary per oligo.
+        - Each `SplitN` column is a separate oligo pool to synthesize; fragments are later assembled
+          (e.g., PCR/Gibson/Golden Gate) to reconstruct the full-length oligo.
         - Split fragments are returned in PCR assembly order; even-numbered split columns (`Split2`, `Split4`, ...)
-          are reverse-complemented. Use `revcomp` to visualize overlaps and orientation.
+          are reverse-complemented by design. Use `revcomp` to visualize overlaps and orientation.
         - Returned DataFrame contains split oligos, annotation from `input_data` is lost.
-        - Split outputs are commonly passed to `pad` for primer + Type IIS assembly preparation.
+        - Common workflow: run `pad` once per split column (e.g., `Split1`, `Split2`, ...) then `final` on each.
+        - Use `separate_outputs=True` for custom padding workflows using `primer`, `motif`, or `spacer`.
     '''
 
     # Preserve return style when the caller intentionally used ID as index.
@@ -65,8 +76,9 @@ def split(
     minoverlap  = minimum_overlap_length
     maxoverlap  = maximum_overlap_length
     outfile     = output_file
-    verbose     = verbose
+    separate    = separate_outputs
     random_seed = random_seed
+    verbose     = verbose
 
     # Local RNG
     rng = np.random.default_rng(random_seed)
@@ -84,7 +96,7 @@ def split(
     (indf,
     indata_valid) = vp.get_parsed_indata_info(
         indata=indata,
-        indata_field='   Input Data       ',
+        indata_field='    Input Data       ',
         required_fields=('ID',),
         precheck=False,
         liner=liner)
@@ -93,7 +105,7 @@ def split(
     # Full splitlimit Validation
     splitlimit_valid = vp.get_numeric_validity(
         numeric=splitlimit,
-        numeric_field='   Split Limit      ',
+        numeric_field='    Split Limit      ',
         numeric_pre_desc=' Split Fragments at most ',
         numeric_post_desc=' Base Pair(s) Each',
         minval=4,
@@ -104,7 +116,7 @@ def split(
     # Full mintmelt Validation
     tmelt_valid = vp.get_numeric_validity(
         numeric=mintmelt,
-        numeric_field=' Melting Temperature',
+        numeric_field='  Melting Temperature',
         numeric_pre_desc=' At least ',
         numeric_post_desc=' °C b/w On-Target Overlaps',
         minval=4,
@@ -115,7 +127,7 @@ def split(
     # Full minhdist Validation
     minhdist_valid = vp.get_numeric_validity(
         numeric=minhdist,
-        numeric_field=' Hamming Distance   ',
+        numeric_field='  Hamming Distance   ',
         numeric_pre_desc=' At least ',
         numeric_post_desc=' Mismatch(es) per Off-Target Overlap Pair ',
         minval=1,
@@ -129,7 +141,7 @@ def split(
     overlap_valid) = vp.get_parsed_range_info(
         minval=minoverlap,
         maxval=maxoverlap,
-        range_field=' Overlap Length     ',
+        range_field='  Overlap Length     ',
         range_unit='Base Pair(s) Fragment Overlap(s)',
         range_min=15 if not minhdist_valid else max(15, minhdist),
         range_max=splitlimit if splitlimit_valid else float('inf'),
@@ -139,7 +151,7 @@ def split(
     outfile_valid = vp.get_outdf_validity(
         outdf=outfile,
         outdf_suffix='.oligopool.split.csv',
-        outdf_field='  Output File       ',
+        outdf_field='   Output File       ',
         liner=liner)
 
     # Adjust outfile Suffix
@@ -148,6 +160,19 @@ def split(
             path=outfile,
             suffix='.oligopool.split.csv')
 
+    # Optional Argument Parsing
+    liner.send('\n Optional Arguments\n')
+
+    # separate_outputs validation + display
+    (separate_on,
+    separate_valid) = vp.get_parsed_flag_info(
+        flag=separate,
+        flag_field=' Separate Outputs    ',
+        flag_desc_off='Disabled (Single Combined Output)',
+        flag_desc_on='Enabled (Separate Per-Split Outputs)',
+        liner=liner)
+    separate = separate_on
+
     # First Pass Validation
     if not all([
         indata_valid,
@@ -155,7 +180,8 @@ def split(
         tmelt_valid,
         minhdist_valid,
         overlap_valid,
-        outfile_valid]):
+        outfile_valid,
+        separate_valid]):
         liner.send('\n')
         raise RuntimeError(
             'Invalid Argument Input(s).')
@@ -209,6 +235,7 @@ def split(
                 'max_split_count': maxsplitcount,},
             'warns'   : warns}
         stats['random_seed'] = random_seed
+        stats['separate_outputs'] = separate
         stats = ut.stamp_stats(
             stats=stats,
             module='split',
@@ -273,6 +300,7 @@ def split(
                   'filter_contig_count': filtercontcount},
             'warns'   : warns}
         stats['random_seed'] = random_seed
+        stats['separate_outputs'] = separate
         stats = ut.stamp_stats(
             stats=stats,
             module='split',
@@ -302,6 +330,7 @@ def split(
                    'uneven_splits': False}, # Uneven Splits Flag
         'warns'   : warns}
     stats['random_seed'] = random_seed
+    stats['separate_outputs'] = separate
 
     # Schedule outfile deletion
     ofdeletion = ae.register(
@@ -360,11 +389,12 @@ def split(
         for sidx in range(len(split)):
             outdf['Split{}'.format(sidx+1)] = splitstore[sidx]
 
-        # Write outdf to file
-        if not outfile is None:
-            ut.write_df_csv(
+        # Write outdf to file(s)
+        if outfile is not None:
+            cs.write_split_df_csv(
                 df=outdf,
                 outfile=outfile,
+                separate_outputs=separate,
                 sep=',')
 
     # Split Design Statistics
@@ -448,7 +478,20 @@ def split(
         module='split',
         input_rows=input_rows,
         output_rows=len(outdf.index) if outdf is not None else 0)
-    outdf_return = outdf
-    if (outdf is not None) and (not id_from_index):
-        outdf_return = ut.get_df_with_id_column(outdf)
-    return (outdf_return, stats)
+
+    # Prepare return value based on separate_outputs flag
+    if separate and (outdf is not None):
+        # Return list of DataFrames, one per split column
+        outdf_list = []
+        for col in outdf.columns:
+            split_df = outdf[[col]].copy()
+            if not id_from_index:
+                split_df = ut.get_df_with_id_column(split_df)
+            outdf_list.append(split_df)
+        return (outdf_list, stats)
+    else:
+        # Return single combined DataFrame
+        outdf_return = outdf
+        if (outdf is not None) and (not id_from_index):
+            outdf_return = ut.get_df_with_id_column(outdf)
+        return (outdf_return, stats)

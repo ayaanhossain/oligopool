@@ -265,6 +265,14 @@ For complete parameter documentation, see [api.md](api.md).
 
 **API**: See [`split`](api.md#split) for parameters.
 
+**Key concept**: Each `SplitN` column = a separate oligo pool to synthesize. If `split` returns `Split1`, `Split2`, `Split3`, you order **three separate pools** from your vendor.
+
+**Tips**:
+- Raw split output is NOT synthesis-ready - use `pad` to add primers/Type IIS sites
+- Even-numbered splits (`Split2`, `Split4`, ...) are reverse-complemented for PCR assembly
+- Fragment count is auto-determined and can vary per oligo
+- If you want one DataFrame (or file) per fragment, set `separate_outputs=True` (CLI `op split` writes separate files by default; use `--no-separate-outputs` to write one combined file).
+
 ---
 
 ### pad
@@ -274,6 +282,21 @@ For complete parameter documentation, see [api.md](api.md).
 **When to use**: After split, for each fragment.
 
 **API**: See [`pad`](api.md#pad) for parameters.
+
+**Critical workflow**: Run `pad` **once per split column**, then `final` on each:
+
+```python
+split_df, _ = op.split(...)  # Returns Split1, Split2, Split3
+
+# Iterate over each split column
+for col in ['Split1', 'Split2', 'Split3']:
+    pad_df, _ = op.pad(split_df, split_column=col, typeIIS_system='BsaI', ...)
+    final_df, _ = op.final(pad_df, output_file=f'synthesis_{col}')
+```
+
+**Tips**:
+- You cannot pad all columns in one call - iterate
+- Output: `5primeSpacer`, `ForwardPrimer`, `<split_column>`, `ReversePrimer`, `3primeSpacer`
 
 **Supported Type IIS enzymes (34 total):**
 `AcuI`, `AlwI`, `BbsI`, `BccI`, `BceAI`, `BciVI`, `BcoDI`, `BmrI`, `BpuEI`, `BsaI`, `BseRI`, `BsmAI`,
@@ -596,6 +619,57 @@ df, _ = op.barcode(
     ...
 )
 ```
+
+### Long Oligo Assembly (split → pad → final)
+
+When oligos exceed synthesis length limits (~200 bp), use `split` + `pad` to break them into assembly-ready fragments:
+
+```python
+import oligopool as op
+
+# 1. Split long oligos into separate DataFrames (one per fragment)
+split_dfs, stats = op.split(
+    input_data='long_oligos.csv',
+    split_length_limit=150,
+    minimum_melting_temperature=55.0,
+    minimum_hamming_distance=3,
+    minimum_overlap_length=20,
+    maximum_overlap_length=30,
+    separate_outputs=True,  # Returns list of DataFrames [df_Split1, df_Split2, ...]
+)
+
+# 2. Pad each fragment, then finalize
+# Each df in split_dfs has ID + one SplitN column
+for i, split_df in enumerate(split_dfs, start=1):
+    split_col = f'Split{i}'
+
+    # Add primers + Type IIS sites
+    pad_df, _ = op.pad(
+        input_data=split_df,
+        split_column=split_col,
+        typeIIS_system='BsaI',
+        oligo_length_limit=200,
+        minimum_melting_temperature=52.0,
+        maximum_melting_temperature=58.0,
+        maximum_repeat_length=10,
+    )
+
+    # Generate synthesis-ready oligos
+    final_df, _ = op.final(
+        input_data=pad_df,
+        output_file=f'synthesis_{split_col}',
+    )
+
+# You now have N synthesis files to order from your vendor
+# After synthesis, combine fragments via overlap assembly (Gibson, Golden Gate, etc.)
+```
+
+**Key points**:
+- Use `separate_outputs=True` to get a list of DataFrames directly
+- Each `SplitN` column = one separate oligo pool to order
+- Run `pad` once per fragment (cannot batch)
+- Even-numbered splits are reverse-complemented (for PCR assembly orientation)
+- Raw split output is NOT synthesis-ready - always use `pad` + `final`
 
 ### Analysis Pipeline
 ```python

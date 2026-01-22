@@ -1589,6 +1589,19 @@ Maximum overlap length in bp (>= 15).''')
         help='''>>[required string]
 Output CSV filename. A ".oligopool.split.csv" suffix is added if missing.''')
     opt.add_argument(
+        '--separate-outputs',
+        action='store_true',
+        default=True,
+        help='''>>[optional flag]
+Write separate CSV files per split fragment (e.g., output.Split1.oligopool.split.csv).
+Enabled by default in CLI mode. Use --no-separate-outputs to write a single combined file.''')
+    opt.add_argument(
+        '--no-separate-outputs',
+        action='store_false',
+        dest='separate_outputs',
+        help='''>>[optional flag]
+Write a single combined CSV with all Split columns instead of separate files.''')
+    opt.add_argument(
         '--random-seed',
         type=int,
         default=None,
@@ -2327,15 +2340,15 @@ def main(argv=None):
                     maximum_repeat_length=args.maximum_repeat_length,
                     barcode_column=args.barcode_column,
                     output_file=args.output_file,
-	                    barcode_type=args.barcode_type,
-	                    left_context_column=args.left_context_column,
-	                    right_context_column=args.right_context_column,
-	                    patch_mode=args.patch_mode,
-	                    cross_barcode_columns=cross_columns,
-	                    minimum_cross_distance=args.minimum_cross_distance,
-	                    excluded_motifs=_parse_list_str(args.excluded_motifs),
-	                    verbose=args.verbose,
-                    random_seed=args.random_seed)
+                    barcode_type=args.barcode_type,
+                    left_context_column=args.left_context_column,
+                    right_context_column=args.right_context_column,
+                    patch_mode=args.patch_mode,
+                    cross_barcode_columns=cross_columns,
+                    minimum_cross_distance=args.minimum_cross_distance,
+                    excluded_motifs=_parse_list_str(args.excluded_motifs),
+                    random_seed=args.random_seed,
+                    verbose=args.verbose)
             case 'primer':
                 primer = _load_api_func('primer')
                 oligo_sets = args.oligo_sets
@@ -2352,16 +2365,16 @@ def main(argv=None):
                     maximum_melting_temperature=args.maximum_melting_temperature,
                     maximum_repeat_length=args.maximum_repeat_length,
                     primer_column=args.primer_column,
-	                    output_file=args.output_file,
-	                    left_context_column=args.left_context_column,
-	                    right_context_column=args.right_context_column,
-	                    patch_mode=args.patch_mode,
-	                    oligo_sets=oligo_sets,
-	                    paired_primer_column=args.paired_primer_column,
-	                    excluded_motifs=_parse_list_str(args.excluded_motifs),
-	                    background_directory=args.background_directory,
-                    verbose=args.verbose,
-                    random_seed=args.random_seed)
+                    output_file=args.output_file,
+                    left_context_column=args.left_context_column,
+                    right_context_column=args.right_context_column,
+                    patch_mode=args.patch_mode,
+                    oligo_sets=oligo_sets,
+                    paired_primer_column=args.paired_primer_column,
+                    excluded_motifs=_parse_list_str(args.excluded_motifs),
+                    background_directory=args.background_directory,
+                    random_seed=args.random_seed,
+                    verbose=args.verbose)
             case 'motif':
                 motif = _load_api_func('motif')
                 result = motif(
@@ -2370,14 +2383,14 @@ def main(argv=None):
                     motif_sequence_constraint=args.motif_sequence_constraint,
                     maximum_repeat_length=args.maximum_repeat_length,
                     motif_column=args.motif_column,
-	                    output_file=args.output_file,
-	                    motif_type=args.motif_type,
-	                    left_context_column=args.left_context_column,
-	                    right_context_column=args.right_context_column,
-	                    patch_mode=args.patch_mode,
-	                    excluded_motifs=_parse_list_str(args.excluded_motifs),
-	                    verbose=args.verbose,
-	                    random_seed=args.random_seed)
+                    output_file=args.output_file,
+                    motif_type=args.motif_type,
+                    left_context_column=args.left_context_column,
+                    right_context_column=args.right_context_column,
+                    patch_mode=args.patch_mode,
+                    excluded_motifs=_parse_list_str(args.excluded_motifs),
+                    random_seed=args.random_seed,
+                    verbose=args.verbose)
             case 'spacer':
                 spacer = _load_api_func('spacer')
                 result = spacer(
@@ -2386,13 +2399,13 @@ def main(argv=None):
                     maximum_repeat_length=args.maximum_repeat_length,
                     spacer_column=args.spacer_column,
                     output_file=args.output_file,
-	                    spacer_length=_parse_list_int(args.spacer_length),
-	                    left_context_column=args.left_context_column,
-	                    right_context_column=args.right_context_column,
-	                    patch_mode=args.patch_mode,
-	                    excluded_motifs=_parse_list_str(args.excluded_motifs),
-	                    verbose=args.verbose,
-	                    random_seed=args.random_seed)
+                    spacer_length=_parse_list_int(args.spacer_length),
+                    left_context_column=args.left_context_column,
+                    right_context_column=args.right_context_column,
+                    patch_mode=args.patch_mode,
+                    excluded_motifs=_parse_list_str(args.excluded_motifs),
+                    random_seed=args.random_seed,
+                    verbose=args.verbose)
             case 'split':
                 split = _load_api_func('split')
                 result = split(
@@ -2403,8 +2416,9 @@ def main(argv=None):
                     minimum_overlap_length=args.minimum_overlap_length,
                     maximum_overlap_length=args.maximum_overlap_length,
                     output_file=args.output_file,
-                    verbose=args.verbose,
-                    random_seed=args.random_seed)
+                    separate_outputs=args.separate_outputs,
+                    random_seed=args.random_seed,
+                    verbose=args.verbose)
             case 'pad':
                 pad = _load_api_func('pad')
                 result = pad(
@@ -2416,8 +2430,8 @@ def main(argv=None):
                     maximum_melting_temperature=args.maximum_melting_temperature,
                     maximum_repeat_length=args.maximum_repeat_length,
                     output_file=args.output_file,
-                    verbose=args.verbose,
-                    random_seed=args.random_seed)
+                    random_seed=args.random_seed,
+                    verbose=args.verbose)
             case 'merge':
                 merge = _load_api_func('merge')
                 result = merge(

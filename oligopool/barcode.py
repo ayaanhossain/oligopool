@@ -28,8 +28,8 @@ def barcode(
     cross_barcode_columns:list[str]|None=None,
     minimum_cross_distance:int|None=None,
     excluded_motifs:list|str|pd.DataFrame|None=None,
-    verbose:bool=True,
-    random_seed:int|None=None) -> Tuple[pd.DataFrame, dict]:
+    random_seed:int|None=None,
+    verbose:bool=True) -> Tuple[pd.DataFrame, dict]:
     '''
     Design per-variant barcodes under Hamming-distance, repeat, and excluded-motif constraints, with
     optional context screening and cross-set separation against existing barcode columns.
@@ -57,8 +57,8 @@ def barcode(
           new barcode and the cross set (default: `None`).
         - `excluded_motifs` (`list` / `str` / `pd.DataFrame`): Motifs to exclude;
             can be a list, CSV, DataFrame, or FASTA file (default: `None`).
-        - `verbose` (`bool`): If `True`, logs updates to stdout (default: `True`).
         - `random_seed` (`int` / `None`): Seed for local RNG (default: `None`).
+        - `verbose` (`bool`): If `True`, logs updates to stdout (default: `True`).
 
     Returns:
         - A pandas DataFrame of generated barcodes; saves to `output_file` if specified.
@@ -98,8 +98,8 @@ def barcode(
     cross_cols   = cross_barcode_columns
     cross_mind   = minimum_cross_distance
     exmotifs     = excluded_motifs
-    verbose      = verbose
     random_seed  = random_seed
+    verbose      = verbose
 
     # Local RNG
     rng = np.random.default_rng(random_seed)
@@ -114,9 +114,14 @@ def barcode(
     liner.send('\n Required Arguments\n')
 
     # Patch Mode (pre-parse for output column handling)
-    patch_mode_valid = isinstance(patch_mode, (bool, int, np.bool_)) and \
-        (patch_mode in (0, 1, True, False))
-    patch_mode_on = bool(patch_mode) if patch_mode_valid else False
+    (patch_mode_on,
+    patch_mode_valid) = vp.get_parsed_flag_info(
+        flag=patch_mode,
+        flag_field='      Patch Mode    ',
+        flag_desc_off='Disabled (Design All Barcodes)',
+        flag_desc_on='Enabled (Fill Missing Barcodes)',
+        liner=liner,
+        precheck=True)
     allow_missing_cols = None
     if patch_mode_on and isinstance(barcodecol, str):
         allow_missing_cols = set((barcodecol,))
@@ -250,14 +255,14 @@ def barcode(
         liner=liner)
 
     # Patch mode parsing (printed after context args; evaluated earlier for indata handling)
-    if patch_mode_valid:
-        liner.send('{}: {}\n'.format(
-            '      Patch Mode    ',
-            ['Disabled (Design All Barcodes)', 'Enabled (Fill Missing Barcodes)'][patch_mode_on]))
-    else:
-        liner.send('{}: {} [INPUT TYPE IS INVALID]\n'.format(
-            '      Patch Mode    ',
-            patch_mode))
+    vp.get_parsed_flag_info(
+        flag=patch_mode,
+        flag_field='      Patch Mode    ',
+        flag_desc_off='Disabled (Design All Barcodes)',
+        flag_desc_on='Enabled (Fill Missing Barcodes)',
+        liner=liner,
+        flag_on=patch_mode_on,
+        flag_valid=patch_mode_valid)
 
     # Normalize crosscols input
     if isinstance(cross_cols, str):

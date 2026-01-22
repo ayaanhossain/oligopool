@@ -33,7 +33,7 @@ def final(
 
     Notes:
         - `input_data` must contain a unique 'ID' column, all other columns must be non-empty DNA strings.
-        - All annotations are lost in this step, so new elements can only be added as left or right context.
+        - Output contains only `CompleteOligo` and `OligoLength` (sequence annotations are not preserved).
         - `final` is typically the terminal design step before synthesis, after which design-mode element
           modules are not intended to be executed for additional oligopool markups.
     '''

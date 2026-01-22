@@ -497,11 +497,17 @@ split_df, stats = op.split(
 
 Output contains `Split1`, `Split2`, ... columns with fragments ready for assembly.
 
+**Key concept: Each column = one oligo pool to synthesize**
+
+When `split` returns `Split1`, `Split2`, `Split3` columns, you will **order three separate oligo pools** from your synthesis vendor (one per column). After synthesis, these fragments are combined via overlap assembly (Gibson, Golden Gate, etc.) to reconstruct the full-length oligo.
+
 **Notes (the stuff that bites people):**
 - The number of fragments is automatically chosen and can vary per oligo (some rows may not have all `Split*` columns populated).
-- Fragments are returned in PCR/assembly order; even-numbered split columns (`Split2`, `Split4`, ...) are reverse-complemented by design.
+- Fragments are returned in PCR/assembly order; even-numbered split columns (`Split2`, `Split4`, ...) are reverse-complemented by design. This alternating orientation enables efficient PCR-based assembly where adjacent fragments anneal via their overlapping regions.
 - `split` returns only the split fragments (your original annotation columns are not preserved). Save the annotated library separately if you need it later.
 - As a rule of thumb, keep `minimum_overlap_length` comfortably larger than `minimum_hamming_distance`.
+- **Raw split output is not synthesis-ready for assembly** — run `pad` per `SplitN` to add primers/Type IIS sites, then `final` each padded DataFrame.
+- If you prefer one DataFrame per fragment, use `separate_outputs=True` (or `op split` in CLI mode, which writes separate files by default).
 
 > **API Reference**: See [`split`](api.md#split) for complete parameter documentation.
 
@@ -515,21 +521,27 @@ Output contains `Split1`, `Split2`, ... columns with fragments ready for assembl
 
 **When to use it**: After `split`, to make fragments synthesis-ready and assembly-compatible.
 
+**Run `pad` once per split column** - each call produces a synthesis-ready DataFrame for that fragment:
+
 ```python
-pad_df, stats = op.pad(
-    input_data=split_df,
-    split_column='Split1',                # Which fragment to pad (from split output)
-    typeIIS_system='BsaI',                # Enzyme for Golden Gate
-    oligo_length_limit=200,
-    minimum_melting_temperature=52.0,
-    maximum_melting_temperature=58.0,
-    maximum_repeat_length=10,
-    output_file='padded_split1',
-)
+# After split returns Split1, Split2, Split3 columns:
+split_df, _ = op.split(input_data=df, ...)
+
+# Pad each fragment separately
+pad1_df, _ = op.pad(input_data=split_df, split_column='Split1', typeIIS_system='BsaI', ...)
+pad2_df, _ = op.pad(input_data=split_df, split_column='Split2', typeIIS_system='BsaI', ...)
+pad3_df, _ = op.pad(input_data=split_df, split_column='Split3', typeIIS_system='BsaI', ...)
+
+# Finalize each for synthesis
+final1_df, _ = op.final(input_data=pad1_df, output_file='synthesis_split1')
+final2_df, _ = op.final(input_data=pad2_df, output_file='synthesis_split2')
+final3_df, _ = op.final(input_data=pad3_df, output_file='synthesis_split3')
+
+# You now have 3 CSV files to send to your synthesis vendor
 ```
 
 **Notes (the stuff that bites people):**
-- Run `pad` separately for each fragment you want to synthesize (e.g., `Split1`, `Split2`, ...).
+- **Run `pad` separately for each fragment** (e.g., `Split1`, `Split2`, ...). You cannot pad all columns in one call.
 - Output columns are `5primeSpacer`, `ForwardPrimer`, `<split_column>`, `ReversePrimer`, `3primeSpacer` (other `split_df` columns are not preserved).
 - If a fragment can't fit under `oligo_length_limit`, the spacer(s) for that row are set to `'-'` (a deliberate "no-space" sentinel).
 - The supported Type IIS enzymes list is the "batteries included" set; pads can be removed post-amplification with these enzymes (and blunted with mung bean nuclease if desired).
@@ -651,6 +663,7 @@ Checks:
 - `verify` is stats-only and never modifies or writes your DataFrame.
 - Metadata columns are tracked and excluded from sequence-only checks; degenerate/IUPAC columns are flagged (not treated as hard errors).
 - Excluded-motif checks report motif "emergence" in assembled oligos (a motif occurring more times than its minimum occurrence across the library), which is often what you care about in practice.
+- Excluded-motif matching is literal substring matching; degenerate/IUPAC bases are not treated as wildcards (so degenerate columns can hide potential motifs).
 - When emergent motifs are detected, `verify` also reports which column junctions contribute to motif emergence (helpful for debugging edge effects), attributing only occurrences beyond the baseline minimum. This requires separate sequence columns (run `verify` before `final`).
 - Junction attribution follows column order: for `[Primer1, BC1, Variant, Primer2]`, junctions are `Primer1|BC1`, `BC1|Variant`, `Variant|Primer2`.
 

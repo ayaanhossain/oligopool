@@ -1,6 +1,11 @@
-## Using `Oligopool Calculator` with `docker`
+# Using Oligopool Calculator with Docker
 
-On non-`Linux` and `Linux` systems both, you can use `oligopool` via [`docker`](https://docs.docker.com/desktop/).
+On non-Linux and Linux systems both, you can use `oligopool` via [Docker](https://docs.docker.com/desktop/).
+
+**Related documentation**:
+- [User Guide](docs.md) - Tutorials, examples, and workflows
+- [API Reference](api.md) - Complete parameter documentation for all modules
+- [AI Agent Guide](agent-skills.md) - Decision trees, best practices, and gotchas
 
 To follow this mini guide you will need to have [`git`](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git) and `docker` installed.
 
@@ -115,3 +120,10 @@ on your local browser. This is very similar to how we would start `jupyter` note
 > **Note** If you want more packages within this docker image, you can modify the `pip install` lines in our `Dockerfile`.
 
 ---
+
+## Next Steps
+
+Once your Docker container is running, refer to:
+- [User Guide](docs.md) - Learn the design and analysis workflows
+- [API Reference](api.md) - Look up specific function parameters
+- [AI Agent Guide](agent-skills.md) - Best practices and troubleshooting tips

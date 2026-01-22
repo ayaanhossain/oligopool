@@ -27,8 +27,8 @@ def spacer(
     verbose:bool=True,
     random_seed:int|None=None) -> Tuple[pd.DataFrame, dict]:
     '''
-    Insert neutral spacer DNA to meet length targets under repeat and excluded-motif constraints.
-    Supports fixed-length, per-variant, or auto-sized spacers (to match `oligo_length_limit`).
+    Insert neutral spacer DNA under repeat/excluded-motif constraints.
+    Spacer length can be fixed, per-row, or auto-sized to match `oligo_length_limit`.
 
     Required Parameters:
         - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated oligopool variants.
@@ -39,9 +39,9 @@ def spacer(
     Optional Parameters:
         - `output_file` (`str`): Filename for output DataFrame; required in CLI usage,
             optional in library usage (default: `None`).
-        - `spacer_length` (`int` / `list` / `str` / `pd.DataFrame`): Length of the inserted spacers,
-            can be defined per oligo in a list or a DataFrame; if `None` the spacer length per oligo
-            is determined automatically to match `oligo_length_limit` (default: `None`).
+        - `spacer_length` (`int` / `list` / `str` / `pd.DataFrame` / `None`): Spacer length. If `None`,
+          it is computed per row as remaining free space under `oligo_length_limit` after concatenating
+          existing sequence columns (ignoring `'-'` gaps); a computed length of 0 yields `'-'` (default: `None`).
         - `left_context_column` (`str`): Column for left DNA context (default: `None`).
         - `right_context_column` (`str`): Column for right DNA context (default: `None`).
         - `patch_mode` (`bool`): If `True`, fill only missing values in an existing spacer column
@@ -61,10 +61,10 @@ def spacer(
         - At least one of `left_context_column` or `right_context_column` must be specified.
         - When `spacer_length` is a CSV or DataFrame, it must have 'ID' and 'Length' columns.
         - If `excluded_motifs` is a CSV or DataFrame, it must have an 'Exmotif' column.
-        - Oligo rows already summing to or exceeding `oligo_length_limit` have a `'-'` (dash) as spacer.
-        - Patch mode (`patch_mode=True`) supports incremental pool extension: existing values in
-          `spacer_column` are preserved and only missing values (e.g., `None`/NaN/empty/`'-'`) are
-          filled (some rows may still get `'-'` if no spacer can fit under `oligo_length_limit`).
+        - Auto-sized spacers (`spacer_length=None`): if a row already reaches the limit, its spacer is `'-'`;
+          rows exceeding the limit are infeasible.
+        - Patch mode (`patch_mode=True`) preserves existing values in `spacer_column` and fills only missing values
+          (`None`/NaN/empty/`'-'`); some rows may still get `'-'` if no spacer can fit under `oligo_length_limit`.
     '''
 
     # Preserve return style when the caller intentionally used ID as index.

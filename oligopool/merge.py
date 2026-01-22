@@ -18,7 +18,7 @@ def merge(
     right_context_column:str|None=None,
     verbose:bool=True) -> Tuple[pd.DataFrame, dict]:
     '''
-    Collapse a contiguous range of columns into a single merged DNA element for downstream steps.
+    Collapse a column range into a single merged DNA element for downstream steps.
     Useful for mid-pipeline maneuvers where a multi-part region should be treated as one unit.
 
     Required Parameters:
@@ -38,11 +38,9 @@ def merge(
 
     Notes:
         - `input_data` must contain a unique 'ID' column, all other columns must be non-empty DNA strings.
-        - `merge` module does not require `left_context_column` and `right_context_column` to be adjacent.
-        - If `left_context_column` is unspecified, then the first column is considered.
-        - Similarly, the last column is considered as the right context column, if unspecified.
-        - Useful for mid-pipeline maneuvers where you want to collapse a multi-column region into a single
-          element (e.g., to treat a payload/amplicon as one unit before `revcomp` or `final`).
+        - `left_context_column` and `right_context_column` need not be adjacent; if omitted, the first/last
+          columns are used.
+        - Use `merge` to treat a multi-column region as a single element before `revcomp` or `final`.
         - The merged source columns are removed from the output DataFrame.
     '''
 

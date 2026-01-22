@@ -24,7 +24,7 @@ def split(
     random_seed:int|None=None) -> Tuple[pd.DataFrame, dict]:
     '''
     Split long oligos into overlapping fragments for downstream assembly, choosing overlaps that meet
-    Tm and pairwise distance constraints. Returns a DataFrame containing `Split1`, `Split2`, ... columns.
+    Tm and distance constraints. Returns a DataFrame containing `Split1`, `Split2`, ... columns.
 
     Required Parameters:
         - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated oligopool variants.
@@ -47,7 +47,7 @@ def split(
     Notes:
         - `input_data` must contain a unique 'ID' column, all other columns must be non-empty DNA strings.
         - `minimum_overlap_length` should always be larger than `minimum_hamming_distance`.
-        - Total number of fragments is auto determined, and can be variable per oligo, depending on length.
+        - Fragment count is auto-determined and can vary per oligo.
         - Split fragments are returned in PCR assembly order; even-numbered split columns (`Split2`, `Split4`, ...)
           are reverse-complemented. Use `revcomp` to visualize overlaps and orientation.
         - Returned DataFrame contains split oligos, annotation from `input_data` is lost.

@@ -11,6 +11,7 @@
   <a href="#installation" style="text-decoration: none !important;">📦 Installation</a> •
   <a href="#getting-started" style="text-decoration: none !important;">🚀 Getting Started</a> •
   <a href="https://github.com/ayaanhossain/oligopool/blob/master/docs/docs.md" style="text-decoration: none !important;">📚 Docs</a> •
+  <a href="https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md" style="text-decoration: none !important;">📋 API</a> •
   <a href="#command-line-interface-cli" style="text-decoration: none !important;">💻 CLI</a> •
   <a href="#citation" style="text-decoration: none !important;">📖 Citation</a> •
   <a href="#license" style="text-decoration: none !important;">⚖️ License</a>
@@ -88,7 +89,11 @@ There are examples of a [design parser](https://github.com/ayaanhossain/oligopoo
 
 A notebook demonstrating [`Oligopool Calculator` in action](https://github.com/ayaanhossain/oligopool/blob/master/examples/OligopoolCalculatorInAction.ipynb) is provided there as well.
 
-For comprehensive documentation with examples and workflows, see [`docs/docs.md`](https://github.com/ayaanhossain/oligopool/blob/master/docs/docs.md). For AI-assisted design and analysis (e.g., with Claude, ChatGPT, or Copilot), see [`docs/agent-skills.md`](https://github.com/ayaanhossain/oligopool/blob/master/docs/agent-skills.md).
+**Documentation:**
+- [User Guide](https://github.com/ayaanhossain/oligopool/blob/master/docs/docs.md) - Comprehensive tutorials, examples, and workflows
+- [API Reference](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md) - Complete parameter documentation for all modules
+- [AI Agent Guide](https://github.com/ayaanhossain/oligopool/blob/master/docs/agent-skills.md) - Decision trees, best practices, and gotchas for AI-assisted design (Claude, ChatGPT, Copilot)
+- [Docker Guide](https://github.com/ayaanhossain/oligopool/blob/master/docs/docker-notes.md) - Run oligopool in a container for cross-platform consistency
 
 For quick iteration during Design Mode, use `lenstat` to monitor length/free space under an `oligo_length_limit`, and `verify` as a final QC pass before ordering/synthesis.
 

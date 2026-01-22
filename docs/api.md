@@ -684,9 +684,18 @@ stats = op.verify(
 
 **Returns**: `stats_dict` (stats-only, no DataFrame, no `output_file`)
 
+**Column Concatenation**:
+- Only **sequence columns** (DNA/IUPAC; may include `'-'`) are concatenated; metadata columns are skipped
+- Sequence columns are concatenated **left-to-right in DataFrame column order**
+- Gap characters (`'-'`) are **stripped** during concatenation
+- If a `CompleteOligo` column exists (from `final()`), it is used directly instead of concatenating
+- Junction identification for edge-effect analysis follows this same column order:
+  - For columns `[Primer1, BC1, Variant, Primer2]`, junctions are `Primer1|BC1`, `BC1|Variant`, `Variant|Primer2`
+
 **Notes**:
 - More permissive than design modules; handles metadata and degenerate/IUPAC columns.
 - Reports emergent motifs (occurrences beyond baseline minimum) and attributes them to column junctions.
+- Run `verify` **before** `final()` to preserve separate columns for junction attribution.
 
 **CLI Equivalent**:
 ```bash

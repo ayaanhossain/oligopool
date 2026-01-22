@@ -336,6 +336,13 @@ For unsupported enzymes, design primers/sites manually with `primer` or `motif`.
 
 **API**: See [`verify`](api.md#verify) for parameters.
 
+**Column concatenation**:
+- Only **sequence columns** (DNA/IUPAC) concatenated; metadata columns skipped
+- Sequence columns joined **left-to-right in DataFrame column order**
+- Gap characters (`'-'`) stripped during concatenation
+- If `CompleteOligo` exists, used directly (junction attribution skipped)
+- Junctions follow column order: `[A, B, C]` → `A|B`, `B|C`
+
 ---
 
 ### final

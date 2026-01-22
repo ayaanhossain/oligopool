@@ -531,6 +531,10 @@ Want spacers to auto-fill whatever space remains? Leave `spacer_length` as `None
 df, stats = op.spacer(..., spacer_length=None)
 ```
 
+In auto-fill mode, the spacer length is computed per row as the remaining free space under your
+`oligo_length_limit` after concatenating all existing sequence columns (gaps `'-'` are ignored). Rows
+with no free space get a spacer of `'-'`.
+
 Need different lengths for different variants? Pass a list (aligned to input rows):
 
 ```python
@@ -585,7 +589,7 @@ df, stats = op.spacer(
 **Optional parameters**
 - `output_file`: Write output CSV (library mode only; required in CLI).
 - `spacer_length`:
-  - `None`: auto-size spacer per row to reach `oligo_length_limit`
+  - `None`: auto-size per row to exactly fill to `oligo_length_limit` (remaining space after concatenating existing sequence columns; `'-'` gaps ignored)
   - `int`: fixed length for all rows
   - `list`: per-row lengths aligned to `input_data`
   - CSV/DataFrame: must contain `ID` + `Length`

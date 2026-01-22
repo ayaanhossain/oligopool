@@ -638,14 +638,21 @@ stats = op.verify(
 Checks:
 - Length constraints
 - Excluded motif presence
-- Degenerate bases (non-ATGC)
+- Degenerate/IUPAC bases
 - Column architecture
+
+**How columns are concatenated:**
+- Only **sequence columns** (DNA/IUPAC; may include `'-'`) are concatenated; metadata columns are skipped
+- Sequence columns are joined **left-to-right in DataFrame column order**
+- Gap characters (`'-'`) are stripped (so `ABC-DEF` becomes `ABCDEF`)
+- If `CompleteOligo` exists (from `final()`), it's used directly instead of concatenating
 
 **Notes (the stuff that bites people):**
 - `verify` is stats-only and never modifies or writes your DataFrame.
 - Metadata columns are tracked and excluded from sequence-only checks; degenerate/IUPAC columns are flagged (not treated as hard errors).
 - Excluded-motif checks report motif "emergence" in assembled oligos (a motif occurring more times than its minimum occurrence across the library), which is often what you care about in practice.
 - When emergent motifs are detected, `verify` also reports which column junctions contribute to motif emergence (helpful for debugging edge effects), attributing only occurrences beyond the baseline minimum. This requires separate sequence columns (run `verify` before `final`).
+- Junction attribution follows column order: for `[Primer1, BC1, Variant, Primer2]`, junctions are `Primer1|BC1`, `BC1|Variant`, `Variant|Primer2`.
 
 > **API Reference**: See [`verify`](api.md#verify) for complete parameter documentation.
 

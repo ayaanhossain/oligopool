@@ -550,6 +550,58 @@ def get_varcont(entvec, minhdist, spanlen, liner):
 
 # Engine Objective and Helper Functions
 
+def get_split_fragment_outfile(outfile, split_column):
+    '''
+    Compute per-split outfile path for `split(separate_outputs=True)` output.
+    Internal use only.
+
+    Produces: {base}.{split_column}.oligopool.split.csv
+    '''
+
+    if not isinstance(outfile, str) or not isinstance(split_column, str):
+        return None
+
+    outfile = ut.get_adjusted_path(
+        path=outfile,
+        suffix='.oligopool.split.csv')
+
+    suffix = '.oligopool.split.csv'
+    base = outfile[:-len(suffix)] if outfile.endswith(suffix) else outfile
+
+    # If user provided a per-split basename, strip trailing ".SplitN" to avoid duplication.
+    parts = base.rsplit('.', 1)
+    if len(parts) == 2 and parts[1].startswith('Split') and parts[1][5:].isdigit():
+        base = parts[0]
+
+    return '{}.{}{}'.format(base, split_column, suffix)
+
+def write_split_df_csv(df, outfile, separate_outputs=False, sep=','):
+    '''
+    Write split output as either one combined CSV or separate per-split CSVs.
+    Internal use only.
+
+    - separate_outputs=False: writes `outfile` (combined Split1/Split2/... columns)
+    - separate_outputs=True: writes `{base}.SplitN.oligopool.split.csv` per split column
+    '''
+
+    if outfile is None or df is None:
+        return
+
+    if separate_outputs:
+        for col in df.columns:
+            split_outfile = get_split_fragment_outfile(
+                outfile=outfile,
+                split_column=col)
+            ut.write_df_csv(
+                df=df[[col]],
+                outfile=split_outfile,
+                sep=sep)
+    else:
+        ut.write_df_csv(
+            df=df,
+            outfile=outfile,
+            sep=sep)
+
 def is_varcont_feasible(
     varcont,
     seqlen,

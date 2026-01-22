@@ -19,11 +19,11 @@
 18. DataFrame UX: normalize `ID` to string, return DataFrames with an explicit `ID` column by default (preserve `ID` as index only when the input DataFrame used it), and write CSVs without an extra numeric index column.
 19. CLI/Docs: reordered modules to list `barcode` first; synced module ordering and descriptions across CLI, `__init__.py`, and README.
 20. Docs: streamlined `help(op)` docstring for scannable Jupyter/REPL usage (compact module listing with one-line descriptions).
-21. Docs: added comprehensive `docs.md` with TOC, examples, workflows, and tips.
+21. Docs: added comprehensive `docs/docs.md` with TOC, examples, workflows, and tips.
 22. API: `excluded_motifs` DataFrame/CSV now only requires an `Exmotif` column (removed unnecessary `ID` column requirement).
 23. API: `background` and `excluded_motifs` now accept FASTA files (.fa/.fasta/.fna, optionally gzipped).
 24. Docstrings: clarified `acount` (barcode+variant verification) vs `xcount` (barcode-only counting, single or combinatorial).
-25. Docs: added `oligopool-agent-skill.md` for AI assistant integration.
+25. Docs: added `docs/agent-skills.md` for AI assistant integration.
 
 2026.01.17
 1. Development in progress.

@@ -10,7 +10,7 @@
   <a href="#features" style="text-decoration: none !important;">✨ Features</a> •
   <a href="#installation" style="text-decoration: none !important;">📦 Installation</a> •
   <a href="#getting-started" style="text-decoration: none !important;">🚀 Getting Started</a> •
-  <a href="https://github.com/ayaanhossain/oligopool/blob/master/docs.md" style="text-decoration: none !important;">📚 Docs</a> •
+  <a href="https://github.com/ayaanhossain/oligopool/blob/master/docs/docs.md" style="text-decoration: none !important;">📚 Docs</a> •
   <a href="#command-line-interface-cli" style="text-decoration: none !important;">💻 CLI</a> •
   <a href="#citation" style="text-decoration: none !important;">📖 Citation</a> •
   <a href="#license" style="text-decoration: none !important;">⚖️ License</a>
@@ -64,7 +64,7 @@ $ pip install git+https://github.com/ayaanhossain/oligopool.git
 Both approaches should install all dependencies automatically.
 > **Note** The GitHub version will always be updated with all recent fixes. The PyPI version should be more stable.
 
-If you are on `Windows` or simply prefer to, `Oligopool Calculator` can also be used via `Docker` (please see [the notes](https://github.com/ayaanhossain/oligopool/blob/master/docker-notes.md)).
+If you are on `Windows` or simply prefer to, `Oligopool Calculator` can also be used via `Docker` (please see [the notes](https://github.com/ayaanhossain/oligopool/blob/master/docs/docker-notes.md)).
 
 Successful installation will look like this.
 ```python
@@ -88,7 +88,7 @@ There are examples of a [design parser](https://github.com/ayaanhossain/oligopoo
 
 A notebook demonstrating [`Oligopool Calculator` in action](https://github.com/ayaanhossain/oligopool/blob/master/examples/OligopoolCalculatorInAction.ipynb) is provided there as well.
 
-For comprehensive documentation with examples and workflows, see [`docs.md`](https://github.com/ayaanhossain/oligopool/blob/master/docs.md).
+For comprehensive documentation with examples and workflows, see [`docs/docs.md`](https://github.com/ayaanhossain/oligopool/blob/master/docs/docs.md).
 
 For quick iteration during Design Mode, use `lenstat` to monitor length/free space under an `oligo_length_limit`, and `verify` as a final QC pass before ordering/synthesis.
 

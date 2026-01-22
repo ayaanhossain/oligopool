@@ -4,9 +4,9 @@ This document is designed for AI assistants to understand and help users with ol
 
 ## Operation Policy (Keep This Useful)
 
-- **Source of truth**: `docs.md` + runtime docs (`help(op)` / `help(op.<module>)`) + real CLI behavior.
+- **Source of truth**: `docs/docs.md` + runtime docs (`help(op)` / `help(op.<module>)`) + real CLI behavior.
 - **This guide**: Agent-facing contracts, gotchas, and workflow scaffolding (Notebook / Script / CLI).
-- **If anything disagrees**: Trust runtime behavior, then update `docs.md` and this guide together.
+- **If anything disagrees**: Trust runtime behavior, then update `docs/docs.md` and this guide together.
 
 **Quick facts (the ones that matter in practice):**
 - **Entry points**: `op` and `oligopool` are equivalent CLIs.
@@ -1133,6 +1133,6 @@ op complete --install
 ## Links
 
 - Repository: https://github.com/ayaanhossain/oligopool
-- Documentation: `docs.md` in repository
+- Documentation: `docs/docs.md` in repository
 - Paper: https://doi.org/10.1021/acssynbio.4c00661
 - CLI help: `op manual <command>`

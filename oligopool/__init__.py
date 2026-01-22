@@ -31,7 +31,7 @@ __all__ = ['__author__', '__version__']
 # Setup
 __author__ = 'Ayaan Hossain'
 
-__version__ = '2026.01.22'
+__version__ = '2026.01.24'
 
 _LAZY_ATTRS = {
     # Core design functions

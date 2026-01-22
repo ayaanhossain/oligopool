@@ -402,8 +402,9 @@ df, stats = op.split(
 
     # Optional
     output_file=None,              # str | None
-    verbose=True,                  # bool
     random_seed=None,              # int | None
+    separate_outputs=False,        # bool
+    verbose=True,                  # bool
 )
 ```
 
@@ -423,14 +424,18 @@ df, stats = op.split(
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `output_file` | str \| None | None | Output CSV path (required for CLI) |
-| `verbose` | bool | True | Print progress output |
 | `random_seed` | int \| None | None | RNG seed for reproducibility |
+| `separate_outputs` | bool | False | If True, return a list of per-split DataFrames; if `output_file` is set, write `{base}.SplitN.oligopool.split.csv` files |
+| `verbose` | bool | True | Print progress output |
 
-**Returns**: `(DataFrame, stats_dict)` - Output contains `Split1`, `Split2`, ... columns.
+**Returns**:
+- `(DataFrame, stats_dict)` when `separate_outputs=False` (default) - output contains `Split1`, `Split2`, ... columns.
+- `([DataFrame, ...], stats_dict)` when `separate_outputs=True` - one DataFrame per `SplitN` column.
 
 **Notes**:
 - Number of fragments varies per oligo; even-numbered splits (`Split2`, `Split4`, ...) are reverse-complemented.
 - Original annotation columns are not preserved in output.
+- Treat each `SplitN` column as its own synthesis pool; run `pad` per `SplitN`, then `final` each padded DataFrame (don’t run `final()` on the raw multi-column `split` output).
 
 **CLI Equivalent**:
 ```bash
@@ -443,6 +448,7 @@ op split \
     --maximum-overlap-length 30 \
     --output-file split_library
 ```
+Tip: CLI defaults to separate files. Use `--no-separate-outputs` to write a single combined `.oligopool.split.csv`.
 
 [↑ Back to TOC](#table-of-contents)
 
@@ -695,6 +701,7 @@ stats = op.verify(
 **Notes**:
 - More permissive than design modules; handles metadata and degenerate/IUPAC columns.
 - Reports emergent motifs (occurrences beyond baseline minimum) and attributes them to column junctions.
+- Excluded-motif matching is literal substring matching; degenerate/IUPAC bases are not expanded as wildcards.
 - Run `verify` **before** `final()` to preserve separate columns for junction attribution.
 
 **CLI Equivalent**:

@@ -39,6 +39,8 @@ def verify(
         - Length stats use the same engine as `lenstat` and can be checked against `oligo_length_limit`.
         - Motif "emergence" means a motif occurs more often than the minimum occurrence across the library
           (useful when a motif should appear exactly once, e.g., restriction sites).
+        - Excluded-motif counting is literal substring matching; degenerate/IUPAC bases are not expanded
+          as wildcards during motif checks.
         - Motif scans operate on concatenated sequence columns (left-to-right DataFrame order) with `'-'`
           removed. If `CompleteOligo` exists (from `final`), it is used directly.
         - If emergent motifs are detected and multiple sequence columns are present, `verify` attributes

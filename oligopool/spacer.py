@@ -24,8 +24,8 @@ def spacer(
     right_context_column:str|None=None,
     patch_mode:bool=False,
     excluded_motifs:list|str|pd.DataFrame|None=None,
-    verbose:bool=True,
-    random_seed:int|None=None) -> Tuple[pd.DataFrame, dict]:
+    random_seed:int|None=None,
+    verbose:bool=True) -> Tuple[pd.DataFrame, dict]:
     '''
     Insert neutral spacer DNA under repeat/excluded-motif constraints.
     Spacer length can be fixed, per-row, or auto-sized to match `oligo_length_limit`.
@@ -48,8 +48,8 @@ def spacer(
             (does not overwrite existing spacers). (Default: `False`).
         - `excluded_motifs` (`list` / `str` / `pd.DataFrame`): Motifs to exclude;
             can be a list, CSV, DataFrame, or FASTA file (default: `None`).
-        - `verbose` (`bool`): If `True`, logs updates to stdout (default: `True`).
         - `random_seed` (`int` / `None`): Seed for local RNG (default: `None`).
+        - `verbose` (`bool`): If `True`, logs updates to stdout (default: `True`).
 
     Returns:
         - A pandas DataFrame of inserted spacers; saves to `output_file` if specified.
@@ -81,8 +81,8 @@ def spacer(
     rightcontext = right_context_column
     patch_mode   = patch_mode
     exmotifs     = excluded_motifs
-    verbose      = verbose
     random_seed  = random_seed
+    verbose      = verbose
 
     # Local RNG
     rng = np.random.default_rng(random_seed)
@@ -97,9 +97,14 @@ def spacer(
     liner.send('\n Required Arguments\n')
 
     # Patch Mode (pre-parse for output column handling)
-    patch_mode_valid = isinstance(patch_mode, (bool, int, np.bool_)) and \
-        (patch_mode in (0, 1, True, False))
-    patch_mode_on = bool(patch_mode) if patch_mode_valid else False
+    (patch_mode_on,
+    patch_mode_valid) = vp.get_parsed_flag_info(
+        flag=patch_mode,
+        flag_field='      Patch Mode   ',
+        flag_desc_off='Disabled (Design All Spacers)',
+        flag_desc_on='Enabled (Fill Missing Spacers)',
+        liner=liner,
+        precheck=True)
     allow_missing_cols = None
     if patch_mode_on and isinstance(spacercol, str):
         allow_missing_cols = set((spacercol,))
@@ -212,14 +217,14 @@ def spacer(
         liner=liner)
 
     # Patch mode parsing (printed after context args; evaluated earlier for indata handling)
-    if patch_mode_valid:
-        liner.send('{}: {}\n'.format(
-            '      Patch Mode   ',
-            ['Disabled (Design All Spacers)', 'Enabled (Fill Missing Spacers)'][patch_mode_on]))
-    else:
-        liner.send('{}: {} [INPUT TYPE IS INVALID]\n'.format(
-            '      Patch Mode   ',
-            patch_mode))
+    vp.get_parsed_flag_info(
+        flag=patch_mode,
+        flag_field='      Patch Mode   ',
+        flag_desc_off='Disabled (Design All Spacers)',
+        flag_desc_on='Enabled (Fill Missing Spacers)',
+        liner=liner,
+        flag_on=patch_mode_on,
+        flag_valid=patch_mode_valid)
 
     # Full exmotifs Parsing and Validation
     (exmotifs,

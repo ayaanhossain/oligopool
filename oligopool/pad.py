@@ -22,8 +22,8 @@ def pad(
     maximum_melting_temperature:float,
     maximum_repeat_length:int,
     output_file:str|None=None,
-    verbose:bool=True,
-    random_seed:int|None=None) -> Tuple[pd.DataFrame, dict]:
+    random_seed:int|None=None,
+    verbose:bool=True) -> Tuple[pd.DataFrame, dict]:
     '''
     Pad split fragments with paired primers (embedding a chosen 3' Type IIS site) plus optional
     spacers to meet `oligo_length_limit`. Produces an assembly-ready pad layout suitable for `final`.
@@ -40,8 +40,8 @@ def pad(
     Optional Parameters:
         - `output_file` (`str`): Filename for output DataFrame; required in CLI usage,
             optional in library usage (default: `None`).
-        - `verbose` (`bool`): If `True`, logs updates to stdout (default: `True`).
         - `random_seed` (`int` / `None`): Seed for local RNG (default: `None`).
+        - `verbose` (`bool`): If `True`, logs updates to stdout (default: `True`).
 
     Returns:
         - A pandas DataFrame with padded oligos; saves to `output_file` if specified.
@@ -51,6 +51,7 @@ def pad(
         - `input_data` must contain a unique 'ID' column, all other columns must be non-empty DNA strings.
         - `pad` expects `split_column` to contain DNA fragments (typically output from `split`).
           Other columns in `input_data` are not preserved in the output.
+        - Run `pad` separately for each split fragment column (e.g., `Split1`, `Split2`, ...).
         - Output columns are: `5primeSpacer`, `ForwardPrimer`, `<split_column>`, `ReversePrimer`, `3primeSpacer`.
         - Oligo rows already summing to or exceeding `oligo_length_limit` have a `'-'` (dash) as spacer.
         - Supports 34 Type IIS enzymes for scarless pad removal:
@@ -74,8 +75,8 @@ def pad(
     maxtmelt    = maximum_melting_temperature
     maxreplen   = maximum_repeat_length
     outfile     = output_file
-    verbose     = verbose
     random_seed = random_seed
+    verbose     = verbose
 
     # Local RNG
     rng = np.random.default_rng(random_seed)

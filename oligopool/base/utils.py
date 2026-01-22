@@ -917,9 +917,7 @@ def get_df_concat(df):
         axis=1).str.replace(
             '-', '').values)
 
-def get_missing_mask(
-    series,
-    allow_dash=False):
+def get_missing_mask(series, allow_dash=False):
     '''
     Return a boolean mask of missing values in a
     Series. Missing includes NaN/None/"" and,
@@ -942,10 +940,7 @@ def get_missing_mask(
         missing |= series.eq('-')
     return missing.values
 
-def fill_missing_values(
-    series,
-    missing_mask,
-    fill='-'):
+def fill_missing_values(series, missing_mask, fill='-'):
     '''
     Fill missing positions in series with a
     placeholder value. Internal use only.
@@ -1009,10 +1004,7 @@ def get_df_with_id_column(df):
     # Fallback: preserve data and emit a stable RangeIndex.
     return df.reset_index(drop=False)
 
-def write_df_csv(
-    df,
-    outfile,
-    sep=','):
+def write_df_csv(df, outfile, sep=','):
     '''
     Write df to CSV in a "sane default" format: explicit 'ID' column and no
     implicit numeric index column. Internal use only.
@@ -1036,12 +1028,7 @@ def write_df_csv(
         sep=sep,
         index=False)
 
-def update_df(
-    indf,
-    lcname,
-    rcname,
-    out,
-    outcol):
+def update_df(indf, lcname, rcname, out, outcol):
     '''
     Insert out values in outcol between
     lcname and rcname cols if provided.

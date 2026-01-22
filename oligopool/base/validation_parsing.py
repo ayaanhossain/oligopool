@@ -1239,6 +1239,66 @@ def get_outdf_validity(
         outfile_field=outdf_field,
         liner=liner)
 
+def get_parsed_flag_info(
+    flag,
+    flag_field,
+    flag_desc_off,
+    flag_desc_on,
+    liner,
+    precheck=False,
+    flag_valid=None,
+    flag_on=None):
+    '''
+    Determine if a given input is a valid boolean-like flag (0/1/True/False) and optionally
+    print a standardized line to the module argument recap. Internal use only.
+
+    :: flag
+       type - bool / int / np.bool_
+       desc - the flag input
+    :: flag_field
+       type - string
+       desc - fieldname used in printing
+    :: flag_desc_off
+       type - string
+       desc - description printed when flag is False
+    :: flag_desc_on
+       type - string
+       desc - description printed when flag is True
+    :: liner
+       type - coroutine
+       desc - dynamic printing
+    :: precheck
+       type - bool
+       desc - if True, skip printing (default: False)
+    :: flag_valid
+       type - bool / None
+       desc - optional precomputed validity
+    :: flag_on
+       type - bool / None
+       desc - optional precomputed boolean value
+    '''
+
+    flag_field = _normalize_field(flag_field)
+
+    # Compute validity if not supplied
+    if (flag_valid is None) or (flag_on is None):
+        flag_valid = isinstance(flag, (bool, int, np.bool_)) and \
+            (flag in (0, 1, True, False))
+        flag_on = bool(flag) if flag_valid else False
+
+    # Print if requested
+    if not precheck:
+        if flag_valid:
+            liner.send('{}: {}\n'.format(
+                flag_field,
+                [flag_desc_off, flag_desc_on][flag_on]))
+        else:
+            liner.send('{}: {} [INPUT TYPE IS INVALID]\n'.format(
+                flag_field,
+                flag))
+
+    return (flag_on, flag_valid)
+
 def get_parsed_column_info(
     col,
     df,

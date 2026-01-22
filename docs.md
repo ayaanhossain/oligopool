@@ -103,7 +103,6 @@ stats = op.verify(input_data=df, ...)
   - **Design/transform modules** return `(out_df, stats)`
   - **Stats-only modules** return `stats` (`background`, `lenstat`, `verify`, `index`, `pack`)
   - **Counting modules** return `(counts_df, stats)` (`acount`, `xcount`)
-- **ID handling**: If you pass a DataFrame with `ID` as the index, outputs preserve it; files written to disk always include an explicit `ID` column (no pandas index column).
 - **Chainable**: Output of one module feeds into the next
 
 ### The Stats Dictionary

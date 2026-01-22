@@ -88,7 +88,7 @@ There are examples of a [design parser](https://github.com/ayaanhossain/oligopoo
 
 A notebook demonstrating [`Oligopool Calculator` in action](https://github.com/ayaanhossain/oligopool/blob/master/examples/OligopoolCalculatorInAction.ipynb) is provided there as well.
 
-For comprehensive documentation with examples and workflows, see [`docs/docs.md`](https://github.com/ayaanhossain/oligopool/blob/master/docs/docs.md). For AI-assisted design and analysis (e.g., with Claude, ChatGPT, or Copilot), see [`docs/agent-skills.md`](https://github.com/ayaanhossain/oligopool/blob/master/docs/agent-skills.md) - a reference guide optimized for LLM code assistants.
+For comprehensive documentation with examples and workflows, see [`docs/docs.md`](https://github.com/ayaanhossain/oligopool/blob/master/docs/docs.md). For AI-assisted design and analysis (e.g., with Claude, ChatGPT, or Copilot), see [`docs/agent-skills.md`](https://github.com/ayaanhossain/oligopool/blob/master/docs/agent-skills.md).
 
 For quick iteration during Design Mode, use `lenstat` to monitor length/free space under an `oligo_length_limit`, and `verify` as a final QC pass before ordering/synthesis.
 

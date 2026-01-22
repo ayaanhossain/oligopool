@@ -95,8 +95,6 @@ A notebook demonstrating [`Oligopool Calculator` in action](https://github.com/a
 - [AI Agent Guide](https://github.com/ayaanhossain/oligopool/blob/master/docs/agent-skills.md) - Decision trees, best practices, and gotchas for AI-assisted design (Claude, ChatGPT, Copilot)
 - [Docker Guide](https://github.com/ayaanhossain/oligopool/blob/master/docs/docker-notes.md) - Run oligopool in a container for cross-platform consistency
 
-For quick iteration during Design Mode, use `lenstat` to monitor length/free space under an `oligo_length_limit`, and `verify` as a final QC pass before ordering/synthesis.
-
 ```python
 $ python
 Python 3.12.6 | packaged by conda-forge | (main, Sep 30 2024, 18:08:52) [GCC 13.3.0] on linux

@@ -94,7 +94,7 @@ df, stats = op.barcode(
 | `barcode_type` | int | 0 | `0`=terminus optimized (fast), `1`=spectrum optimized (thorough) |
 | `left_context_column` | str \| None | None | Column for left DNA context (at least one context required) |
 | `right_context_column` | str \| None | None | Column for right DNA context (at least one context required) |
-| `patch_mode` | bool | False | Fill only missing values (`None`/`NaN`/empty/`'-'`) |
+| `patch_mode` | bool | False | Fill only missing values (`None`/`NaN`/empty/`'-'`); existing values must already be valid ATGC of length `barcode_length` |
 | `cross_barcode_columns` | str \| list[str] \| None | None | Existing barcode column(s) for cross-set separation |
 | `minimum_cross_distance` | int \| None | None | Min Hamming distance to cross set (requires `cross_barcode_columns`) |
 | `excluded_motifs` | list \| str \| pd.DataFrame \| None | None | Motifs to exclude (list, CSV, DataFrame with `Exmotif`, or FASTA) |
@@ -679,7 +679,7 @@ stats = op.verify(
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `oligo_length_limit` | int \| None | None | If provided, checks for length overflow |
-| `excluded_motifs` | list \| str \| pd.DataFrame \| None | None | Motifs to scan/report (reports emergent motifs at column junctions) |
+| `excluded_motifs` | list \| str \| pd.DataFrame \| None | None | Motifs to scan/report (emergence; junction attribution requires separate sequence columns) |
 | `verbose` | bool | True | Print progress output |
 
 **Returns**: `stats_dict` (stats-only, no DataFrame, no `output_file`)

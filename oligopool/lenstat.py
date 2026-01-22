@@ -15,7 +15,7 @@ def lenstat(
     verbose:bool=True) -> dict:
     '''
     Compute element-wise and overall oligo length statistics under an `oligo_length_limit`.
-    Useful as a "ruler" during design mode; returns only a stats dictionary.
+    Useful as a "ruler" during design; returns only a stats dictionary.
 
     Required Parameters:
         - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated oligopool variants.
@@ -29,9 +29,8 @@ def lenstat(
 
     Notes:
         - `input_data` must contain a unique 'ID' column, all other columns must be non-empty DNA strings.
-        - `lenstat` module does not add anything to `input_data`, so there is no `output_file` required.
-        - Use `lenstat` throughout design mode to track free space available under `oligo_length_limit`
-          (e.g., before using the `spacer` module).
+        - `lenstat` does not modify `input_data` and does not require an `output_file`.
+        - Use `lenstat` to track free space under `oligo_length_limit` (e.g., before using `spacer`).
         - `lenstat` assumes all non-ID columns are DNA strings; if your DataFrame contains annotation columns
           or degenerate/IUPAC bases, use `verify` for a more general QC summary.
     '''

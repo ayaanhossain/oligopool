@@ -1159,7 +1159,7 @@ Must be used with --cross-barcode-columns.''')
         default=None,
         metavar='\b',
         help='''>>[optional string]
-Comma-separated motifs or a CSV path with ID and Exmotif columns.''')
+Comma-separated motifs or a CSV path with an Exmotif column (ID column is allowed but not required).''')
     opt.add_argument(
         '--random-seed',
         type=int,
@@ -1298,7 +1298,7 @@ Column containing the paired primer to match Tm against.''')
         default=None,
         metavar='\b',
         help='''>>[optional string]
-Comma-separated motifs or a CSV path with ID and Exmotif columns.''')
+Comma-separated motifs or a CSV path with an Exmotif column (ID column is allowed but not required).''')
     opt.add_argument(
         '--background-directory',
         type=str,
@@ -1414,7 +1414,7 @@ Fill missing values in an existing motif column instead of creating a new column
         default=None,
         metavar='\b',
         help='''>>[optional string]
-Comma-separated motifs or a CSV path with ID and Exmotif columns.''')
+Comma-separated motifs or a CSV path with an Exmotif column (ID column is allowed but not required).''')
     opt.add_argument(
         '--random-seed',
         type=int,
@@ -1515,7 +1515,7 @@ Fill missing values in an existing spacer column instead of creating a new colum
         default=None,
         metavar='\b',
         help='''>>[optional string]
-Comma-separated motifs or a CSV path with ID and Exmotif columns.''')
+Comma-separated motifs or a CSV path with an Exmotif column (ID column is allowed but not required).''')
     opt.add_argument(
         '--random-seed',
         type=int,
@@ -1805,7 +1805,7 @@ Maximum allowed oligo length for reporting (>= 4).''')
         default=None,
         metavar='\b',
         help='''>>[optional string]
-Comma-separated motifs or a CSV path with ID and Exmotif columns.''')
+Comma-separated motifs or a CSV path with an Exmotif column (ID column is allowed but not required).''')
     _add_common_options(parser, opt)
     return parser
 

@@ -31,8 +31,8 @@ def barcode(
     verbose:bool=True,
     random_seed:int|None=None) -> Tuple[pd.DataFrame, dict]:
     '''
-    Design constrained barcodes per variant with a minimum pairwise Hamming distance and repeat/motif
-    avoidance (with optional context and cross-set screening).
+    Design per-variant barcodes under Hamming-distance, repeat, and excluded-motif constraints, with
+    optional context screening and cross-set separation against existing barcode columns.
 
     Required Parameters:
         - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated oligopool variants.
@@ -45,18 +45,16 @@ def barcode(
     Optional Parameters:
         - `output_file` (`str`): Filename for output DataFrame; required in CLI usage,
             optional in library usage (default: `None`).
-        - `barcode_type` (`int`): Barcode design type
-            0 for fast terminus optimized,
-            1 for slow spectrum optimized.
-            (default: 0)
+        - `barcode_type` (`int`): Barcode design mode:
+          0 = fast terminus optimized, 1 = slow spectrum optimized (default: 0).
         - `left_context_column` (`str`): Column for left DNA context (default: `None`).
         - `right_context_column` (`str`): Column for right DNA context (default: `None`).
         - `patch_mode` (`bool`): If `True`, fill only missing values in an existing barcode column
             (does not overwrite existing barcodes). (Default: `False`).
-        - `cross_barcode_columns` (`str` / `list[str]` / `None`): Existing barcode column(s) to
-            enforce cross-set separation against (default: `None`).
+        - `cross_barcode_columns` (`list[str]` / `None`): Existing barcode column(s) to enforce
+          cross-set separation against (default: `None`).
         - `minimum_cross_distance` (`int` / `None`): Minimum Hamming distance enforced between each
-            newly designed barcode and the cross set (default: `None`).
+          new barcode and the cross set (default: `None`).
         - `excluded_motifs` (`list` / `str` / `pd.DataFrame`): Motifs to exclude;
             can be a list, CSV, DataFrame, or FASTA file (default: `None`).
         - `verbose` (`bool`): If `True`, logs updates to stdout (default: `True`).
@@ -69,25 +67,17 @@ def barcode(
     Notes:
         - `input_data` must contain a unique 'ID' column, all other columns must be non-empty DNA strings.
         - Column names in `input_data` must be unique, and exclude `barcode_column`.
-        - Spectrum optimization saturates k-mers, terminus optimization ensures unique 5p/3p ends.
+        - Terminus optimization targets distinctive 5'/3' ends; spectrum optimization targets k-mer saturation.
         - At least one of `left_context_column` or `right_context_column` must be specified.
         - If `excluded_motifs` is a CSV or DataFrame, it must have an 'Exmotif' column.
-        - If barcode design is challenging, consider
-            * altering `barcode_length`, or
-            * reducing `minimum_hamming_distance`, or
-            * switching to terminus optimized barcodes, or
-            * increasing `maximum_repeat_length`, or
-            * reducing `excluded_motifs` to relax the constraints.
-        - Constant barcode anchors (e.g., prefix/suffix anchors for `index`) should typically be designed
-          prior to barcode generation (see `motif` method documentation).
-        - `cross_barcode_columns` and `minimum_cross_distance` must be set together to
-            enforce global cross-set separation (BC2 vs BC1, BC3 vs BC1+BC2).
-        - When enabled, each candidate barcode must be at least `minimum_cross_distance` mismatches
-          away from every barcode in the union of sequences across `cross_barcode_columns`.
-        - Cross-set barcodes must have length `barcode_length`.
-        - Patch mode (`patch_mode=True`) supports incremental pool extension: existing values in
-          `barcode_column` are preserved and only missing values (e.g., `None`/NaN/empty/`'-'`) are
-          designed (existing values must already be strict ATGC and length `barcode_length`).
+        - If design is challenging: adjust `barcode_length`, `minimum_hamming_distance`, `maximum_repeat_length`,
+          `excluded_motifs`, or switch `barcode_type`.
+        - Constant anchors (e.g., index prefix/suffix) are typically designed first (see `motif`, `motif_type=1`).
+        - Cross-set mode is global (not per-row): `cross_barcode_columns` and `minimum_cross_distance` must be set
+          together, and each new barcode must be ≥ `minimum_cross_distance` mismatches away from every barcode in
+          the union of sequences across `cross_barcode_columns` (length must equal `barcode_length`).
+        - Patch mode (`patch_mode=True`) preserves existing values in `barcode_column` and fills only missing values
+          (missing includes `None`/NaN/empty/`'-'`; existing values must already be strict ATGC of length `barcode_length`).
     '''
 
     # Preserve return style when the caller intentionally used ID as index.

@@ -34,9 +34,9 @@ def primer(
     verbose:bool=True,
     random_seed:int|None=None) -> Tuple[pd.DataFrame, dict]:
     '''
-    Design constrained forward/reverse primers under a sequence constraint with Tm/repeat/dimer
-    constraints for robust amplification and assembly. Supports background screening,
-    chained primer design via Tm matching, and multiplexed primer design using `oligo_sets`.
+    Design constrained primers under an IUPAC sequence constraint with Tm/repeat/dimer screening.
+    Supports background screening, chained primer design via Tm matching, multiplexed per-set primers
+    via `oligo_sets`, and patch mode for incremental pool extension.
 
     Required Parameters:
         - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated oligopool variants.
@@ -80,16 +80,13 @@ def primer(
           pass it via `background_directory`.
         - If `excluded_motifs` is a CSV or DataFrame, it must have an 'Exmotif' column.
         - Constant motifs in sequence constraint may lead to sub-optimal primers.
-        - Chained primer design: design one primer first, then design its partner by passing
-          `paired_primer_column` (e.g., design `primer_type=0` then design `primer_type=1` with
-          `paired_primer_column`).
-        - When `oligo_sets` is provided, primers are designed per set and screened for
-          cross-set compatibility. If `paired_primer_column` is also provided, it must be
-          constant within each set and Tm matching is applied per set.
-        - Patch mode (`patch_mode=True`) supports incremental pool extension: existing values in
-          `primer_column` are preserved and missing values (e.g., `None`/NaN/empty/`'-'`) are
-          filled. In `oligo_sets` mode, existing per-set primers are reused and only missing-only
-          sets trigger new primer design.
+        - Chained primer design: design one primer, then design its partner by passing `paired_primer_column`.
+        - `oligo_sets` labels can be any values usable for grouping (e.g., strings or integers).
+          Primers are designed per set and screened for cross-set compatibility; if `paired_primer_column`
+          is provided, pairing/Tm matching is applied per set (paired primers must be constant within each set).
+        - Patch mode (`patch_mode=True`) preserves existing values in `primer_column` and fills only missing values
+          (`None`/NaN/empty/`'-'`). In `oligo_sets` mode, existing per-set primers are reused and missing-only sets
+          trigger new primer design.
     '''
 
     # Preserve return style when the caller intentionally used ID as index.

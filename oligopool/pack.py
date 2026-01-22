@@ -56,7 +56,7 @@ def pack(
         - Both reads must pass criteria for paired-end acceptance.
         - Duplicate reads are consolidated into read packs for efficient parallel counting downstream.
         - If reads are merged externally, pass the merged reads as single-end (R1 only).
-        - Concatenated storage (`pack_type` = 0) is IO bound; use 2 cores.
+        - Concatenated storage (`pack_type=0`) is IO bound; ~2 cores is often enough.
         - Pack size balances memory usage and computation speed.
     '''
 

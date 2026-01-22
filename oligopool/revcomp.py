@@ -36,9 +36,8 @@ def revcomp(
 
     Notes:
         - `input_data` must contain a unique 'ID' column, all other columns must be non-empty DNA strings.
-        - `revcomp` module does not require `left_context_column` and `right_context_column` to be adjacent.
-        - If `left_context_column` is unspecified, then the first column is considered.
-        - Similarly, the last column is considered as the right context column, if unspecified.
+        - `left_context_column` and `right_context_column` need not be adjacent; if omitted, the first/last
+          columns are used.
         - Useful for inspecting or correcting split-fragment orientation (see `split` output ordering).
         - Useful for mid-pipeline maneuvers where a region is designed in one orientation (assay/readout)
           but must be installed/synthesized in the opposite orientation.

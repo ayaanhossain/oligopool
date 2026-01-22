@@ -28,9 +28,8 @@ def motif(
     verbose:bool=True,
     random_seed:int|None=None) -> Tuple[pd.DataFrame, dict]:
     '''
-    Add or design constrained motifs under a sequence constraint with repeat/excluded-motif screening
-    (including edge effects with context). Supports per-variant motifs and constant motif anchors for
-    building indexable architectures.
+    Design or insert motifs under an IUPAC sequence constraint with repeat/excluded-motif screening.
+    Supports per-variant motifs and constant anchors (`motif_type=1`) for building indexable architectures.
 
     Required Parameters:
         - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated oligopool variants.
@@ -63,13 +62,11 @@ def motif(
         - At least one of `left_context_column` or `right_context_column` must be specified.
         - If `excluded_motifs` is a CSV or DataFrame, it must have an 'Exmotif' column.
         - Constant bases in sequence constraint may lead to `excluded_motifs` and be impossible to solve.
-        - Use `motif_type=1` to design constant motif anchors (e.g., barcode prefix/suffix anchors for indexing).
-        - For anchors, tune `maximum_repeat_length` to control how distinct the anchor is from the surrounding oligos.
-        - For anchors, `motif_sequence_constraint` can be an IUPAC pattern (e.g., 'NNNNNNNNNN') or include fixed bases.
-        - Anchors should typically be designed prior to barcode generation.
-        - Patch mode (`patch_mode=True`) supports incremental pool extension: existing values in
-          `motif_column` are preserved and only missing values (e.g., `None`/NaN/empty/`'-'`) are
-          filled. For `motif_type=1`, an existing compatible constant anchor is reused for new rows.
+        - Use `motif_type=1` to design constant anchors (e.g., barcode prefix/suffix anchors for indexing).
+        - For anchors, tune `maximum_repeat_length` to control how distinct the anchor is from its context;
+          anchors are typically designed prior to barcode generation.
+        - Patch mode (`patch_mode=True`) preserves existing values in `motif_column` and fills only missing values
+          (`None`/NaN/empty/`'-'`). For `motif_type=1`, a compatible existing anchor is reused for new rows.
     '''
 
     # Preserve return style when the caller intentionally used ID as index.

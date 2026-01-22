@@ -49,9 +49,7 @@ def xcount(
           `'-'` (gaps) in the output combination.
         - CLI note: callback functions are not currently supported via the `op`/`oligopool` CLI
           (the CLI always runs with `callback=None`); use the Python API to supply callbacks.
-        - Callback function signature: `callback_func_name(read, ID, count, coreid) -> bool`
-          where `read` is the processed string, `ID` is identified barcode ID tuple,
-          `count` is read/ID frequency, and `coreid` is the CPU core ID.
+        - Callback signature: `callback(read, ID, count, coreid) -> bool`.
         - Callbacks must return booleans: True implies accepting the read.
         - Associate information in indexes is ignored.
         - Barcodes can be isolated or be sub-barcodes of a larger combinatorial assembly.

@@ -18,34 +18,31 @@ def verify(
     excluded_motifs:list|str|pd.DataFrame|None=None,
     verbose:bool=True) -> dict:
     '''
-    Verify a library DataFrame by running a lightweight QC pass (architecture summary, length checks,
-    and motif checks) without modifying or writing outputs.
+    Lightweight QC for an oligopool DataFrame (column inspection, length stats, and excluded-motif
+    emergence), without modifying data or writing outputs.
 
     Required Parameters:
         - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with an 'ID' column.
 
     Optional Parameters:
-        - `oligo_length_limit` (`int` / `None`): If provided, checks for length overflow (default: `None`).
-        - `excluded_motifs` (`list` / `str` / `pd.DataFrame`): Motifs to track; can be a CSV path or DataFrame
-            with 'ID' and 'Exmotif' columns (default: `None`).
-        - `verbose` (`bool`): If `True`, logs updates to stdout (default: `True`).
+        - `oligo_length_limit` (`int` / `None`): If provided, check for length overflow (default: `None`).
+        - `excluded_motifs` (`list` / `str` / `pd.DataFrame` / `None`): Motifs to track; can be a CSV path
+          or DataFrame with an 'Exmotif' column (default: `None`).
+        - `verbose` (`bool`): If `True`, log updates to stdout (default: `True`).
 
     Returns:
-        - A dictionary of verification results (stats only).
+        - A dictionary of verification results (stats only; no DataFrame is returned).
 
     Notes:
-        - `verify` is a summary/QC module and does not return a DataFrame.
-        - Like `lenstat`, `verify` computes length statistics from sequence columns (ignoring non-sequence
-          annotations) and can optionally check against an `oligo_length_limit`.
-        - Metadata columns (non-sequence annotations) are tracked and excluded from sequence-only checks.
-        - Degenerate/IUPAC sequence columns (e.g., UMIs with 'N') are flagged but not treated as hard errors.
-          Most design modules assume concrete DNA (`A`/`T`/`G`/`C`/`-`), so this is intended as a guardrail.
-        - Columns with a mix of DNA-like and non-DNA values are flagged as "mixed" (common source of subtle bugs).
-        - Excluded-motif check flags motif "emergence" in assembled oligos: for each motif, it reports any
-          variants where the motif occurs more often than the minimum occurrence across the library (useful
-          for motifs that should appear exactly once, like restriction sites).
-        - When emergent excluded motifs are detected and multiple sequence columns are present, `verify`
-          also summarizes which column junctions contribute to motif emergence ("edge effects").
+        - Column inspection classifies columns as sequence vs metadata, and flags mixed/degenerate/non-string
+          columns (degenerate/IUPAC columns are warnings, not hard errors).
+        - Length stats use the same engine as `lenstat` and can be checked against `oligo_length_limit`.
+        - Motif "emergence" means a motif occurs more often than the minimum occurrence across the library
+          (useful when a motif should appear exactly once, e.g., restriction sites).
+        - Motif scans operate on concatenated sequence columns (left-to-right DataFrame order) with `'-'`
+          removed. If `CompleteOligo` exists (from `final`), it is used directly.
+        - If emergent motifs are detected and multiple sequence columns are present, `verify` attributes
+          emergence to column junctions ("edge effects"), unless `CompleteOligo` is provided.
     '''
 
     # Argument Aliasing

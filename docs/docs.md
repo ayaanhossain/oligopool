@@ -221,7 +221,7 @@ df, stats = op.barcode(..., excluded_motifs='restriction_sites.csv')
 - You must provide at least one context column (`left_context_column` or `right_context_column`) so edge effects can be screened.
 - Terminus vs spectrum: terminus optimized barcodes enforce distinctive 5'/3' ends; spectrum optimized barcodes saturate k-mers (slower but tighter). Higher `minimum_hamming_distance` buys you error tolerance but shrinks the design space.
 - If you plan to index barcodes from reads, design constant anchors first with `motif(motif_type=1, ...)`.
-- Patch mode (`patch_mode=True`) fills only missing values (`None`, `NaN`, `''`, `'-'`) and never overwrites existing barcodes.
+- Patch mode (`patch_mode=True`) fills only missing values (`None`, `NaN`, `''`, `'-'`) and never overwrites existing barcodes (existing values must already be valid ATGC of length `barcode_length`).
 - Cross-set separation is strict: set `cross_barcode_columns` and `minimum_cross_distance` together; the cross-set barcodes must be strict ATGC strings of length `barcode_length`.
 - `excluded_motifs` works the same way in `primer`, `motif`, and `spacer`.
 

@@ -47,7 +47,7 @@ def index(
 
     Notes:
         - `barcode_data` and `associate_data` require unique 'ID' column; others must be non-empty DNA strings.
-        - Specify at least one each of `{barcode|associate}_{prefix|suffix}_column`.
+        - Provide at least one anchor each of `{barcode|associate}_{prefix|suffix}_column`.
         - For error-free indexing, specified columns should be adjacent to `{barcode|associate}_column`.
         - In NGS reads, barcode `{prefix|suffix}` must be `barcode_{prefix|suffix}_gap` bases away from barcode.
         - For association counting, partial presence of associate variant suffices; however, their

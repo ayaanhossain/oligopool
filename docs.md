@@ -212,12 +212,13 @@ df, stats = op.barcode(..., excluded_motifs='restriction_sites.csv')
 
 > **Note**: Excluded motifs are applied globally to all variants (no per-variant exclusion).
 
-**Pro tips**:
-- Start with `barcode_type=0` (fast). Switch to `1` only if you're packing barcodes tight.
-- Higher Hamming distance = more error tolerance, fewer possible barcodes.
-- Use `patch_mode=True` to extend a pool without overwriting existing barcodes.
-- Use `cross_barcode_columns` + `minimum_cross_distance` for multi-barcode designs (BC1 vs BC2).
-- `excluded_motifs` works the same way in `primer`, `motif`, and `spacer` modules.
+**Notes (the stuff that bites people):**
+- You must provide at least one context column (`left_context_column` or `right_context_column`) so edge effects can be screened.
+- Terminus vs spectrum: terminus optimized barcodes enforce distinctive 5'/3' ends; spectrum optimized barcodes saturate k-mers (slower but tighter). Higher `minimum_hamming_distance` buys you error tolerance but shrinks the design space.
+- If you plan to index barcodes from reads, design constant anchors first with `motif(motif_type=1, ...)`.
+- Patch mode (`patch_mode=True`) fills only missing values (`None`, `NaN`, `''`, `'-'`) and never overwrites existing barcodes.
+- Cross-set separation is strict: set `cross_barcode_columns` and `minimum_cross_distance` together; the cross-set barcodes must be strict ATGC strings of length `barcode_length`.
+- `excluded_motifs` works the same way in `primer`, `motif`, and `spacer`.
 
 **Cross-set separation** (for multiplexed designs):
 ```python
@@ -356,6 +357,13 @@ df, stats = op.primer(
 )
 ```
 
+**Notes (the stuff that bites people):**
+- You must provide at least one context column (`left_context_column` or `right_context_column`) so edge effects can be screened.
+- `maximum_repeat_length` controls non-repetitiveness against `input_data` only; screening against a background requires `background_directory`.
+- If `paired_primer_column` is provided, the paired primer type is inferred and Tm matching is applied within 1°C.
+- When `oligo_sets` is provided, primers are designed per set and screened for cross-set compatibility; if `paired_primer_column` is also provided, it must be constant within each set.
+- Patch mode (`patch_mode=True`) preserves existing primer sequences and fills only missing values; in `oligo_sets` mode, existing per-set primers are reused and only missing-only sets trigger new primer design.
+
 <details>
 <summary><b>Full parameter reference (Python API)</b></summary>
 
@@ -446,6 +454,12 @@ df, stats = op.motif(
 
 **Why anchors matter**: When you index barcodes later, you need constant flanking sequences to locate them in reads. Design anchors with `motif_type=1` *before* designing barcodes.
 
+**Notes (the stuff that bites people):**
+- You must provide at least one context column (`left_context_column` or `right_context_column`) so edge effects can be screened.
+- Constant bases in `motif_sequence_constraint` can force an excluded motif (or repeat) and make the design infeasible.
+- For anchors, tune `maximum_repeat_length` to control how distinct the anchor is from surrounding sequence.
+- Patch mode (`patch_mode=True`) fills only missing values; for `motif_type=1`, an existing compatible constant anchor is reused for new rows.
+
 <details>
 <summary><b>Full parameter reference (Python API)</b></summary>
 
@@ -533,6 +547,12 @@ lengths_df = pd.DataFrame({
 df, stats = op.spacer(..., spacer_length=lengths_df)
 ```
 
+**Notes (the stuff that bites people):**
+- You must provide at least one context column (`left_context_column` or `right_context_column`) so edge effects can be screened.
+- If a row is already at (or over) `oligo_length_limit`, its spacer is set to `'-'` (a deliberate “no-space” sentinel).
+- If `spacer_length` is a CSV/DataFrame, it must contain `ID` and `Length` columns aligned to your input IDs.
+- Patch mode (`patch_mode=True`) fills only missing values and never overwrites existing spacers (some rows may still end up with `'-'` if no spacer can fit).
+
 <details>
 <summary><b>Full parameter reference (Python API)</b></summary>
 
@@ -613,6 +633,11 @@ Then use your background database during primer design:
 df, stats = op.primer(..., background_directory='ecoli_bg')
 ```
 
+**Notes (the stuff that bites people):**
+- `background(maximum_repeat_length=...)` screens against the background only; `primer(maximum_repeat_length=...)` screens against your input oligos.
+- The background output directory ends with `.oligopool.background` and is what you pass as `background_directory`.
+- If you need to inspect or modify the DB, use `vectorDB` (see the Advanced Modules section).
+
 <details>
 <summary><b>Full parameter reference (Python API)</b></summary>
 
@@ -658,6 +683,12 @@ split_df, stats = op.split(
 ```
 
 Output contains `Split1`, `Split2`, ... columns with fragments ready for assembly.
+
+**Notes (the stuff that bites people):**
+- The number of fragments is automatically chosen and can vary per oligo (some rows may not have all `Split*` columns populated).
+- Fragments are returned in PCR/assembly order; even-numbered split columns (`Split2`, `Split4`, ...) are reverse-complemented by design.
+- `split` returns only the split fragments (your original annotation columns are not preserved). Save the annotated library separately if you need it later.
+- As a rule of thumb, keep `minimum_overlap_length` comfortably larger than `minimum_hamming_distance`.
 
 <details>
 <summary><b>Full parameter reference (Python API)</b></summary>
@@ -715,6 +746,12 @@ pad_df, stats = op.pad(
     output_file='padded_split1',
 )
 ```
+
+**Notes (the stuff that bites people):**
+- Run `pad` separately for each fragment you want to synthesize (e.g., `Split1`, `Split2`, ...).
+- Output columns are `5primeSpacer`, `ForwardPrimer`, `<split_column>`, `ReversePrimer`, `3primeSpacer` (other `split_df` columns are not preserved).
+- If a fragment can’t fit under `oligo_length_limit`, the spacer(s) for that row are set to `'-'` (a deliberate “no-space” sentinel).
+- The supported Type IIS enzymes list is the “batteries included” set; pads can be removed post-amplification with these enzymes (and blunted with mung bean nuclease if desired).
 
 **Supported Type IIS enzymes (34 total):**
 `AcuI`, `AlwI`, `BbsI`, `BccI`, `BceAI`, `BciVI`, `BcoDI`, `BmrI`, `BpuEI`, `BsaI`, `BseRI`, `BsmAI`, `BsmBI`, `BsmFI`, `BsmI`, `BspCNI`, `BspQI`, `BsrDI`, `BsrI`, `BtgZI`, `BtsCI`, `BtsI`, `BtsIMutI`, `EarI`, `EciI`, `Esp3I`, `FauI`, `HgaI`, `HphI`, `HpyAV`, `MlyI`, `MnlI`, `SapI`, `SfaNI`
@@ -776,6 +813,11 @@ df, stats = op.merge(
 )
 ```
 
+**Notes (the stuff that bites people):**
+- `left_context_column` and `right_context_column` do not need to be adjacent; `merge` collapses the full inclusive range.
+- If you omit the bounds, `merge` collapses the first → last sequence columns.
+- The merged source columns are removed from the output DataFrame.
+
 <details>
 <summary><b>Full parameter reference (Python API)</b></summary>
 
@@ -822,6 +864,11 @@ df, stats = op.revcomp(
 )
 ```
 
+**Notes (the stuff that bites people):**
+- `left_context_column` and `right_context_column` do not need to be adjacent; `revcomp` acts on the full inclusive range.
+- If you omit the bounds, `revcomp` reverse-complements the first → last sequence columns and reverses their order.
+- Useful mid-pipeline when you design in “readout orientation” but must synthesize in the opposite orientation (and for sanity-checking `split` fragment orientation).
+
 <details>
 <summary><b>Full parameter reference (Python API)</b></summary>
 
@@ -865,6 +912,11 @@ stats = op.lenstat(
 )
 # Prints a nice table of per-column and total lengths
 ```
+
+**Notes (the stuff that bites people):**
+- `lenstat` is stats-only and does not modify or write your DataFrame (no `output_file`).
+- It assumes all non-ID columns are DNA strings; if you have metadata columns or degenerate/IUPAC bases, use `verify` instead.
+- Run it early and often—especially before `spacer`, `split`, and `pad`.
 
 <details>
 <summary><b>Full parameter reference (Python API)</b></summary>
@@ -910,6 +962,11 @@ Checks:
 - Degenerate bases (non-ATGC)
 - Column architecture
 
+**Notes (the stuff that bites people):**
+- `verify` is stats-only and never modifies or writes your DataFrame.
+- Metadata columns are tracked and excluded from sequence-only checks; degenerate/IUPAC columns are flagged (not treated as hard errors).
+- Excluded-motif checks report motif “emergence” in assembled oligos (a motif occurring more times than its minimum occurrence across the library), which is often what you care about in practice.
+
 <details>
 <summary><b>Full parameter reference (Python API)</b></summary>
 
@@ -950,7 +1007,10 @@ final_df, stats = op.final(
 # Output contains 'CompleteOligo' and 'OligoLength' columns
 ```
 
-> **Tip**: `final` does not preserve annotation columns (it returns only the concatenated oligo + length). Save the annotated design DataFrame separately if you need it for indexing/counting.
+**Notes (the stuff that bites people):**
+- `final` returns only `CompleteOligo` and `OligoLength` (annotation columns are not preserved).
+- Save your annotated design DataFrame/CSV before `final` if you plan to `index`, `pack`, and count later.
+- `final` is typically the terminal design step before synthesis.
 
 <details>
 <summary><b>Full parameter reference (Python API)</b></summary>
@@ -1011,6 +1071,12 @@ stats = op.index(
     associate_suffix_column='Anchor3',
 )
 ```
+
+**Notes (the stuff that bites people):**
+- You must specify at least one of `barcode_prefix_column` or `barcode_suffix_column`; anchors should be constant (single-unique) sequences and ideally adjacent to the barcode/associate.
+- `barcode_prefix_gap`/`barcode_suffix_gap` specify how many bases separate the anchor and barcode in the read (real sequencing is messy; this makes it configurable).
+- For association counting, partial presence of the associate sequence can be sufficient, but the associate anchors must be adjacent and fully present.
+- You can use multiple index files with `xcount` for combinatorial counting (associate info is ignored in that mode).
 
 <details>
 <summary><b>Full parameter reference (Python API)</b></summary>
@@ -1073,10 +1139,15 @@ stats = op.pack(
     minimum_r2_read_length=50,
     minimum_r1_read_quality=30,            # Phred score filter
     minimum_r2_read_quality=30,
-    pack_type=1,                           # 1=merge pairs, 0=R1 only
+    pack_type=1,                           # 0=concatenate pairs, 1=merge pairs
     pack_file='sample',                    # Creates sample.oligopool.pack
 )
 ```
+
+**Notes (the stuff that bites people):**
+- For paired-end workflows, both reads must pass the length/quality filters for the pair to be retained.
+- If reads are merged externally, pass the merged reads as single-end (R1 only) and leave all R2 args as `None`.
+- `pack_type=0` (concatenated) tends to be IO-bound; `pack_type=1` (merged) is more compute-heavy. Pack files are reusable across counting runs.
 
 <details>
 <summary><b>Full parameter reference (Python API)</b></summary>
@@ -1143,6 +1214,11 @@ df, stats = op.acount(
     barcode_errors=1,                      # Allow 1 mismatch (-1=auto)
 )
 ```
+
+**Notes (the stuff that bites people):**
+- Reads with unresolved associates are excluded from the counts (that’s the point of `acount`).
+- `callback` is Python-only; the CLI always runs with `callback=None`.
+- `acount` operates on a single index + pack pair (for combinatorial counting, use `xcount`).
 
 <details>
 <summary><b>Full parameter reference (Python API)</b></summary>
@@ -1213,6 +1289,11 @@ df, stats = op.xcount(
 Output includes all observed combinations. Reads missing a barcode show `'-'` for that position.
 
 **acount vs xcount**: Use `acount` when you need barcode+variant association verification; use `xcount` for barcode-only counting (single or combinatorial).
+
+**Notes (the stuff that bites people):**
+- Reads are retained if at least one barcode maps; missing barcodes are represented as `'-'` in the output combination.
+- `callback` is Python-only; the CLI always runs with `callback=None`.
+- Associate information in the index is ignored in `xcount` mode.
 
 **Custom callbacks** (Python API only):
 ```python

@@ -1,3 +1,13 @@
+2026.01.22
+1. Docs: extracted API documentation into `docs/api.md` as single source of truth for parameter references.
+2. Docs: refactored `docs/docs.md` to link to `api.md` for parameter details (removed inline `<details>` blocks).
+3. Docs: refactored `docs/agent-skills.md` to link to `api.md` (removed inline function signatures).
+4. Docs: added strategic cross-references between all documentation files (docs.md, api.md, agent-skills.md, docker-notes.md).
+5. Docs: clarified `merge` and `revcomp` as mid-pipeline maneuvers in agent-skills.md.
+6. Docs: added Docker mode section to agent-skills.md.
+7. Docs: documented `verify` column concatenation behavior (sequence columns only, left-to-right order, gap stripping).
+8. README: added API Reference link to header navigation and Documentation section.
+
 2026.01.18
 1. Development in progress.
 2. Packaging: migrated to `pyproject.toml` (PEP 621 / PEP 517).

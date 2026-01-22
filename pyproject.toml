@@ -93,7 +93,7 @@ dynamic = ["version"]
 
 [project.urls]
 Homepage = "https://github.com/ayaanhossain/oligopool"
-Documentation = "https://github.com/ayaanhossain/oligopool/blob/master/docs.md"
+Documentation = "https://github.com/ayaanhossain/oligopool/blob/master/docs/docs.md"
 BugReports = "https://github.com/ayaanhossain/oligopool/issues"
 Source = "https://github.com/ayaanhossain/oligopool/tree/master/oligopool"
 

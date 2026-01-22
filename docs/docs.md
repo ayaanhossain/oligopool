@@ -970,6 +970,7 @@ Checks:
 - `verify` is stats-only and never modifies or writes your DataFrame.
 - Metadata columns are tracked and excluded from sequence-only checks; degenerate/IUPAC columns are flagged (not treated as hard errors).
 - Excluded-motif checks report motif “emergence” in assembled oligos (a motif occurring more times than its minimum occurrence across the library), which is often what you care about in practice.
+- When emergent motifs are detected, `verify` also reports which column junctions contribute to motif emergence (helpful for debugging edge effects), attributing only occurrences beyond the baseline minimum. This requires separate sequence columns (run `verify` before `final`).
 
 <details>
 <summary><b>Full parameter reference (Python API)</b></summary>

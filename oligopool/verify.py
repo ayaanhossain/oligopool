@@ -44,6 +44,8 @@ def verify(
         - Excluded-motif check flags motif "emergence" in assembled oligos: for each motif, it reports any
           variants where the motif occurs more often than the minimum occurrence across the library (useful
           for motifs that should appear exactly once, like restriction sites).
+        - When emergent excluded motifs are detected and multiple sequence columns are present, `verify`
+          also summarizes which column junctions contribute to motif emergence ("edge effects").
     '''
 
     # Argument Aliasing
@@ -415,6 +417,8 @@ def verify(
     # Step 3: Excluded motif emergence check
     motif_stats = None
     motif_ok = True
+    motif_viol_masks = None
+    junction_stats = None
 
     if (exmotifs is not None) and seq_cols:
         liner.send('\n[Step 3: Checking Excluded Motifs]\n')
@@ -429,6 +433,7 @@ def verify(
             fullseqs = list(ut.get_df_concat(df=seqdf))
 
         motif_stats = {}
+        motif_viol_masks = {}
         for motif in exmotifs:
             counts = [seq.count(motif) for seq in fullseqs]
             baseline = int(min(counts)) if counts else 0
@@ -446,6 +451,7 @@ def verify(
                 'emergent_rows': viol_rows,
                 'examples': examples,
             }
+            motif_viol_masks[motif] = viol_mask
 
             if viol_rows:
                 motif_ok = False
@@ -482,6 +488,124 @@ def verify(
             liner.send(' Verdict: No Emergent Excluded Motif(s) Detected\n')
         else:
             liner.send(' Verdict: Emergent Excluded Motif(s) Detected\n')
+
+        # Step 4: Localize emergent motifs to column junctions (edge effects).
+        emergent_motifs = [m for m, info in motif_stats.items() if info.get('emergent_rows', 0)]
+        if emergent_motifs:
+            liner.send('\n[Step 4: Localizing Emergent Motifs]\n')
+
+            if 'CompleteOligo' in seqdf.columns:
+                liner.send(
+                    ' Verdict: Junction Attribution Skipped [INFO] (Run verify before `final` to keep separate columns)\n')
+            else:
+                # Junctions are defined by the order of sequence columns in the DataFrame.
+                junction_cols = list(seqdf.columns)
+
+                if len(junction_cols) < 2:
+                    liner.send(
+                        ' Verdict: Junction Attribution Skipped [INFO] (Need ≥ 2 Sequence Columns)\n')
+                else:
+                    junction_keys = [
+                        '{}|{}'.format(junction_cols[i], junction_cols[i + 1])
+                        for i in range(len(junction_cols) - 1)
+                    ]
+
+                    junction_stats = {
+                        'junction_columns': junction_cols,
+                        'motifs': {},
+                    }
+
+                    for motif in emergent_motifs:
+                        viol_mask = motif_viol_masks.get(motif)
+                        viol_idxs = np.where(viol_mask)[0] if viol_mask is not None else np.array([], dtype=int)
+
+                        # Row-level counts: for each junction, number of violating rows with ≥1 junction-spanning hit.
+                        counts_by_junction = {k: 0 for k in junction_keys}
+                        examples_by_junction = {k: [] for k in junction_keys}
+                        any_junction_rows = 0
+                        internal_only_rows = 0
+
+                        mot_len = len(motif)
+                        baseline = int(motif_stats.get(motif, {}).get('baseline_count', 0))
+
+                        for ridx in viol_idxs:
+                            row_vals = seqdf.iloc[ridx, :].tolist()
+                            parts = [v.replace('-', '') for v in row_vals]
+
+                            # Boundary positions in the assembled (gap-stripped) oligo.
+                            boundaries = []
+                            pos = 0
+                            for part in parts:
+                                pos += len(part)
+                                boundaries.append(pos)
+                            boundaries = boundaries[:-1]  # N cols -> N-1 junctions
+
+                            full = ''.join(parts)
+
+                            # Find non-overlapping motif occurrences (matches `str.count` semantics used above).
+                            occ = []
+                            start = 0
+                            while True:
+                                p = full.find(motif, start)
+                                if p < 0:
+                                    break
+                                occ.append(p)
+                                start = p + mot_len
+
+                            crossed = set()
+                            # Attribute only emergent occurrences beyond the baseline minimum.
+                            for p in occ[baseline:]:
+                                end = p + mot_len
+                                for j, bpos in enumerate(boundaries):
+                                    if p < bpos < end:
+                                        crossed.add(j)
+
+                            if crossed:
+                                any_junction_rows += 1
+                                for j in crossed:
+                                    jkey = junction_keys[j]
+                                    counts_by_junction[jkey] += 1
+                                    if len(examples_by_junction[jkey]) < 5:
+                                        examples_by_junction[jkey].append(str(indf.index[ridx]))
+                            else:
+                                internal_only_rows += 1
+
+                        # Print motif-localization summary
+                        liner.send(" Motif '{}': Junction Attribution (Beyond Baseline={})\n".format(
+                            motif,
+                            baseline))
+
+                        # Only show junctions that contribute at least once (sorted descending).
+                        nonzero = [(k, v) for k, v in counts_by_junction.items() if v]
+                        if nonzero:
+                            nonzero.sort(key=lambda kv: kv[1], reverse=True)
+                            for jkey, count in nonzero:
+                                left, right = jkey.split('|', 1)
+                                example_note = ut.format_row_examples(examples_by_junction.get(jkey, []))
+                                liner.send(
+                                    "   - Junction '{}' + '{}': {:,} Oligo(s){}\n".format(
+                                        left,
+                                        right,
+                                        count,
+                                        example_note))
+                        if internal_only_rows:
+                            liner.send(
+                                '   - Internal (Within One Column): {:,} Oligo(s)\n'.format(
+                                    internal_only_rows))
+
+                        liner.send(
+                            '   - Junction-Spanning Rows: {:,} Oligo(s)\n'.format(
+                                any_junction_rows))
+
+                        junction_stats['motifs'][motif] = {
+                            'baseline_count': int(baseline),
+                            'any_junction_rows': int(any_junction_rows),
+                            'internal_only_rows': int(internal_only_rows),
+                            'junction_rows': {k: int(v) for k, v in counts_by_junction.items() if v},
+                            'junction_examples': {k: v for k, v in examples_by_junction.items() if v},
+                        }
+
+                    liner.send(' Verdict: Motif Junction Attribution Completed\n')
 
     # Determine pass/fail
     length_overflow = False
@@ -622,6 +746,7 @@ def verify(
                 intstats=intstats),
             'excluded_motifs': exmotifs,
             'excluded_motif_stats': motif_stats,
+            'excluded_motif_junction_stats': junction_stats,
         },
         'warns'   : warns,
     }

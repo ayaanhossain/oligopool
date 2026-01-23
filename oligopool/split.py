@@ -62,7 +62,7 @@ def split(
           are reverse-complemented by design. Use `revcomp` to visualize overlaps and orientation.
         - Returned DataFrame contains split oligos, annotation from `input_data` is lost.
         - Common workflow: run `pad` once per split column (e.g., `Split1`, `Split2`, ...) then `final` on each.
-        - Enable `separate_outputs` for custom padding workflows using `primer`, `motif`, or `spacer`.
+        - Use `separate_outputs` for custom padding workflows using `primer`, `motif`, or `spacer`.
     '''
 
     # Preserve return style when the caller intentionally used ID as index.

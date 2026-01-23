@@ -425,12 +425,12 @@ df, stats = op.split(
 |-----------|------|---------|-------------|
 | `output_file` | str \| None | None | Output CSV path (required for CLI) |
 | `random_seed` | int \| None | None | RNG seed for reproducibility |
-| `separate_outputs` | bool | False | If True, return a list of per-split DataFrames; if `output_file` is set, write `{base}.SplitN.oligopool.split.csv` files |
+| `separate_outputs` | bool | False | When enabled, return a list of per-split DataFrames; if `output_file` is set, write `{base}.SplitN.oligopool.split.csv` files |
 | `verbose` | bool | True | Print progress output |
 
 **Returns**:
-- `(DataFrame, stats_dict)` when `separate_outputs=False` (default) - output contains `Split1`, `Split2`, ... columns.
-- `([DataFrame, ...], stats_dict)` when `separate_outputs=True` - one DataFrame per `SplitN` column.
+- `(DataFrame, stats_dict)` when `separate_outputs` is disabled (default) - output contains `Split1`, `Split2`, ... columns.
+- `([DataFrame, ...], stats_dict)` when `separate_outputs` is enabled - one DataFrame per `SplitN` column.
 
 **Notes**:
 - Number of fragments varies per oligo; even-numbered splits (`Split2`, `Split4`, ...) are reverse-complemented.

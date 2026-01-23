@@ -1616,7 +1616,7 @@ def _add_pad(cmdpar):
     '''Register the pad subcommand parser.'''
     parser = cmdpar.add_parser(
         'pad',
-        help='add primers + Type IIS sites for assembly',
+        help='add excisable primer pads for scarless assembly',
         description='Pad split oligos with primers and write an output CSV.',
         epilog=_notes_epilog('pad'),
         usage=argparse.SUPPRESS,

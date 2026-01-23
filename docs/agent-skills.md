@@ -298,6 +298,8 @@ for col in ['Split1', 'Split2', 'Split3']:
 - You cannot pad all columns in one call - iterate
 - Output: `5primeSpacer`, `ForwardPrimer`, `<split_column>`, `ReversePrimer`, `3primeSpacer`
 
+**Post-synthesis**: PCR amplify → Type IIS digest (removes pads, leaves enzyme-specific overhangs) → mung bean nuclease (blunts overhangs; skip for blunt-cutters like `MlyI`) → assemble via **split-designed overlaps** (Gibson, overlap-extension PCR). Type IIS removes pads; the 15–30 bp overlaps from `split` drive assembly.
+
 **Supported Type IIS enzymes (34 total):**
 `AcuI`, `AlwI`, `BbsI`, `BccI`, `BceAI`, `BciVI`, `BcoDI`, `BmrI`, `BpuEI`, `BsaI`, `BseRI`, `BsmAI`,
 `BsmBI`, `BsmFI`, `BsmI`, `BspCNI`, `BspQI`, `BsrDI`, `BsrI`, `BtgZI`, `BtsCI`, `BtsI`, `BtsIMutI`,

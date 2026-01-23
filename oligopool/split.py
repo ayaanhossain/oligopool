@@ -57,7 +57,7 @@ def split(
         - `minimum_overlap_length` should always be larger than `minimum_hamming_distance`.
         - Fragment count is auto-determined and can vary per oligo.
         - Each `SplitN` column is a separate oligo pool to synthesize; fragments are later assembled
-          (e.g., PCR/Gibson/Golden Gate) to reconstruct the full-length oligo.
+          (e.g., overlap-extension PCR or Gibson) to reconstruct the full-length oligo.
         - Split fragments are returned in PCR assembly order; even-numbered split columns (`Split2`, `Split4`, ...)
           are reverse-complemented by design. Use `revcomp` to visualize overlaps and orientation.
         - Returned DataFrame contains split oligos, annotation from `input_data` is lost.

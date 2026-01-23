@@ -663,7 +663,7 @@ for i, split_df in enumerate(split_dfs, start=1):
     )
 
 # You now have N synthesis files to order from your vendor
-# After synthesis, combine fragments via overlap assembly (Gibson, Golden Gate, etc.)
+# After synthesis, combine fragments via overlap-based assembly (Gibson, overlap-extension PCR, etc.)
 ```
 
 **Key points**:

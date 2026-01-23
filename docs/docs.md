@@ -479,7 +479,7 @@ df, stats = op.primer(..., background_directory='ecoli_bg')
 
 [↑ Back to TOC](#table-of-contents)
 
-**What it does**: Breaks long oligos into overlapping fragments for assembly (Gibson, Golden Gate, etc.).
+**What it does**: Breaks long oligos into overlapping fragments for overlap-based assembly (Gibson, overlap-extension PCR, etc.).
 
 **When to use it**: Your oligos exceed synthesis length limits (~200 bp).
 
@@ -499,7 +499,7 @@ Output contains `Split1`, `Split2`, ... columns with fragments ready for assembl
 
 **Key concept: Each column = one oligo pool to synthesize**
 
-When `split` returns `Split1`, `Split2`, `Split3` columns, you will **order three separate oligo pools** from your synthesis vendor (one per column). After synthesis, these fragments are combined via overlap assembly (Gibson, Golden Gate, etc.) to reconstruct the full-length oligo.
+When `split` returns `Split1`, `Split2`, `Split3` columns, you will **order three separate oligo pools** from your synthesis vendor (one per column). After synthesis, these fragments are combined via overlap-based assembly (Gibson, overlap-extension PCR, etc.) to reconstruct the full-length oligo.
 
 **Notes (the stuff that bites people):**
 - The number of fragments is automatically chosen and can vary per oligo (some rows may not have all `Split*` columns populated).

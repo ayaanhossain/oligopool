@@ -1,3 +1,9 @@
+2026.01.23
+1. Pad module: added Type IIS compatibility check as separate pipeline step (Step 2) that validates the chosen enzyme's recognition site is absent from split fragments.
+2. Pad module: refactored compatibility check into `core_primer.get_typeIIS_compatibility()` alongside existing `get_parsed_typeIIS_constraint()`.
+3. Docs: documented Type IIS site exclusion requirement in `docs/docs.md` and `docs/api.md` (exclude enzyme motif from upstream design elements).
+4. Notebook: updated `OligopoolCalculatorInAction.ipynb` to exclude BsaI motif (`GGTCTC`/`GAGACC`) from all design elements when using BsaI for padding.
+
 2026.01.22
 1. Docs: extracted API documentation into `docs/api.md` as single source of truth for parameter references.
 2. Docs: refactored `docs/docs.md` to link to `api.md` for parameter details (removed inline `<details>` blocks).

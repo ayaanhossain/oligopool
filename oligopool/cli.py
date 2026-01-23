@@ -1617,7 +1617,7 @@ def _add_pad(cmdpar):
     parser = cmdpar.add_parser(
         'pad',
         help='add excisable primer pads for scarless assembly',
-        description='Pad split oligos with primers and write an output CSV.',
+        description='Add excisable primer pads to split fragments for scarless overlap-based assembly.',
         epilog=_notes_epilog('pad'),
         usage=argparse.SUPPRESS,
         formatter_class=OligopoolFormatter,

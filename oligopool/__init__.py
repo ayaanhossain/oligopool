@@ -94,7 +94,7 @@ Design Mode
     spacer      neutral spacers to meet length targets
     background  k-mer database for off-target screening
     split       break long oligos into overlapping fragments
-    pad         add primers + Type IIS sites for assembly
+    pad         add excisable primer pads for scarless assembly
     merge       collapse contiguous columns
     revcomp     reverse complement a column range
     lenstat     length statistics and free-space check

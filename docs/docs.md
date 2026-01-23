@@ -544,7 +544,15 @@ final3_df, _ = op.final(input_data=pad3_df, output_file='synthesis_split3')
 - **Run `pad` separately for each fragment** (e.g., `Split1`, `Split2`, ...). You cannot pad all columns in one call.
 - Output columns are `5primeSpacer`, `ForwardPrimer`, `<split_column>`, `ReversePrimer`, `3primeSpacer` (other `split_df` columns are not preserved).
 - If a fragment can't fit under `oligo_length_limit`, the spacer(s) for that row are set to `'-'` (a deliberate "no-space" sentinel).
-- The supported Type IIS enzymes list is the "batteries included" set; pads can be removed post-amplification with these enzymes (and blunted with mung bean nuclease if desired).
+- The supported Type IIS enzymes list is the "batteries included" set for pad removal.
+
+**Post-synthesis workflow** (after you get your oligos back):
+1. **PCR amplify** the padded fragments
+2. **Type IIS digest** → excises primers and spacers, leaving enzyme-specific sticky overhangs (the overhangs are primer-derived, not from your fragment)
+3. **Mung bean nuclease** (optional) → blunts the overhangs; skip this step if using a blunt-cutter like `MlyI`
+4. **Assemble** the cleaned fragments via their **split-designed overlaps** (Gibson, overlap-extension PCR, etc.)
+
+The Type IIS enzyme is for **pad removal**, not fragment-to-fragment ligation — the 15–30 bp overlaps from `split` drive the actual assembly.
 
 **Supported Type IIS enzymes (34 total):**
 `AcuI`, `AlwI`, `BbsI`, `BccI`, `BceAI`, `BciVI`, `BcoDI`, `BmrI`, `BpuEI`, `BsaI`, `BseRI`, `BsmAI`, `BsmBI`, `BsmFI`, `BsmI`, `BspCNI`, `BspQI`, `BsrDI`, `BsrI`, `BtgZI`, `BtsCI`, `BtsI`, `BtsIMutI`, `EarI`, `EciI`, `Esp3I`, `FauI`, `HgaI`, `HphI`, `HpyAV`, `MlyI`, `MnlI`, `SapI`, `SfaNI`

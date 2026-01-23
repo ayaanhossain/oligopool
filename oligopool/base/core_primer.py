@@ -811,6 +811,80 @@ def get_parsed_splitcol(
         maxallowedlen,
         paddingbalance)
 
+def get_typeIIS_compatibility(
+    splitcol,
+    typeIISmotif,
+    indf,
+    liner):
+    '''
+    Check that the Type IIS recognition motif (and its reverse complement)
+    does not appear inside the split fragments. Internal sites would cause
+    unwanted cleavage during pad excision digest. Internal use only.
+
+    :: splitcol
+       type - pd.Series
+       desc - Series containing split fragment sequences
+    :: typeIISmotif
+       type - string
+       desc - Type IIS recognition motif (without N bases)
+    :: indf
+       type - pd.DataFrame
+       desc - input DataFrame for row context in error messages
+    :: liner
+       type - coroutine
+       desc - dynamic printing
+
+    Returns a tuple of:
+        - parsestatus (bool): True if no conflicts found
+        - conflict_count (int): number of fragments with internal sites
+        - typeIIS_rc (str): reverse complement of the motif
+    '''
+
+    t0 = tt.time()
+
+    # Get reverse complement
+    typeIIS_rc = ut.get_revcomp(typeIISmotif)
+
+    # Check for motif presence in either orientation
+    conflict_mask = splitcol.str.contains(typeIISmotif, regex=False)
+    if typeIIS_rc != typeIISmotif:
+        conflict_mask = conflict_mask | splitcol.str.contains(typeIIS_rc, regex=False)
+
+    conflict_count = int(conflict_mask.sum())
+
+    # Get example IDs for error reporting
+    examples = []
+    if conflict_count:
+        examples = ut.get_row_examples(
+            df=indf,
+            invalid_mask=conflict_mask,
+            id_col='ID',
+            limit=5)
+
+    # Show update
+    if conflict_count:
+        example_note = ut.format_row_examples(examples)
+        liner.send(
+            ' Internal TypeIIS Sites: {:,} Conflict(s) [INFEASIBLE]{}\n'.format(
+                conflict_count,
+                example_note))
+    else:
+        liner.send(' Internal TypeIIS Sites: None Detected\n')
+
+    liner.send(' Time Elapsed: {:.2f} sec\n'.format(tt.time() - t0))
+
+    parsestatus = (conflict_count == 0)
+
+    # Show verdict
+    if not parsestatus:
+        liner.send(
+            ' Verdict: Pad Design Infeasible due to Internal TypeIIS Site(s)\n')
+    else:
+        liner.send(
+            ' Verdict: Pad Design Possibly Feasible\n')
+
+    return (parsestatus, conflict_count, typeIIS_rc)
+
 def get_parsed_typeIIS_constraint(
     typeIIS,
     typeIISname,

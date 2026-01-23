@@ -297,6 +297,8 @@ for col in ['Split1', 'Split2', 'Split3']:
 **Tips**:
 - You cannot pad all columns in one call - iterate
 - Output: `5primeSpacer`, `ForwardPrimer`, `<split_column>`, `ReversePrimer`, `3primeSpacer`
+- **Type IIS site must be absent from fragments** (both orientations) - `pad` validates this and fails early if conflicts found
+- **Exclude your Type IIS motif from upstream design elements** - if using `BsaI`, add `GGTCTC` and `GAGACC` to `excluded_motifs` when designing primers, barcodes, motifs, and spacers
 
 **Post-synthesis**: PCR amplify → Type IIS digest (removes pads, leaves enzyme-specific overhangs) → mung bean nuclease (blunts overhangs; skip for blunt-cutters like `MlyI`) → assemble via **split-designed overlaps** (Gibson, overlap-extension PCR). Type IIS removes pads; the 15–30 bp overlaps from `split` drive assembly.
 
@@ -672,6 +674,7 @@ for i, split_df in enumerate(split_dfs, start=1):
 - Run `pad` once per fragment (cannot batch)
 - Even-numbered splits are reverse-complemented (for PCR assembly orientation)
 - Raw split output is NOT synthesis-ready - always use `pad` + `final`
+- Exclude your Type IIS motif (e.g., `GGTCTC`/`GAGACC` for BsaI) from upstream design elements to prevent internal cut sites
 
 ### Analysis Pipeline
 ```python

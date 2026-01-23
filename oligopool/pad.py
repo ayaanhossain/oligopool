@@ -63,7 +63,7 @@ def pad(
         - Post-synthesis workflow: PCR amplify → Type IIS digest (excises pads, leaves enzyme-specific
           overhangs) → mung bean nuclease (blunts overhangs; skip for blunt-cutters like `MlyI`) →
           assemble via split-designed overlaps (Gibson, overlap-extension PCR).
-        - Type IIS is for pad removal, not fragment ligation; the 15–30 bp overlaps from `split` drive assembly.
+        - Type IIS is for pad removal, not fragment ligation; the overlaps from `split` drive assembly.
     '''
 
     # Preserve return style when the caller intentionally used ID as index.

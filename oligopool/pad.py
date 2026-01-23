@@ -60,7 +60,10 @@ def pad(
               `BsmI`, `BspCNI`,   `BspQI`, `BsrDI`, `BsrI`,  `BtgZI`, `BtsCI`,
               `BtsI`, `BtsIMutI`, `EarI`,  `EciI`,  `Esp3I`, `FauI`,  `HgaI`,
               `HphI`, `HpyAV`,    `MlyI`,  `MnlI`,  `SapI`,  `SfaNI`.
-        - Pads can be removed post-amplification using these enzymes, and blunted using mung bean nuclease.
+        - Post-synthesis workflow: PCR amplify → Type IIS digest (excises pads, leaves enzyme-specific
+          overhangs) → mung bean nuclease (blunts overhangs; skip for blunt-cutters like `MlyI`) →
+          assemble via split-designed overlaps (Gibson, overlap-extension PCR).
+        - Type IIS is for pad removal, not fragment ligation; the 15–30 bp overlaps from `split` drive assembly.
     '''
 
     # Preserve return style when the caller intentionally used ID as index.

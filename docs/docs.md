@@ -507,7 +507,7 @@ When `split` returns `Split1`, `Split2`, `Split3` columns, you will **order thre
 - `split` returns only the split fragments (your original annotation columns are not preserved). Save the annotated library separately if you need it later.
 - As a rule of thumb, keep `minimum_overlap_length` comfortably larger than `minimum_hamming_distance`.
 - **Raw split output is not synthesis-ready for assembly** — run `pad` per `SplitN` to add primers/Type IIS sites, then `final` each padded DataFrame.
-- If you prefer one DataFrame per fragment, enable `separate_outputs` (CLI `op split` writes separate files like `out.Split1.oligopool.split.csv` by default; use `--no-separate-outputs` for a single combined file).
+- For separate per-fragment outputs: in Python, set `separate_outputs=True`; in CLI, this is already the default (writes `out.Split1.oligopool.split.csv`, etc.). Use `--no-separate-outputs` in CLI for a single combined file.
 
 > **API Reference**: See [`split`](api.md#split) for complete parameter documentation.
 

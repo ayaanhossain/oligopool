@@ -472,8 +472,8 @@ df, stats = op.pad(
 
     # Optional
     output_file=None,              # str | None
-    verbose=True,                  # bool
     random_seed=None,              # int | None
+    verbose=True,                  # bool
 )
 ```
 
@@ -494,12 +494,12 @@ df, stats = op.pad(
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `output_file` | str \| None | None | Output CSV path (required for CLI) |
-| `verbose` | bool | True | Print progress output |
 | `random_seed` | int \| None | None | RNG seed for reproducibility |
+| `verbose` | bool | True | Print progress output |
 
 **Returns**: `(DataFrame, stats_dict)` - Output contains `5primeSpacer`, `ForwardPrimer`, `<split_column>`, `ReversePrimer`, `3primeSpacer`.
 
-**Important**: The chosen Type IIS recognition site must be absent from all split fragments (in either orientation). `pad` validates this and fails early if internal cut sites are found. To avoid issues, exclude your Type IIS motif (e.g., `GGTCTC`/`GAGACC` for BsaI) from `excluded_motifs` when designing upstream elements (primers, barcodes, motifs, spacers).
+**Important**: The chosen Type IIS recognition site must be absent from all split fragments (in either orientation). `pad` validates this and fails early if internal cut sites are found. To avoid issues, exclude your Type IIS motif (e.g., `GGTCTC`/`GAGACC` for BsaI) from `excluded_motifs` when designing upstream elements (primers, barcodes, motifs, spacers). Note: this only constrains newly designed elements — if your input/core sequences already contain the site, you’ll need to choose a different Type IIS system or redesign those sequences.
 
 **CLI Equivalent**:
 ```bash
@@ -507,7 +507,7 @@ op pad \
     --input-data split_library.csv \
     --oligo-length-limit 200 \
     --split-column Split1 \
-    --typeIIS-system BsaI \
+    --typeiis-system BsaI \
     --minimum-melting-temperature 52 \
     --maximum-melting-temperature 58 \
     --maximum-repeat-length 10 \

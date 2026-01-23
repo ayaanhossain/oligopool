@@ -387,7 +387,7 @@ op background \
 
 ### split
 
-**Purpose**: Break long oligos into overlapping fragments for assembly (Gibson, Golden Gate, etc.).
+**Purpose**: Break long oligos into overlapping fragments for overlap-based assembly (Gibson, overlap-extension PCR, etc.).
 
 **Signature**:
 ```python

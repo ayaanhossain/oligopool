@@ -63,6 +63,8 @@ def pad(
         - Post-synthesis workflow: PCR amplify → Type IIS digest (excises pads, leaves enzyme-specific
           overhangs) → mung bean nuclease (blunts overhangs; skip for blunt-cutters like `MlyI`) →
           assemble via split-designed overlaps (Gibson, overlap-extension PCR).
+        - The chosen Type IIS recognition site must be absent from all split fragments in `split_column`
+          (in either orientation), otherwise the pool will be cut during digest.
         - Type IIS is for pad removal, not fragment ligation; the overlaps from `split` drive assembly.
     '''
 
@@ -242,8 +244,45 @@ def pad(
         liner.close()
         return (outdf, stats)
 
+    # Check TypeIIS Compatibility
+    liner.send('\n[Step 2: Checking TypeIIS Compatibility]\n')
+
+    # Verify Type IIS recognition site is absent from split fragments
+    (parsestatus,
+    conflict_count,
+    typeIIS_rc) = cp.get_typeIIS_compatibility(
+        splitcol=splitcol,
+        typeIISmotif=typeIISmotif,
+        indf=indf,
+        liner=liner)
+
+    # typeIIS compatibility infeasible
+    if not parsestatus:
+
+        # Prepare stats
+        stats = {
+            'status'  : False,
+            'basis'   : 'infeasible',
+            'step'    : 2,
+            'step_name': 'checking-typeIIS-compatibility',
+            'vars'    : {
+                'typeIIS_motif': typeIISmotif,
+                'typeIIS_rc_motif': typeIIS_rc,
+                'internal_typeIIS_sites': conflict_count},
+            'warns'   : warns}
+        stats['random_seed'] = random_seed
+        stats = ut.stamp_stats(
+            stats=stats,
+            module='pad',
+            input_rows=input_rows,
+            output_rows=0)
+
+        # Return results
+        liner.close()
+        return (outdf, stats)
+
     # Parse TypeIIS Constraint
-    liner.send('\n[Step 2: Parsing TypeIIS System]\n')
+    liner.send('\n[Step 3: Parsing TypeIIS Constraint]\n')
 
     # Parse typeIIS
     (parsestatus,
@@ -268,8 +307,8 @@ def pad(
         stats = {
             'status'  : False,
             'basis'   : 'infeasible',
-            'step'    : 2,
-            'step_name': 'parsing-typeIIS-system',
+            'step'    : 3,
+            'step_name': 'parsing-typeIIS-constraint',
             'vars'    : {
                  'min_pad_len': minpadlen,
                  'max_pad_len': maxpadlen,
@@ -287,7 +326,7 @@ def pad(
         return (outdf, stats)
 
     # Parse Melting Temperature
-    liner.send('\n[Step 3: Parsing Melting Temperature]\n')
+    liner.send('\n[Step 4: Parsing Melting Temperature]\n')
 
     # Parse mintmelt and maxtmelt
     (parsestatus,
@@ -312,7 +351,7 @@ def pad(
         stats = {
             'status'  : False,
             'basis'   : 'infeasible',
-            'step'    : 3,
+            'step'    : 4,
             'step_name': 'parsing-melting-temperature',
             'vars'    : {
                 'estimated_min_Tm': estimatedminTm,
@@ -332,10 +371,10 @@ def pad(
         return (outdf, stats)
 
     # Parse Excluded Motifs
-    liner.send('\n[Step 4: Parsing Excluded Motifs]\n')
+    liner.send('\n[Step 5: Parsing Excluded Motifs]\n')
 
-    # Update Step 4 Warning
-    warns[4] = {
+    # Update Step 5 Warning
+    warns[5] = {
         'warn_count': 0,
         'step_name' : 'parsing-excluded-motifs',
         'vars': None}
@@ -351,12 +390,12 @@ def pad(
         element='Pad',
         leftcontext=splitcol,
         rightcontext=splitcol,
-        warn=warns[4],
+        warn=warns[5],
         liner=liner)
 
-    # Remove Step 4 Warning
-    if not warns[4]['warn_count']:
-        warns.pop(4)
+    # Remove Step 5 Warning
+    if not warns[5]['warn_count']:
+        warns.pop(5)
 
     # exmotifs infeasible
     if not parsestatus:
@@ -365,7 +404,7 @@ def pad(
         stats = {
             'status'  : False,
             'basis'   : 'infeasible',
-            'step'    : 4,
+            'step'    : 5,
             'step_name': 'parsing-excluded-motifs',
             'vars'    : {
                  'prob_lens': problens,
@@ -389,7 +428,7 @@ def pad(
         exmotifs=exmotifs)
 
     # Show update
-    liner.send('\n[Step 5: Extracting Context Sequences]\n')
+    liner.send('\n[Step 6: Extracting Context Sequences]\n')
 
     # Extract Pad Contexts
     (leftcontext,
@@ -401,10 +440,10 @@ def pad(
         liner=liner)
 
     # Show update
-    liner.send('\n[Step 6: Parsing Forward Pad Edge Effects]\n')
+    liner.send('\n[Step 7: Parsing Forward Pad Edge Effects]\n')
 
-    # Update Step 6 Warning
-    warns[6] = {
+    # Update Step 7 Warning
+    warns[7] = {
         'warn_count': 0,
         'step_name' : 'parsing-forward-pad-edge-effects',
         'vars': None}
@@ -419,18 +458,18 @@ def pad(
         rightpartition=rightpartition,
         exmotifs=exmotifs,
         element='Forwad Pad',
-        warn=warns[6],
+        warn=warns[7],
         liner=liner)
 
-    # Remove Step 6 Warning
-    if not warns[6]['warn_count']:
-        warns.pop(6)
+    # Remove Step 7 Warning
+    if not warns[7]['warn_count']:
+        warns.pop(7)
 
     # Show update
-    liner.send('\n[Step 7: Parsing Reverse Pad Edge Effects]\n')
+    liner.send('\n[Step 8: Parsing Reverse Pad Edge Effects]\n')
 
-    # Update Step 6 Warning
-    warns[7] = {
+    # Update Step 8 Warning
+    warns[8] = {
         'warn_count': 0,
         'step_name' : 'parsing-reverse-pad-edge-effects',
         'vars': None}
@@ -445,15 +484,15 @@ def pad(
         rightpartition=None,
         exmotifs=exmotifs,
         element='Reverse Pad',
-        warn=warns[7],
+        warn=warns[8],
         liner=liner)
 
-    # Remove Step 6 Warning
-    if not warns[7]['warn_count']:
-        warns.pop(7)
+    # Remove Step 8 Warning
+    if not warns[8]['warn_count']:
+        warns.pop(8)
 
     # Parse Oligopool Repeats
-    liner.send('\n[Step 8: Parsing Oligopool Repeats]\n')
+    liner.send('\n[Step 9: Parsing Oligopool Repeats]\n')
 
     # Parse Repeats from indf
     (parsestatus,
@@ -475,7 +514,7 @@ def pad(
         stats = {
             'status'  : False,
             'basis'   : 'infeasible',
-            'step'    : 8,
+            'step'    : 9,
             'step_name': 'parsing-oligopool-repeats',
             'vars'    : {
                 'source_context': sourcecontext,
@@ -498,7 +537,7 @@ def pad(
     stats = {
         'status'  : False,
         'basis'   : 'unsolved',
-        'step'    : 9,
+        'step'    : 10,
         'step_name': 'computing-pad',
         'vars'    : {
                 'fwd_pad_primer_Tm': None,        # Forward Pad Melting Temperature
@@ -529,7 +568,7 @@ def pad(
     fwdstats = {
         'status'  : False,
         'basis'   : 'unsolved',
-        'step'    : 9,
+        'step'    : 10,
         'step_name': 'computing-forward-pad',
         'vars'    : {
                    'primer_Tm': None,          # Primer Melting Temperature
@@ -554,7 +593,7 @@ def pad(
         typeIISmotif) + len(typeIISmotif)])
 
     # Launching Forward Primer-Pad Design
-    liner.send('\n[Step 9: Computing Forward Pad]\n')
+    liner.send('\n[Step 10: Computing Forward Pad]\n')
 
     # Design Forward Primer-Pad
     (fwdpad,
@@ -586,7 +625,7 @@ def pad(
     revstats = {
         'status'  : False,
         'basis'   : 'unsolved',
-        'step'    : 10,
+        'step'    : 11,
         'step_name': 'computing-reverse-pad',
         'vars'    : {
                    'primer_Tm': None,          # Primer Melting Temperature
@@ -616,7 +655,7 @@ def pad(
             ut.get_revcomp(typeIISmotif)) + len(typeIISmotif)])
 
         # Launching Reverse Primer-Pad Design
-        liner.send('\n[Step 10: Computing Reverse Pad]\n')
+        liner.send('\n[Step 11: Computing Reverse Pad]\n')
 
         # Design Reverse Primer-Pad
         (revpad,

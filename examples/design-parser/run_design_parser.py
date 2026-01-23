@@ -18,6 +18,12 @@ def run_design_parser():
 
     promoter_list = get_promoter_list()   # Load Core Oligo Variants
 
+    excluded_motifs = ['GGATCC', 'TCTAGA', 'GGTCTC', 'GAGACC', 'CCCCC', 'AAAAA', 'TTTTT', 'GGGGG']
+    promoter_list = [
+        p for p in promoter_list
+        if not any(e in p for e in excluded_motifs)
+    ]
+
     # REMEMBER TO PROCESS OR WRITE THE OUTPUT from the line below
 
     output = dp.design_parser(
@@ -46,7 +52,7 @@ def run_design_parser():
                        'paired_primer_column': 'Primer3',
                         'left_context_column': None,
                        'right_context_column': 'Cut1',
-                            'excluded_motifs': ['GGATCC', 'TCTAGA'] + ['CCCCC', 'AAAAA', 'TTTTT', 'GGGGG']
+                            'excluded_motifs': excluded_motifs
             },
 
             'Cut1': {
@@ -56,7 +62,7 @@ def run_design_parser():
                     'maximum_repeat_length': 8,
                       'left_context_column': 'Primer1',
                      'right_context_column': 'Promoter',
-                          'excluded_motifs': ['GGATCC', 'TCTAGA'] + ['CCCCC', 'AAAAA', 'TTTTT', 'GGGGG']
+                          'excluded_motifs': excluded_motifs
             },
 
             'Promoter': {
@@ -71,7 +77,7 @@ def run_design_parser():
                 'minimum_hamming_distance': 3,
                    'maximum_repeat_length': 8,
                             'barcode_type': 1,
-                         'excluded_motifs': ['GGATCC', 'TCTAGA'] + ['CCCCC', 'AAAAA', 'TTTTT', 'GGGGG'],
+                         'excluded_motifs': excluded_motifs,
                      'left_context_column': 'Promoter',
                     'right_context_column': 'Primer2'
             },
@@ -87,7 +93,7 @@ def run_design_parser():
                        'paired_primer_column': 'Primer3',
                         'left_context_column': 'Barcode',
                        'right_context_column': 'Cut2',
-                            'excluded_motifs': ['GGATCC', 'TCTAGA'] + ['CCCCC', 'AAAAA', 'TTTTT', 'GGGGG']
+                            'excluded_motifs': excluded_motifs
             },
 
             'Cut2': {
@@ -97,7 +103,7 @@ def run_design_parser():
                     'maximum_repeat_length': 8,
                       'left_context_column': 'Primer2',
                      'right_context_column': 'Primer3',
-                          'excluded_motifs': ['GGATCC', 'TCTAGA'] + ['CCCCC', 'AAAAA', 'TTTTT', 'GGGGG']
+                          'excluded_motifs': excluded_motifs
             },
 
             'Primer3': {
@@ -111,7 +117,7 @@ def run_design_parser():
                        'paired_primer_column': 'Primer2',
                         'left_context_column': 'Cut2',
                        'right_context_column': 'Filler',
-                            'excluded_motifs': ['GGATCC', 'TCTAGA'] + ['CCCCC', 'AAAAA', 'TTTTT', 'GGGGG']
+                            'excluded_motifs': excluded_motifs
             },
 
             'Filler': {
@@ -121,7 +127,7 @@ def run_design_parser():
                         'spacer_length': None,
                   'left_context_column': 'Primer3',
                  'right_context_column': None,
-                      'excluded_motifs': ['GGATCC', 'TCTAGA'] + ['CCCCC', 'AAAAA', 'TTTTT', 'GGGGG']
+                      'excluded_motifs': excluded_motifs
             },
         },
 

@@ -507,7 +507,7 @@ When `split` returns `Split1`, `Split2`, `Split3` columns, you will **order thre
 - `split` returns only the split fragments (your original annotation columns are not preserved). Save the annotated library separately if you need it later.
 - As a rule of thumb, keep `minimum_overlap_length` comfortably larger than `minimum_hamming_distance`.
 - **Raw split output is not synthesis-ready for assembly** — run `pad` per `SplitN` to add primers/Type IIS sites, then `final` each padded DataFrame.
-- If you prefer one DataFrame per fragment, use `separate_outputs=True` (or `op split` in CLI mode, which writes separate files by default).
+- If you prefer one DataFrame per fragment, enable `separate_outputs` (or use `op split` in CLI mode, which writes separate files by default).
 
 > **API Reference**: See [`split`](api.md#split) for complete parameter documentation.
 

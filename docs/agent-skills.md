@@ -271,7 +271,7 @@ For complete parameter documentation, see [api.md](api.md).
 - Raw split output is NOT synthesis-ready - use `pad` to add primers/Type IIS sites
 - Even-numbered splits (`Split2`, `Split4`, ...) are reverse-complemented for PCR assembly
 - Fragment count is auto-determined and can vary per oligo
-- If you want one DataFrame (or file) per fragment, set `separate_outputs=True` (CLI `op split` writes separate files by default; use `--no-separate-outputs` to write one combined file).
+- If you want one DataFrame (or file) per fragment, enable `separate_outputs` (CLI `op split` writes separate files by default; use `--no-separate-outputs` to write one combined file).
 
 ---
 
@@ -635,7 +635,7 @@ split_dfs, stats = op.split(
     minimum_hamming_distance=3,
     minimum_overlap_length=20,
     maximum_overlap_length=30,
-    separate_outputs=True,  # Returns list of DataFrames [df_Split1, df_Split2, ...]
+    separate_outputs=True,  # Enable to return [df_Split1, df_Split2, ...]
 )
 
 # 2. Pad each fragment, then finalize
@@ -665,7 +665,7 @@ for i, split_df in enumerate(split_dfs, start=1):
 ```
 
 **Key points**:
-- Use `separate_outputs=True` to get a list of DataFrames directly
+- Enable `separate_outputs` to get a list of DataFrames directly
 - Each `SplitN` column = one separate oligo pool to order
 - Run `pad` once per fragment (cannot batch)
 - Even-numbered splits are reverse-complemented (for PCR assembly orientation)

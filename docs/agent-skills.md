@@ -37,6 +37,12 @@ This document is designed for AI assistants to understand and help users with ol
 **Oligopool Calculator** is a Python library for designing and analyzing oligonucleotide pool (oligopool)
 libraries used in massively parallel reporter assays (MPRAs) and similar high-throughput experiments.
 
+**Common applications**:
+- **MPRAs**: Promoter/enhancer activity measurement
+- **Saturation mutagenesis**: Systematic variant testing
+- **CRISPR screens**: Pooled guide libraries
+- **Ribozyme/mRNA studies**: Cleavage and stability quantification
+
 **Core workflow:**
 1. **Design Mode**: Build a library of oligos with barcodes, primers, motifs, and spacers
 2. **Analysis Mode**: Count barcoded reads from NGS data to quantify variant activity
@@ -214,6 +220,22 @@ For complete parameter documentation, see [api.md](api.md).
 - Use `'N'*18 + 'WW'` for 3' AT clamp
 - Build background with `op.background()` before primer design for off-target screening
 - For multiplexed libraries, use `oligo_sets` to design set-specific primers
+
+**`oligo_sets` for multiplexed libraries**:
+When your library has distinct groups (e.g., different promoters, different genes), use `oligo_sets` to design group-specific primers while ensuring cross-compatibility:
+```python
+# Each set gets its own primers, but all primers are screened against each other
+df, _ = op.primer(
+    input_data=df,
+    oligo_sets=['setA', 'setA', 'setB', 'setB', 'setC'],  # Per-row labels
+    # Or: oligo_sets='sets.csv' with ID + OligoSet columns
+    # Or: oligo_sets=pd.DataFrame({'ID': [...], 'OligoSet': [...]})
+    ...
+)
+```
+- All sets share the same Tm/constraint requirements
+- Primers are cross-screened to prevent amplification of wrong sets
+- In patch mode, existing per-set primers are reused for their sets
 
 ---
 
@@ -419,6 +441,12 @@ For complete parameter documentation, see [api.md](api.md).
 - For paired-end merging (`pack_type='merge'`), provide both `r2_fastq_file` and `r2_read_type`
 - For pre-merged reads (e.g., from FLASH), use as single-end
 
+**`pack_size` parameter**:
+Controls memory usage by splitting reads into chunks of N million unique reads (default: 3.0, range: 0.1-5.0).
+- Lower values (0.5-1.0): Less memory, more pack files, useful for memory-constrained systems
+- Higher values (3.0-5.0): More memory, fewer pack files, faster counting
+- Each pack file is processed independently during counting
+
 ---
 
 ### acount
@@ -434,6 +462,11 @@ For complete parameter documentation, see [api.md](api.md).
 - Input library QC
 - Post-assay barcode-variant verification
 
+**Error tolerance parameters**:
+- `barcode_errors` (`int`, default `-1`): Max mismatches allowed in barcode matching. `-1` auto-infers from index (typically `minimum_hamming_distance // 2`).
+- `associate_errors` (`int`, default `-1`): Max mismatches allowed in associate (variant) matching. `-1` auto-infers from index.
+- Set explicit values (e.g., `0` or `1`) for stricter/looser matching
+
 ---
 
 ### xcount
@@ -448,6 +481,9 @@ For complete parameter documentation, see [api.md](api.md).
 - Pure barcode counting (single index)
 - Multi-barcode combinations (BC1 × BC2)
 - Cleaved vs uncleaved quantification (ribozymes, etc.)
+
+**Error tolerance**:
+- `barcode_errors` (`int`, default `-1`): Max mismatches allowed in barcode matching. `-1` auto-infers from index.
 
 ---
 
@@ -826,6 +862,98 @@ df, _ = op.barcode(
     patch_mode=True,  # Only design for v101, v102
     ...
 )
+```
+
+### CRISPR Guide Library
+Design a barcoded CRISPR guide library for pooled screens.
+
+```python
+import oligopool as op
+import pandas as pd
+
+# 1. Start with guide sequences (user-provided)
+df = pd.DataFrame({
+    'ID': ['gene1_g1', 'gene1_g2', 'gene2_g1', ...],
+    'Guide': ['ATGCATGCATGCATGCATGC', ...]  # 20bp guides
+})
+
+# 2. Add scaffold and flanking sequences
+# Architecture: U6_promoter | Guide | Scaffold | BC | Primer
+df['Scaffold'] = 'GTTTTAGAGCTAGAAATAGCAAGTTAAAATAAGGCTAGTCCG'  # tracrRNA
+
+# 3. Add barcode for guide identification
+df, _ = op.barcode(
+    input_data=df,
+    oligo_length_limit=200,
+    barcode_length=12,
+    minimum_hamming_distance=3,
+    barcode_column='BC',
+    left_context_column='Scaffold',
+    excluded_motifs=['TTTT'],  # Avoid Pol III terminators
+)
+
+# 4. Add primer for amplification/sequencing
+df, _ = op.primer(
+    input_data=df,
+    oligo_length_limit=200,
+    primer_sequence_constraint='N'*20,
+    primer_type='reverse',
+    primer_column='Primer',
+    right_context_column='BC',
+)
+
+# 5. Finalize
+op.verify(input_data=df, oligo_length_limit=200)
+final_df, _ = op.final(input_data=df)
+```
+
+**Key points**:
+- Exclude Pol III terminators (`TTTT`) from barcodes/spacers
+- Guide sequences are typically 20bp for SpCas9
+- Consider excluding PAM sequences from barcodes if needed
+
+---
+
+### Ribozyme Cleavage Quantification
+Quantify self-cleaving ribozyme activity using dual barcodes (cleaved vs uncleaved).
+
+```python
+import oligopool as op
+import pandas as pd
+
+# Architecture: Primer1 | BC_5prime | Ribozyme | BC_3prime | Primer2
+# After cleavage: [Primer1 | BC_5prime | ...] and [... | BC_3prime | Primer2]
+
+# 1. Design library with dual barcodes
+df = pd.DataFrame({
+    'ID': ['rz1', 'rz2', 'rz3'],
+    'Ribozyme': ['ATGC...', 'GCTA...', 'TTAA...']
+})
+
+df, _ = op.barcode(input_data=df, barcode_column='BC_5prime', ...)
+df, _ = op.barcode(
+    input_data=df,
+    barcode_column='BC_3prime',
+    cross_barcode_columns=['BC_5prime'],  # Ensure separation
+    minimum_cross_distance=3,
+    ...
+)
+
+# 2. After sequencing, count barcode combinations
+op.index(barcode_data=df, barcode_column='BC_5prime', index_file='bc5_idx', ...)
+op.index(barcode_data=df, barcode_column='BC_3prime', index_file='bc3_idx', ...)
+
+# 3. Combinatorial counting reveals cleavage
+xc_df, _ = op.xcount(
+    index_files=['bc5_idx', 'bc3_idx'],
+    pack_file='reads',
+    count_file='cleavage_counts',
+)
+
+# Interpretation:
+# - Matched pairs (BC_5prime_v1, BC_3prime_v1): Uncleaved ribozyme
+# - Unmatched pairs (BC_5prime_v1, '-') or ('-', BC_3prime_v1): Cleaved products
+# - Cleavage rate = cleaved / (cleaved + uncleaved)
 ```
 
 ---

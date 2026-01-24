@@ -15,6 +15,7 @@ Welcome to the Oligopool Calculator docs! Whether you're designing your first ba
 **TL;DR**: Design oligopool libraries with `barcode`, `primer`, `motif`, `spacer`. Analyze sequencing data with `index`, `pack`, `acount`/`xcount`. Most modules take CSV/DataFrames in and return `(out_df, stats)` (a few return stats only). Chain them together. Ship it.
 
 **Other resources**:
+- [README](../README.md) - Overview, installation, and quick start
 - [API Reference](api.md) - Complete parameter documentation for all modules
 - [AI Agent Guide](agent-skills.md) - Decision trees, best practices, and gotchas for AI assistants
 - [Docker Guide](docker-notes.md) - Run oligopool in a container for cross-platform consistency

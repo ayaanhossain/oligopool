@@ -14,6 +14,7 @@ https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/
 ```
 
 **Related documentation**:
+- [README](https://github.com/ayaanhossain/oligopool/blob/master/README.md) ([raw](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/README.md)) - Overview, installation, and quick start
 - [User Guide](https://github.com/ayaanhossain/oligopool/blob/master/docs/docs.md) ([raw](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/docs.md)) - Tutorials, examples, and workflows for end users
 - [API Reference](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md) ([raw](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/api.md)) - Complete parameter documentation for all modules
 - [Docker Guide](https://github.com/ayaanhossain/oligopool/blob/master/docs/docker-notes.md) ([raw](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/docker-notes.md)) - Run oligopool in a container
@@ -1161,6 +1162,7 @@ op complete --install
 ## Links
 
 - Repository: https://github.com/ayaanhossain/oligopool
+- README: [README.md](https://github.com/ayaanhossain/oligopool/blob/master/README.md) ([raw](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/README.md))
 - User Guide: [docs.md](https://github.com/ayaanhossain/oligopool/blob/master/docs/docs.md) ([raw](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/docs.md))
 - API Reference: [api.md](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md) ([raw](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/api.md))
 - Docker Guide: [docker-notes.md](https://github.com/ayaanhossain/oligopool/blob/master/docs/docker-notes.md) ([raw](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/docker-notes.md))

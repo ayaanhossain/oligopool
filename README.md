@@ -17,7 +17,7 @@
   <a href="#license" style="text-decoration: none !important;">⚖️ License</a>
 </p>
 
-`Oligopool Calculator` is a suite of algorithms for automated design and analysis of [oligopool libraries](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9300125/).
+`Oligopool Calculator` is a suite of algorithms for automated design and analysis of [oligopool libraries](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9300125/)—designed for interactive use and AI-assisted workflows.
 
 It supports scalable design of primers, barcodes, motifs/anchors, and spacers; assembly-aware splitting/padding of long constructs; and rapid packing/counting of barcoded reads for activity quantification.
 
@@ -45,6 +45,7 @@ To learn more, please check out [our paper in ACS Synthetic Biology](https://pub
 - 🔒 **Rich constraints:** IUPAC sequence constraints, motif exclusion, repeat screening, Hamming-distance barcodes, and primer thermodynamic constraints (including optional paired-primer Tm matching).
 - 📊 **DataFrame-centric:** modules operate on CSV/DataFrames and return updated tables plus `stats`; the CLI can emit JSON and supports reproducible stochastic runs (`random_seed`).
 - 💻 **CLI + library-first:** full-featured command-line pipelines **and** a composable Python API for interactive use in scripts and Jupyter notebooks.
+- 🤖 **AI-assisted design:** agent-ready documentation for Claude, ChatGPT, and Copilot.
 
 
 <a id="installation"></a>

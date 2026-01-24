@@ -748,6 +748,63 @@ xc_df, _ = op.xcount(
 )
 ```
 
+### Saturation Mutagenesis Library
+Saturation mutagenesis systematically tests every possible mutation at each position in a sequence. Oligopool handles the oligo design; you provide the variant sequences.
+
+```python
+import oligopool as op
+import pandas as pd
+
+# 1. Generate saturation mutagenesis variants (user-provided)
+# Example: all single-nucleotide mutations of a 20bp region
+wild_type = 'ATGCATGCATGCATGCATGC'
+variants = []
+for pos in range(len(wild_type)):
+    for nt in 'ATGC':
+        if nt != wild_type[pos]:
+            mutant = wild_type[:pos] + nt + wild_type[pos+1:]
+            variants.append({
+                'ID': f'pos{pos+1}_{wild_type[pos]}to{nt}',
+                'Variant': mutant
+            })
+
+# Add wild-type control
+variants.insert(0, {'ID': 'WT', 'Variant': wild_type})
+df = pd.DataFrame(variants)
+
+# 2. Design oligo architecture (standard workflow)
+df, _ = op.primer(
+    input_data=df,
+    oligo_length_limit=200,
+    primer_sequence_constraint='SS' + 'N'*18,
+    primer_type='forward',
+    minimum_melting_temperature=53,
+    maximum_melting_temperature=55,
+    primer_column='Primer1',
+    left_context_column='Variant',
+)
+
+df, _ = op.barcode(
+    input_data=df,
+    oligo_length_limit=200,
+    barcode_length=12,
+    minimum_hamming_distance=3,
+    barcode_column='BC1',
+    left_context_column='Primer1',
+    right_context_column='Variant',
+)
+
+# Continue with primer2, spacers, verify, final...
+```
+
+**Key points**:
+- Variant generation is your responsibility (oligopool designs the oligo architecture)
+- For protein saturation mutagenesis, generate codon variants and provide as DNA sequences
+- Use `patch_mode=True` to add new variants to an existing saturation library
+- Standard analysis pipeline (index → pack → xcount) quantifies variant activity
+
+---
+
 ### Extending an Existing Pool (Patch Mode)
 ```python
 # Load existing library

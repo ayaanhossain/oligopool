@@ -664,6 +664,16 @@ def _parse_list_int(value):
     return value
 
 
+def _parse_type_param(value):
+    '''Parse type parameter accepting int or string.'''
+    if value is None:
+        return None
+    value = str(value).strip()
+    if value.lstrip('-').isdigit():
+        return int(value)
+    return value
+
+
 def _looks_like_path(value):
     '''Return True if a CLI argument looks like a filesystem path.'''
     if value is None:
@@ -1103,11 +1113,12 @@ Column name to store barcodes (overwrites if present).''')
 Output CSV filename. A ".oligopool.barcode.csv" suffix is added if missing.''')
     opt.add_argument(
         '--barcode-type',
-        type=int,
+        type=_parse_type_param,
         default=0,
         metavar='\b',
-        help='''>>[optional integer]
-Barcode design mode: 0 = terminus optimized (fast), 1 = spectrum optimized (slow).
+        help='''>>[optional int/string]
+Barcode design mode: 0 or 'terminus' = terminus optimized (fast),
+1 or 'spectrum' = spectrum optimized (slow). Aliases: 'term', 'fast', 'spec', 'slow'.
 (default: 0)''')
     opt.add_argument(
         '--left-context-column',
@@ -1209,10 +1220,11 @@ concatenation like "GCC+N*20+CCG".''')
     req.add_argument(
         '--primer-type',
         required=True,
-        type=int,
+        type=_parse_type_param,
         metavar='\b',
-        help='''>>[required integer]
-Primer direction: 0 = forward, 1 = reverse.''')
+        help='''>>[required int/string]
+Primer direction: 0 or 'forward' for forward, 1 or 'reverse' for reverse.
+Aliases: 'fwd', 'f', 'rev', 'r'.''')
     req.add_argument(
         '--minimum-melting-temperature',
         required=True,
@@ -1375,12 +1387,12 @@ Column name to store motifs (overwrites if present).''')
 Output CSV filename. A ".oligopool.motif.csv" suffix is added if missing.''')
     opt.add_argument(
         '--motif-type',
-        type=int,
+        type=_parse_type_param,
         default=0,
         metavar='\b',
-        help='''>>[optional integer]
-Motif type: 0 = non-constant, 1 = constant.
-(default: 0)''')
+        help='''>>[optional int/string]
+Motif type: 0 or 'per-variant' = non-constant, 1 or 'constant' = constant.
+Aliases: 'var', 'non-constant', 'const', 'anchor'. (default: 0)''')
     opt.add_argument(
         '--left-context-column',
         type=str,
@@ -2005,17 +2017,19 @@ Path to R1 FastQ file (gzipped ok).''')
     req.add_argument(
         '--r1-read-type',
         required=True,
-        type=int,
+        type=_parse_type_param,
         metavar='\b',
-        help='''>>[required integer]
-R1 orientation: 0 = forward, 1 = reverse.''')
+        help='''>>[required int/string]
+R1 orientation: 0 or 'forward' for forward, 1 or 'reverse' for reverse.
+Aliases: 'fwd', 'f', 'rev', 'r'.''')
     req.add_argument(
         '--pack-type',
         required=True,
-        type=int,
+        type=_parse_type_param,
         metavar='\b',
-        help='''>>[required integer]
-Pack storage mode: 0 = concatenated, 1 = merged.''')
+        help='''>>[required int/string]
+Pack storage mode: 0 or 'concatenated' for concatenated, 1 or 'merged' for merged.
+Aliases: 'concatenate', 'concat', 'cat', 'joined', 'join', 'merge', 'assemble', 'assembled', 'asm'.''')
     req.add_argument(
         '--pack-file',
         required=True,
@@ -2046,11 +2060,12 @@ Minimum average R1 read quality (default: 20).''')
 Path to R2 FastQ file (paired-end only).''')
     opt.add_argument(
         '--r2-read-type',
-        type=int,
+        type=_parse_type_param,
         default=None,
         metavar='\b',
-        help='''>>[optional integer]
-R2 orientation: 0 = forward, 1 = reverse.''')
+        help='''>>[optional int/string]
+R2 orientation: 0 or 'forward' for forward, 1 or 'reverse' for reverse.
+Aliases: 'fwd', 'f', 'rev', 'r'.''')
     opt.add_argument(
         '--minimum-r2-read-length',
         type=int,
@@ -2126,12 +2141,12 @@ Pack file path (".oligopool.pack" is appended if missing).''')
 Output count matrix filename (".oligopool.acount.csv" is appended if missing).''')
     opt.add_argument(
         '--mapping-type',
-        type=int,
+        type=_parse_type_param,
         default=0,
         metavar='\b',
-        help='''>>[optional integer]
-Mapping mode: 0 = fast, 1 = sensitive.
-(default: 0)''')
+        help='''>>[optional int/string]
+Mapping mode: 0 or 'fast' for fast, 1 or 'sensitive' for sensitive.
+Aliases: 'quick', 'sens', 'accurate'. (default: 0)''')
     opt.add_argument(
         '--barcode-errors',
         type=int,
@@ -2203,12 +2218,12 @@ Pack file path (".oligopool.pack" is appended if missing).''')
 Output count matrix filename (".oligopool.xcount.csv" is appended if missing).''')
     opt.add_argument(
         '--mapping-type',
-        type=int,
+        type=_parse_type_param,
         default=0,
         metavar='\b',
-        help='''>>[optional integer]
-Mapping mode: 0 = fast, 1 = sensitive.
-(default: 0)''')
+        help='''>>[optional int/string]
+Mapping mode: 0 or 'fast' for fast, 1 or 'sensitive' for sensitive.
+Aliases: 'quick', 'sens', 'accurate'. (default: 0)''')
     opt.add_argument(
         '--barcode-errors',
         type=int,

@@ -11,13 +11,13 @@ from .base import core_pack as cp
 
 def pack(
     r1_fastq_file:str,
-    r1_read_type:int,
-    pack_type:int,
+    r1_read_type:int|str,
+    pack_type:int|str,
     pack_file:str,
     minimum_r1_read_length:int=1,
     minimum_r1_read_quality:int=20,
     r2_fastq_file:str|None=None,
-    r2_read_type:int|None=None,
+    r2_read_type:int|str|None=None,
     minimum_r2_read_length:int|None=None,
     minimum_r2_read_quality:int|None=None,
     pack_size:float=3.0,
@@ -31,15 +31,18 @@ def pack(
 
     Required Parameters:
         - `r1_fastq_file` (`str`): Path to R1 FastQ file (may be gzipped).
-        - `r1_read_type` (`int`): Orientation of R1 reads (0 for forward, 1 for reverse).
-        - `pack_type` (`int`): Packing storage type (0 for concatenated, 1 for merged)
+        - `r1_read_type` (`int` / `str`): Orientation of R1 reads: 0 or 'forward' for forward,
+          1 or 'reverse' for reverse. Also accepts aliases: 'fwd', 'f', 'rev', 'r'.
+        - `pack_type` (`int` / `str`): Packing storage type: 0 or 'concatenate'/'concatenated' for concatenated,
+          1 or 'merge'/'merged' for merged. Also accepts aliases: 'concat', 'cat', 'joined', 'join', 'assemble', 'asm'.
         - `pack_file` (`str`): Filename for output pack file.
 
     Optional Parameters:
         - `minimum_r1_read_length` (`int`): Minimum R1 read length (≥ 1).
         - `minimum_r1_read_quality` (`int`): Minimum average R1 quality (default: 20).
         - `r2_fastq_file` (`str`): Path to R2 FastQ file (default: `None`).
-        - `r2_read_type` (`int`): Orientation of R2 reads (0 for forward, 1 for reverse) (default: `None`).
+        - `r2_read_type` (`int` / `str`): Orientation of R2 reads: 0 or 'forward' for forward,
+          1 or 'reverse' for reverse. Also accepts aliases: 'fwd', 'f', 'rev', 'r' (default: `None`).
         - `minimum_r2_read_length` (`int`): Minimum R2 read length (default: `None`).
         - `minimum_r2_read_quality` (`int`): Minimum average R2 quality (default: `None`).
         - `pack_size` (`float`): Million unique reads per pack (default: 3.0, range: 0.1 to 5.0).
@@ -94,25 +97,23 @@ def pack(
         liner=liner)
 
     # Full r1type Validation
-    t1valid = vp.get_categorical_validity(
+    (r1type,
+    t1valid) = vp.get_typed_categorical_validity(
         category=r1type,
         category_field='   R1 Type   ',
         category_pre_desc=' R1 has ',
-        category_post_desc='',
-        category_dict={
-            0: 'Forward Reads 5\' ---F--> 3\'',
-            1: 'Reverse Reads 3\' <--R--- 5\''},
+        category_post_desc=' Reads',
+        type_name='read_type',
         liner=liner)
 
     # Full packtype Validation
-    packtype_valid = vp.get_categorical_validity(
+    (packtype,
+    packtype_valid) = vp.get_typed_categorical_validity(
         category=packtype,
         category_field=' Pack Type   ',
         category_pre_desc=' ',
         category_post_desc='',
-        category_dict={
-            0: 'Store Concatenated / Joined Reads',
-            1: 'Store Assembled / Merged Reads'},
+        type_name='pack_type',
         liner=liner)
 
     # Full packfile Validation
@@ -161,17 +162,16 @@ def pack(
 
     # Full r2type Validation
     if r2valid and (not r2file is None):
-        validfn = vp.get_categorical_validity
+        validfn = vp.get_typed_categorical_validity
     else:
-        validfn = vp.get_optional_categorical_validity
-    t2valid = validfn(
+        validfn = vp.get_optional_typed_categorical_validity
+    (r2type,
+    t2valid) = validfn(
         category=r2type,
         category_field='   R2 Type   ',
         category_pre_desc=' R2 has ',
-        category_post_desc='',
-        category_dict={
-            0: 'Forward Reads 5\' ---F--> 3\'',
-            1: 'Reverse Reads 3\' <--R--- 5\''},
+        category_post_desc=' Reads',
+        type_name='read_type',
         liner=liner)
 
     # Full r2length Validation

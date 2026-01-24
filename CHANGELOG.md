@@ -1,3 +1,13 @@
+2026.01.24
+1. Type parameters: all type parameters now accept both integers and intelligent string specifications with fuzzy matching.
+2. Design mode: `barcode_type`, `primer_type`, and `motif_type` accept string aliases (e.g., `'terminus'`, `'forward'`, `'variable'`).
+3. Analysis mode: `r1_read_type`, `r2_read_type`, `pack_type`, and `mapping_type` accept string aliases (e.g., `'forward'`, `'concatenate'`, `'fast'`).
+4. Validation: added `resolve_type_parameter()`, `get_typed_categorical_validity()`, and `get_optional_typed_categorical_validity()` to `validation_parsing.py` with fuzzy matching via `difflib.get_close_matches(cutoff=0.6)`.
+5. CLI: type parameters now accept both integer and string values via `_parse_type_param()` helper.
+6. Docs: updated `docs/api.md` to document string aliases for all type parameters.
+7. Notebook: updated `OligopoolCalculatorInAction.ipynb` to use string type aliases (e.g., `primer_type='forward'`, `barcode_type='spectrum'`, `mapping_type='sensitive'`).
+8. Repo hygiene: notebooks are stored output-free (no execution outputs/counts) to keep diffs clean.
+
 2026.01.23
 1. Pad module: added Type IIS compatibility check as separate pipeline step (Step 2) that validates the chosen enzyme's recognition site is absent from split fragments.
 2. Pad module: refactored compatibility check into `core_primer.get_typeIIS_compatibility()` alongside existing `get_parsed_typeIIS_constraint()`.

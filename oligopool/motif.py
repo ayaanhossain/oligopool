@@ -20,7 +20,7 @@ def motif(
     maximum_repeat_length:int,
     motif_column:str,
     output_file:str|None=None,
-    motif_type:int=0,
+    motif_type:int|str=0,
     left_context_column:str|None=None,
     right_context_column:str|None=None,
     patch_mode:bool=False,
@@ -41,8 +41,9 @@ def motif(
     Optional Parameters:
         - `output_file` (`str`): Filename for output DataFrame; required in CLI usage,
             optional in library usage (default: `None`).
-        - `motif_type` (`int`): Motif type to design
-            (0 for per-variant motifs, 1 for a single constant motif shared by all variants; default: 0).
+        - `motif_type` (`int` / `str`): Motif type: 0 or 'per-variant' for per-variant motifs,
+            1 or 'constant' for a single constant motif shared by all variants.
+            Also accepts aliases: 'var', 'non-constant', 'const', 'anchor' (default: 0).
         - `left_context_column` (`str`): Column for left DNA context (default: `None`).
         - `right_context_column` (`str`): Column for right DNA context (default: `None`).
         - `patch_mode` (`bool`): If `True`, fill only missing values in an existing motif/anchor
@@ -184,14 +185,13 @@ def motif(
     liner.send('\n Optional Arguments\n')
 
     # Full motiftype Validation
-    motiftype_valid = vp.get_categorical_validity(
+    (motiftype,
+    motiftype_valid) = vp.get_typed_categorical_validity(
         category=motiftype,
         category_field='      Motif Type    ',
         category_pre_desc=' ',
         category_post_desc=' Motifs',
-        category_dict={
-            0: 'Non-Constant',
-            1: 'Constant'},
+        type_name='motif_type',
         liner=liner)
 
     # Store Context Names

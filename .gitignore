@@ -135,3 +135,5 @@ oligopool/*.code-workspace
 smoketest
 ptxt
 freq
+scripts
+.claude

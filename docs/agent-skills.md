@@ -28,6 +28,7 @@ This document is designed for AI assistants to understand and help users with ol
   - Design/transform: `(out_df, stats_dict)`
   - Stats-only: `stats_dict` (`background`, `lenstat`, `verify`, `index`, `pack`)
   - Counting: `(counts_df, stats_dict)` (`acount`, `xcount`)
+  - Split with `separate_outputs=True`: `([df_Split1, df_Split2, ...], stats_dict)`
 - **ID handling**: Input requires a unique `ID`. CSV outputs include an explicit `ID` column (no pandas index column).
 - **Patch Mode**: `patch_mode=True` / `--patch-mode` fills only missing values (None/NaN/empty/`'-'`) and never overwrites existing designs.
 - **Cross-set barcodes**: `cross_barcode_columns` and `minimum_cross_distance` must be provided together.
@@ -296,11 +297,17 @@ df, _ = op.primer(
 
 **Key concept**: Each `SplitN` column = a separate oligo pool to synthesize. If `split` returns `Split1`, `Split2`, `Split3`, you order **three separate pools** from your vendor.
 
+**Return formats** (different defaults for library vs CLI):
+- **Library default** (`separate_outputs=False`): Single DataFrame with `Split1`, `Split2`, ... columns
+- **Library with** `separate_outputs=True`: List of DataFrames `[df_Split1, df_Split2, ...]`
+- **CLI default**: Separate files (`out.Split1.oligopool.split.csv`, etc.)
+- **CLI with** `--no-separate-outputs`: Single combined file
+
 **Tips**:
 - Raw split output is NOT synthesis-ready - use `pad` to add primers/Type IIS sites
 - Even-numbered splits (`Split2`, `Split4`, ...) are reverse-complemented for PCR assembly
 - Fragment count is auto-determined and can vary per oligo
-- If you want one DataFrame (or file) per fragment, enable `separate_outputs` (CLI `op split` writes separate files by default; use `--no-separate-outputs` to write one combined file).
+- Use `separate_outputs=True` in library mode for cleaner pad workflows (see Long Oligo Assembly)
 
 ---
 
@@ -315,12 +322,12 @@ df, _ = op.primer(
 **Critical workflow**: Run `pad` **once per split column**, then `final` on each:
 
 ```python
-split_df, _ = op.split(...)  # Returns Split1, Split2, Split3
+# Using separate_outputs=True (recommended)
+split_dfs, _ = op.split(..., separate_outputs=True)  # Returns [df_Split1, df_Split2, ...]
 
-# Iterate over each split column
-for col in ['Split1', 'Split2', 'Split3']:
-    pad_df, _ = op.pad(split_df, split_column=col, typeIIS_system='BsaI', ...)
-    final_df, _ = op.final(pad_df, output_file=f'synthesis_{col}')
+for i, split_df in enumerate(split_dfs, start=1):
+    pad_df, _ = op.pad(split_df, split_column=f'Split{i}', typeIIS_system='BsaI', ...)
+    final_df, _ = op.final(pad_df, output_file=f'synthesis_Split{i}')
 ```
 
 **Tips**:

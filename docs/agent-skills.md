@@ -169,7 +169,7 @@ docker run -it -v $(pwd):/op-workspace --name op-container oligopool-docker
 
 # Inside the container, use Python API or CLI
 python -c "import oligopool as op; print(op.__version__)"
-op barcode --help
+op barcode  # Show barcode command options
 ```
 
 **With Jupyter:**
@@ -639,6 +639,8 @@ final_df, _ = op.final(input_data=df)
 final_df.to_csv('library_for_synthesis.csv', index=False)
 ```
 
+---
+
 ### Multi-Barcode Design (BC1 × BC2)
 ```python
 # Design BC1
@@ -665,6 +667,8 @@ df, _ = op.barcode(
     ...
 )
 ```
+
+---
 
 ### Long Oligo Assembly (split → pad → final)
 
@@ -717,6 +721,8 @@ for i, split_df in enumerate(split_dfs, start=1):
 - Even-numbered splits are reverse-complemented (for PCR assembly orientation)
 - Raw split output is NOT synthesis-ready - always use `pad` + `final`
 - Exclude your Type IIS motif from upstream elements to prevent internal cut sites
+
+---
 
 ### Analysis Pipeline
 ```python
@@ -783,6 +789,8 @@ xc_df, _ = op.xcount(
     mapping_type='sensitive',
 )
 ```
+
+---
 
 ### Saturation Mutagenesis Library
 Saturation mutagenesis systematically tests every possible mutation at each position in a sequence. Oligopool handles the oligo design; you provide the variant sequences.
@@ -864,6 +872,8 @@ df, _ = op.barcode(
 )
 ```
 
+---
+
 ### CRISPR Guide Library
 Design a barcoded CRISPR guide library for pooled screens.
 
@@ -873,8 +883,8 @@ import pandas as pd
 
 # 1. Start with guide sequences (user-provided)
 df = pd.DataFrame({
-    'ID': ['gene1_g1', 'gene1_g2', 'gene2_g1', ...],
-    'Guide': ['ATGCATGCATGCATGCATGC', ...]  # 20bp guides
+    'ID': ['gene1_g1', 'gene1_g2', 'gene2_g1'],
+    'Guide': ['ATGCATGCATGCATGCATGC', 'GCTAGCTAGCTAGCTAGCTA', 'TTAATTAATTAATTAATTAA']
 })
 
 # 2. Add scaffold and flanking sequences
@@ -1048,9 +1058,9 @@ op index \
 op pack \
     --r1-fastq-file reads_R1.fq.gz \
     --r2-fastq-file reads_R2.fq.gz \
-    --r1-read-type 0 \
-    --r2-read-type 1 \
-    --pack-type 1 \
+    --r1-read-type forward \
+    --r2-read-type reverse \
+    --pack-type merge \
     --pack-file reads
 
 op xcount \

@@ -117,8 +117,8 @@ Usage
 Modules return (DataFrame, stats). Chain them iteratively; use patch_mode=True
 to extend pools without overwriting existing designs.
 
-CLI: `op --help` | Docs: https://github.com/ayaanhossain/oligopool
+CLI: `op` | `op COMMAND` | Docs: https://github.com/ayaanhossain/oligopool
 '''
 
 
-__doc__ = _build_package_doc()
+__doc__ = _build_package_doc().strip()

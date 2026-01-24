@@ -5,7 +5,7 @@ This document is designed for AI assistants to understand and help users with ol
 ## Using This Guide
 
 Share this document with your AI assistant for better oligopool design help:
-- **Claude Code / Cursor / Copilot:** The AI can read `docs/agent-skills.md` directly from your repo
+- **Claude Code / Cursor / Copilot:** The AI can read `docs/agent-skills.md` directly from the repo
 - **ChatGPT / Claude.ai:** Upload or paste this file into your conversation
 - **Custom agents:** Include this document in your system prompt or context
 

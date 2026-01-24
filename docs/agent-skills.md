@@ -6,10 +6,12 @@ This document is designed for AI assistants to understand and help users with ol
 
 Share this document with your AI assistant for better oligopool design help:
 - **Claude Code / Cursor / Copilot:** The AI can read `docs/agent-skills.md` directly from the repo
-- **ChatGPT / Claude.ai:** Upload or paste this file into your conversation
-- **Custom agents:** Include this document in your system prompt or context
+- **ChatGPT / Claude.ai:** Upload this file, or share the raw URL (AIs can fetch raw URLs directly)
+- **Custom agents:** Include this document in your system prompt or fetch from the raw URL
 
-**Raw URL:** https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/agent-skills.md
+```
+https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/agent-skills.md
+```
 
 **Related documentation**:
 - [User Guide](https://github.com/ayaanhossain/oligopool/blob/master/docs/docs.md) ([raw](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/docs.md)) - Tutorials, examples, and workflows for end users

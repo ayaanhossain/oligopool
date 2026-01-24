@@ -9,10 +9,12 @@ Share this document with your AI assistant for better oligopool design help:
 - **ChatGPT / Claude.ai:** Upload or paste this file into your conversation
 - **Custom agents:** Include this document in your system prompt or context
 
+**Raw URL:** https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/agent-skills.md
+
 **Related documentation**:
-- [User Guide](https://github.com/ayaanhossain/oligopool/blob/master/docs/docs.md) - Tutorials, examples, and workflows for end users
-- [API Reference](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md) - Complete parameter documentation for all modules
-- [Docker Guide](https://github.com/ayaanhossain/oligopool/blob/master/docs/docker-notes.md) - Run oligopool in a container
+- [User Guide](https://github.com/ayaanhossain/oligopool/blob/master/docs/docs.md) ([raw](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/docs.md)) - Tutorials, examples, and workflows for end users
+- [API Reference](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md) ([raw](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/api.md)) - Complete parameter documentation for all modules
+- [Docker Guide](https://github.com/ayaanhossain/oligopool/blob/master/docs/docker-notes.md) ([raw](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/docker-notes.md)) - Run oligopool in a container
 
 ## Operation Policy (Keep This Useful)
 
@@ -1157,8 +1159,8 @@ op complete --install
 ## Links
 
 - Repository: https://github.com/ayaanhossain/oligopool
-- User Guide: [docs.md](https://github.com/ayaanhossain/oligopool/blob/master/docs/docs.md) - Tutorials, examples, workflows
-- API Reference: [api.md](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md) - Complete parameter documentation
-- Docker Guide: [docker-notes.md](https://github.com/ayaanhossain/oligopool/blob/master/docs/docker-notes.md) - Container setup
+- User Guide: [docs.md](https://github.com/ayaanhossain/oligopool/blob/master/docs/docs.md) ([raw](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/docs.md))
+- API Reference: [api.md](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md) ([raw](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/api.md))
+- Docker Guide: [docker-notes.md](https://github.com/ayaanhossain/oligopool/blob/master/docs/docker-notes.md) ([raw](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/docker-notes.md))
 - Paper: https://doi.org/10.1021/acssynbio.4c00661
 - CLI help: `op manual <command>`

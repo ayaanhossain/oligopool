@@ -51,7 +51,7 @@ To learn more, please check out [our paper in ACS Synthetic Biology](https://pub
 <a id="ai-assisted-design"></a>
 ## 🤖 AI-Assisted Design
 
-Point your AI coding assistant to [`docs/agent-skills.md`](docs/agent-skills.md) for optimized workflows and best practices. Claude Code and Cursor can read it directly from your repo; for ChatGPT or Claude.ai, share or upload the file.
+Point your AI coding assistant to [`docs/agent-skills.md`](docs/agent-skills.md) for optimized workflows and best practices. Claude Code and Cursor can read it directly from your repo; for ChatGPT or Claude.ai, share or upload the file. (CLI note: `op` intentionally has no `--help`; use `op COMMAND` / `op manual COMMAND`.)
 
 
 <a id="installation"></a>
@@ -145,7 +145,7 @@ Type "help", "copyright", "credits" or "license" for more information.
     Modules return (DataFrame, stats). Chain them iteratively; use patch_mode=True
     to extend pools without overwriting existing designs.
 
-    CLI: `op --help` | Docs: https://github.com/ayaanhossain/oligopool
+    CLI: `op` | `op COMMAND` | Docs: https://github.com/ayaanhossain/oligopool
 ...
 ```
 

@@ -10,9 +10,9 @@ Share this document with your AI assistant for better oligopool design help:
 - **Custom agents:** Include this document in your system prompt or context
 
 **Related documentation**:
-- [User Guide](docs.md) - Tutorials, examples, and workflows for end users
-- [API Reference](api.md) - Complete parameter documentation for all modules
-- [Docker Guide](docker-notes.md) - Run oligopool in a container
+- [User Guide](https://github.com/ayaanhossain/oligopool/blob/master/docs/docs.md) - Tutorials, examples, and workflows for end users
+- [API Reference](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md) - Complete parameter documentation for all modules
+- [Docker Guide](https://github.com/ayaanhossain/oligopool/blob/master/docs/docker-notes.md) - Run oligopool in a container
 
 ## Operation Policy (Keep This Useful)
 
@@ -190,13 +190,13 @@ jupyter notebook --ip=0.0.0.0 --port=8080 --no-browser --allow-root
 # Access at http://localhost:8888
 ```
 
-For detailed Docker instructions, see [docker-notes.md](docker-notes.md).
+For detailed Docker instructions, see [docker-notes.md](https://github.com/ayaanhossain/oligopool/blob/master/docs/docker-notes.md).
 
 ---
 
 ## Design Mode - Module Reference
 
-For complete parameter documentation, see [api.md](api.md).
+For complete parameter documentation, see [api.md](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md).
 
 ### barcode
 
@@ -204,7 +204,7 @@ For complete parameter documentation, see [api.md](api.md).
 
 **Design order**: After primers/motifs, before spacers.
 
-**API**: See [`barcode`](api.md#barcode) for parameters.
+**API**: See [`barcode`](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md#barcode) for parameters.
 
 **Tips**:
 - Use `barcode_type='terminus'` (or `0`) for large libraries (faster)
@@ -221,7 +221,7 @@ For complete parameter documentation, see [api.md](api.md).
 
 **Design order**: Design primers early. For paired primers: design inner primer first, then outer with `paired_primer_column`.
 
-**API**: See [`primer`](api.md#primer) for parameters.
+**API**: See [`primer`](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md#primer) for parameters.
 
 **Tips**:
 - Use `'SS' + 'N'*18` for 5' GC clamp
@@ -253,7 +253,7 @@ df, _ = op.primer(
 
 **Design order**: Before barcodes if designing anchors for indexing.
 
-**API**: See [`motif`](api.md#motif) for parameters.
+**API**: See [`motif`](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md#motif) for parameters.
 
 **Use cases**:
 - Restriction sites: `motif_sequence_constraint='GAATTC'` (EcoRI)
@@ -268,7 +268,7 @@ df, _ = op.primer(
 
 **Design order**: Last, after all other elements.
 
-**API**: See [`spacer`](api.md#spacer) for parameters.
+**API**: See [`spacer`](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md#spacer) for parameters.
 
 **spacer_length options**:
 - `None`: Auto-fill to reach `oligo_length_limit`
@@ -284,7 +284,7 @@ df, _ = op.primer(
 
 **When to use**: Before primer design when screening against host genome/plasmid.
 
-**API**: See [`background`](api.md#background) for parameters.
+**API**: See [`background`](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md#background) for parameters.
 
 **input_data formats**:
 - List of DNA strings: `['ATGC...', 'GCTA...']`
@@ -300,7 +300,7 @@ df, _ = op.primer(
 
 **When to use**: When oligos exceed synthesis length limits (typically >200 bp).
 
-**API**: See [`split`](api.md#split) for parameters.
+**API**: See [`split`](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md#split) for parameters.
 
 **Key concept**: Each `SplitN` column = a separate oligo pool to synthesize. If `split` returns `Split1`, `Split2`, `Split3`, you order **three separate pools** from your vendor.
 
@@ -324,7 +324,7 @@ df, _ = op.primer(
 
 **When to use**: After split, for each fragment.
 
-**API**: See [`pad`](api.md#pad) for parameters.
+**API**: See [`pad`](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md#pad) for parameters.
 
 **Critical workflow**: Run `pad` **once per split column**, then `final` on each:
 
@@ -359,7 +359,7 @@ For unsupported enzymes, design primers/sites manually with `primer` or `motif`.
 
 **Design order**: Mid-pipeline maneuver. Use after designing elements you want to combine, before further processing.
 
-**API**: See [`merge`](api.md#merge) for parameters.
+**API**: See [`merge`](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md#merge) for parameters.
 
 **When to use**:
 - Simplify DataFrame structure by combining adjacent elements (e.g., `Primer1 + BC1` → `5prime_region`)
@@ -376,7 +376,7 @@ For unsupported enzymes, design primers/sites manually with `primer` or `motif`.
 
 **Design order**: Mid-pipeline maneuver. Use when switching strand orientation after designing elements.
 
-**API**: See [`revcomp`](api.md#revcomp) for parameters.
+**API**: See [`revcomp`](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md#revcomp) for parameters.
 
 **When to use**:
 - Design in "readout orientation" but synthesize in opposite orientation
@@ -393,7 +393,7 @@ For unsupported enzymes, design primers/sites manually with `primer` or `motif`.
 
 **When to use**: Frequently during design to monitor remaining space.
 
-**API**: See [`lenstat`](api.md#lenstat) for parameters.
+**API**: See [`lenstat`](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md#lenstat) for parameters.
 
 ---
 
@@ -403,7 +403,7 @@ For unsupported enzymes, design primers/sites manually with `primer` or `motif`.
 
 **When to use**: Before `final()` to catch constraint violations.
 
-**API**: See [`verify`](api.md#verify) for parameters.
+**API**: See [`verify`](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md#verify) for parameters.
 
 **Column concatenation**:
 - Only **sequence columns** (DNA/IUPAC) concatenated; metadata columns skipped
@@ -423,19 +423,19 @@ For unsupported enzymes, design primers/sites manually with `primer` or `motif`.
 **Output**: DataFrame with `CompleteOligo` and `OligoLength` (plus an explicit `ID` column unless the caller
 provided `ID` as the DataFrame index).
 
-**API**: See [`final`](api.md#final) for parameters.
+**API**: See [`final`](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md#final) for parameters.
 
 ---
 
 ## Analysis Mode - Module Reference
 
-For complete parameter documentation, see [api.md](api.md).
+For complete parameter documentation, see [api.md](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md).
 
 ### index
 
 **Purpose**: Build barcode index for counting.
 
-**API**: See [`index`](api.md#index) for parameters.
+**API**: See [`index`](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md#index) for parameters.
 
 **Tips**:
 - Prefix/suffix anchors must be constant (single unique sequence, ≥6 bp) and adjacent to the indexed column.
@@ -448,7 +448,7 @@ For complete parameter documentation, see [api.md](api.md).
 
 **Purpose**: Preprocess and deduplicate FASTQ reads.
 
-**API**: See [`pack`](api.md#pack) for parameters.
+**API**: See [`pack`](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md#pack) for parameters.
 
 **Tips**:
 - For single-end reads, use R1 arguments only
@@ -467,7 +467,7 @@ Controls memory usage by splitting reads into chunks of N million unique reads (
 
 **Purpose**: Association counting - verify barcode-variant coupling.
 
-**API**: See [`acount`](api.md#acount) for parameters.
+**API**: See [`acount`](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md#acount) for parameters.
 
 **Output columns**: one `<indexname>.ID` column per index (typically one), plus `BarcodeCounts`, `AssociationCounts`
 
@@ -487,7 +487,7 @@ Controls memory usage by splitting reads into chunks of N million unique reads (
 
 **Purpose**: Barcode-only counting (single or combinatorial).
 
-**API**: See [`xcount`](api.md#xcount) for parameters.
+**API**: See [`xcount`](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md#xcount) for parameters.
 
 **Output**: one `<indexname>.ID` column per index, plus `CombinatorialCounts`. Missing barcodes shown as `'-'`.
 
@@ -532,7 +532,7 @@ counts_df, stats = op.xcount(..., callback=my_callback)
 
 ## Advanced Modules
 
-For complete method documentation, see [api.md](api.md#advanced).
+For complete method documentation, see [api.md](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md#advanced).
 
 ### vectorDB
 
@@ -540,7 +540,7 @@ For complete method documentation, see [api.md](api.md#advanced).
 
 **When to use**: Direct manipulation of background k-mer databases, custom screening pipelines.
 
-**API**: See [`vectorDB`](api.md#vectordb) for methods.
+**API**: See [`vectorDB`](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md#vectordb) for methods.
 
 **Note**: When reopening an existing vectorDB, `maximum_repeat_length` is ignored and loaded from the instance.
 
@@ -552,7 +552,7 @@ For complete method documentation, see [api.md](api.md#advanced).
 
 **When to use**: Building custom counting pipelines, debugging barcode classification, custom analysis workflows.
 
-**API**: See [`Scry`](api.md#scry) for methods.
+**API**: See [`Scry`](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md#scry) for methods.
 
 **Example:**
 ```python
@@ -1032,11 +1032,11 @@ All element modules accept `excluded_motifs`:
 
 ### IUPAC Codes for Constraints
 
-See [api.md#iupac-codes](api.md#iupac-codes) for the complete table.
+See [api.md#iupac-codes](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md#iupac-codes) for the complete table.
 
 ### Common Restriction Sites
 
-See [api.md#common-restriction-sites](api.md#common-restriction-sites) for the complete table.
+See [api.md#common-restriction-sites](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md#common-restriction-sites) for the complete table.
 
 ---
 
@@ -1096,7 +1096,7 @@ op complete --install
 - Callbacks are Python-only (not available in CLI)
 - Exit codes: `0` success, `1` runtime error, `404` CLI argument parsing error (e.g., missing required args).
 
-> **CLI Parameter Mapping**: See [api.md#cli-parameter-mapping](api.md#cli-parameter-mapping) for the complete mapping.
+> **CLI Parameter Mapping**: See [api.md#cli-parameter-mapping](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md#cli-parameter-mapping) for the complete mapping.
 
 ---
 
@@ -1157,8 +1157,8 @@ op complete --install
 ## Links
 
 - Repository: https://github.com/ayaanhossain/oligopool
-- User Guide: [docs.md](docs.md) - Tutorials, examples, workflows
-- API Reference: [api.md](api.md) - Complete parameter documentation
-- Docker Guide: [docker-notes.md](docker-notes.md) - Container setup
+- User Guide: [docs.md](https://github.com/ayaanhossain/oligopool/blob/master/docs/docs.md) - Tutorials, examples, workflows
+- API Reference: [api.md](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md) - Complete parameter documentation
+- Docker Guide: [docker-notes.md](https://github.com/ayaanhossain/oligopool/blob/master/docs/docker-notes.md) - Container setup
 - Paper: https://doi.org/10.1021/acssynbio.4c00661
 - CLI help: `op manual <command>`

@@ -3,6 +3,7 @@
 On non-Linux and Linux systems both, you can use `oligopool` via [Docker](https://docs.docker.com/desktop/).
 
 **Related documentation**:
+- [README](../README.md) - Overview, installation, and quick start
 - [User Guide](docs.md) - Tutorials, examples, and workflows
 - [API Reference](api.md) - Complete parameter documentation for all modules
 - [AI Agent Guide](agent-skills.md) - Decision trees, best practices, and gotchas

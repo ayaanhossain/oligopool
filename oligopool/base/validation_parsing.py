@@ -1,4 +1,5 @@
 import os
+import difflib
 
 import numbers      as nu
 import multiprocess as mp
@@ -12,6 +13,64 @@ import psutil   as pu
 
 from . import vectordb as db
 from . import utils    as ut
+
+# Type Parameter Registries
+TYPE_REGISTRIES = {
+    'barcode_type': {
+        'aliases': {
+            0: 0, 1: 1,
+            'terminus': 0, 'terminus optimized': 0, 'term': 0, 't': 0, 'fast': 0,
+            'spectrum': 1, 'spectrum optimized': 1, 'spec': 1, 's': 1, 'slow': 1,
+        },
+        'display': {0: 'Terminus Optimized', 1: 'Spectrum Optimized'},
+        'canonical': ['terminus', 'spectrum'],
+    },
+    'primer_type': {
+        'aliases': {
+            0: 0, 1: 1,
+            'forward': 0, 'fwd': 0, 'f': 0,
+            'reverse': 1, 'rev': 1, 'r': 1,
+        },
+        'display': {0: 'Forward', 1: 'Reverse'},
+        'canonical': ['forward', 'reverse'],
+    },
+    'motif_type': {
+        'aliases': {
+            0: 0, 1: 1,
+            'per-variant': 0, 'pervariant': 0, 'non-constant': 0, 'nonconstant': 0, 'variable': 0, 'var': 0,
+            'constant': 1, 'const': 1, 'anchor': 1, 'fixed': 1,
+        },
+        'display': {0: 'Non-Constant', 1: 'Constant'},
+        'canonical': ['per-variant', 'constant', 'non-constant', 'anchor'],
+    },
+    'read_type': {
+        'aliases': {
+            0: 0, 1: 1,
+            'forward': 0, 'fwd': 0, 'f': 0,
+            'reverse': 1, 'rev': 1, 'r': 1,
+        },
+        'display': {0: 'Forward', 1: 'Reverse'},
+        'canonical': ['forward', 'reverse'],
+    },
+    'pack_type': {
+        'aliases': {
+            0: 0, 1: 1,
+            'concatenate': 0, 'concatenated': 0, 'concat': 0, 'cat': 0, 'joined': 0, 'join': 0,
+            'merge': 1, 'merged': 1, 'assemble': 1, 'assembled': 1, 'asm': 1,
+        },
+        'display': {0: 'Store Concatenated / Joined Reads', 1: 'Store Assembled / Merged Reads'},
+        'canonical': ['concatenate', 'merge'],
+    },
+    'mapping_type': {
+        'aliases': {
+            0: 0, 1: 1,
+            'fast': 0, 'quick': 0, 'near-exact': 0,
+            'sensitive': 1, 'sens': 1, 'accurate': 1, 'slow': 1,
+        },
+        'display': {0: 'Fast / Near-Exact', 1: 'Slow / Sensitive'},
+        'canonical': ['fast', 'sensitive'],
+    },
+}
 
 
 def _normalize_field(field):
@@ -2956,6 +3015,205 @@ def get_optional_categorical_validity(
         category_pre_desc=category_pre_desc,
         category_post_desc=category_post_desc,
         category_dict=category_dict,
+        liner=liner)
+
+def resolve_type_parameter(
+    value,
+    type_name):
+    '''
+    Resolve a type parameter value (int or string)
+    to its canonical integer value using the
+    TYPE_REGISTRIES. Internal use only.
+
+    :: value
+       type - int or string
+       desc - the type parameter value to
+              resolve
+    :: type_name
+       type - string
+       desc - registry key (e.g. 'barcode_type',
+              'primer_type', 'motif_type')
+
+    Returns (resolved_int, valid_bool, warning_msg)
+    tuple where resolved_int is the canonical integer,
+    valid_bool indicates success, and warning_msg
+    contains any fuzzy match warning or None.
+    '''
+
+    registry = TYPE_REGISTRIES.get(type_name)
+    if registry is None:
+        return (None, False, None)
+
+    aliases = registry['aliases']
+
+    # Integer pass-through (accept numpy integer types; reject bool)
+    if isinstance(value, bool):
+        return (None, False, None)
+    if isinstance(value, nu.Integral):
+        ival = int(value)
+        if ival in aliases:
+            return (aliases[ival], True, None)
+        return (None, False, None)
+
+    # String resolution
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+
+        # Numeric strings ("0", "1") support
+        if normalized.lstrip('-').isdigit():
+            ival = int(normalized)
+            if ival in aliases:
+                return (aliases[ival], True, None)
+
+        # Exact match
+        if normalized in aliases:
+            return (aliases[normalized], True, None)
+
+        # Fuzzy matching
+        string_aliases = [k for k in aliases.keys() if isinstance(k, str)]
+        matches = difflib.get_close_matches(normalized, string_aliases, n=1, cutoff=0.6)
+        if matches:
+            matched = matches[0]
+            resolved = aliases[matched]
+            warning = "Interpreted '{}' as '{}'".format(value, matched)
+            return (resolved, True, warning)
+
+        return (None, False, None)
+
+    return (None, False, None)
+
+def get_typed_categorical_validity(
+    category,
+    category_field,
+    category_pre_desc,
+    category_post_desc,
+    type_name,
+    liner):
+    '''
+    Validate a typed category parameter accepting
+    int or string values with alias support and
+    fuzzy matching. Internal use only.
+
+    :: category
+       type - int or string
+       desc - category to validate
+    :: category_field
+       type - string
+       desc - category fieldname used in
+              printing
+    :: category_pre_desc
+       type - string
+       desc - category pre-description
+              used in printing
+    :: category_post_desc
+       type - string
+       desc - category post-description
+              used in printing
+    :: type_name
+       type - string
+       desc - registry key (e.g. 'barcode_type',
+              'primer_type', 'motif_type')
+    :: liner
+       type - coroutine
+       desc - dynamic printing
+    '''
+
+    category_field = _normalize_field(category_field)
+
+    registry = TYPE_REGISTRIES.get(type_name)
+    if registry is None:
+        liner.send('{}:{}{}{} [UNKNOWN TYPE REGISTRY]\n'.format(
+            category_field,
+            category_pre_desc,
+            category,
+            category_post_desc))
+        return (category, False)
+
+    # Resolve the value
+    resolved, valid, warning = resolve_type_parameter(category, type_name)
+
+    if not valid:
+        # Build helpful error message with valid options
+        canonical = registry['canonical']
+        valid_options = ', '.join(["'{}'".format(c) for c in canonical])
+        liner.send('{}:{}{}{} [INVALID: use 0, 1, or {}]\n'.format(
+            category_field,
+            category_pre_desc,
+            category,
+            category_post_desc,
+            valid_options))
+        return (category, False)
+
+    # Show warning if fuzzy matching was used
+    if warning:
+        liner.send('{}:{}{}{} ({})\n'.format(
+            category_field,
+            category_pre_desc,
+            registry['display'][resolved],
+            category_post_desc,
+            warning))
+    else:
+        liner.send('{}:{}{}{}\n'.format(
+            category_field,
+            category_pre_desc,
+            registry['display'][resolved],
+            category_post_desc))
+
+    return (resolved, True)
+
+def get_optional_typed_categorical_validity(
+    category,
+    category_field,
+    category_pre_desc,
+    category_post_desc,
+    type_name,
+    liner):
+    '''
+    Validate an optional typed category parameter
+    accepting int or string. If category is None,
+    returns (None, True). Internal use only.
+
+    :: category
+       type - int, string, or None
+       desc - category to validate (None is
+              valid for optional params)
+    :: category_field
+       type - string
+       desc - category fieldname used in
+              printing
+    :: category_pre_desc
+       type - string
+       desc - category pre-description
+              used in printing
+    :: category_post_desc
+       type - string
+       desc - category post-description
+              used in printing
+    :: type_name
+       type - string
+       desc - registry key (e.g. 'read_type',
+              'pack_type', 'mapping_type')
+    :: liner
+       type - coroutine
+       desc - dynamic printing
+    '''
+
+    category_field = _normalize_field(category_field)
+
+    # category is None - valid optional
+    if category is None:
+        liner.send(
+            '{}: None Specified\n'.format(
+                category_field))
+        return (None, True)
+
+    # Regular typed validation
+    return get_typed_categorical_validity(
+        category=category,
+        category_field=category_field,
+        category_pre_desc=category_pre_desc,
+        category_post_desc=category_post_desc,
+        type_name=type_name,
         liner=liner)
 
 def get_parsed_typeIIS_info(

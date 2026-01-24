@@ -63,7 +63,7 @@ df, stats = op.barcode(
 
     # Optional
     output_file=None,              # str | None
-    barcode_type=0,                # int
+    barcode_type=0,                # int | str
     left_context_column=None,      # str | None
     right_context_column=None,     # str | None
     patch_mode=False,              # bool
@@ -91,7 +91,7 @@ df, stats = op.barcode(
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `output_file` | str \| None | None | Output CSV path (required for CLI) |
-| `barcode_type` | int | 0 | `0`=terminus optimized (fast), `1`=spectrum optimized (thorough) |
+| `barcode_type` | int \| str | 0 | `0` or `'terminus'`=terminus optimized (fast), `1` or `'spectrum'`=spectrum optimized (thorough). Also accepts: `'term'`, `'fast'`, `'spec'`, `'slow'` |
 | `left_context_column` | str \| None | None | Column for left DNA context (at least one context required) |
 | `right_context_column` | str \| None | None | Column for right DNA context (at least one context required) |
 | `patch_mode` | bool | False | Fill only missing values (`None`/`NaN`/empty/`'-'`); existing values must already be valid ATGC of length `barcode_length` |
@@ -133,7 +133,7 @@ df, stats = op.primer(
     input_data,                    # str | pd.DataFrame
     oligo_length_limit,            # int
     primer_sequence_constraint,    # str
-    primer_type,                   # int
+    primer_type,                   # int | str
     minimum_melting_temperature,   # float
     maximum_melting_temperature,   # float
     maximum_repeat_length,         # int
@@ -160,7 +160,7 @@ df, stats = op.primer(
 | `input_data` | str \| pd.DataFrame | - | CSV path or DataFrame with `ID` + DNA sequence columns |
 | `oligo_length_limit` | int | ≥4 | Maximum allowed oligo length (bp) |
 | `primer_sequence_constraint` | str | - | IUPAC constraint string (e.g., `'SS' + 'N'*18` for GC clamp) |
-| `primer_type` | int | 0 or 1 | `0`=forward, `1`=reverse primer design |
+| `primer_type` | int \| str | 0 or 1 | `0` or `'forward'`=forward, `1` or `'reverse'`=reverse primer design. Also accepts: `'fwd'`, `'f'`, `'rev'`, `'r'` |
 | `minimum_melting_temperature` | float | ≥25 | Minimum primer Tm (°C) |
 | `maximum_melting_temperature` | float | ≤95 | Maximum primer Tm (°C) |
 | `maximum_repeat_length` | int | ≥6 | Maximum shared repeat length between primer and oligos/background |
@@ -220,7 +220,7 @@ df, stats = op.motif(
 
     # Optional
     output_file=None,              # str | None
-    motif_type=0,                  # int
+    motif_type=0,                  # int | str
     left_context_column=None,      # str | None
     right_context_column=None,     # str | None
     patch_mode=False,              # bool
@@ -245,7 +245,7 @@ df, stats = op.motif(
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `output_file` | str \| None | None | Output CSV path (required for CLI) |
-| `motif_type` | int | 0 | `0`=per-variant motifs, `1`=constant motif/anchor for all rows |
+| `motif_type` | int \| str | 0 | `0` or `'variable'`=per-variant motifs, `1` or `'constant'`=constant motif/anchor for all rows. Also accepts: `'var'`, `'per-variant'`, `'const'`, `'anchor'` |
 | `left_context_column` | str \| None | None | Column for left DNA context (at least one context required) |
 | `right_context_column` | str \| None | None | Column for right DNA context (at least one context required) |
 | `patch_mode` | bool | False | Fill only missing values; for `motif_type=1`, existing anchor is reused |
@@ -851,8 +851,8 @@ op index \
 stats = op.pack(
     # Required
     r1_fastq_file,                 # str
-    r1_read_type,                  # int
-    pack_type,                     # int
+    r1_read_type,                  # int | str
+    pack_type,                     # int | str
     pack_file,                     # str
 
     # Optional (R1 filters)
@@ -861,7 +861,7 @@ stats = op.pack(
 
     # Optional (paired-end)
     r2_fastq_file=None,            # str | None
-    r2_read_type=None,             # int | None
+    r2_read_type=None,             # int | str | None
     minimum_r2_read_length=None,   # int | None
     minimum_r2_read_quality=None,  # int | None
 
@@ -880,8 +880,8 @@ stats = op.pack(
 | Parameter | Type | Constraints | Description |
 |-----------|------|-------------|-------------|
 | `r1_fastq_file` | str | - | R1 FastQ path (supports `.gz`) |
-| `r1_read_type` | int | 0 or 1 | `0`=forward, `1`=reverse orientation |
-| `pack_type` | int | 0 or 1 | `0`=concatenate pairs, `1`=merge/assemble pairs |
+| `r1_read_type` | int \| str | 0 or 1 | `0` or `'forward'`=forward, `1` or `'reverse'`=reverse orientation. Also accepts: `'fwd'`, `'f'`, `'rev'`, `'r'` |
+| `pack_type` | int \| str | 0 or 1 | `0` or `'concatenate'`=concatenate pairs, `1` or `'merge'`=merge/assemble pairs. Also accepts: `'concatenated'`, `'joined'`, `'join'`, `'merged'`, `'concat'`, `'cat'`, `'assemble'`, `'assembled'`, `'asm'` |
 | `pack_file` | str | - | Output basename (writes `<name>.oligopool.pack`) |
 
 **Optional Parameters (R1 Filters)**
@@ -896,7 +896,7 @@ stats = op.pack(
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `r2_fastq_file` | str \| None | None | R2 FastQ path |
-| `r2_read_type` | int \| None | None | R2 orientation (`0` or `1`) |
+| `r2_read_type` | int \| str \| None | None | R2 orientation: `0` or `'forward'`=forward, `1` or `'reverse'`=reverse. Also accepts: `'fwd'`, `'f'`, `'rev'`, `'r'` |
 | `minimum_r2_read_length` | int \| None | None | Minimum R2 read length |
 | `minimum_r2_read_quality` | int \| None | None | Minimum average R2 Phred score |
 
@@ -946,7 +946,7 @@ counts_df, stats = op.acount(
     count_file,                    # str
 
     # Optional
-    mapping_type=0,                # int
+    mapping_type=0,                # int | str
     barcode_errors=-1,             # int
     associate_errors=-1,           # int
     callback=None,                 # callable | None
@@ -968,7 +968,7 @@ counts_df, stats = op.acount(
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `mapping_type` | int | 0 | `0`=fast/near-exact, `1`=slow/sensitive |
+| `mapping_type` | int \| str | 0 | `0` or `'fast'`=fast/near-exact, `1` or `'sensitive'`=slow/sensitive. Also accepts: `'quick'`, `'sens'`, `'accurate'` |
 | `barcode_errors` | int | -1 | Max barcode errors (`-1`=auto from index) |
 | `associate_errors` | int | -1 | Max associate errors (`-1`=auto from index) |
 | `callback` | callable \| None | None | Custom read filter function (Python API only) |
@@ -1019,7 +1019,7 @@ counts_df, stats = op.xcount(
     count_file,                    # str
 
     # Optional
-    mapping_type=0,                # int
+    mapping_type=0,                # int | str
     barcode_errors=-1,             # int
     callback=None,                 # callable | None
     core_count=0,                  # int
@@ -1040,7 +1040,7 @@ counts_df, stats = op.xcount(
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `mapping_type` | int | 0 | `0`=fast/near-exact, `1`=slow/sensitive |
+| `mapping_type` | int \| str | 0 | `0` or `'fast'`=fast/near-exact, `1` or `'sensitive'`=slow/sensitive. Also accepts: `'quick'`, `'sens'`, `'accurate'` |
 | `barcode_errors` | int | -1 | Max barcode errors (`-1`=auto from index) |
 | `callback` | callable \| None | None | Custom read filter function (Python API only) |
 | `core_count` | int | 0 | CPU cores (`0`=auto) |

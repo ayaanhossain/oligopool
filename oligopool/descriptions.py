@@ -1,0 +1,59 @@
+'''
+Lightweight command and module descriptions.
+
+This module exists to keep the package manual (`help(oligopool)`) and the CLI menu
+(`op` / `oligopool`) semantically aligned without reusing the exact same phrasing.
+
+It must stay dependency-free (no numpy/pandas) because it is imported during CLI
+startup and `import oligopool`.
+'''
+
+# Package-facing phrasing (library/manual).
+PACKAGE_DESCRIPTIONS = {
+    # Design Mode
+    'barcode': 'orthogonal barcodes with Hamming distance guarantees',
+    'primer': 'Tm-optimized primers with off-target screening',
+    'motif': 'sequence motifs or anchors',
+    'spacer': 'neutral fill to reach target length',
+    'background': 'k-mer database for off-target screening',
+    'split': 'fragment long oligos for assembly',
+    'pad': 'Type IIS primer pads for scarless excision',
+    'merge': 'collapse columns into single element',
+    'revcomp': 'reverse complement a column range',
+    'lenstat': 'length statistics and free-space check',
+    'verify': 'QC checks before synthesis',
+    'final': 'concatenate into synthesis-ready oligos',
+    # Analysis Mode
+    'index': 'index barcodes and associated variants',
+    'pack': 'filter/merge/deduplicate FastQ reads',
+    'acount': 'association counting (barcode + variant verification)',
+    'xcount': 'combinatorial counting (single or multiple barcodes)',
+}
+
+
+# CLI-facing phrasing (short command help).
+CLI_DESCRIPTIONS = {
+    'manual': 'show module documentation',
+    'cite': 'show citation information',
+    # Design Mode
+    'barcode': 'orthogonal barcodes with cross-set separation',
+    'primer': 'thermodynamic primers with optional Tm matching',
+    'motif': 'design or add motifs/anchors',
+    'spacer': 'neutral spacers to meet length targets',
+    'background': 'build k-mer background database',
+    'split': 'break long oligos into overlapping fragments',
+    'pad': 'add excisable primer pads for scarless assembly',
+    'merge': 'collapse contiguous columns',
+    'revcomp': 'reverse-complement a column range',
+    'lenstat': 'compute length stats and free space',
+    'verify': 'verify constraints before synthesis',
+    'final': 'finalize into synthesis-ready oligos',
+    # Analysis Mode
+    'index': 'build barcode/associate index',
+    'pack': 'preprocess and deduplicate FastQ reads',
+    'acount': 'association counting (single index)',
+    'xcount': 'combinatorial counting (multiple indexes)',
+    # Other
+    'complete': 'print or install shell completion',
+}
+

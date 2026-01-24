@@ -1,6 +1,8 @@
 import importlib
 from typing import Any
 
+from .descriptions import PACKAGE_DESCRIPTIONS as _PKG_DESC
+
 __api__ = [
     'barcode',
     'background',
@@ -77,29 +79,31 @@ def __dir__() -> list[str]:
     # to resolve via `getattr`, importing heavier scientific dependencies).
     return sorted(globals())
 
-__doc__ = '''
+
+def _build_package_doc() -> str:
+    return f'''
 Automated design and analysis of oligopool libraries for high-throughput
 functional genomics (MPRAs, CRISPR screens, saturation mutagenesis, etc.).
 
 Design Mode - build synthesis-ready oligo architectures
-    barcode     orthogonal barcodes with Hamming distance guarantees
-    primer      Tm-optimized primers with off-target screening
-    motif       sequence motifs or constant anchors
-    spacer      neutral fill to reach target length
-    background  k-mer database for off-target screening
-    split       fragment long oligos for assembly
-    pad         Type IIS primer pads for scarless excision
-    merge       collapse columns into single element
-    revcomp     reverse complement column range
-    lenstat     length statistics and free-space check
-    verify      QC before synthesis
-    final       concatenate into synthesis-ready oligos
+    barcode     {_PKG_DESC["barcode"]}
+    primer      {_PKG_DESC["primer"]}
+    motif       {_PKG_DESC["motif"]}
+    spacer      {_PKG_DESC["spacer"]}
+    background  {_PKG_DESC["background"]}
+    split       {_PKG_DESC["split"]}
+    pad         {_PKG_DESC["pad"]}
+    merge       {_PKG_DESC["merge"]}
+    revcomp     {_PKG_DESC["revcomp"]}
+    lenstat     {_PKG_DESC["lenstat"]}
+    verify      {_PKG_DESC["verify"]}
+    final       {_PKG_DESC["final"]}
 
 Analysis Mode - quantify variants from NGS reads
-    index       index barcodes and associated variants
-    pack        filter/merge/deduplicate FastQ reads
-    acount      association counting (barcode + variant verification)
-    xcount      combinatorial counting (single or multiple barcodes)
+    index       {_PKG_DESC["index"]}
+    pack        {_PKG_DESC["pack"]}
+    acount      {_PKG_DESC["acount"]}
+    xcount      {_PKG_DESC["xcount"]}
 
 Advanced
     vectorDB    LevelDB k-mer storage
@@ -115,3 +119,6 @@ to extend pools without overwriting existing designs.
 
 CLI: `op --help` | Docs: https://github.com/ayaanhossain/oligopool
 '''
+
+
+__doc__ = _build_package_doc()

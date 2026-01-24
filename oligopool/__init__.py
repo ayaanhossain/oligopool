@@ -82,8 +82,8 @@ def __dir__() -> list[str]:
 
 def _build_package_doc() -> str:
     return f'''
-Automated design and analysis of oligopool libraries for high-throughput
-functional genomics (MPRAs, CRISPR screens, saturation mutagenesis, etc.).
+Automated design and analysis of oligopool libraries for
+high-throughput genomics and synthetic biology applications.
 
 Design Mode - build synthesis-ready oligo architectures
     barcode     {_PKG_DESC["barcode"]}

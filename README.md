@@ -103,8 +103,8 @@ Type "help", "copyright", "credits" or "license" for more information.
 >>> import oligopool as op
 >>> help(op)
 ...
-    Automated design and analysis of oligopool libraries for high-throughput
-    functional genomics (MPRAs, CRISPR screens, saturation mutagenesis, etc.).
+    Automated design and analysis of oligopool libraries for
+    high-throughput genomics and synthetic biology applications.
 
     Design Mode - build synthesis-ready oligo architectures
         barcode     orthogonal barcodes with Hamming distance guarantees

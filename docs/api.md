@@ -1277,6 +1277,14 @@ Python parameters map to CLI flags by converting `snake_case` to `kebab-case`:
 | `verbose` | `--quiet` (inverted) |
 | `random_seed` | `--random-seed` |
 
+**Special Cases**:
+| Python | CLI | Notes |
+|--------|-----|-------|
+| `typeIIS_system` | `--typeiis-system` | camelCase becomes lowercase |
+| `separate_outputs` | `--separate-outputs` / `--no-separate-outputs` | Default inverted: Python=False, CLI=True |
+| `index_file` | `--index-file` | Used by `index`, `acount` (singular) |
+| `index_files` | `--index-files` | Used by `xcount` (plural, comma/space-separated) |
+
 **CLI-Specific Flags**:
 - `--stats-json`: Print stats dict as JSON to stdout
 - `--stats-file PATH`: Write stats JSON to file

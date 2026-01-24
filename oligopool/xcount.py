@@ -16,7 +16,7 @@ def xcount(
     index_files:str,
     pack_file:str,
     count_file:str,
-    mapping_type:int=0,
+    mapping_type:int|str=0,
     barcode_errors:int=-1,
     callback:Callable[[str, Tuple, int, int], bool]|None=None,
     core_count:int=0,
@@ -32,7 +32,8 @@ def xcount(
         - `count_file` (`str`): Output count matrix filename.
 
     Optional Parameters:
-        - `mapping_type` (`int`): Barcode classification (0 for fast, 1 for sensitive) (default: 0).
+        - `mapping_type` (`int` / `str`): Barcode classification: 0 or 'fast' for fast,
+          1 or 'sensitive' for sensitive. Also accepts aliases: 'quick', 'sens', 'accurate' (default: 0).
         - `barcode_errors` (`int`): Maximum errors in barcodes (-1: auto-infer, default: -1).
         - `callback` (`callable`): Custom read processing function (default: `None`).
         - `core_count` (`int`): CPU cores to use (0: auto-infer, default: 0).
@@ -117,14 +118,13 @@ def xcount(
     liner.send('\n Optional Arguments\n')
 
     # Full maptype Validation
-    maptype_valid = vp.get_categorical_validity(
+    (maptype,
+    maptype_valid) = vp.get_typed_categorical_validity(
         category=maptype,
         category_field='   Mapping Type   ',
         category_pre_desc=' ',
         category_post_desc=' Classification',
-        category_dict={
-            0: 'Fast / Near-Exact',
-            1: 'Slow / Sensitive'},
+        type_name='mapping_type',
         liner=liner)
 
     # Full barcodeerrors Validation

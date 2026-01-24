@@ -21,7 +21,7 @@ def barcode(
     maximum_repeat_length:int,
     barcode_column:str,
     output_file:str|None=None,
-    barcode_type:int=0,
+    barcode_type:int|str=0,
     left_context_column:str|None=None,
     right_context_column:str|None=None,
     patch_mode:bool=False,
@@ -45,8 +45,9 @@ def barcode(
     Optional Parameters:
         - `output_file` (`str`): Filename for output DataFrame; required in CLI usage,
             optional in library usage (default: `None`).
-        - `barcode_type` (`int`): Barcode design mode:
-          0 = fast terminus optimized, 1 = slow spectrum optimized (default: 0).
+        - `barcode_type` (`int` / `str`): Barcode design mode:
+          0 or 'terminus' = fast terminus optimized, 1 or 'spectrum' = slow spectrum optimized.
+          Also accepts aliases: 'term', 'fast', 'spec', 'slow' (default: 0).
         - `left_context_column` (`str`): Column for left DNA context (default: `None`).
         - `right_context_column` (`str`): Column for right DNA context (default: `None`).
         - `patch_mode` (`bool`): If `True`, fill only missing values in an existing barcode column
@@ -212,14 +213,13 @@ def barcode(
     liner.send('\n Optional Arguments\n')
 
     # Full barcodetype Validation
-    barcodetype_valid = vp.get_categorical_validity(
+    (barcodetype,
+    barcodetype_valid) = vp.get_typed_categorical_validity(
         category=barcodetype,
         category_field='    Barcode Type    ',
         category_pre_desc=' ',
         category_post_desc=' Barcodes',
-        category_dict={
-            0: 'Terminus Optimized',
-            1: 'Spectrum Optimized'},
+        type_name='barcode_type',
         liner=liner)
 
     # Store Context Names

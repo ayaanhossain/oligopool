@@ -18,7 +18,7 @@ def primer(
     input_data:str|pd.DataFrame,
     oligo_length_limit:int,
     primer_sequence_constraint:str,
-    primer_type:int,
+    primer_type:int|str,
     minimum_melting_temperature:float,
     maximum_melting_temperature:float,
     maximum_repeat_length:int,
@@ -42,7 +42,8 @@ def primer(
         - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated oligopool variants.
         - `oligo_length_limit` (`int`): Maximum allowed oligo length (≥ 4).
         - `primer_sequence_constraint` (`str`): IUPAC degenerate sequence constraint.
-        - `primer_type` (`int`): Primer type (0 for forward, 1 for reverse).
+        - `primer_type` (`int` / `str`): Primer type: 0 or 'forward' for forward,
+          1 or 'reverse' for reverse. Also accepts aliases: 'fwd', 'f', 'rev', 'r'.
         - `minimum_melting_temperature` (`float`): Minimum primer Tm (≥ 25°C).
         - `maximum_melting_temperature` (`float`): Maximum primer Tm (≤ 95°C).
         - `maximum_repeat_length` (`int`): Max shared repeat length with oligos (≥ 6).
@@ -168,14 +169,13 @@ def primer(
         liner=liner)
 
     # Full primertype Validation
-    primertype_valid = vp.get_categorical_validity(
+    (primertype,
+    primertype_valid) = vp.get_typed_categorical_validity(
         category=primertype,
         category_field='     Primer Type       ',
         category_pre_desc=' ',
         category_post_desc=' Primer Design',
-        category_dict={
-            0: 'Forward',
-            1: 'Reverse'},
+        type_name='primer_type',
         liner=liner)
 
     # Full mintmelt and maxtmelt Validation

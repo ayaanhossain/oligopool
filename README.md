@@ -51,7 +51,10 @@ To learn more, please check out [our paper in ACS Synthetic Biology](https://pub
 <a id="ai-assisted-design"></a>
 ## 🤖 AI-Assisted Design
 
-Point your AI coding assistant to [`docs/agent-skills.md`](https://github.com/ayaanhossain/oligopool/blob/master/docs/agent-skills.md) for optimized workflows and best practices. Claude Code and Cursor can read it directly from the repo; for ChatGPT or Claude.ai, share or upload the file.
+Point your AI coding assistant to [`docs/agent-skills.md`](https://github.com/ayaanhossain/oligopool/blob/master/docs/agent-skills.md) for optimized workflows and best practices. Claude Code and Cursor can read it directly from the repo; for ChatGPT or Claude.ai, share the raw URL (AIs can fetch it directly):
+```
+https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/agent-skills.md
+```
 
 
 <a id="installation"></a>

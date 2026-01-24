@@ -48,6 +48,12 @@ To learn more, please check out [our paper in ACS Synthetic Biology](https://pub
 - 🤖 **AI-assisted design:** agent-ready documentation for Claude, ChatGPT, and Copilot.
 
 
+<a id="ai-assisted-design"></a>
+## 🤖 AI-Assisted Design
+
+Point your AI coding assistant to [`docs/agent-skills.md`](docs/agent-skills.md) for optimized workflows and best practices. Claude Code and Cursor can read it directly from your repo; for ChatGPT or Claude.ai, share or upload the file.
+
+
 <a id="installation"></a>
 ## 📦 Installation
 

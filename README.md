@@ -207,6 +207,7 @@ $ op complete --install bash     # or: zsh|fish
 
 > **CLI Notes**
 > - Commands that write a DataFrame require `--output-file` (unlike in library mode where it is optional).
+> - Most `--*-type` parameters accept either integers or descriptive strings (case-insensitive), e.g. `--primer-type forward`, `--barcode-type spectrum`, `--motif-type anchor`, `--pack-type merge`, `--mapping-type sensitive`.
 > - For `--primer-sequence-constraint` / `--motif-sequence-constraint`, pass an IUPAC string (`NNNN...`) or a quoted expression like `"'N'*20"` / `'GCC+N*20+CCG'`.
 > - `op split` writes separate files per fragment by default (e.g., `out.Split1.oligopool.split.csv`, `out.Split2...`); use `--no-separate-outputs` to write a single combined file.
 

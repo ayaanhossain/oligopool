@@ -17,6 +17,13 @@ This document is designed for AI assistants to understand and help users with ol
 - **Entry points**: `op` and `oligopool` are equivalent CLIs.
 - **CLI help model**: There is no `--help` flag. Use `op COMMAND` for command options and `op manual COMMAND` for docstrings.
 - **Basenames**: Prefer basenames for all outputs (`--output-file`, `--index-file`, `--pack-file`, `--count-file`); suffixes are auto-appended as needed.
+- **String type parameters**: Type parameters accept integers OR descriptive strings (case-insensitive, fuzzy-matched):
+  - `barcode_type`: `0`/`'terminus'`/`'fast'` or `1`/`'spectrum'`/`'slow'`
+  - `primer_type`: `0`/`'forward'` or `1`/`'reverse'`
+  - `motif_type`: `0`/`'variable'`/`'per-variant'` or `1`/`'constant'`/`'anchor'`
+  - `pack_type`: `0`/`'concatenate'` or `1`/`'merge'`
+  - `r1/r2_read_type`: `0`/`'forward'` or `1`/`'reverse'`
+  - `mapping_type`: `0`/`'fast'` or `1`/`'sensitive'`
 - **Return shapes**:
   - Design/transform: `(out_df, stats_dict)`
   - Stats-only: `stats_dict` (`background`, `lenstat`, `verify`, `index`, `pack`)
@@ -186,8 +193,8 @@ For complete parameter documentation, see [api.md](api.md).
 **API**: See [`barcode`](api.md#barcode) for parameters.
 
 **Tips**:
-- Use `barcode_type=0` for large libraries (faster)
-- Use `barcode_type=1` for maximum barcode diversity
+- Use `barcode_type='terminus'` (or `0`) for large libraries (faster)
+- Use `barcode_type='spectrum'` (or `1`) for maximum barcode diversity
 - For multi-barcode designs, use `cross_barcode_columns` to ensure BC2 is separated from BC1
 - Cross-set separation is strict: provide both `cross_barcode_columns` and `minimum_cross_distance`;
   all cross-set barcode values must already be A/T/G/C strings of length `barcode_length`.
@@ -220,7 +227,7 @@ For complete parameter documentation, see [api.md](api.md).
 
 **Use cases**:
 - Restriction sites: `motif_sequence_constraint='GAATTC'` (EcoRI)
-- Barcode anchors: `motif_type=1` with `'N'*10` for constant anchor
+- Barcode anchors: `motif_type='constant'` (or `1`) with `'N'*10` for constant anchor
 - Degenerate regions: `'NNNGGATCCNNN'` (BamHI with flanking Ns)
 
 ---
@@ -397,7 +404,7 @@ For complete parameter documentation, see [api.md](api.md).
 **Tips**:
 - Prefix/suffix anchors must be constant (single unique sequence, ≥6 bp) and adjacent to the indexed column.
 - For `acount`, specify `associate_data`/`associate_column` and at least one constant adjacent associate prefix/suffix.
-- Design anchors with `motif(motif_type=1, ...)` (or use universal primers if they are constant).
+- Design anchors with `motif(motif_type='constant', ...)` (or use universal primers if they are constant).
 
 ---
 
@@ -409,7 +416,7 @@ For complete parameter documentation, see [api.md](api.md).
 
 **Tips**:
 - For single-end reads, use R1 arguments only
-- For paired-end merging (`pack_type=1`), provide both `r2_fastq_file` and `r2_read_type`
+- For paired-end merging (`pack_type='merge'`), provide both `r2_fastq_file` and `r2_read_type`
 - For pre-merged reads (e.g., from FLASH), use as single-end
 
 ---
@@ -538,7 +545,7 @@ df, _ = op.primer(
     input_data=df,
     oligo_length_limit=200,
     primer_sequence_constraint='SS' + 'N'*18,
-    primer_type=0,
+    primer_type='forward',
     minimum_melting_temperature=53,
     maximum_melting_temperature=55,
     maximum_repeat_length=10,
@@ -552,7 +559,7 @@ df, _ = op.primer(
     input_data=df,
     oligo_length_limit=200,
     primer_sequence_constraint='N'*18 + 'WW',
-    primer_type=1,
+    primer_type='reverse',
     minimum_melting_temperature=53,
     maximum_melting_temperature=55,
     maximum_repeat_length=10,
@@ -716,9 +723,9 @@ op.index(
 op.pack(
     r1_fastq_file='reads_R1.fq.gz',
     r2_fastq_file='reads_R2.fq.gz',
-    r1_read_type=0,
-    r2_read_type=1,
-    pack_type=1,  # Merge
+    r1_read_type='forward',
+    r2_read_type='reverse',
+    pack_type='merge',
     minimum_r1_read_quality=30,
     minimum_r2_read_quality=30,
     pack_file='reads',
@@ -729,7 +736,7 @@ ac_df, _ = op.acount(
     index_file='bc1_assoc_idx',
     pack_file='reads',
     count_file='association_counts',
-    mapping_type=1,
+    mapping_type='sensitive',
 )
 
 # 3b. Combinatorial counting (BC1 × BC2)
@@ -737,7 +744,7 @@ xc_df, _ = op.xcount(
     index_files=['bc1_idx', 'bc2_idx'],
     pack_file='reads',
     count_file='combo_counts',
-    mapping_type=1,
+    mapping_type='sensitive',
 )
 ```
 
@@ -785,7 +792,7 @@ df, _ = op.barcode(
 ### No barcodes mapping in analysis
 - Verify anchor sequences in `index` match designed anchors exactly
 - Check `barcode_prefix/suffix_gap` settings
-- Use `mapping_type=1` for sensitive mode
+- Use `mapping_type='sensitive'` for sensitive mode
 - Verify read orientation (`r1_read_type`, `r2_read_type`)
 
 ### Cross-contamination in counts
@@ -914,7 +921,7 @@ op complete --install
 - Combinatorial counting (BC1 × BC2) → `xcount`
 
 **"Design is failing, what do I relax?"**
-- Barcodes: increase `barcode_length`, decrease `minimum_hamming_distance`, use `barcode_type=0`
+- Barcodes: increase `barcode_length`, decrease `minimum_hamming_distance`, use `barcode_type='terminus'`
 - Primers: widen Tm range, more `N`s in constraint, increase `maximum_repeat_length`
 - General: reduce `excluded_motifs`, increase `maximum_repeat_length`
 

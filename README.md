@@ -4,7 +4,7 @@
     </a>
 </h1>
 
-<h4><p align="center">Version: 2026.01.22</p></h4>
+<h4><p align="center">Version: 2026.01.24</p></h4>
 
 <p align="center">
   <a href="#features" style="text-decoration: none !important;">✨ Features</a> •
@@ -74,7 +74,7 @@ Python 3.10.9 | packaged by conda-forge | (main, Feb  2 2023, 20:20:04) [GCC 11.
 Type "help", "copyright", "credits" or "license" for more information.
 >>> import oligopool as op
 >>> op.__version__
-'2026.01.22'
+'2026.01.24'
 >>>
 ```
 
@@ -103,46 +103,42 @@ Type "help", "copyright", "credits" or "license" for more information.
 >>> import oligopool as op
 >>> help(op)
 ...
-    oligopool v2026.01.22
-    by ah
+    Automated design and analysis of oligopool libraries for high-throughput
+    functional genomics (MPRAs, CRISPR screens, saturation mutagenesis, etc.).
 
-    Automated design and analysis of oligopool libraries.
-
-    Modules operate on CSV/DataFrames and return (output_df, stats) or stats.
-    Chain them to build libraries iteratively; use Patch Mode (`patch_mode=True`)
-    to extend existing pools without overwriting prior designs.
-
-    Design Mode
-        barcode     orthogonal barcodes with cross-set separation
-        primer      thermodynamic primers with Tm matching
+    Design Mode - build synthesis-ready oligo architectures
+        barcode     orthogonal barcodes with Hamming distance guarantees
+        primer      Tm-optimized primers with off-target screening
         motif       sequence motifs or constant anchors
-        spacer      neutral spacers to meet length targets
+        spacer      neutral fill to reach target length
         background  k-mer database for off-target screening
-        split       break long oligos into overlapping fragments
-        pad         add excisable primer pads for scarless assembly
-        merge       collapse contiguous columns
-        revcomp     reverse complement a column range
+        split       fragment long oligos for assembly
+        pad         Type IIS primer pads for scarless excision
+        merge       collapse columns into single element
+        revcomp     reverse complement column range
         lenstat     length statistics and free-space check
-        verify      QC constraints before synthesis
-        final       concatenate columns into synthesis-ready oligos
+        verify      QC before synthesis
+        final       concatenate into synthesis-ready oligos
 
-    Analysis Mode
-        index       build barcode/associate index
-        pack        preprocess and deduplicate FastQ reads
-        acount      association counting (single index)
-        xcount      combinatorial counting (multiple indexes)
+    Analysis Mode - quantify variants from NGS reads
+        index       index barcodes and associated variants
+        pack        filter/merge/deduplicate FastQ reads
+        acount      association counting (barcode + variant verification)
+        xcount      combinatorial counting (single or multiple barcodes)
 
     Advanced
-        vectorDB    LevelDB-based k-mer storage
+        vectorDB    LevelDB k-mer storage
         Scry        1-NN barcode classifier
 
     Usage
         >>> import oligopool as op
-        >>> help(op.barcode)           # module docs
-        >>> df, stats = op.barcode(input_data=df, ...)
+        >>> df, stats = op.barcode(input_data='variants.csv', ...)
+        >>> help(op.barcode)  # module docs
 
-    CLI: `oligopool` / `op` (run `op` for commands, `op manual barcode` for docs)
-    Docs: https://github.com/ayaanhossain/oligopool
+    Modules return (DataFrame, stats). Chain them iteratively; use patch_mode=True
+    to extend pools without overwriting existing designs.
+
+    CLI: `op --help` | Docs: https://github.com/ayaanhossain/oligopool
 ...
 ```
 
@@ -163,8 +159,11 @@ Run `op` with no arguments to see the command list, and run `op COMMAND` to see 
 ```bash
 $ op
 
-oligopool v2026.01.22
+oligopool v2026.01.24
 by ah
+
+Oligopool Calculator is a suite of algorithms for
+automated design and analysis of oligopool libraries.
 
 usage: oligopool COMMAND --argument=<value> ...
 

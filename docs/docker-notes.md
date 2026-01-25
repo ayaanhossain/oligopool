@@ -1,4 +1,4 @@
-# Using Oligopool Calculator with Docker
+# Using `Oligopool Calculator` with Docker
 
 On non-Linux and Linux systems both, you can use `oligopool` via [Docker](https://docs.docker.com/desktop/).
 

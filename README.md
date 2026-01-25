@@ -55,6 +55,7 @@ To learn more, please check out [our paper in ACS Synthetic Biology](https://pub
 ```
 https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/agent-skills.md
 ```
+Afterwards, you can chat about the package, your specific design goals, and have the agent plan and execute the design and analysis pipelines.
 
 
 <a id="installation"></a>

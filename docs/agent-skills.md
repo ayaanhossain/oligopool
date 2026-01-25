@@ -380,9 +380,9 @@ df, _ = op.primer(
 **API**: See [`motif`](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md#motif) [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/api.md)] for parameters.
 
 **Use cases**:
-- Restriction sites: `motif_sequence_constraint='GAATTC'` (EcoRI)
-- Constant anchors for indexing: `motif_type='constant'` (or `1`) with a fixed sequence like `'ACGTACGTAC'` — same anchor for all variants
-- Variable motifs: `motif_type='variable'` (or `0`) with `'N'*10` — each variant gets a unique designed sequence
+- Restriction sites: `motif_sequence_constraint='GAATTC'` (EcoRI) — works with either motif_type
+- Constant anchors for indexing: `motif_type='constant'` (or `1`) — designs ONE sequence satisfying the constraint, shared by all variants. Works with fixed sequences (`'ACGTACGTAC'`) OR IUPAC constraints (`'N'*10`)
+- Variable motifs: `motif_type='variable'` (or `0`) — designs a DIFFERENT sequence per variant, all satisfying the same constraint
 - Degenerate regions: `'NNNGGATCCNNN'` (BamHI with flanking Ns)
 
 ---

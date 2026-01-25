@@ -32,46 +32,25 @@ https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/
 - **Entry points**: `op` and `oligopool` are equivalent CLIs.
 - **CLI help model**: There is no `--help` flag. Use `op COMMAND` for command options and `op manual COMMAND` for docstrings.
 - **Basenames**: Prefer basenames for all outputs (`--output-file`, `--index-file`, `--pack-file`, `--count-file`); suffixes are auto-appended as needed.
-- **String type parameters**: Type parameters accept integers OR descriptive strings (case-insensitive, fuzzy-matched):
-  - `barcode_type`: `0`/`'terminus'`/`'fast'` or `1`/`'spectrum'`/`'slow'`
-  - `primer_type`: `0`/`'forward'` or `1`/`'reverse'`
-  - `motif_type`: `0`/`'variable'`/`'per-variant'` or `1`/`'constant'`/`'anchor'`
-  - `pack_type`: `0`/`'concatenate'` or `1`/`'merge'`
-  - `r1/r2_read_type`: `0`/`'forward'` or `1`/`'reverse'`
-  - `mapping_type`: `0`/`'fast'` or `1`/`'sensitive'`
+- **String type parameters**: Most `*_type` parameters accept integers OR descriptive strings (case-insensitive, fuzzy-matched; see `docs/api.md` for complete lists):
+  - `barcode_type`: `0`/`'terminus'`/`'term'`/`'t'`/`'fast'` or `1`/`'spectrum'`/`'spec'`/`'s'`/`'slow'`
+  - `primer_type` / `r1/r2_read_type`: `0`/`'forward'`/`'fwd'`/`'f'` or `1`/`'reverse'`/`'rev'`/`'r'`
+  - `motif_type`: `0`/`'variable'`/`'per-variant'`/`'var'`/`'non-constant'` or `1`/`'constant'`/`'const'`/`'anchor'`/`'fixed'`
+  - `pack_type`: `0`/`'concatenate'`/`'concatenated'`/`'concat'`/`'cat'`/`'join'`/`'joined'` or `1`/`'merge'`/`'merged'`/`'assemble'`/`'assembled'`/`'asm'`
+  - `mapping_type`: `0`/`'fast'`/`'quick'`/`'near-exact'` or `1`/`'sensitive'`/`'sens'`/`'accurate'`/`'slow'`
 - **Return shapes**:
   - Design/transform: `(out_df, stats_dict)`
   - Stats-only: `stats_dict` (`background`, `lenstat`, `verify`, `index`, `pack`)
   - Counting: `(counts_df, stats_dict)` (`acount`, `xcount`)
-  - Split with `separate_outputs=True`: `([df_Split1, df_Split2, ...], stats_dict)`
+  - Split with `separate_outputs` enabled: `([df_Split1, df_Split2, ...], stats_dict)`
 - **ID handling**: Input requires a unique `ID`. CSV outputs include an explicit `ID` column (no pandas index column).
 - **Patch Mode**: `patch_mode=True` / `--patch-mode` fills only missing values (None/NaN/empty/`'-'`) and never overwrites existing designs.
 - **Cross-set barcodes**: `cross_barcode_columns` and `minimum_cross_distance` must be provided together.
 
 ## Package Overview
 
-`Oligopool Calculator` is a Python library for designing and analyzing oligonucleotide pool (oligopool)
-libraries used in massively parallel reporter assays (MPRAs) and similar high-throughput experiments.
-
-**Common applications**:
-- **MPRAs**: Promoter/enhancer activity measurement
-- **Saturation mutagenesis**: Systematic variant testing
-- **CRISPR screens**: Pooled guide libraries
-- **Ribozyme/mRNA studies**: Cleavage and stability quantification
-
-**Core workflow:**
-1. **Design Mode**: Build a library of oligos with barcodes, primers, motifs, and spacers
-2. **Analysis Mode**: Count barcoded reads from NGS data to quantify variant activity
-
-**Installation:**
-```bash
-pip install oligopool
-```
-
-**Import:**
-```python
-import oligopool as op
-```
+This guide is intentionally operational (contracts, gotchas, and workflow scaffolding). For scientific
+background, benchmarks, and examples, defer to the README, `docs/docs.md`, the notebook, and the paper.
 
 ## Key Concepts
 
@@ -143,11 +122,17 @@ Use `patch_mode=True` to extend existing pools:
 
 ### Key Parameters
 
-**`verbose`** (default `True`): Controls console output during execution. Keep `True` for interactive use to see progress and validation results; set `False` for quiet batch processing.
+**`oligo_length_limit`**: Maximum allowed total oligo length in bp. Used by `barcode`, `primer`, `motif`, `spacer`, `pad`, `lenstat`, and `verify`. This is the synthesis constraint—design modules ensure elements fit within this budget. Use `lenstat` to check remaining free space.
 
-**`maximum_repeat_length`**: Maximum allowed homopolymer/repeat length in designed sequences. Lower values (e.g., 6) create more complex sequences but are harder to satisfy; higher values (e.g., 12) allow simpler sequences but may cause synthesis/sequencing issues. Typical range: 6-12.
+**`maximum_repeat_length`**: Maximum allowed shared repeat length between designed elements and existing oligo context. Lower values (e.g., 6) create more complex sequences but are harder to satisfy; higher values (e.g., 12) allow simpler sequences but may cause synthesis/sequencing issues. Typical range: 6-12.
+
+**`excluded_motifs`**: Sequences to avoid in designed elements. Accepts a list of strings, CSV path, DataFrame with `Exmotif` column, or FASTA file. Used by `barcode`, `primer`, `motif`, `spacer`, and `verify`. Common uses: restriction sites, homopolymers, Type IIS sites for `pad`.
 
 **`random_seed`**: For stochastic modules (`barcode`, `primer`, `motif`, `spacer`, `split`, `pad`), set an integer seed for reproducible results. Same seed + same inputs = same outputs.
+
+**`verbose`** (default `True`): Controls console output during execution. Keep `True` for interactive use to see progress and validation results; set `False` for quiet batch processing.
+
+**`core_count`** / **`memory_limit`**: Analysis performance tuning for `pack`, `acount`, `xcount`. `core_count=0` (default) auto-detects CPU cores; `memory_limit=0.0` (default) auto-manages memory. Set explicit values to constrain resource usage on shared systems.
 
 ---
 

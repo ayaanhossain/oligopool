@@ -32,10 +32,10 @@ def final(
         - A dictionary of stats from the last step in pipeline.
 
     Notes:
-        - `input_data` must contain a unique 'ID' column, all other columns must be non-empty DNA strings.
+        - `input_data` must contain a unique 'ID' column; all other columns must be non-empty DNA strings.
         - Output contains only `CompleteOligo` and `OligoLength` (sequence annotations are not preserved).
-        - `final` is typically the terminal design step before synthesis, after which design-mode element
-          modules are not intended to be executed for additional oligopool markups.
+        - `final` is typically the last design step before synthesis; downstream design-mode element modules
+          are not intended to add more markups after finalization.
     '''
 
     # Preserve return style when the caller intentionally used ID as index.

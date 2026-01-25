@@ -1119,7 +1119,7 @@ Output CSV filename. A ".oligopool.barcode.csv" suffix is added if missing.''')
         metavar='\b',
         help='''>>[optional int/string]
 Barcode design mode: 0 or 'terminus' = terminus optimized (fast),
-1 or 'spectrum' = spectrum optimized (slow). Aliases: 'term', 'fast', 'spec', 'slow'.
+1 or 'spectrum' = spectrum optimized (slow). Aliases: 'term', 't', 'fast', 'spec', 's', 'slow'.
 (default: 0)''')
     opt.add_argument(
         '--left-context-column',
@@ -1393,7 +1393,7 @@ Output CSV filename. A ".oligopool.motif.csv" suffix is added if missing.''')
         metavar='\b',
         help='''>>[optional int/string]
 Motif type: 0 or 'per-variant' = non-constant, 1 or 'constant' = constant.
-Aliases: 'var', 'non-constant', 'const', 'anchor'. (default: 0)''')
+Aliases: 'var', 'non-constant', 'const', 'anchor', 'fixed'. (default: 0)''')
     opt.add_argument(
         '--left-context-column',
         type=str,
@@ -2147,7 +2147,7 @@ Output count matrix filename (".oligopool.acount.csv" is appended if missing).''
         metavar='\b',
         help='''>>[optional int/string]
 Mapping mode: 0 or 'fast' for fast, 1 or 'sensitive' for sensitive.
-Aliases: 'quick', 'sens', 'accurate'. (default: 0)''')
+Aliases: 'quick', 'near-exact', 'sens', 'accurate', 'slow'. (default: 0)''')
     opt.add_argument(
         '--barcode-errors',
         type=int,
@@ -2224,7 +2224,7 @@ Output count matrix filename (".oligopool.xcount.csv" is appended if missing).''
         metavar='\b',
         help='''>>[optional int/string]
 Mapping mode: 0 or 'fast' for fast, 1 or 'sensitive' for sensitive.
-Aliases: 'quick', 'sens', 'accurate'. (default: 0)''')
+Aliases: 'quick', 'near-exact', 'sens', 'accurate', 'slow'. (default: 0)''')
     opt.add_argument(
         '--barcode-errors',
         type=int,

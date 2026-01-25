@@ -34,7 +34,7 @@ def acount(
 
     Optional Parameters:
         - `mapping_type` (`int` / `str`): Barcode classification: 0 or 'fast' for fast,
-          1 or 'sensitive' for sensitive. Also accepts aliases: 'quick', 'sens', 'accurate' (default: 0).
+          1 or 'sensitive' for sensitive. Also accepts aliases: 'quick', 'near-exact', 'sens', 'accurate', 'slow' (default: 0).
         - `barcode_errors` (`int`): Maximum errors in barcodes (-1: auto-infer, default: -1).
         - `associate_errors` (`int`): Maximum errors in associated variants (-1: auto-infer, default: -1).
         - `callback` (`callable`): Custom read processing function (default: `None`).
@@ -51,8 +51,7 @@ def acount(
         - Useful for validating barcode ↔ associate mappings (e.g., synthesis QC, library quantification).
         - CLI note: callback functions are not currently supported via the `op`/`oligopool` CLI
           (the CLI always runs with `callback=None`); use the Python API to supply callbacks.
-        - Callback signature: `callback(read, ID, count, coreid) -> bool`.
-        - Callbacks must return booleans: True implies accepting the read.
+        - Callback signature: `callback(read, ID, count, coreid) -> bool` (return `True` to accept the read).
         - Association counting operates on a single index and pack file pair.
         - Here partial presence of associate variant suffices; however, their `{prefix|suffix}`
           constants must be adjacent and present completely.

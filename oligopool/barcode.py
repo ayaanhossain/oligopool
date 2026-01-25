@@ -47,7 +47,7 @@ def barcode(
             optional in library usage (default: `None`).
         - `barcode_type` (`int` / `str`): Barcode design mode:
           0 or 'terminus' = fast terminus optimized, 1 or 'spectrum' = slow spectrum optimized.
-          Also accepts aliases: 'term', 'fast', 'spec', 'slow' (default: 0).
+          Also accepts aliases: 'term', 't', 'fast', 'spec', 's', 'slow' (default: 0).
         - `left_context_column` (`str`): Column for left DNA context (default: `None`).
         - `right_context_column` (`str`): Column for right DNA context (default: `None`).
         - `patch_mode` (`bool`): If `True`, fill only missing values in an existing barcode column
@@ -66,19 +66,19 @@ def barcode(
         - A dictionary of stats from the last step in pipeline.
 
     Notes:
-        - `input_data` must contain a unique 'ID' column, all other columns must be non-empty DNA strings.
-        - Column names in `input_data` must be unique, and exclude `barcode_column`.
+        - `input_data` must contain a unique 'ID' column; all other columns must be non-empty DNA strings.
+          Column names must be unique and exclude `barcode_column`.
         - Terminus optimization targets distinctive 5'/3' ends; spectrum optimization targets k-mer saturation.
         - At least one of `left_context_column` or `right_context_column` must be specified.
         - If `excluded_motifs` is a CSV or DataFrame, it must have an 'Exmotif' column.
-        - If design is challenging: adjust `barcode_length`, `minimum_hamming_distance`, `maximum_repeat_length`,
-          `excluded_motifs`, or switch `barcode_type`.
+        - If design is challenging, adjust `barcode_length`, `minimum_hamming_distance`, `maximum_repeat_length`,
+          and/or `excluded_motifs`, or switch `barcode_type`.
         - Constant anchors (e.g., index prefix/suffix) are typically designed first (see `motif`, `motif_type=1`).
         - Cross-set mode is global (not per-row): `cross_barcode_columns` and `minimum_cross_distance` must be set
-          together, and each new barcode must be ≥ `minimum_cross_distance` mismatches away from every barcode in
-          the union of sequences across `cross_barcode_columns` (length must equal `barcode_length`).
+          together; each new barcode must be ≥ `minimum_cross_distance` mismatches away from every strict-ATGC
+          barcode in the union of sequences across `cross_barcode_columns` (length must equal `barcode_length`).
         - Patch mode (`patch_mode=True`) preserves existing values in `barcode_column` and fills only missing values
-          (missing includes `None`/NaN/empty/`'-'`; existing values must already be strict ATGC of length `barcode_length`).
+          (`None`/NaN/empty/`'-'`); existing values must already be strict ATGC of length `barcode_length`.
     '''
 
     # Preserve return style when the caller intentionally used ID as index.

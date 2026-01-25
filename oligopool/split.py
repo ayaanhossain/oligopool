@@ -26,7 +26,7 @@ def split(
     '''
     Split long oligos into overlapping fragments for downstream assembly, choosing overlaps that meet
     Tm and distance constraints. Returns a DataFrame containing `Split1`, `Split2`, ... columns (or a
-    list of separate DataFrames when `separate_outputs=True`).
+    list of separate DataFrames when `separate_outputs` is enabled).
 
     Required Parameters:
         - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated oligopool variants.
@@ -39,7 +39,7 @@ def split(
     Optional Parameters:
         - `output_file` (`str`): Filename for output DataFrame; required in CLI usage,
             optional in library usage (default: `None`).
-        - `separate_outputs` (`bool`): If `True`, returns a list of DataFrames (one per split column)
+        - `separate_outputs` (`bool`): When enabled, returns a list of DataFrames (one per split column)
             instead of a single combined DataFrame. When `output_file` is also provided, writes separate
             files named `{base}.SplitN.oligopool.split.csv` (default: `False`).
         - `random_seed` (`int` / `None`): Seed for local RNG (default: `None`).
@@ -50,19 +50,19 @@ def split(
         - When `separate_outputs` is enabled: A list of DataFrames `[df_Split1, df_Split2, ...]`, each containing
           the corresponding `SplitN` column.
         - A dictionary of stats from the last step in pipeline.
-        - Saves to `output_file` if specified (separate files when `separate_outputs=True`).
+        - Saves to `output_file` if specified (separate files when `separate_outputs` is enabled).
 
     Notes:
-        - `input_data` must contain a unique 'ID' column, all other columns must be non-empty DNA strings.
+        - `input_data` must contain a unique 'ID' column; all other columns must be non-empty DNA strings.
         - `minimum_overlap_length` should always be larger than `minimum_hamming_distance`.
         - Fragment count is auto-determined and can vary per oligo.
         - Each `SplitN` column is a separate oligo pool to synthesize; fragments are later assembled
           (e.g., overlap-extension PCR or Gibson) to reconstruct the full-length oligo.
         - Split fragments are returned in PCR assembly order; even-numbered split columns (`Split2`, `Split4`, ...)
           are reverse-complemented by design. Use `revcomp` to visualize overlaps and orientation.
-        - Returned DataFrame contains split oligos, annotation from `input_data` is lost.
-        - Common workflow: run `pad` once per split column (e.g., `Split1`, `Split2`, ...) then `final` on each.
-        - Use `separate_outputs` for custom padding workflows using `primer`, `motif`, or `spacer`.
+        - Returned DataFrame contains split fragments only (sequence annotations from `input_data` are not preserved).
+        - Typical workflow: run `pad` once per split column (e.g., `Split1`, `Split2`, ...) then `final` on each.
+        - Use `separate_outputs` for custom per-fragment workflows (e.g., manual padding via `primer`/`motif`/`spacer`).
     '''
 
     # Preserve return style when the caller intentionally used ID as index.

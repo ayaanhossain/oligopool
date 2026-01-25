@@ -37,7 +37,7 @@ def merge(
         - A dictionary of stats from the last step in pipeline.
 
     Notes:
-        - `input_data` must contain a unique 'ID' column, all other columns must be non-empty DNA strings.
+        - `input_data` must contain a unique 'ID' column; all other columns must be non-empty DNA strings.
         - `left_context_column` and `right_context_column` need not be adjacent; if omitted, the first/last
           columns are used.
         - Use `merge` to treat a multi-column region as a single element before `revcomp` or `final`.

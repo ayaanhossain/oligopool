@@ -37,7 +37,7 @@ def verify(
         - Column inspection classifies columns as sequence vs metadata, and flags mixed/degenerate/non-string
           columns (degenerate/IUPAC columns are warnings, not hard errors).
         - Length stats use the same engine as `lenstat` and can be checked against `oligo_length_limit`.
-        - Motif "emergence" means a motif occurs more often than the minimum occurrence across the library
+        - Motif emergence means a motif occurs more often than the minimum occurrence across the library
           (useful when a motif should appear exactly once, e.g., restriction sites).
         - Excluded-motif counting is literal substring matching; degenerate/IUPAC bases are not expanded
           as wildcards during motif checks.

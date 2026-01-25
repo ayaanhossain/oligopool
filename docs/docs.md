@@ -370,7 +370,7 @@ df, stats = op.motif(
 - You must provide at least one context column (`left_context_column` or `right_context_column`) so edge effects can be screened.
 - Constant bases in `motif_sequence_constraint` can force an excluded motif (or repeat) and make the design infeasible.
 - For anchors, tune `maximum_repeat_length` to control how distinct the anchor is from surrounding sequence.
-- Patch mode (`patch_mode=True`) fills only missing values; for `motif_type=1`, an existing compatible constant anchor is reused for new rows.
+- Patch mode (`patch_mode=True`) fills only missing values; for `motif_type=1`, an existing compatible constant anchor (must be unique across existing rows) is reused for new rows.
 
 > **API Reference**: See [`motif`](api.md#motif) for complete parameter documentation.
 

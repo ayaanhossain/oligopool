@@ -249,7 +249,7 @@ df, stats = op.motif(
 | `motif_type` | int \| str | 0 | `0` or `'variable'`=per-variant motifs, `1` or `'constant'`=constant motif/anchor for all rows. Also accepts: `'var'`, `'per-variant'`, `'const'`, `'anchor'` |
 | `left_context_column` | str \| None | None | Column for left DNA context (at least one context required) |
 | `right_context_column` | str \| None | None | Column for right DNA context (at least one context required) |
-| `patch_mode` | bool | False | Fill only missing values; for `motif_type=1`, existing anchor is reused |
+| `patch_mode` | bool | False | Fill only missing values; for `motif_type=1`, existing anchor (must be unique) is reused |
 | `excluded_motifs` | list \| str \| pd.DataFrame \| None | None | Motifs to exclude |
 | `verbose` | bool | True | Print progress output |
 | `random_seed` | int \| None | None | RNG seed for reproducibility |

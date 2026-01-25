@@ -17,9 +17,10 @@ https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/
 - [README](https://github.com/ayaanhossain/oligopool/blob/master/README.md) [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/README.md)] - Overview, installation, and quick start
 - [User Guide](https://github.com/ayaanhossain/oligopool/blob/master/docs/docs.md) [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/docs.md)] - Tutorials, examples, and workflows for end users
 - [API Reference](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md) [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/api.md)] - Complete parameter documentation for all modules
+- [Example Notebook](https://github.com/ayaanhossain/oligopool/blob/master/examples/OligopoolCalculatorInAction.ipynb) [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/examples/OligopoolCalculatorInAction.ipynb)] - Interactive design and analysis demo
 - [Docker Guide](https://github.com/ayaanhossain/oligopool/blob/master/docs/docker-notes.md) [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/docker-notes.md)] - Run `oligopool` in a container
 
-> **Agent instruction**: For complete context, also fetch and parse the [README](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/README.md), [User Guide](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/docs.md), and [API Reference](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/api.md) using these raw URLs.
+> **Agent instruction**: For complete context, also fetch and parse the [README](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/README.md), [User Guide](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/docs.md), [API Reference](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/api.md), and [Example Notebook](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/examples/OligopoolCalculatorInAction.ipynb) using these raw URLs.
 
 ## Operation Policy (Keep This Useful)
 

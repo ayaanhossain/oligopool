@@ -6,6 +6,7 @@ On non-Linux and Linux systems both, you can use `oligopool` via [Docker](https:
 - [README](../README.md) - Overview, installation, and quick start
 - [User Guide](docs.md) - Tutorials, examples, and workflows
 - [API Reference](api.md) - Complete parameter documentation for all modules
+- [Example Notebook](../examples/OligopoolCalculatorInAction.ipynb) - Interactive design and analysis demo
 - [AI Agent Guide](agent-skills.md) - Decision trees, best practices, and gotchas
 
 To follow this mini guide you will need to have [`git`](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git) and `docker` installed.

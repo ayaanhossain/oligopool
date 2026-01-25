@@ -17,6 +17,7 @@ Welcome to the `Oligopool Calculator` docs! Whether you're designing your first 
 **Other resources**:
 - [README](../README.md) - Overview, installation, and quick start
 - [API Reference](api.md) - Complete parameter documentation for all modules
+- [Example Notebook](../examples/OligopoolCalculatorInAction.ipynb) - Interactive design and analysis demo
 - [AI Agent Guide](agent-skills.md) - Decision trees, best practices, and gotchas for AI assistants
 - [Docker Guide](docker-notes.md) - Run `oligopool` in a container for cross-platform consistency
 

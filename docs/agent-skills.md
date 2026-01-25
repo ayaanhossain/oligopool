@@ -140,6 +140,117 @@ Use `patch_mode=True` to extend existing pools:
 
 ---
 
+## Design Philosophy
+
+Understanding WHY the API is designed the way it is helps agents use it more effectively.
+
+### Compositional Pipeline Architecture
+
+`Oligopool Calculator` modules are **constraint satisfaction engines** that:
+1. Validate inputs against parameter contracts
+2. Apply biological/design constraints
+3. Report what worked and what failed
+4. Return modified data for the next module
+
+**Why DataFrames**: The DataFrame model enables compositional design where modules chain sequentially—each reads from existing columns and writes to new columns. This naturally supports incremental workflows where pools grow over time.
+
+**Why (DataFrame, stats) returns**: Library users get the DataFrame to inspect/chain; CLI users get files written automatically. The stats dict provides complete diagnostic information regardless of interface.
+
+### Parameter Naming Conventions
+
+Parameter names follow predictable patterns that signal data flow:
+
+| Pattern | Signals | Examples |
+|---------|---------|----------|
+| `*_column` | Output destination (new column name) | `barcode_column`, `primer_column` |
+| `*_context_column` | Input source (existing column to read) | `left_context_column`, `right_context_column` |
+| `*_type` | Algorithm/strategy selector | `barcode_type`, `primer_type` |
+| `*_constraint` | IUPAC sequence specification | `primer_sequence_constraint` |
+| `minimum_*` / `maximum_*` | Numeric bounds | `minimum_hamming_distance`, `maximum_repeat_length` |
+| `excluded_*` | Things to avoid | `excluded_motifs` |
+
+**Why this matters**: Parameter names tell you the DATA DIRECTION. `left_context_column` is INPUT (data source); `barcode_column` is OUTPUT (destination). Constraint parameters express WHAT to achieve, not HOW.
+
+### Type Parameter Flexibility
+
+Parameters like `barcode_type`, `primer_type`, `motif_type` accept both integers and strings:
+
+```python
+# These are equivalent:
+op.barcode(..., barcode_type=0)
+op.barcode(..., barcode_type='terminus')
+op.barcode(..., barcode_type='fast')
+```
+
+**Why dual forms**: Integers are concise for scripts; strings are self-documenting for notebooks. Fuzzy matching catches close misspellings with warnings rather than failures.
+
+### Parameter Coupling and Dependencies
+
+Some parameters only make sense together:
+
+| Must be paired | Reason |
+|----------------|--------|
+| `cross_barcode_columns` + `minimum_cross_distance` | Cross-set separation requires both the columns and the distance |
+| `paired_primer_column` (requires existing primer) | Pairing needs a reference primer to match Tm |
+| `associate_column` + `associate_prefix`/`associate_suffix` | Association counting needs both the column and anchors |
+
+**Why coupling**: Rather than silently ignoring incomplete parameter sets, the API requires explicit intent. This prevents subtle bugs where users think they enabled a feature but didn't provide all necessary parameters.
+
+### Flexible Input Formats
+
+Most sequence-list parameters accept multiple formats:
+
+```python
+# excluded_motifs accepts:
+excluded_motifs=['GAATTC', 'GGATCC']           # List of strings
+excluded_motifs='restriction_sites.csv'        # CSV file path
+excluded_motifs=restriction_df                 # DataFrame with 'Motif' column
+excluded_motifs='motifs.fasta'                 # FASTA file
+```
+
+**Why flexibility**: Users work with sequences in many formats. Rather than forcing conversion, the API handles common formats transparently.
+
+### Validation and Error Philosophy
+
+Validation follows a **fail-fast, explain-everything** approach:
+
+1. **Invalid arguments** (wrong types, missing files, bad column names) raise `RuntimeError('Invalid Argument Input(s).')` immediately with detailed console output showing which parameter failed and why
+
+2. **Algorithmic failures** (impossible constraints, search exhaustion) return `stats['status'] = False` with diagnostic information in `stats['basis']`, `stats['step_name']`, and `stats['vars']`
+
+**Why the distinction**: Invalid arguments are programmer errors (fix the code). Algorithmic failures are design problems (adjust constraints). Different failure modes need different responses.
+
+### Stats Dictionary Diagnostics
+
+The stats dict is designed for **failure diagnosis**:
+
+```python
+if not stats['status']:
+    if stats['basis'] == 'infeasible':
+        # Constraints are mathematically impossible
+        # → Loosen constraints (shorter barcode, lower Hamming distance)
+    elif stats['basis'] == 'unsolved':
+        # Search exhausted without solution
+        if stats['vars'].get('space_exhausted'):
+            # → Increase oligo_length_limit or reduce other elements
+        if stats['vars'].get('trial_exhausted'):
+            # → Increase internal retries or loosen constraints
+```
+
+**Why structured diagnostics**: Multi-step pipelines need to know WHERE and WHY they failed. The stats dict provides step-by-step visibility into the constraint satisfaction process.
+
+### Context Column Design
+
+Context columns (`left_context_column`, `right_context_column`) enable **realistic constraint checking**:
+
+- Barcodes must be distinctive not just vs each other, but vs flanking DNA
+- Excluded motifs must not emerge at element-context junctions
+- Repeats must not span insertion boundaries
+
+**Why context matters**: In real NGS reads, elements are surrounded by adapters and other sequences. Designing in isolation can create problems that only appear when the full construct is assembled.
+
+---
+
 ## Working Modes (Notebook / Script / CLI)
 
 ### Notebook mode (Jupyter)

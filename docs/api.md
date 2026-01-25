@@ -5,6 +5,7 @@ Complete parameter reference for all `oligopool` modules.
 **Related documentation**:
 - [README](../README.md) - Overview, installation, and quick start
 - [User Guide](docs.md) - Tutorials, examples, and workflows
+- [Example Notebook](../examples/OligopoolCalculatorInAction.ipynb) - Interactive design and analysis demo
 - [AI Agent Guide](agent-skills.md) - Decision trees, best practices, and gotchas
 - [Docker Guide](docker-notes.md) - Run `oligopool` in a container
 

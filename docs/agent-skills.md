@@ -19,6 +19,8 @@ https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/
 - [API Reference](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md) [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/api.md)] - Complete parameter documentation for all modules
 - [Docker Guide](https://github.com/ayaanhossain/oligopool/blob/master/docs/docker-notes.md) [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/docker-notes.md)] - Run `oligopool` in a container
 
+> **Agent instruction**: For complete context, also fetch and parse the [README](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/README.md), [User Guide](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/docs.md), and [API Reference](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/api.md) using these raw URLs.
+
 ## Operation Policy (Keep This Useful)
 
 - **Source of truth**: `docs/docs.md` + `docs/api.md` + runtime docs (`help(op)` / `help(op.<module>)`) + real CLI behavior.

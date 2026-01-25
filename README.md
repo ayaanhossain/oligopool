@@ -248,7 +248,8 @@ BibTeX:
 ```
 
 You can read the paper online for free at [ACS Synthetic Biology](https://doi.org/10.1021/acssynbio.4c00661).
-PMCID: `PMC11669329` • PMID: `39641628`
+* PMCID: `PMC11669329`
+* PMID: `39641628`
 
 <a id="license"></a>
 ## ⚖️ License

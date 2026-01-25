@@ -1,12 +1,12 @@
 # Oligopool Calculator - API Reference
 
-Complete parameter reference for all oligopool modules.
+Complete parameter reference for all `oligopool` modules.
 
 **Related documentation**:
 - [README](../README.md) - Overview, installation, and quick start
 - [User Guide](docs.md) - Tutorials, examples, and workflows
 - [AI Agent Guide](agent-skills.md) - Decision trees, best practices, and gotchas
-- [Docker Guide](docker-notes.md) - Run oligopool in a container
+- [Docker Guide](docker-notes.md) - Run `oligopool` in a container
 
 ---
 

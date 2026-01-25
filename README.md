@@ -51,7 +51,7 @@ To learn more, please check out [our paper in ACS Synthetic Biology](https://pub
 <a id="ai-assisted-design"></a>
 ## 🤖 AI-Assisted Design
 
-Point your AI coding assistant to [`docs/agent-skills.md`](https://github.com/ayaanhossain/oligopool/blob/master/docs/agent-skills.md) for optimized workflows and best practices. Claude Code and Cursor can read it directly from the repo; for ChatGPT or Claude.ai, share the raw URL (AIs can fetch it directly):
+`Oligopool Calculator` is optimized for AI-assisted workflows. Either upload the [`docs/agent-skills.md`](https://github.com/ayaanhossain/oligopool/blob/master/docs/agent-skills.md) file directly with you agent, or share the following raw URL directly.
 ```
 https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/agent-skills.md
 ```
@@ -103,7 +103,7 @@ A notebook demonstrating [`Oligopool Calculator` in action](https://github.com/a
 - [User Guide](https://github.com/ayaanhossain/oligopool/blob/master/docs/docs.md) - Comprehensive tutorials, examples, and workflows
 - [API Reference](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md) - Complete parameter documentation for all modules
 - [AI Agent Guide](https://github.com/ayaanhossain/oligopool/blob/master/docs/agent-skills.md) - Decision trees, best practices, and gotchas for AI-assisted design (Claude, ChatGPT, Copilot)
-- [Docker Guide](https://github.com/ayaanhossain/oligopool/blob/master/docs/docker-notes.md) - Run oligopool in a container for cross-platform consistency
+- [Docker Guide](https://github.com/ayaanhossain/oligopool/blob/master/docs/docker-notes.md) - Run `oligopool` in a container for cross-platform consistency
 
 ```python
 $ python
@@ -153,7 +153,7 @@ Type "help", "copyright", "credits" or "license" for more information.
 ```
 
 <a id="command-line-interface-cli"></a>
-### 💻 Command Line Interface (CLI)
+## 💻 Command Line Interface (CLI)
 
 The `oligopool` package installs a CLI with two equivalent entry points: `oligopool` and `op`.
 

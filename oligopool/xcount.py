@@ -33,7 +33,7 @@ def xcount(
 
     Optional Parameters:
         - `mapping_type` (`int` / `str`): Barcode classification: 0 or 'fast' for fast,
-          1 or 'sensitive' for sensitive. Also accepts aliases: 'quick', 'sens', 'accurate' (default: 0).
+          1 or 'sensitive' for sensitive. Also accepts aliases: 'quick', 'near-exact', 'sens', 'accurate', 'slow' (default: 0).
         - `barcode_errors` (`int`): Maximum errors in barcodes (-1: auto-infer, default: -1).
         - `callback` (`callable`): Custom read processing function (default: `None`).
         - `core_count` (`int`): CPU cores to use (0: auto-infer, default: 0).
@@ -50,8 +50,7 @@ def xcount(
           `'-'` (gaps) in the output combination.
         - CLI note: callback functions are not currently supported via the `op`/`oligopool` CLI
           (the CLI always runs with `callback=None`); use the Python API to supply callbacks.
-        - Callback signature: `callback(read, ID, count, coreid) -> bool`.
-        - Callbacks must return booleans: True implies accepting the read.
+        - Callback signature: `callback(read, ID, count, coreid) -> bool` (return `True` to accept the read).
         - Associate information in indexes is ignored.
         - Barcodes can be isolated or be sub-barcodes of a larger combinatorial assembly.
     '''

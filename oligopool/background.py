@@ -34,7 +34,7 @@ def background(
     Notes:
         - If `input_data` is a CSV or DataFrame, it must have a 'Sequence' column with DNA strings.
         - `maximum_repeat_length` here controls non-repetitiveness of primers to `background` only.
-        - For manipulation, use `vectorDB` to operate on the background (see `help(oligopool.vectorDB)`).
+        - For advanced manipulation, use `vectorDB` (see `help(oligopool.vectorDB)`).
     '''
 
     # Argument Aliasing

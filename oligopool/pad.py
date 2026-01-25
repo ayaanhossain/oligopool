@@ -48,24 +48,19 @@ def pad(
         - A dictionary of stats from the last step in pipeline.
 
     Notes:
-        - `input_data` must contain a unique 'ID' column, all other columns must be non-empty DNA strings.
+        - `input_data` must contain a unique 'ID' column; all other columns must be non-empty DNA strings.
         - `pad` expects `split_column` to contain DNA fragments (typically output from `split`).
           Other columns in `input_data` are not preserved in the output.
         - Run `pad` separately for each split fragment column (e.g., `Split1`, `Split2`, ...).
         - Output columns are: `5primeSpacer`, `ForwardPrimer`, `<split_column>`, `ReversePrimer`, `3primeSpacer`.
         - Oligo rows already summing to or exceeding `oligo_length_limit` have a `'-'` (dash) as spacer.
-        - Supports 34 Type IIS enzymes for scarless pad removal:
-            * `AcuI`, `AlwI`,     `BbsI`,  `BccI`,  `BceAI`, `BciVI`, `BcoDI`,
-              `BmrI`, `BpuEI`,    `BsaI`,  `BseRI`, `BsmAI`, `BsmBI`, `BsmFI`,
-              `BsmI`, `BspCNI`,   `BspQI`, `BsrDI`, `BsrI`,  `BtgZI`, `BtsCI`,
-              `BtsI`, `BtsIMutI`, `EarI`,  `EciI`,  `Esp3I`, `FauI`,  `HgaI`,
-              `HphI`, `HpyAV`,    `MlyI`,  `MnlI`,  `SapI`,  `SfaNI`.
-        - Post-synthesis workflow: PCR amplify → Type IIS digest (excises pads, leaves enzyme-specific
-          overhangs) → mung bean nuclease (blunts overhangs; skip for blunt-cutters like `MlyI`) →
-          assemble via split-designed overlaps (Gibson, overlap-extension PCR).
-        - The chosen Type IIS recognition site must be absent from all split fragments in `split_column`
-          (in either orientation), otherwise the pool will be cut during digest.
-        - Type IIS is for pad removal, not fragment ligation; the overlaps from `split` drive assembly.
+        - Supported Type IIS systems (34): AcuI, AlwI, BbsI, BccI, BceAI, BciVI, BcoDI, BmrI, BpuEI,
+          BsaI, BseRI, BsmAI, BsmBI, BsmFI, BsmI, BspCNI, BspQI, BsrDI, BsrI, BtgZI, BtsCI, BtsI,
+          BtsIMutI, EarI, EciI, Esp3I, FauI, HgaI, HphI, HpyAV, MlyI, MnlI, SapI, SfaNI.
+        - `pad` checks that the chosen Type IIS recognition site is absent from `split_column` (both
+          forward and reverse-complement) and treats it as an excluded motif to avoid reintroducing
+          the site at pad junctions.
+        - Type IIS is for pad removal; the overlaps from `split` drive downstream assembly.
     '''
 
     # Preserve return style when the caller intentionally used ID as index.

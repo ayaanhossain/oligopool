@@ -56,13 +56,13 @@ def spacer(
         - A dictionary of stats from the last step in pipeline.
 
     Notes:
-        - `input_data` must contain a unique 'ID' column, all other columns must be non-empty DNA strings.
-        - Column names in `input_data` must be unique, and exclude `spacer_column`.
+        - `input_data` must contain a unique 'ID' column; all other columns must be non-empty DNA strings.
+          Column names must be unique and exclude `spacer_column`.
         - At least one of `left_context_column` or `right_context_column` must be specified.
         - When `spacer_length` is a CSV or DataFrame, it must have 'ID' and 'Length' columns.
         - If `excluded_motifs` is a CSV or DataFrame, it must have an 'Exmotif' column.
-        - Auto-sized spacers (`spacer_length=None`): if a row already reaches the limit, its spacer is `'-'`;
-          rows exceeding the limit are infeasible.
+        - Auto-sized spacers (`spacer_length=None`): rows at the limit get `'-'`; rows exceeding the limit are
+          infeasible.
         - Patch mode (`patch_mode=True`) preserves existing values in `spacer_column` and fills only missing values
           (`None`/NaN/empty/`'-'`); some rows may still get `'-'` if no spacer can fit under `oligo_length_limit`.
     '''

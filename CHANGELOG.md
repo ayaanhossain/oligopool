@@ -1,3 +1,7 @@
+2026.01.25
+1. Docs: added Example Notebook links to all documentation files (agent-skills.md, docs.md, api.md, docker-notes.md).
+2. Docs: added agent instruction to fetch related documentation in agent-skills.md.
+
 2026.01.24
 1. Type parameters: all type parameters now accept both integers and intelligent string specifications with fuzzy matching.
 2. Design mode: `barcode_type`, `primer_type`, and `motif_type` accept string aliases (e.g., `'terminus'`, `'forward'`, `'variable'`).

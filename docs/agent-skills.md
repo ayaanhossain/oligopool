@@ -120,7 +120,7 @@ A typical oligo has this structure:
 - **Spacers**: Neutral filler to reach target oligo length
 
 ### Context Columns and Edge Effects
-Most modules require `left_context_column` and/or `right_context_column`.
+Design modules accept optional `left_context_column` and/or `right_context_column` parameters. While not strictly required, **providing context is strongly recommended** for realistic designs.
 
 **Edge Effect**: The emergence of an undesired sequence (excluded motif, repeat, etc.) at the fusion boundary
 when inserting an element between or next to existing sequence contexts.
@@ -137,6 +137,14 @@ Use `patch_mode=True` to extend existing pools:
 - Only fills missing values (None/NaN/empty/'-')
 - Preserves existing designs
 - Useful for iterative pool expansion
+
+### Key Parameters
+
+**`verbose`** (default `True`): Controls console output during execution. Keep `True` for interactive use to see progress and validation results; set `False` for quiet batch processing.
+
+**`maximum_repeat_length`**: Maximum allowed homopolymer/repeat length in designed sequences. Lower values (e.g., 6) create more complex sequences but are harder to satisfy; higher values (e.g., 12) allow simpler sequences but may cause synthesis/sequencing issues. Typical range: 6-12.
+
+**`random_seed`**: For stochastic modules (`barcode`, `primer`, `motif`, `spacer`, `split`, `pad`), set an integer seed for reproducible results. Same seed + same inputs = same outputs.
 
 ---
 
@@ -323,8 +331,8 @@ For complete parameter documentation, see [api.md](https://github.com/ayaanhossa
 **API**: See [`barcode`](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md#barcode) [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/api.md)] for parameters.
 
 **Tips**:
-- Use `barcode_type='terminus'` (or `0`) for large libraries (faster)
-- Use `barcode_type='spectrum'` (or `1`) for maximum barcode diversity
+- `barcode_type='terminus'` (or `0`): Generates barcodes by extending from fixed termini; faster, good for large libraries
+- `barcode_type='spectrum'` (or `1`): Explores full sequence space for maximum diversity; slower but finds more solutions in constrained spaces
 - For multi-barcode designs, use `cross_barcode_columns` to ensure BC2 is separated from BC1
 - Cross-set separation is strict: provide both `cross_barcode_columns` and `minimum_cross_distance`;
   all cross-set barcode values must already be A/T/G/C strings of length `barcode_length`.
@@ -373,7 +381,8 @@ df, _ = op.primer(
 
 **Use cases**:
 - Restriction sites: `motif_sequence_constraint='GAATTC'` (EcoRI)
-- Barcode anchors: `motif_type='constant'` (or `1`) with `'N'*10` for constant anchor
+- Constant anchors for indexing: `motif_type='constant'` (or `1`) with a fixed sequence like `'ACGTACGTAC'` — same anchor for all variants
+- Variable motifs: `motif_type='variable'` (or `0`) with `'N'*10` — each variant gets a unique designed sequence
 - Degenerate regions: `'NNNGGATCCNNN'` (BamHI with flanking Ns)
 
 ---
@@ -1144,9 +1153,10 @@ All element modules accept `excluded_motifs`:
 - **FASTA**: `.fa`, `.fasta`, `.fna` (optionally gzipped)
 
 ### Context Columns
-- Always specify at least one of `left_context_column` or `right_context_column`
+- Strongly recommended (not strictly required) for realistic designs
 - Use adjacent columns in the oligo architecture
 - Critical for preventing edge effects (undesired motifs/repeats emerging at fusion junctions)
+- Without context, designed elements are checked in isolation and may create problems at junctions
 
 ### IUPAC Codes for Constraints
 
@@ -1265,10 +1275,11 @@ op complete --install
 
 **"Input requirements?"**
 - DataFrame must have unique `ID` column
-- For element-design modules (`barcode`, `primer`, `motif`, `spacer`), all non-ID columns must be non-empty DNA strings
-  (A/T/G/C) except the target output column in Patch Mode, which may contain missing values (None/NaN/empty/`'-'`).
-- `verify` is more permissive and will summarize metadata columns and degenerate/IUPAC columns rather than failing.
-- At least one context column required for element design
+- Columns used as context (`left_context_column`, `right_context_column`) must contain valid DNA strings (A/T/G/C)
+- The target output column can be missing in Patch Mode (None/NaN/empty/`'-'`)
+- Non-sequence columns (metadata) are ignored during design but preserved in output
+- `verify` is more permissive and will summarize metadata columns and degenerate/IUPAC columns rather than failing
+- Context columns are recommended but not strictly required
 
 ---
 

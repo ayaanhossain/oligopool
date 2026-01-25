@@ -465,6 +465,8 @@ for i, split_df in enumerate(split_dfs, start=1):
 `BsmBI`, `BsmFI`, `BsmI`, `BspCNI`, `BspQI`, `BsrDI`, `BsrI`, `BtgZI`, `BtsCI`, `BtsI`, `BtsIMutI`,
 `EarI`, `EciI`, `Esp3I`, `FauI`, `HgaI`, `HphI`, `HpyAV`, `MlyI`, `MnlI`, `SapI`, `SfaNI`
 
+**Why these enzymes**: These 34 are the "batteries included" set—each has a pre-validated recognition sequence and cut offset stored internally. All cut outside their recognition site (essential for scarless excision) and are commercially available. Common choices: `BsaI` and `BsmBI` (Golden Gate standards), `SapI` (longer recognition = fewer conflicts), `MlyI` (blunt cutter, no nuclease step needed).
+
 For unsupported enzymes, design primers/sites manually with `primer` or `motif`.
 
 ---

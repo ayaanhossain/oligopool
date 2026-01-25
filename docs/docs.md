@@ -131,6 +131,12 @@ df, stats = op.barcode(..., patch_mode=True)
 
 Patch mode fills only missing values (`None`, `NaN`, `'-'`, empty). Your existing designs stay untouched. Your sanity stays intact.
 
+### String-Friendly `*_type` Parameters
+
+Many `*_type` parameters accept either integer codes or descriptive strings (case-insensitive), e.g.
+`barcode_type='terminus'`, `primer_type='forward'`, `motif_type='anchor'`, `pack_type='merge'`,
+`mapping_type='sensitive'`. See the [API Reference](api.md) for the full alias list.
+
 ### Context Columns and Edge Effects
 
 Most design modules need to know what's next to the element being designed:
@@ -196,26 +202,14 @@ df, stats = op.barcode(
 
 **Excluded motifs** let you ban restriction sites, repetitive sequences, or anything else you don't want appearing in your barcodes.
 
-The simplest approach - just pass a list:
+The simplest approach is to pass a list:
 
 ```python
 df, stats = op.barcode(..., excluded_motifs=['GAATTC', 'GGATCC'])
 ```
 
-Got a longer list? Use a DataFrame or CSV with an `Exmotif` column:
-
-```python
-exmotifs_df = pd.DataFrame({
-    'Exmotif': ['GAATTC', 'GGATCC', 'AAGCTT']
-})
-df, stats = op.barcode(..., excluded_motifs=exmotifs_df)
-```
-
-You can also point to a CSV file or even a FASTA (each record becomes an excluded motif):
-
-```python
-df, stats = op.barcode(..., excluded_motifs='restriction_sites.csv')
-```
+You can also pass a CSV path, a DataFrame with an `Exmotif` column, or a FASTA file. See the
+[API Reference](api.md#barcode) for details.
 
 > **Note**: Excluded motifs are applied globally to all variants (no per-variant exclusion).
 
@@ -290,15 +284,8 @@ df, stats = op.primer(
 )
 ```
 
-Or use a DataFrame with `ID` and `OligoSet` columns (IDs must match your input):
-
-```python
-sets_df = pd.DataFrame({
-    'ID': ['V1', 'V2', 'V3', 'V4'],
-    'OligoSet': ['SetA', 'SetA', 'SetB', 'SetB']
-})
-df, stats = op.primer(..., oligo_sets=sets_df)
-```
+You can also pass a CSV path or a DataFrame with `ID` and `OligoSet` columns. See the
+[API Reference](api.md#primer) for details.
 
 **Background screening** keeps your primers from binding to off-target sequences (host genome, plasmid backbone, etc.). First, build a background database:
 
@@ -414,15 +401,8 @@ Need different lengths for different variants? Pass a list (aligned to input row
 df, stats = op.spacer(..., spacer_length=[10, 15, 12, 8])
 ```
 
-Or use a DataFrame with `ID` and `Length` columns:
-
-```python
-lengths_df = pd.DataFrame({
-    'ID': ['V1', 'V2', 'V3', 'V4'],
-    'Length': [10, 15, 12, 8]
-})
-df, stats = op.spacer(..., spacer_length=lengths_df)
-```
+You can also pass a CSV path or a DataFrame with `ID` and `Length` columns. See the
+[API Reference](api.md#spacer) for details.
 
 **Notes (the stuff that bites people):**
 - You must provide at least one context column (`left_context_column` or `right_context_column`) so edge effects can be screened.
@@ -509,7 +489,7 @@ When `split` returns `Split1`, `Split2`, `Split3` columns, you will **order thre
 - `split` returns only the split fragments (your original annotation columns are not preserved). Save the annotated library separately if you need it later.
 - As a rule of thumb, keep `minimum_overlap_length` comfortably larger than `minimum_hamming_distance`.
 - **Raw split output is not synthesis-ready for assembly** — run `pad` per `SplitN` to add primers/Type IIS sites, then `final` each padded DataFrame.
-- For separate per-fragment outputs: in Python, set `separate_outputs=True`; in CLI, this is already the default (writes `out.Split1.oligopool.split.csv`, etc.). Use `--no-separate-outputs` in CLI for a single combined file.
+- For separate per-fragment outputs: in Python, enable `separate_outputs`; in CLI, this is already the default (writes `out.Split1.oligopool.split.csv`, etc.). Use `--no-separate-outputs` in CLI for a single combined file.
 
 > **API Reference**: See [`split`](api.md#split) for complete parameter documentation.
 

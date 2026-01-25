@@ -43,7 +43,7 @@ def motif(
             optional in library usage (default: `None`).
         - `motif_type` (`int` / `str`): Motif type: 0 or 'per-variant' for per-variant motifs,
             1 or 'constant' for a single constant motif shared by all variants.
-            Also accepts aliases: 'var', 'non-constant', 'const', 'anchor' (default: 0).
+            Also accepts aliases: 'var', 'non-constant', 'const', 'anchor', 'fixed' (default: 0).
         - `left_context_column` (`str`): Column for left DNA context (default: `None`).
         - `right_context_column` (`str`): Column for right DNA context (default: `None`).
         - `patch_mode` (`bool`): If `True`, fill only missing values in an existing motif/anchor
@@ -58,16 +58,15 @@ def motif(
         - A dictionary of stats from the last step in pipeline.
 
     Notes:
-        - `input_data` must contain a unique 'ID' column, all other columns must be non-empty DNA strings.
-        - Column names in `input_data` must be unique, and exclude `motif_column`.
+        - `input_data` must contain a unique 'ID' column; all other columns must be non-empty DNA strings.
+          Column names must be unique and exclude `motif_column`.
         - At least one of `left_context_column` or `right_context_column` must be specified.
         - If `excluded_motifs` is a CSV or DataFrame, it must have an 'Exmotif' column.
         - Constant bases in sequence constraint may lead to `excluded_motifs` and be impossible to solve.
-        - Use `motif_type=1` to design constant anchors (e.g., barcode prefix/suffix anchors for indexing).
-        - For anchors, tune `maximum_repeat_length` to control how distinct the anchor is from its context;
-          anchors are typically designed prior to barcode generation.
+        - For constant anchors, use `motif_type=1` (e.g., barcode prefix/suffix anchors for indexing) and tune
+          `maximum_repeat_length` to control distinctness from context; anchors are typically designed before barcode.
         - Patch mode (`patch_mode=True`) preserves existing values in `motif_column` and fills only missing values
-          (`None`/NaN/empty/`'-'`). For `motif_type=1`, a compatible existing anchor is reused for new rows.
+          (`None`/NaN/empty/`'-'`). With `motif_type=1`, a compatible existing anchor is reused for new rows.
     '''
 
     # Preserve return style when the caller intentionally used ID as index.

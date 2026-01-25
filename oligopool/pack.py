@@ -34,7 +34,7 @@ def pack(
         - `r1_read_type` (`int` / `str`): Orientation of R1 reads: 0 or 'forward' for forward,
           1 or 'reverse' for reverse. Also accepts aliases: 'fwd', 'f', 'rev', 'r'.
         - `pack_type` (`int` / `str`): Packing storage type: 0 or 'concatenate'/'concatenated' for concatenated,
-          1 or 'merge'/'merged' for merged. Also accepts aliases: 'concat', 'cat', 'joined', 'join', 'assemble', 'asm'.
+          1 or 'merge'/'merged' for merged. Also accepts aliases: 'concat', 'cat', 'joined', 'join', 'assemble', 'assembled', 'asm'.
         - `pack_file` (`str`): Filename for output pack file.
 
     Optional Parameters:
@@ -54,13 +54,12 @@ def pack(
         - A dictionary of stats from the last step in pipeline.
 
     Notes:
-        - For single-end reads, use R1 arguments only; set R2 arguments to None.
-        - Read quality is average Phred score.
-        - Both reads must pass criteria for paired-end acceptance.
-        - Duplicate reads are consolidated into read packs for efficient parallel counting downstream.
+        - For single-end reads, use R1 arguments only; set all R2 arguments to `None`.
+        - Read quality is average Phred score; for paired-end acceptance, both reads must pass filters.
+        - Duplicate reads are consolidated into packs for efficient parallel counting downstream.
         - If reads are merged externally, pass the merged reads as single-end (R1 only).
         - Concatenated storage (`pack_type=0`) is IO bound; ~2 cores is often enough.
-        - Pack size balances memory usage and computation speed.
+        - Pack size balances memory usage and speed.
     '''
 
     # Alias Arguments

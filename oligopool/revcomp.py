@@ -35,7 +35,7 @@ def revcomp(
         - A dictionary of stats from the last step in pipeline.
 
     Notes:
-        - `input_data` must contain a unique 'ID' column, all other columns must be non-empty DNA strings.
+        - `input_data` must contain a unique 'ID' column; all other columns must be non-empty DNA strings.
         - `left_context_column` and `right_context_column` need not be adjacent; if omitted, the first/last
           columns are used.
         - Useful for inspecting or correcting split-fragment orientation (see `split` output ordering).

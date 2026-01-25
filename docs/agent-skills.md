@@ -20,7 +20,7 @@ https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/
 - [Example Notebook](https://github.com/ayaanhossain/oligopool/blob/master/examples/OligopoolCalculatorInAction.ipynb) [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/examples/OligopoolCalculatorInAction.ipynb)] - Interactive design and analysis demo
 - [Docker Guide](https://github.com/ayaanhossain/oligopool/blob/master/docs/docker-notes.md) [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/docker-notes.md)] - Run `oligopool` in a container
 
-> **Agent instruction**: For complete context, also fetch and parse the [README](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/README.md), [User Guide](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/docs.md), [API Reference](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/api.md), and [Example Notebook](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/examples/OligopoolCalculatorInAction.ipynb) using these raw URLs.
+> **IMPORTANT - Agent instruction**: Before proceeding, fetch and parse ALL `[agent-link]` URLs listed above. These contain essential context for accurate responses. Skipping this step will result in incomplete or incorrect guidance.
 
 ## Operation Policy (Keep This Useful)
 

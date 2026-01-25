@@ -17,7 +17,7 @@ https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/
 - [README](https://github.com/ayaanhossain/oligopool/blob/master/README.md) ([raw](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/README.md)) - Overview, installation, and quick start
 - [User Guide](https://github.com/ayaanhossain/oligopool/blob/master/docs/docs.md) ([raw](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/docs.md)) - Tutorials, examples, and workflows for end users
 - [API Reference](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md) ([raw](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/api.md)) - Complete parameter documentation for all modules
-- [Docker Guide](https://github.com/ayaanhossain/oligopool/blob/master/docs/docker-notes.md) ([raw](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/docker-notes.md)) - Run oligopool in a container
+- [Docker Guide](https://github.com/ayaanhossain/oligopool/blob/master/docs/docker-notes.md) ([raw](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/docker-notes.md)) - Run `oligopool` in a container
 
 ## Operation Policy (Keep This Useful)
 
@@ -47,7 +47,7 @@ https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/
 
 ## Package Overview
 
-**Oligopool Calculator** is a Python library for designing and analyzing oligonucleotide pool (oligopool)
+`Oligopool Calculator` is a Python library for designing and analyzing oligonucleotide pool (oligopool)
 libraries used in massively parallel reporter assays (MPRAs) and similar high-throughput experiments.
 
 **Common applications**:
@@ -164,7 +164,7 @@ Use `patch_mode=True` to extend existing pools:
   enable completion via `op complete --install`.
 
 ### Docker mode
-Oligopool Calculator can be run in a Docker container, useful for:
+`Oligopool Calculator` can be run in a Docker container, useful for:
 - Cross-platform consistency (works identically on macOS, Windows, Linux)
 - Isolated environments without affecting your system Python
 - Reproducible analysis pipelines in CI/CD or HPC environments
@@ -812,7 +812,7 @@ xc_df, _ = op.xcount(
 ---
 
 ### Saturation Mutagenesis Library
-Saturation mutagenesis systematically tests every possible mutation at each position in a sequence. Oligopool handles the oligo design; you provide the variant sequences.
+Saturation mutagenesis systematically tests every possible mutation at each position in a sequence. `Oligopool Calculator` handles the oligo design; you provide the variant sequences.
 
 ```python
 import oligopool as op
@@ -861,7 +861,7 @@ df, _ = op.barcode(
 ```
 
 **Key points**:
-- Variant generation is your responsibility (oligopool designs the oligo architecture)
+- Variant generation is your responsibility (`oligopool` designs the oligo architecture)
 - For protein saturation mutagenesis, generate codon variants and provide as DNA sequences
 - Use `patch_mode=True` to add new variants to an existing saturation library
 - Standard analysis pipeline (index → pack → xcount) quantifies variant activity

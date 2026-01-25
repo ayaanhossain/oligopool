@@ -1,6 +1,8 @@
 2026.01.25
 1. Docs: added Example Notebook links to all documentation files (agent-skills.md, docs.md, api.md, docker-notes.md).
 2. Docs: added agent instruction to fetch related documentation in agent-skills.md.
+3. Docs: refactored `api.md` parameter tables to bulleted lists for readability.
+4. Docs: added Notes sections to all modules in `api.md` with key information from docstrings.
 
 2026.01.24
 1. Type parameters: all type parameters now accept both integers and intelligent string specifications with fuzzy matching.

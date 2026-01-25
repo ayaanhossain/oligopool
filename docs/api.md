@@ -501,7 +501,7 @@ df, stats = op.pad(
 
 **Returns**: `(DataFrame, stats_dict)` - Output contains `5primeSpacer`, `ForwardPrimer`, `<split_column>`, `ReversePrimer`, `3primeSpacer`.
 
-**Important**: The chosen Type IIS recognition site must be absent from all split fragments (in either orientation). `pad` validates this and fails early if internal cut sites are found. To avoid issues, exclude your Type IIS motif (e.g., `GGTCTC`/`GAGACC` for BsaI) from `excluded_motifs` when designing upstream elements (primers, barcodes, motifs, spacers). Note: this only constrains newly designed elements — if your input/core sequences already contain the site, you’ll need to choose a different Type IIS system or redesign those sequences.
+**Important**: The Type IIS recognition site must be absent from all split fragments (in either orientation); `pad` validates this and fails early if conflicts are found. To prevent conflicts, add your Type IIS motif and its reverse complement (e.g., `GGTCTC` and `GAGACC` for BsaI) to `excluded_motifs` when designing upstream elements. This only constrains newly designed elements—if your input sequences already contain the site, choose a different enzyme or redesign those sequences.
 
 **CLI Equivalent**:
 ```bash

@@ -46,13 +46,16 @@ def index(
         - A dictionary of stats from the last step in pipeline.
 
     Notes:
-        - `barcode_data` and `associate_data` require unique 'ID' column; others must be non-empty DNA strings.
-        - Provide at least one anchor each of `{barcode|associate}_{prefix|suffix}_column`.
-        - For error-free indexing, specified columns should be adjacent to `{barcode|associate}_column`.
-        - In NGS reads, barcode `{prefix|suffix}` must be `barcode_{prefix|suffix}_gap` bases away from barcode.
-        - For association counting, partial presence of associate variant suffices; however, their
-          `{prefix|suffix}` constants must be adjacent and present completely.
-        - Multiple indices may be used simultaneously for combinatorial counting (association ignored).
+        - `barcode_data` (and `associate_data`, if provided) must contain a unique 'ID' column; all other
+          columns used for indexing must be non-empty DNA strings.
+        - Provide at least one of `barcode_prefix_column` or `barcode_suffix_column` (and likewise for the
+          associate, if used).
+        - For error-free indexing, anchor columns should be adjacent to the corresponding barcode/associate column.
+        - In reads, anchors must be exactly `barcode_{prefix|suffix}_gap` bases away from the barcode (same for
+          associate anchors).
+        - For association counting, partial presence of the associate variant can be sufficient; however, its
+          prefix/suffix anchors must be adjacent and fully present.
+        - Multiple indices may be used simultaneously for combinatorial counting (associate info is ignored).
         - Anchor sequences can be designed with `motif(motif_type=1, ...)` and then referenced via
           `{barcode|associate}_{prefix|suffix}_column`.
     '''

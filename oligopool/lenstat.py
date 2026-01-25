@@ -28,7 +28,7 @@ def lenstat(
         - A dictionary of stats from the last step in pipeline.
 
     Notes:
-        - `input_data` must contain a unique 'ID' column, all other columns must be non-empty DNA strings.
+        - `input_data` must contain a unique 'ID' column; all other columns must be non-empty DNA strings.
         - `lenstat` does not modify `input_data` and does not require an `output_file`.
         - Use `lenstat` to track free space under `oligo_length_limit` (e.g., before using `spacer`).
         - `lenstat` assumes all non-ID columns are DNA strings; if your DataFrame contains annotation columns

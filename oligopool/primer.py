@@ -71,23 +71,23 @@ def primer(
         - A dictionary of stats from the last step in pipeline.
 
     Notes:
-        - `input_data` must contain a unique 'ID' column, all other columns must be non-empty DNA strings.
-        - Column names in `input_data` must be unique, and exclude `primer_column`.
+        - `input_data` must contain a unique 'ID' column; all other columns must be non-empty DNA strings.
+          Column names must be unique and exclude `primer_column`.
         - At least one of `left_context_column` or `right_context_column` must be specified.
         - The paired primer type is inferred based on the current primer type.
-        - If a paired primer is specified, Tm of the designed primer is optimized within 1°C of it.
-        - `maximum_repeat_length` controls non-repetitiveness against `input_data` only.
-          To screen against a background, build a background DB with `background(...)` and
-          pass it via `background_directory`.
+        - If `paired_primer_column` is specified, Tm of the designed primer is optimized within 1°C of it.
+        - `maximum_repeat_length` controls non-repetitiveness against `input_data` only; to screen against a
+          background, build a background DB with `background(...)` and pass it via `background_directory`.
         - If `excluded_motifs` is a CSV or DataFrame, it must have an 'Exmotif' column.
         - Constant motifs in sequence constraint may lead to sub-optimal primers.
-        - Chained primer design: design one primer, then design its partner by passing `paired_primer_column`.
-        - `oligo_sets` labels can be any values usable for grouping (e.g., strings or integers).
-          Primers are designed per set and screened for cross-set compatibility; if `paired_primer_column`
-          is provided, pairing/Tm matching is applied per set (paired primers must be constant within each set).
+        - Chained primer design: design one primer, then its partner via `paired_primer_column`
+          (pairing is inferred from `primer_type`).
+        - `oligo_sets` can be any group labels. Primers are designed per set and screened for cross-set
+          compatibility; if `paired_primer_column` is provided, it must be constant within each set and
+          pairing/Tm matching is applied per set.
         - Patch mode (`patch_mode=True`) preserves existing values in `primer_column` and fills only missing values
-          (`None`/NaN/empty/`'-'`). In `oligo_sets` mode, existing per-set primers are reused and missing-only sets
-          trigger new primer design.
+          (`None`/NaN/empty/`'-'`). With `oligo_sets`, existing per-set primers are reused and missing-only sets
+          trigger new per-set primer design.
     '''
 
     # Preserve return style when the caller intentionally used ID as index.

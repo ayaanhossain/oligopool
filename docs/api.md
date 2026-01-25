@@ -72,8 +72,8 @@ df, stats = op.barcode(
     cross_barcode_columns=None,    # str | list[str] | None
     minimum_cross_distance=None,   # int | None
     excluded_motifs=None,          # list | str | pd.DataFrame | None
-    verbose=True,                  # bool
     random_seed=None,              # int | None
+    verbose=True,                  # bool
 )
 ```
 
@@ -89,15 +89,15 @@ df, stats = op.barcode(
 **Optional Parameters**
 
 - `output_file` (str | None, default=None): Output CSV path (required for CLI)
-- `barcode_type` (int | str, default=0): `0`/`'terminus'`=fast terminus-optimized (targets distinctive 5'/3' ends), `1`/`'spectrum'`=thorough spectrum-optimized (targets k-mer saturation). Also accepts: `'term'`, `'fast'`, `'spec'`, `'slow'`
+- `barcode_type` (int | str, default=0): `0`/`'terminus'`=fast terminus-optimized (targets distinctive 5'/3' ends), `1`/`'spectrum'`=thorough spectrum-optimized (targets k-mer saturation). Also accepts: `'term'`, `'t'`, `'fast'`, `'spec'`, `'s'`, `'slow'`
 - `left_context_column` (str | None, default=None): Column for left DNA context
 - `right_context_column` (str | None, default=None): Column for right DNA context
 - `patch_mode` (bool, default=False): Fill only missing values (`None`/`NaN`/empty/`'-'`); existing values must be valid ATGC of length `barcode_length`
 - `cross_barcode_columns` (str | list[str] | None, default=None): Existing barcode column(s) for cross-set separation
 - `minimum_cross_distance` (int | None, default=None): Min Hamming distance to cross set (requires `cross_barcode_columns`)
 - `excluded_motifs` (list | str | DataFrame | None, default=None): Motifs to exclude (list, CSV, DataFrame with `Exmotif` column, or FASTA)
-- `verbose` (bool, default=True): Print progress output
 - `random_seed` (int | None, default=None): RNG seed for reproducibility
+- `verbose` (bool, default=True): Print progress output
 
 **Returns**: `(DataFrame, stats_dict)`
 
@@ -151,8 +151,8 @@ df, stats = op.primer(
     paired_primer_column=None,     # str | None
     excluded_motifs=None,          # list | str | pd.DataFrame | None
     background_directory=None,     # str | None
-    verbose=True,                  # bool
     random_seed=None,              # int | None
+    verbose=True,                  # bool
 )
 ```
 
@@ -177,8 +177,8 @@ df, stats = op.primer(
 - `paired_primer_column` (str | None, default=None): Column of paired primer for Tm matching (within 1°C)
 - `excluded_motifs` (list | str | DataFrame | None, default=None): Motifs to exclude (list, CSV, DataFrame with `Exmotif`, or FASTA)
 - `background_directory` (str | None, default=None): Background k-mer DB from `background()` for off-target screening
-- `verbose` (bool, default=True): Print progress output
 - `random_seed` (int | None, default=None): RNG seed for reproducibility
+- `verbose` (bool, default=True): Print progress output
 
 **Returns**: `(DataFrame, stats_dict)`
 
@@ -230,8 +230,8 @@ df, stats = op.motif(
     right_context_column=None,     # str | None
     patch_mode=False,              # bool
     excluded_motifs=None,          # list | str | pd.DataFrame | None
-    verbose=True,                  # bool
     random_seed=None,              # int | None
+    verbose=True,                  # bool
 )
 ```
 
@@ -246,13 +246,13 @@ df, stats = op.motif(
 **Optional Parameters**
 
 - `output_file` (str | None, default=None): Output CSV path (required for CLI)
-- `motif_type` (int | str, default=0): `0`/`'variable'`=per-variant motifs (unique per row), `1`/`'constant'`=single motif/anchor shared by all rows. Also accepts: `'var'`, `'per-variant'`, `'const'`, `'anchor'`
+- `motif_type` (int | str, default=0): `0`/`'variable'`=per-variant motifs (unique per row), `1`/`'constant'`=single motif/anchor shared by all rows. Also accepts: `'var'`, `'per-variant'`, `'non-constant'`, `'const'`, `'anchor'`, `'fixed'`
 - `left_context_column` (str | None, default=None): Column for left DNA context
 - `right_context_column` (str | None, default=None): Column for right DNA context
 - `patch_mode` (bool, default=False): Fill only missing values; for `motif_type=1`, existing anchor (must be unique across all rows) is reused
 - `excluded_motifs` (list | str | DataFrame | None, default=None): Motifs to exclude (list, CSV, DataFrame with `Exmotif`, or FASTA)
-- `verbose` (bool, default=True): Print progress output
 - `random_seed` (int | None, default=None): RNG seed for reproducibility
+- `verbose` (bool, default=True): Print progress output
 
 **Returns**: `(DataFrame, stats_dict)`
 
@@ -301,8 +301,8 @@ df, stats = op.spacer(
     right_context_column=None,     # str | None
     patch_mode=False,              # bool
     excluded_motifs=None,          # list | str | pd.DataFrame | None
-    verbose=True,                  # bool
     random_seed=None,              # int | None
+    verbose=True,                  # bool
 )
 ```
 
@@ -321,8 +321,8 @@ df, stats = op.spacer(
 - `right_context_column` (str | None, default=None): Column for right DNA context
 - `patch_mode` (bool, default=False): Fill only missing values (`None`/`NaN`/empty/`'-'`)
 - `excluded_motifs` (list | str | DataFrame | None, default=None): Motifs to exclude (list, CSV, DataFrame with `Exmotif`, or FASTA)
-- `verbose` (bool, default=True): Print progress output
 - `random_seed` (int | None, default=None): RNG seed for reproducibility
+- `verbose` (bool, default=True): Print progress output
 
 **Returns**: `(DataFrame, stats_dict)`
 
@@ -432,7 +432,7 @@ df, stats = op.split(
 
 **Returns**:
 - `(DataFrame, stats_dict)` when `separate_outputs=False` (default) — output contains `Split1`, `Split2`, ... columns
-- `([DataFrame, ...], stats_dict)` when `separate_outputs=True` — one DataFrame per `SplitN` column
+- `([DataFrame, ...], stats_dict)` when `separate_outputs` is enabled — one DataFrame per `SplitN` column
 
 **Notes**:
 - Number of fragments varies per oligo; even-numbered splits (`Split2`, `Split4`, ...) are reverse-complemented
@@ -867,7 +867,7 @@ stats = op.pack(
 
 - `r1_fastq_file` (str): R1 FastQ path (supports `.gz`)
 - `r1_read_type` (int | str): `0`/`'forward'`=forward, `1`/`'reverse'`=reverse orientation. Also accepts: `'fwd'`, `'f'`, `'rev'`, `'r'`
-- `pack_type` (int | str): `0`/`'concatenate'`=concatenate pairs, `1`/`'merge'`=merge/assemble overlapping pairs. Also accepts: `'concat'`, `'cat'`, `'join'`, `'merged'`, `'assemble'`, `'asm'`
+- `pack_type` (int | str): `0`/`'concatenate'`=concatenate pairs, `1`/`'merge'`=merge/assemble overlapping pairs. Also accepts: `'concatenated'`, `'concat'`, `'cat'`, `'joined'`, `'join'`, `'merged'`, `'assemble'`, `'assembled'`, `'asm'`
 - `pack_file` (str): Output basename (writes `<name>.oligopool.pack`)
 
 **Optional Parameters (R1 Filters)**
@@ -947,7 +947,7 @@ counts_df, stats = op.acount(
 
 **Optional Parameters**
 
-- `mapping_type` (int | str, default=0): `0`/`'fast'`=fast/near-exact, `1`/`'sensitive'`=slow/sensitive. Also accepts: `'quick'`, `'sens'`, `'accurate'`
+- `mapping_type` (int | str, default=0): `0`/`'fast'`=fast/near-exact, `1`/`'sensitive'`=slow/sensitive. Also accepts: `'quick'`, `'near-exact'`, `'sens'`, `'accurate'`, `'slow'`
 - `barcode_errors` (int, default=-1): Max barcode errors (`-1`=auto from index)
 - `associate_errors` (int, default=-1): Max associate errors (`-1`=auto from index)
 - `callback` (callable | None, default=None): Custom read filter function (Python API only)
@@ -1019,7 +1019,7 @@ counts_df, stats = op.xcount(
 
 **Optional Parameters**
 
-- `mapping_type` (int | str, default=0): `0`/`'fast'`=fast/near-exact, `1`/`'sensitive'`=slow/sensitive. Also accepts: `'quick'`, `'sens'`, `'accurate'`
+- `mapping_type` (int | str, default=0): `0`/`'fast'`=fast/near-exact, `1`/`'sensitive'`=slow/sensitive. Also accepts: `'quick'`, `'near-exact'`, `'sens'`, `'accurate'`, `'slow'`
 - `barcode_errors` (int, default=-1): Max barcode errors (`-1`=auto from index)
 - `callback` (callable | None, default=None): Custom read filter function (Python API only)
 - `core_count` (int, default=0): CPU cores (`0`=auto)

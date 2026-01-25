@@ -51,7 +51,7 @@ To learn more, please check out [our paper in ACS Synthetic Biology](https://pub
 <a id="ai-assisted-design"></a>
 ## 🤖 AI-Assisted Design
 
-`Oligopool Calculator` is optimized for AI-assisted workflows. Either upload the [`docs/agent-skills.md`](https://github.com/ayaanhossain/oligopool/blob/master/docs/agent-skills.md) file directly with you agent, or share the following raw URL directly.
+`Oligopool Calculator` is optimized for AI-assisted workflows. Either share the [`docs/agent-skills.md`](https://github.com/ayaanhossain/oligopool/blob/master/docs/agent-skills.md) file with your agent, or share the following raw URL for direct parsing.
 ```
 https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/agent-skills.md
 ```

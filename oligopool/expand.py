@@ -21,21 +21,20 @@ def expand(
     '''
     Expand IUPAC-degenerate sequences into all concrete A/T/G/C sequences.
 
-    This is a verification tool to confirm that compress output correctly represents
-    all original variants. The expansion enumerates all possible concrete sequences
-    from degenerate IUPAC codes.
+    This is primarily a Degenerate Mode utility: use it to sanity-check that `compress`
+    output covers exactly (and only) the original concrete sequences.
 
     Required Parameters:
         - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with
-            degenerate sequences. Must contain an `ID` column (or `DegenerateID`
-            from `compress` output).
+            degenerate sequences. Must contain an `ID` column (or `DegenerateID` from
+            `compress` output).
         - `sequence_column` (`str`): Column name containing IUPAC-degenerate sequences
             to expand.
 
     Optional Parameters:
         - `output_file` (`str`): Filename for output DataFrame with expanded sequences
             (default: `None`). A `.oligopool.expand.csv` suffix is added if missing.
-        - `expansion_limit` (`int`): Safety cap for maximum total expanded sequences.
+        - `expansion_limit` (`int` / `None`): Safety cap for maximum total expanded sequences.
             If the estimated expansion would exceed this limit, expansion is infeasible
             (default: `None` for no limit).
         - `verbose` (`bool`): If `True`, logs progress updates to stdout (default: `True`).
@@ -47,11 +46,9 @@ def expand(
             `input_sequences`, `expanded_sequences`, `expansion_factor`.
 
     Notes:
-        - Primarily used as a verification tool to confirm compress output.
-        - Does NOT recover original variant IDs; use mapping_df from compress for that.
-        - IUPAC codes: N=any, R=A/G, Y=C/T, S=C/G, W=A/T, K=G/T, M=A/C,
-          B=C/G/T, D=A/G/T, H=A/C/T, V=A/C/G.
-        - Expansion can be exponential; use expansion_limit for safety with highly
+        - Output IDs correspond to the input IDs (often `DegenerateID`), not original
+          variant IDs; use `mapping_df` from `compress` to map back to variant `ID`s.
+        - Expansion can be exponential; use `expansion_limit` when working with highly
           degenerate sequences.
     '''
 

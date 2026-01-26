@@ -21,17 +21,16 @@ def compress(
     random_seed:int|None=None,
     verbose:bool=True) -> Tuple[pd.DataFrame, pd.DataFrame, dict]:
     '''
-    Compress concrete DNA sequences into IUPAC-degenerate representation.
+    Compress concrete DNA sequences into IUPAC-degenerate oligos for `Degenerate Mode`.
 
-    Degenerate Mode enables cost-efficient synthesis of ML-generated variant libraries.
-    Similar sequences are grouped and represented as degenerate oligos using IUPAC codes,
-    reducing the number of oligos to synthesize while preserving all original variants.
+    This reduces synthesis cost for large variant libraries by grouping similar concrete
+    sequences into fewer degenerate representations while preserving the full set of
+    originals (lossless compression).
 
     Required Parameters:
         - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with
-            variant sequences. Must contain an `ID` column; all other columns are
-            treated as DNA sequence columns and concatenated. Sequences must contain
-            only A/T/G/C characters (no degenerate codes).
+            variant sequences. Must contain a unique 'ID' column; all other columns
+            are treated as strict-ATGC DNA (A/T/G/C only) and concatenated.
 
     Optional Parameters:
         - `mapping_file` (`str`): Filename for output mapping DataFrame that links each
@@ -57,12 +56,12 @@ def compress(
             `compression_ratio`, `min_degeneracy`, `max_degeneracy`, `mean_degeneracy`.
 
     Notes:
-        - All DNA columns in `input_data` are concatenated to form the full sequence.
+        - Compression is lossless: expanding the degenerate oligos recovers exactly the
+          set of unique input sequences (no extras, no missing).
         - Sequences of different lengths are compressed independently by length group.
-        - If no compression is possible, returns 1:1 mapping (compression_ratio=1.0).
-        - The core algorithm uses Monte Carlo tree search with greedy rollout.
-        - Core guarantee (lossless): for every prefix P of a degenerate oligo,
-          degeneracy(P) <= count(variants compatible with P).
+        - `rollout_simulations` and `rollout_horizon` trade off runtime vs compression ratio.
+        - `mapping_df` is your traceability map for mapping sequenced survivors back to
+          original `ID`s; `expand` is useful as a sanity check for compression.
     '''
 
     # Preserve return style when the caller intentionally used ID as index.

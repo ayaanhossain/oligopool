@@ -904,6 +904,74 @@ for i, split_df in enumerate(split_dfs, start=1):
 
 ---
 
+### Degenerate Library Compression
+
+When you have ML-generated or computationally designed variant libraries with many similar sequences, use `compress` to reduce synthesis costs:
+
+```python
+import oligopool as op
+import pandas as pd
+
+# 1. Start with concrete variant sequences (A/T/G/C only)
+# These might come from ML models, directed evolution, or combinatorial design
+df = pd.DataFrame({
+    'ID': ['v1', 'v2', 'v3', 'v4', 'v5'],
+    'Sequence': [
+        'ATGCATGCATGCATGC',  # Similar sequences compress well
+        'ATGCATGCATGCATGT',  # Differs by 1 position
+        'ATGCATGCATGCATGA',  # Differs by 1 position
+        'GCTAGCTAGCTAGCTA',  # Different group
+        'GCTAGCTAGCTAGCTG',  # Differs by 1 position
+    ]
+})
+
+# 2. Compress into IUPAC-degenerate oligos
+mapping_df, synthesis_df, stats = op.compress(
+    input_data=df,
+    mapping_file='variant_mapping',      # Maps original IDs to degenerate oligos
+    synthesis_file='degenerate_oligos',  # Ready for synthesis ordering
+    rollout_simulations=100,             # Higher = better compression, slower
+    rollout_horizon=4,                   # Lookahead positions
+    random_seed=42,                      # For reproducibility
+)
+
+# 3. Check compression results
+print(f"Compression ratio: {stats['vars']['compression_ratio']}x")
+print(f"Original variants: {stats['vars']['input_variants']}")
+print(f"Degenerate oligos: {stats['vars']['degenerate_oligos']}")
+
+# synthesis_df contains:
+#   DegenerateID | DegenerateSeq | Degeneracy | OligoLength
+# Example: 'ATGCATGCATGCATGW' covers v1, v2, v3 (W = A or T)
+
+# mapping_df links back:
+#   ID | Sequence | DegenerateID
+
+# 4. Verify compression is lossless (optional)
+expanded_df, expand_stats = op.expand(
+    input_data=synthesis_df,
+    sequence_column='DegenerateSeq',
+)
+# expanded_df should contain exactly the original sequences
+```
+
+**Key points**:
+- Input must be concrete DNA (A/T/G/C only) - no IUPAC codes
+- All non-ID columns are concatenated as the sequence
+- Similar sequences (few differing positions) compress best
+- Diverse sequences may not compress (returns 1:1 mapping)
+- `mapping_df` is essential for tracing sequenced variants back to original IDs
+- Use `expand` to verify compression covers exactly the input sequences
+- Compression is lossless: no extra sequences, no missing sequences
+
+**When to use**:
+- ML-generated protein/RNA variant libraries
+- Saturation mutagenesis with overlapping mutations
+- Directed evolution libraries with clustered sequences
+- Any scenario where synthesis cost scales with oligo count
+
+---
+
 ### Analysis Pipeline
 ```python
 # 1. Build index files
@@ -1289,7 +1357,15 @@ op complete --install
 - Fill to target length → `spacer`
 - Screen against genome/plasmid → `background` then `primer` with `background_directory`
 - Handle long oligos → `split` + `pad`
+- Reduce synthesis cost for similar sequences → `compress`
+- Verify degenerate oligo coverage → `expand`
 - Count reads → `index` + `pack` + `acount` or `xcount`
+
+**"compress or standard design?"**
+- Many similar sequences (ML-generated, saturation mutagenesis) → `compress` to reduce oligo count
+- Diverse sequences or need precise barcoding → standard Design Mode workflow
+- Selection-based assay (all variants compete) → `compress` works well
+- Need individual variant tracking → standard design with barcodes
 
 **"acount or xcount?"**
 - Need to verify barcode-variant pairing → `acount`

@@ -779,6 +779,11 @@ def get_compressed_group(
     active = np.ones(bases.shape[0], dtype=bool)
     pool = get_pool_view(bases=bases, active=active)
 
+    # Compute print lengths for progress output
+    # Max index = len(unique_sequences), max coverage = len(unique_sequences)
+    ilen = ut.get_printlen(value=len(unique_sequences))
+    clen = ut.get_printlen(value=len(unique_sequences))
+
     results = []
     total_covered = 0
     degenerate_idx = 0
@@ -835,12 +840,12 @@ def get_compressed_group(
             seq_preview = degenerate[:20] + '..' if len(degenerate) > 22 else degenerate
             if group_length:
                 liner.send(
-                    ' Degenerate {:>5}: {} Covers {:>5} Variant(s)\n'.format(
-                        degenerate_idx, seq_preview, newly_covered))
+                    ' Degenerate {:{},d}: {} Covers {:{},d} Variant(s)\n'.format(
+                        degenerate_idx, ilen, seq_preview, newly_covered, clen))
             else:
                 liner.send(
-                    '|* Degenerate {:>5}: {} Covers {:>5} Variant(s)'.format(
-                        degenerate_idx, seq_preview, newly_covered))
+                    '|* Degenerate {:{},d}: {} Covers {:{},d} Variant(s)'.format(
+                        degenerate_idx, ilen, seq_preview, newly_covered, clen))
 
     return results, total_covered
 

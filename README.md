@@ -38,8 +38,8 @@ To learn more, please check out [our paper in ACS Synthetic Biology](https://pub
 <a id="features"></a>
 ## ✨ Features
 
-- 🧬 **Design mode:** constraint-based design of barcodes, primers, motifs/anchors, and spacers (`barcode`, `primer`, `motif`, `spacer`), with background screening and utilities (`background`, `merge`, `revcomp`, `lenstat`, `verify`, `final`).
-- 🔧 **Assembly mode:** fragment long oligos into overlapping pieces and add Type IIS primer pads for scarless Golden Gate assembly (`split`, `pad`).
+- 🧬 **Design mode:** constraint-based design of barcodes, primers, motifs/anchors, and spacers (`barcode`, `primer`, `motif`, `spacer`), with background screening (`background`) and utilities (`merge`, `revcomp`, `lenstat`, `verify`, `final`).
+- 🔧 **Assembly mode:** fragment long oligos into overlapping pieces and add Type IIS primer pads for scarless assembly (`split`, `pad`).
 - 🧪 **Degenerate mode:** compress ML-generated variant libraries into IUPAC-degenerate oligos for cost-efficient synthesis (`compress`, `expand`).
 - 📈 **Analysis mode:** fast activity quantification with read indexing, packing, and barcode/associate counting (`index`, `pack`, `acount`, `xcount`) extensible with callback methods (via Python library).
 - 🔁 **Iterative & multiplexed workflows:** patch mode for extending existing pools, cross-set barcode separation, and per-group primer design with cross-compatibility screening.

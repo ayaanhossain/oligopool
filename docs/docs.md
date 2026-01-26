@@ -461,102 +461,6 @@ df, stats = op.primer(..., background_directory='ecoli_bg')
 
 ---
 
-## Assembly Mode
-
-[↑ Back to TOC](#table-of-contents)
-
-Assembly Mode provides tools for fragmenting long oligos that exceed synthesis length limits into overlapping pieces for assembly workflows.
-
-### split
-
-[↑ Back to TOC](#table-of-contents)
-
-**What it does**: Breaks long oligos into overlapping fragments for overlap-based assembly (Gibson, overlap-extension PCR, etc.).
-
-**When to use it**: Your oligos exceed synthesis length limits (~200 bp).
-
-```python
-split_df, stats = op.split(
-    input_data=df,
-    split_length_limit=150,               # Max fragment length
-    minimum_melting_temperature=55.0,     # Overlap Tm
-    minimum_hamming_distance=3,           # Overlap uniqueness
-    minimum_overlap_length=20,
-    maximum_overlap_length=30,
-    output_file='split_library',
-)
-```
-
-Output contains `Split1`, `Split2`, ... columns with fragments ready for assembly.
-
-**Key concept: Each column = one oligo pool to synthesize**
-
-When `split` returns `Split1`, `Split2`, `Split3` columns, you will **order three separate oligo pools** from your synthesis vendor (one per column). After synthesis, these fragments are combined via overlap-based assembly (Gibson, overlap-extension PCR, etc.) to reconstruct the full-length oligo.
-
-**Notes (the stuff that bites people):**
-- The number of fragments is automatically chosen and can vary per oligo (some rows may not have all `Split*` columns populated).
-- Fragments are returned in PCR/assembly order; even-numbered split columns (`Split2`, `Split4`, ...) are reverse-complemented by design. This alternating orientation enables efficient PCR-based assembly where adjacent fragments anneal via their overlapping regions.
-- `split` returns only the split fragments (your original annotation columns are not preserved). Save the annotated library separately if you need it later.
-- As a rule of thumb, keep `minimum_overlap_length` comfortably larger than `minimum_hamming_distance`.
-- **Raw split output is not synthesis-ready for assembly** — run `pad` per `SplitN` to add primers/Type IIS sites, then `final` each padded DataFrame.
-- For separate per-fragment outputs: in Python, enable `separate_outputs`; in CLI, this is already the default (writes `out.Split1.oligopool.split.csv`, etc.). Use `--no-separate-outputs` in CLI for a single combined file.
-
-> **API Reference**: See [`split`](api.md#split) for complete parameter documentation.
-
----
-
-### pad
-
-[↑ Back to TOC](#table-of-contents)
-
-**What it does**: Adds primers and Type IIS restriction sites to split fragments for scarless assembly.
-
-**When to use it**: After `split`, to make fragments synthesis-ready and assembly-compatible.
-
-**Run `pad` once per split column** - each call produces a synthesis-ready DataFrame for that fragment:
-
-```python
-# After split returns Split1, Split2, Split3 columns:
-split_df, _ = op.split(input_data=df, ...)
-
-# Pad each fragment separately
-pad1_df, _ = op.pad(input_data=split_df, split_column='Split1', typeIIS_system='BsaI', ...)
-pad2_df, _ = op.pad(input_data=split_df, split_column='Split2', typeIIS_system='BsaI', ...)
-pad3_df, _ = op.pad(input_data=split_df, split_column='Split3', typeIIS_system='BsaI', ...)
-
-# Finalize each for synthesis
-final1_df, _ = op.final(input_data=pad1_df, output_file='synthesis_split1')
-final2_df, _ = op.final(input_data=pad2_df, output_file='synthesis_split2')
-final3_df, _ = op.final(input_data=pad3_df, output_file='synthesis_split3')
-
-# You now have 3 CSV files to send to your synthesis vendor
-```
-
-**Notes (the stuff that bites people):**
-- **Run `pad` separately for each fragment** (e.g., `Split1`, `Split2`, ...). You cannot pad all columns in one call.
-- **The chosen Type IIS recognition site must be absent from your split fragments** (in either orientation). If fragments contain internal cut sites, they will be cleaved during digest. `pad` checks this and fails early if conflicts are found.
-- **Exclude your Type IIS motif from upstream design elements.** If you plan to use `BsaI` for padding, add its recognition site (`GGTCTC`) and reverse complement (`GAGACC`) to `excluded_motifs` when designing primers, barcodes, motifs, and spacers. This helps prevent internal cut sites from showing up in newly designed elements (it doesn’t “clean” a core/variant sequence that already contains the site — in that case, choose a different enzyme or redesign the offending sequences).
-- Output columns are `5primeSpacer`, `ForwardPrimer`, `<split_column>`, `ReversePrimer`, `3primeSpacer` (other `split_df` columns are not preserved).
-- If a fragment can't fit under `oligo_length_limit`, the spacer(s) for that row are set to `'-'` (a deliberate "no-space" sentinel).
-- The supported Type IIS enzymes list is the "batteries included" set for pad removal.
-
-**Post-synthesis workflow** (after you get your oligos back):
-1. **PCR amplify** the padded fragments
-2. **Type IIS digest** → excises primers and spacers, leaving enzyme-specific sticky overhangs (the overhangs are primer-derived, not from your fragment)
-3. **Mung bean nuclease** (optional) → blunts the overhangs; skip this step if using a blunt-cutter like `MlyI`
-4. **Assemble** the cleaned fragments via their **split-designed overlaps** (Gibson, overlap-extension PCR, etc.)
-
-The Type IIS enzyme is for **pad removal**, not fragment-to-fragment ligation — the 15–30 bp overlaps from `split` drive the actual assembly.
-
-**Supported Type IIS enzymes (34 total):**
-`AcuI`, `AlwI`, `BbsI`, `BccI`, `BceAI`, `BciVI`, `BcoDI`, `BmrI`, `BpuEI`, `BsaI`, `BseRI`, `BsmAI`, `BsmBI`, `BsmFI`, `BsmI`, `BspCNI`, `BspQI`, `BsrDI`, `BsrI`, `BtgZI`, `BtsCI`, `BtsI`, `BtsIMutI`, `EarI`, `EciI`, `Esp3I`, `FauI`, `HgaI`, `HphI`, `HpyAV`, `MlyI`, `MnlI`, `SapI`, `SfaNI`
-
-For other enzymes, design primers manually with the appropriate recognition/cut sites using `primer` or `motif`.
-
-> **API Reference**: See [`pad`](api.md#pad) for complete parameter documentation.
-
----
-
 ### merge
 
 [↑ Back to TOC](#table-of-contents)
@@ -695,6 +599,102 @@ final_df, stats = op.final(
 - `final` is typically the terminal design step before synthesis.
 
 > **API Reference**: See [`final`](api.md#final) for complete parameter documentation.
+
+---
+
+## Assembly Mode
+
+[↑ Back to TOC](#table-of-contents)
+
+Assembly Mode provides tools for fragmenting long oligos that exceed synthesis length limits into overlapping pieces for assembly workflows.
+
+### split
+
+[↑ Back to TOC](#table-of-contents)
+
+**What it does**: Breaks long oligos into overlapping fragments for overlap-based assembly (Gibson, overlap-extension PCR, etc.).
+
+**When to use it**: Your oligos exceed synthesis length limits (~200 bp).
+
+```python
+split_df, stats = op.split(
+    input_data=df,
+    split_length_limit=150,               # Max fragment length
+    minimum_melting_temperature=55.0,     # Overlap Tm
+    minimum_hamming_distance=3,           # Overlap uniqueness
+    minimum_overlap_length=20,
+    maximum_overlap_length=30,
+    output_file='split_library',
+)
+```
+
+Output contains `Split1`, `Split2`, ... columns with fragments ready for assembly.
+
+**Key concept: Each column = one oligo pool to synthesize**
+
+When `split` returns `Split1`, `Split2`, `Split3` columns, you will **order three separate oligo pools** from your synthesis vendor (one per column). After synthesis, these fragments are combined via overlap-based assembly (Gibson, overlap-extension PCR, etc.) to reconstruct the full-length oligo.
+
+**Notes (the stuff that bites people):**
+- The number of fragments is automatically chosen and can vary per oligo (some rows may not have all `Split*` columns populated).
+- Fragments are returned in PCR/assembly order; even-numbered split columns (`Split2`, `Split4`, ...) are reverse-complemented by design. This alternating orientation enables efficient PCR-based assembly where adjacent fragments anneal via their overlapping regions.
+- `split` returns only the split fragments (your original annotation columns are not preserved). Save the annotated library separately if you need it later.
+- As a rule of thumb, keep `minimum_overlap_length` comfortably larger than `minimum_hamming_distance`.
+- **Raw split output is not synthesis-ready for assembly** — run `pad` per `SplitN` to add primers/Type IIS sites, then `final` each padded DataFrame.
+- For separate per-fragment outputs: in Python, enable `separate_outputs`; in CLI, this is already the default (writes `out.Split1.oligopool.split.csv`, etc.). Use `--no-separate-outputs` in CLI for a single combined file.
+
+> **API Reference**: See [`split`](api.md#split) for complete parameter documentation.
+
+---
+
+### pad
+
+[↑ Back to TOC](#table-of-contents)
+
+**What it does**: Adds primers and Type IIS restriction sites to split fragments for scarless assembly.
+
+**When to use it**: After `split`, to make fragments synthesis-ready and assembly-compatible.
+
+**Run `pad` once per split column** - each call produces a synthesis-ready DataFrame for that fragment:
+
+```python
+# After split returns Split1, Split2, Split3 columns:
+split_df, _ = op.split(input_data=df, ...)
+
+# Pad each fragment separately
+pad1_df, _ = op.pad(input_data=split_df, split_column='Split1', typeIIS_system='BsaI', ...)
+pad2_df, _ = op.pad(input_data=split_df, split_column='Split2', typeIIS_system='BsaI', ...)
+pad3_df, _ = op.pad(input_data=split_df, split_column='Split3', typeIIS_system='BsaI', ...)
+
+# Finalize each for synthesis
+final1_df, _ = op.final(input_data=pad1_df, output_file='synthesis_split1')
+final2_df, _ = op.final(input_data=pad2_df, output_file='synthesis_split2')
+final3_df, _ = op.final(input_data=pad3_df, output_file='synthesis_split3')
+
+# You now have 3 CSV files to send to your synthesis vendor
+```
+
+**Notes (the stuff that bites people):**
+- **Run `pad` separately for each fragment** (e.g., `Split1`, `Split2`, ...). You cannot pad all columns in one call.
+- **The chosen Type IIS recognition site must be absent from your split fragments** (in either orientation). If fragments contain internal cut sites, they will be cleaved during digest. `pad` checks this and fails early if conflicts are found.
+- **Exclude your Type IIS motif from upstream design elements.** If you plan to use `BsaI` for padding, add its recognition site (`GGTCTC`) and reverse complement (`GAGACC`) to `excluded_motifs` when designing primers, barcodes, motifs, and spacers. This helps prevent internal cut sites from showing up in newly designed elements (it doesn't "clean" a core/variant sequence that already contains the site — in that case, choose a different enzyme or redesign the offending sequences).
+- Output columns are `5primeSpacer`, `ForwardPrimer`, `<split_column>`, `ReversePrimer`, `3primeSpacer` (other `split_df` columns are not preserved).
+- If a fragment can't fit under `oligo_length_limit`, the spacer(s) for that row are set to `'-'` (a deliberate "no-space" sentinel).
+- The supported Type IIS enzymes list is the "batteries included" set for pad removal.
+
+**Post-synthesis workflow** (after you get your oligos back):
+1. **PCR amplify** the padded fragments
+2. **Type IIS digest** → excises primers and spacers, leaving enzyme-specific sticky overhangs (the overhangs are primer-derived, not from your fragment)
+3. **Mung bean nuclease** (optional) → blunts the overhangs; skip this step if using a blunt-cutter like `MlyI`
+4. **Assemble** the cleaned fragments via their **split-designed overlaps** (Gibson, overlap-extension PCR, etc.)
+
+The Type IIS enzyme is for **pad removal**, not fragment-to-fragment ligation — the 15–30 bp overlaps from `split` drive the actual assembly.
+
+**Supported Type IIS enzymes (34 total):**
+`AcuI`, `AlwI`, `BbsI`, `BccI`, `BceAI`, `BciVI`, `BcoDI`, `BmrI`, `BpuEI`, `BsaI`, `BseRI`, `BsmAI`, `BsmBI`, `BsmFI`, `BsmI`, `BspCNI`, `BspQI`, `BsrDI`, `BsrI`, `BtgZI`, `BtsCI`, `BtsI`, `BtsIMutI`, `EarI`, `EciI`, `Esp3I`, `FauI`, `HgaI`, `HphI`, `HpyAV`, `MlyI`, `MnlI`, `SapI`, `SfaNI`
+
+For other enzymes, design primers manually with the appropriate recognition/cut sites using `primer` or `motif`.
+
+> **API Reference**: See [`pad`](api.md#pad) for complete parameter documentation.
 
 ---
 

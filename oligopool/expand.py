@@ -21,12 +21,12 @@ def expand(
     '''
     Expand IUPAC-degenerate sequences into all concrete A/T/G/C sequences.
 
-    This is primarily a Degenerate Mode utility: use it to sanity-check that `compress`
-    output covers exactly (and only) the original concrete sequences.
+    This is a Degenerate Mode utility: use it to sanity-check that `compress` output
+    covers exactly (and only) the original concrete sequences.
 
     Required Parameters:
         - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with
-            degenerate sequences. Must contain an `ID` column (or `DegenerateID` from
+            degenerate sequences. Must contain an 'ID' column (or 'DegenerateID' from
             `compress` output).
         - `sequence_column` (`str`): Column name containing IUPAC-degenerate sequences
             to expand.
@@ -46,7 +46,7 @@ def expand(
             `input_sequences`, `expanded_sequences`, `expansion_factor`.
 
     Notes:
-        - Output IDs correspond to the input IDs (often `DegenerateID`), not original
+        - Output IDs correspond to the input IDs (often 'DegenerateID'), not original
           variant IDs; use `mapping_df` from `compress` to map back to variant `ID`s.
         - Expansion can be exponential; use `expansion_limit` when working with highly
           degenerate sequences.

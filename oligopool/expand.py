@@ -224,6 +224,10 @@ def expand(
     stats['step'] = 2
     stats['step_name'] = 'expanding-sequences'
 
+    # Compute print lengths for progress output
+    ilen = ut.get_printlen(value=num_input_seqs)
+    dlen = ut.get_printlen(value=total_estimated)
+
     # Prepare work items
     work_items = []
     for idx, (row_id, deg_seq) in enumerate(indf[seqcol].items(), start=1):
@@ -255,8 +259,8 @@ def expand(
 
             seq_preview = deg_seq[:20] + '..' if len(deg_seq) > 22 else deg_seq
             liner.send(
-                ' Expanding {:>5}: {} (Degeneracy: {:>5}) -> {:>5} Sequence(s)\n'.format(
-                    idx, seq_preview, degeneracy, len(rows)))
+                ' Expanding {:{},d}: {} (Degeneracy: {:{},d}) -> {:{},d} Sequence(s)\n'.format(
+                    idx, ilen, seq_preview, degeneracy, dlen, len(rows), dlen))
 
     # Single sequence - no parallelization overhead
     else:
@@ -267,8 +271,8 @@ def expand(
 
             seq_preview = deg_seq[:20] + '..' if len(deg_seq) > 22 else deg_seq
             liner.send(
-                ' Expanding {:>5}: {} (Degeneracy: {:>5}) -> {:>5} Sequence(s)\n'.format(
-                    idx, seq_preview, degeneracy, len(rows)))
+                ' Expanding {:{},d}: {} (Degeneracy: {:{},d}) -> {:{},d} Sequence(s)\n'.format(
+                    idx, ilen, seq_preview, degeneracy, dlen, len(rows), dlen))
 
     liner.send('\n')
     liner.send(' Expansion Complete: {:,} -> {:,} Concrete Sequence(s)\n'.format(

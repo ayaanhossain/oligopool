@@ -397,142 +397,6 @@ op background \
 
 ---
 
-## Assembly Mode
-
-Assembly Mode provides tools for fragmenting long oligos that exceed synthesis length limits into overlapping pieces for assembly workflows.
-
-### split
-
-**Purpose**: Break long oligos into overlapping fragments for overlap-based assembly (Gibson, overlap-extension PCR, etc.).
-
-**Signature**:
-```python
-df, stats = op.split(
-    # Required
-    input_data,                    # str | pd.DataFrame
-    split_length_limit,            # int
-    minimum_melting_temperature,   # float
-    minimum_hamming_distance,      # int
-    minimum_overlap_length,        # int
-    maximum_overlap_length,        # int
-
-    # Optional
-    output_file=None,              # str | None
-    random_seed=None,              # int | None
-    separate_outputs=False,        # bool
-    verbose=True,                  # bool
-)
-```
-
-**Required Parameters**
-
-- `input_data` (str | DataFrame): CSV path or DataFrame with `ID` column + DNA sequence columns
-- `split_length_limit` (int): Maximum fragment length (bp)
-- `minimum_melting_temperature` (float): Minimum overlap Tm (°C)
-- `minimum_hamming_distance` (int): Minimum pairwise Hamming distance between overlaps
-- `minimum_overlap_length` (int): Minimum overlap length (bp)
-- `maximum_overlap_length` (int): Maximum overlap length (bp)
-
-**Optional Parameters**
-
-- `output_file` (str | None, default=None): Output CSV path (required for CLI)
-- `random_seed` (int | None, default=None): RNG seed for reproducibility
-- `separate_outputs` (bool, default=False): Return list of per-split DataFrames; if `output_file` set, writes `{base}.SplitN.oligopool.split.csv` files
-- `verbose` (bool, default=True): Print progress output
-
-**Returns**:
-- `(DataFrame, stats_dict)` when `separate_outputs=False` (default) — output contains `Split1`, `Split2`, ... columns
-- `([DataFrame, ...], stats_dict)` when `separate_outputs` is enabled — one DataFrame per `SplitN` column
-
-**Notes**:
-- Number of fragments varies per oligo; even-numbered splits (`Split2`, `Split4`, ...) are reverse-complemented
-- Original annotation columns are not preserved in output
-- Treat each `SplitN` column as its own synthesis pool; run `pad` per `SplitN`, then `final` each padded DataFrame
-- Do not run `final()` on raw multi-column `split` output
-
-**CLI Equivalent**:
-```bash
-op split \
-    --input-data library.csv \
-    --split-length-limit 150 \
-    --minimum-melting-temperature 55 \
-    --minimum-hamming-distance 3 \
-    --minimum-overlap-length 20 \
-    --maximum-overlap-length 30 \
-    --output-file split_library
-```
-Tip: CLI defaults to separate files. Use `--no-separate-outputs` to write a single combined `.oligopool.split.csv`.
-
-[↑ Back to TOC](#table-of-contents)
-
----
-
-### pad
-
-**Purpose**: Add primers and Type IIS restriction sites to split fragments for scarless assembly.
-
-**Signature**:
-```python
-df, stats = op.pad(
-    # Required
-    input_data,                    # str | pd.DataFrame
-    oligo_length_limit,            # int
-    split_column,                  # str
-    typeIIS_system,                # str
-    minimum_melting_temperature,   # float
-    maximum_melting_temperature,   # float
-    maximum_repeat_length,         # int
-
-    # Optional
-    output_file=None,              # str | None
-    random_seed=None,              # int | None
-    verbose=True,                  # bool
-)
-```
-
-**Required Parameters**
-
-- `input_data` (str | DataFrame): Output from `split()` or any DataFrame with fragment column
-- `oligo_length_limit` (int, ≥60): Maximum padded fragment length (bp)
-- `split_column` (str): Which fragment column to pad (e.g., `Split1`)
-- `typeIIS_system` (str): Type IIS enzyme name (see [supported list](#type-iis-enzymes))
-- `minimum_melting_temperature` (float, ≥25): Minimum pad primer Tm (°C)
-- `maximum_melting_temperature` (float, ≤95): Maximum pad primer Tm (°C)
-- `maximum_repeat_length` (int, 6-20): Maximum shared repeat length
-
-**Optional Parameters**
-
-- `output_file` (str | None, default=None): Output CSV path (required for CLI)
-- `random_seed` (int | None, default=None): RNG seed for reproducibility
-- `verbose` (bool, default=True): Print progress output
-
-**Returns**: `(DataFrame, stats_dict)` — output contains `5primeSpacer`, `ForwardPrimer`, `<split_column>`, `ReversePrimer`, `3primeSpacer`
-
-**Notes**:
-- The Type IIS recognition site must be absent from all split fragments (in either orientation); `pad` validates this and fails early if conflicts are found
-- To prevent conflicts, add your Type IIS motif and its reverse complement (e.g., `GGTCTC` and `GAGACC` for BsaI) to `excluded_motifs` when designing upstream elements
-- This only constrains newly designed elements—if your input sequences already contain the site, choose a different enzyme or redesign those sequences
-- Run `pad` separately for each fragment (e.g., `Split1`, `Split2`, ...); you cannot pad all columns in one call
-- If a fragment can't fit under `oligo_length_limit`, spacer(s) are set to `'-'`
-- Post-synthesis workflow: PCR amplify → Type IIS digest → mung bean nuclease (skip for blunt-cutters like `MlyI`) → assemble via overlaps
-
-**CLI Equivalent**:
-```bash
-op pad \
-    --input-data split_library.csv \
-    --oligo-length-limit 200 \
-    --split-column Split1 \
-    --typeiis-system BsaI \
-    --minimum-melting-temperature 52 \
-    --maximum-melting-temperature 58 \
-    --maximum-repeat-length 10 \
-    --output-file padded_split1
-```
-
-[↑ Back to TOC](#table-of-contents)
-
----
-
 ### merge
 
 **Purpose**: Concatenate contiguous columns into a single column.
@@ -759,6 +623,142 @@ df, stats = op.final(
 op final \
     --input-data library.csv \
     --output-file synthesis_ready
+```
+
+[↑ Back to TOC](#table-of-contents)
+
+---
+
+## Assembly Mode
+
+Assembly Mode provides tools for fragmenting long oligos that exceed synthesis length limits into overlapping pieces for assembly workflows.
+
+### split
+
+**Purpose**: Break long oligos into overlapping fragments for overlap-based assembly (Gibson, overlap-extension PCR, etc.).
+
+**Signature**:
+```python
+df, stats = op.split(
+    # Required
+    input_data,                    # str | pd.DataFrame
+    split_length_limit,            # int
+    minimum_melting_temperature,   # float
+    minimum_hamming_distance,      # int
+    minimum_overlap_length,        # int
+    maximum_overlap_length,        # int
+
+    # Optional
+    output_file=None,              # str | None
+    random_seed=None,              # int | None
+    separate_outputs=False,        # bool
+    verbose=True,                  # bool
+)
+```
+
+**Required Parameters**
+
+- `input_data` (str | DataFrame): CSV path or DataFrame with `ID` column + DNA sequence columns
+- `split_length_limit` (int): Maximum fragment length (bp)
+- `minimum_melting_temperature` (float): Minimum overlap Tm (°C)
+- `minimum_hamming_distance` (int): Minimum pairwise Hamming distance between overlaps
+- `minimum_overlap_length` (int): Minimum overlap length (bp)
+- `maximum_overlap_length` (int): Maximum overlap length (bp)
+
+**Optional Parameters**
+
+- `output_file` (str | None, default=None): Output CSV path (required for CLI)
+- `random_seed` (int | None, default=None): RNG seed for reproducibility
+- `separate_outputs` (bool, default=False): Return list of per-split DataFrames; if `output_file` set, writes `{base}.SplitN.oligopool.split.csv` files
+- `verbose` (bool, default=True): Print progress output
+
+**Returns**:
+- `(DataFrame, stats_dict)` when `separate_outputs=False` (default) — output contains `Split1`, `Split2`, ... columns
+- `([DataFrame, ...], stats_dict)` when `separate_outputs` is enabled — one DataFrame per `SplitN` column
+
+**Notes**:
+- Number of fragments varies per oligo; even-numbered splits (`Split2`, `Split4`, ...) are reverse-complemented
+- Original annotation columns are not preserved in output
+- Treat each `SplitN` column as its own synthesis pool; run `pad` per `SplitN`, then `final` each padded DataFrame
+- Do not run `final()` on raw multi-column `split` output
+
+**CLI Equivalent**:
+```bash
+op split \
+    --input-data library.csv \
+    --split-length-limit 150 \
+    --minimum-melting-temperature 55 \
+    --minimum-hamming-distance 3 \
+    --minimum-overlap-length 20 \
+    --maximum-overlap-length 30 \
+    --output-file split_library
+```
+Tip: CLI defaults to separate files. Use `--no-separate-outputs` to write a single combined `.oligopool.split.csv`.
+
+[↑ Back to TOC](#table-of-contents)
+
+---
+
+### pad
+
+**Purpose**: Add primers and Type IIS restriction sites to split fragments for scarless assembly.
+
+**Signature**:
+```python
+df, stats = op.pad(
+    # Required
+    input_data,                    # str | pd.DataFrame
+    oligo_length_limit,            # int
+    split_column,                  # str
+    typeIIS_system,                # str
+    minimum_melting_temperature,   # float
+    maximum_melting_temperature,   # float
+    maximum_repeat_length,         # int
+
+    # Optional
+    output_file=None,              # str | None
+    random_seed=None,              # int | None
+    verbose=True,                  # bool
+)
+```
+
+**Required Parameters**
+
+- `input_data` (str | DataFrame): Output from `split()` or any DataFrame with fragment column
+- `oligo_length_limit` (int, ≥60): Maximum padded fragment length (bp)
+- `split_column` (str): Which fragment column to pad (e.g., `Split1`)
+- `typeIIS_system` (str): Type IIS enzyme name (see [supported list](#type-iis-enzymes))
+- `minimum_melting_temperature` (float, ≥25): Minimum pad primer Tm (°C)
+- `maximum_melting_temperature` (float, ≤95): Maximum pad primer Tm (°C)
+- `maximum_repeat_length` (int, 6-20): Maximum shared repeat length
+
+**Optional Parameters**
+
+- `output_file` (str | None, default=None): Output CSV path (required for CLI)
+- `random_seed` (int | None, default=None): RNG seed for reproducibility
+- `verbose` (bool, default=True): Print progress output
+
+**Returns**: `(DataFrame, stats_dict)` — output contains `5primeSpacer`, `ForwardPrimer`, `<split_column>`, `ReversePrimer`, `3primeSpacer`
+
+**Notes**:
+- The Type IIS recognition site must be absent from all split fragments (in either orientation); `pad` validates this and fails early if conflicts are found
+- To prevent conflicts, add your Type IIS motif and its reverse complement (e.g., `GGTCTC` and `GAGACC` for BsaI) to `excluded_motifs` when designing upstream elements
+- This only constrains newly designed elements—if your input sequences already contain the site, choose a different enzyme or redesign those sequences
+- Run `pad` separately for each fragment (e.g., `Split1`, `Split2`, ...); you cannot pad all columns in one call
+- If a fragment can't fit under `oligo_length_limit`, spacer(s) are set to `'-'`
+- Post-synthesis workflow: PCR amplify → Type IIS digest → mung bean nuclease (skip for blunt-cutters like `MlyI`) → assemble via overlaps
+
+**CLI Equivalent**:
+```bash
+op pad \
+    --input-data split_library.csv \
+    --oligo-length-limit 200 \
+    --split-column Split1 \
+    --typeiis-system BsaI \
+    --minimum-melting-temperature 52 \
+    --maximum-melting-temperature 58 \
+    --maximum-repeat-length 10 \
+    --output-file padded_split1
 ```
 
 [↑ Back to TOC](#table-of-contents)

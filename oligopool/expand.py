@@ -2,6 +2,9 @@ import time as tt
 
 import atexit as ae
 
+from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import as_completed
+
 import numpy as np
 import pandas as pd
 
@@ -10,6 +13,33 @@ from .base import validation_parsing as vp
 from .base import core_degenerate as cd
 
 from typing import Tuple
+
+
+def _expand_single_sequence(args):
+    '''
+    Expand a single degenerate sequence.
+    Worker function for parallel expansion.
+    Internal use only.
+
+    :: args
+       type - tuple
+       desc - (idx, row_id, deg_seq, base_dict)
+    '''
+
+    idx, row_id, deg_seq, base_dict = args
+    deg_seq = str(deg_seq)
+    degeneracy = cd.get_expansion_count(deg_seq)
+    expanded_seqs = cd.get_expanded_sequences(deg_seq)
+
+    rows = []
+    for expanded_seq in expanded_seqs:
+        row = dict(base_dict)
+        row['ID'] = row_id
+        row['ExpandedSeq'] = expanded_seq
+        row['OligoLength'] = len(expanded_seq)
+        rows.append(row)
+
+    return idx, row_id, deg_seq, degeneracy, rows
 
 
 def expand(
@@ -21,35 +51,39 @@ def expand(
     '''
     Expand IUPAC-degenerate sequences into all concrete A/T/G/C sequences.
 
-    This is a Degenerate Mode utility: use it to sanity-check that `compress` output
-    covers exactly (and only) the original concrete sequences.
+    This is a Degenerate Mode utility: use it to sanity-check that `compress`
+    output covers exactly (and only) the original concrete sequences.
 
     Required Parameters:
-        - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with
-            degenerate sequences. Must contain an 'ID' column (or 'DegenerateID' from
-            `compress` output).
-        - `sequence_column` (`str`): Column name containing IUPAC-degenerate sequences
-            to expand.
+        - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame
+            with degenerate sequences. Must contain an `ID` column (or `DegenerateID`
+            from `compress` output).
+        - `sequence_column` (`str`): Column name containing IUPAC-degenerate
+            sequences to expand.
 
     Optional Parameters:
-        - `output_file` (`str`): Filename for output DataFrame with expanded sequences
-            (default: `None`). A `.oligopool.expand.csv` suffix is added if missing.
-        - `expansion_limit` (`int` / `None`): Safety cap for maximum total expanded sequences.
-            If the estimated expansion would exceed this limit, expansion is infeasible
-            (default: `None` for no limit).
-        - `verbose` (`bool`): If `True`, logs progress updates to stdout (default: `True`).
+        - `output_file` (`str`): Filename for output DataFrame with expanded
+            sequences (default: `None`). A `.oligopool.expand.csv` suffix is
+            added if missing.
+        - `expansion_limit` (`int` / `None`): Safety cap for maximum total
+            expanded sequences. If estimated expansion exceeds this limit,
+            expansion is infeasible (default: `None` for no limit).
+        - `verbose` (`bool`): If `True`, logs progress to stdout (default: `True`).
 
     Returns:
         - `output_df` (`pd.DataFrame`): DataFrame with expanded sequences.
-            Contains columns from input plus `ExpandedSeq` for each concrete sequence.
-        - `stats` (`dict`): Statistics dictionary with expansion results including
-            `input_sequences`, `expanded_sequences`, `expansion_factor`.
+            Contains columns from input plus `ExpandedSeq` for each concrete
+            sequence.
+        - `stats` (`dict`): Statistics dictionary with expansion results
+            including `input_sequences`, `expanded_sequences`, `expansion_factor`.
 
     Notes:
-        - Output IDs correspond to the input IDs (often 'DegenerateID'), not original
-          variant IDs; use `mapping_df` from `compress` to map back to variant `ID`s.
-        - Expansion can be exponential; use `expansion_limit` when working with highly
-          degenerate sequences.
+        - Output IDs correspond to the input IDs (often `DegenerateID`), not
+          original variant IDs; use `mapping_df` from `compress` to map back
+          to variant `ID`s.
+        - Expansion can be exponential; use `expansion_limit` when working
+          with highly degenerate sequences.
+        - Expansion is parallelized across available CPU cores for performance.
     '''
 
     # Argument Aliasing
@@ -152,7 +186,8 @@ def expand(
     for seq in indf[seqcol]:
         total_estimated += cd.get_expansion_count(seq)
 
-    liner.send(' Estimated Expansion: {:,} Concrete Sequence(s)\n'.format(total_estimated))
+    liner.send(' Estimated Expansion: {:,} Concrete Sequence(s)\n'.format(
+        total_estimated))
 
     # Check expansion limit
     if limit is not None and total_estimated > limit:
@@ -189,28 +224,51 @@ def expand(
     stats['step'] = 2
     stats['step_name'] = 'expanding-sequences'
 
+    # Prepare work items
+    work_items = []
+    for idx, (row_id, deg_seq) in enumerate(indf[seqcol].items(), start=1):
+        base_dict = indf.loc[row_id].to_dict()
+        work_items.append((idx, row_id, deg_seq, base_dict))
+
+    # Expand sequences in parallel
     expanded_rows = []
     total_expanded = 0
+    results_by_idx = {}
 
-    for idx, (row_id, deg_seq) in enumerate(indf[seqcol].items(), start=1):
-        base = indf.loc[row_id].to_dict()
-        deg_seq = str(deg_seq)
-        degeneracy = cd.get_expansion_count(deg_seq)
+    # Use parallel expansion for multiple sequences
+    if num_input_seqs > 1:
+        with ProcessPoolExecutor() as executor:
+            futures = {
+                executor.submit(_expand_single_sequence, item): item[0]
+                for item in work_items
+            }
 
-        expanded_seqs = cd.get_expanded_sequences(deg_seq)
-        total_expanded += len(expanded_seqs)
+            for future in as_completed(futures):
+                idx, row_id, deg_seq, degeneracy, rows = future.result()
+                results_by_idx[idx] = (row_id, deg_seq, degeneracy, rows)
 
-        for expanded_seq in expanded_seqs:
-            row = dict(base)
-            row['ID'] = row_id
-            row['ExpandedSeq'] = expanded_seq
-            row['OligoLength'] = len(expanded_seq)
-            expanded_rows.append(row)
+        # Process results in order
+        for idx in sorted(results_by_idx.keys()):
+            row_id, deg_seq, degeneracy, rows = results_by_idx[idx]
+            expanded_rows.extend(rows)
+            total_expanded += len(rows)
 
-        seq_preview = deg_seq[:20] + '..' if len(deg_seq) > 22 else deg_seq
-        liner.send(
-            ' Expanding {:>5}: {} (Degeneracy: {:>5}) -> {:>5} Sequence(s)\n'.format(
-                idx, seq_preview, degeneracy, len(expanded_seqs)))
+            seq_preview = deg_seq[:20] + '..' if len(deg_seq) > 22 else deg_seq
+            liner.send(
+                ' Expanding {:>5}: {} (Degeneracy: {:>5}) -> {:>5} Sequence(s)\n'.format(
+                    idx, seq_preview, degeneracy, len(rows)))
+
+    # Single sequence - no parallelization overhead
+    else:
+        for item in work_items:
+            idx, row_id, deg_seq, degeneracy, rows = _expand_single_sequence(item)
+            expanded_rows.extend(rows)
+            total_expanded += len(rows)
+
+            seq_preview = deg_seq[:20] + '..' if len(deg_seq) > 22 else deg_seq
+            liner.send(
+                ' Expanding {:>5}: {} (Degeneracy: {:>5}) -> {:>5} Sequence(s)\n'.format(
+                    idx, seq_preview, degeneracy, len(rows)))
 
     liner.send('\n')
     liner.send(' Expansion Complete: {:,} -> {:,} Concrete Sequence(s)\n'.format(
@@ -252,7 +310,8 @@ def expand(
     liner.send(' Degenerate Oligo(s)   : {:,}\n'.format(num_input_seqs))
     liner.send('   Concrete Sequence(s): {:,}\n'.format(total_expanded))
     liner.send('  Expansion Factor     : {:.1f}x\n'.format(expansion_factor))
-    liner.send('  Expansion Limited    : {}\n'.format('Yes' if limit is not None else 'No'))
+    liner.send('  Expansion Limited    : {}\n'.format(
+        'Yes' if limit is not None else 'No'))
     liner.send(' Time Elapsed: {:.2f} sec\n'.format(tt.time() - t0))
 
     # Unschedule file deletion

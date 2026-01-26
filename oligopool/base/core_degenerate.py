@@ -895,3 +895,349 @@ def get_expansion_count(sequence):
             'Invalid IUPAC sequence: {}'.format(sequence))
 
     return get_degeneracy_product(get_masks_from_iupac(sequence))
+
+# Orchestration Functions
+
+def get_parsed_oligopool_sequences(
+    indf,
+    dna_cols,
+    liner):
+    '''
+    Parse oligopool sequences from input DataFrame.
+    Concatenate DNA columns and group by length.
+    Internal use only.
+
+    :: indf
+       type - pd.DataFrame
+       desc - input DataFrame with DNA columns
+    :: dna_cols
+       type - list
+       desc - list of DNA column names to concatenate
+    :: liner
+       type - coroutine
+       desc - liner for progress output
+
+    Returns tuple of:
+        - sequences: list of concatenated sequences
+        - variant_ids: list of variant IDs
+        - id_to_sequence: dict mapping ID to sequence
+        - length_groups: dict of length -> {sequences, ids}
+        - unique_count: number of unique sequences
+    '''
+
+    # Concatenate DNA columns
+    liner.send(' Concatenating {:,} DNA Column(s) ...'.format(len(dna_cols)))
+    sequences = ut.get_df_concat(df=indf[dna_cols])
+    variant_ids = list(indf.index)
+    id_to_sequence = dict(zip(variant_ids, sequences))
+
+    # Count unique sequences
+    unique_sequences = set(sequences)
+    unique_count = len(unique_sequences)
+    liner.send(' Unique Sequence(s): {:,} Variant(s)\n'.format(unique_count))
+
+    # Group by length
+    length_groups = {}
+    for seq, vid in zip(sequences, variant_ids):
+        seq_len = len(seq)
+        if seq_len not in length_groups:
+            length_groups[seq_len] = {'sequences': [], 'ids': []}
+        length_groups[seq_len]['sequences'].append(seq)
+        length_groups[seq_len]['ids'].append(vid)
+
+    # Report length groups
+    min_len = min(length_groups.keys())
+    max_len = max(length_groups.keys())
+    if min_len == max_len:
+        liner.send(' Sequence Length(s): {:,} Base Pair(s)\n'.format(min_len))
+    else:
+        liner.send(
+            ' Sequence Length(s): {:,}-{:,} Base Pair(s) ({:,} Length Group(s))\n'.format(
+                min_len, max_len, len(length_groups)))
+
+    return (sequences, variant_ids, id_to_sequence,
+            length_groups, unique_count)
+
+def get_all_compressed_groups(
+    length_groups,
+    nsims,
+    horizon,
+    rng,
+    liner):
+    '''
+    Compress all length groups into degenerate oligos.
+    Internal use only.
+
+    :: length_groups
+       type - dict
+       desc - dict of length -> {sequences, ids}
+    :: nsims
+       type - integer
+       desc - number of Monte Carlo rollouts
+    :: horizon
+       type - integer
+       desc - lookahead positions
+    :: rng
+       type - np.random.Generator
+       desc - random number generator
+    :: liner
+       type - coroutine
+       desc - liner for progress output
+
+    Returns tuple of:
+        - all_results: list of (deg_seq, covered_ids, degeneracy, length)
+        - total_input_variants: count of unique input variants
+        - total_degenerate_oligos: count of degenerate oligos
+    '''
+
+    all_results = []
+    total_input_variants = 0
+    total_degenerate_oligos = 0
+
+    # Compute print lengths
+    max_group_size = max(
+        len(g['sequences']) for g in length_groups.values())
+    glen = ut.get_printlen(value=max_group_size)
+
+    for seq_length in sorted(length_groups.keys()):
+        group = length_groups[seq_length]
+        group_seqs = group['sequences']
+        group_ids = group['ids']
+
+        liner.send(' Length Group {:,} bp: {:{},d} Variant(s)\n'.format(
+            seq_length, len(group_seqs), glen))
+
+        # Compress this length group
+        results, _ = get_compressed_group(
+            sequences=group_seqs,
+            ids=group_ids,
+            nsims=nsims,
+            horizon=horizon,
+            rng=np.random.default_rng(rng.integers(0, 2**31 - 1)),
+            liner=liner,
+            group_length=seq_length)
+
+        # Collect results with length info
+        for (deg_seq, covered_ids, degeneracy) in results:
+            all_results.append((deg_seq, covered_ids, degeneracy, seq_length))
+
+        # Compute compression ratio for this group
+        unique_in_group = len(set(group_seqs))
+        compression_ratio = unique_in_group / len(results) if results else 1.0
+
+        liner.send(
+            ' Group Complete: {:{},d} -> {:{},d} Degenerate Oligo(s) ({:.1f}x)\n'.format(
+                unique_in_group, glen, len(results), glen, compression_ratio))
+
+        total_input_variants += unique_in_group
+        total_degenerate_oligos += len(results)
+
+    return all_results, total_input_variants, total_degenerate_oligos
+
+def get_compression_dataframes(
+    all_results,
+    id_to_sequence,
+    liner):
+    '''
+    Build mapping and synthesis DataFrames from
+    compression results. Internal use only.
+
+    :: all_results
+       type - list
+       desc - list of (deg_seq, covered_ids, degeneracy, length)
+    :: id_to_sequence
+       type - dict
+       desc - mapping of variant ID to original sequence
+    :: liner
+       type - coroutine
+       desc - liner for progress output
+
+    Returns tuple of:
+        - mapping_df: DataFrame linking variant IDs to degenerate IDs
+        - synthesis_df: DataFrame of degenerate oligos for synthesis
+    '''
+
+    import pandas as pd
+
+    mapping_rows = []
+    synthesis_rows = []
+    degenerate_idx = 0
+
+    for (deg_seq, covered_ids, degeneracy, seq_length) in all_results:
+        degenerate_idx += 1
+        deg_id = 'D{}'.format(degenerate_idx)
+
+        # Build mapping row for each covered variant ID
+        for vid in covered_ids:
+            orig_seq = id_to_sequence.get(vid)
+            mapping_rows.append({
+                'ID': vid,
+                'Sequence': orig_seq,
+                'DegenerateID': deg_id,
+            })
+
+        # Build synthesis row
+        synthesis_rows.append({
+            'DegenerateID': deg_id,
+            'DegenerateSeq': deg_seq,
+            'Degeneracy': degeneracy,
+            'OligoLength': seq_length,
+        })
+
+    mapping_df = pd.DataFrame(mapping_rows)
+    synthesis_df = pd.DataFrame(synthesis_rows)
+
+    # Compute print length
+    plen = ut.get_printlen(value=max(len(mapping_df), len(synthesis_df)))
+
+    liner.send('   Mapping DataFrame: {:{},d} Row(s)\n'.format(
+        len(mapping_df), plen))
+    liner.send(' Synthesis DataFrame: {:{},d} Row(s)\n'.format(
+        len(synthesis_df), plen))
+
+    return mapping_df, synthesis_df
+
+def get_parsed_degenerate_info(
+    indf,
+    seqcol,
+    liner):
+    '''
+    Parse degenerate sequences and estimate expansion.
+    Internal use only.
+
+    :: indf
+       type - pd.DataFrame
+       desc - input DataFrame with degenerate sequences
+    :: seqcol
+       type - string
+       desc - column name containing degenerate sequences
+    :: liner
+       type - coroutine
+       desc - liner for progress output
+
+    Returns tuple of:
+        - num_input_seqs: count of input degenerate sequences
+        - total_estimated: estimated total expansion count
+    '''
+
+    num_input_seqs = len(indf)
+    liner.send(' Degenerate Oligo(s): {:,}\n'.format(num_input_seqs))
+
+    # Estimate total expansions
+    total_estimated = 0
+    for seq in indf[seqcol]:
+        total_estimated += get_expansion_count(seq)
+
+    liner.send(' Estimated Expansion: {:,} Concrete Sequence(s)\n'.format(
+        total_estimated))
+
+    return num_input_seqs, total_estimated
+
+def _expand_single_worker(args):
+    '''
+    Worker function to expand a single degenerate sequence.
+    Module-level for pickling. Internal use only.
+    '''
+
+    idx, row_id, deg_seq, base_dict = args
+    deg_seq = str(deg_seq)
+    degeneracy = get_expansion_count(deg_seq)
+    expanded_seqs = get_expanded_sequences(deg_seq)
+
+    rows = []
+    for expanded_seq in expanded_seqs:
+        row = dict(base_dict)
+        row['ID'] = row_id
+        row['ExpandedSeq'] = expanded_seq
+        row['OligoLength'] = len(expanded_seq)
+        rows.append(row)
+
+    return idx, row_id, deg_seq, degeneracy, rows
+
+def get_expanded_dataframe(
+    indf,
+    seqcol,
+    liner):
+    '''
+    Expand all degenerate sequences in parallel.
+    Internal use only.
+
+    :: indf
+       type - pd.DataFrame
+       desc - input DataFrame with degenerate sequences
+    :: seqcol
+       type - string
+       desc - column name containing degenerate sequences
+    :: liner
+       type - coroutine
+       desc - liner for progress output
+
+    Returns tuple of:
+        - expanded_rows: list of dicts for output DataFrame
+        - total_expanded: total number of expanded sequences
+    '''
+
+    from concurrent.futures import ProcessPoolExecutor
+    from concurrent.futures import as_completed
+
+    num_input_seqs = len(indf)
+
+    # Estimate total for print length
+    total_estimated = sum(
+        get_expansion_count(seq) for seq in indf[seqcol])
+
+    # Compute print lengths
+    ilen = ut.get_printlen(value=num_input_seqs)
+    dlen = ut.get_printlen(value=total_estimated)
+
+    # Prepare work items
+    work_items = []
+    for idx, (row_id, deg_seq) in enumerate(indf[seqcol].items(), start=1):
+        base_dict = indf.loc[row_id].to_dict()
+        work_items.append((idx, row_id, deg_seq, base_dict))
+
+    # Expand sequences
+    expanded_rows = []
+    total_expanded = 0
+    results_by_idx = {}
+
+    # Use parallel expansion for multiple sequences
+    if num_input_seqs > 1:
+        with ProcessPoolExecutor() as executor:
+            futures = {
+                executor.submit(_expand_single_worker, item): item[0]
+                for item in work_items
+            }
+
+            for future in as_completed(futures):
+                idx, row_id, deg_seq, degeneracy, rows = future.result()
+                results_by_idx[idx] = (row_id, deg_seq, degeneracy, rows)
+
+        # Process results in order
+        for idx in sorted(results_by_idx.keys()):
+            row_id, deg_seq, degeneracy, rows = results_by_idx[idx]
+            expanded_rows.extend(rows)
+            total_expanded += len(rows)
+
+            seq_preview = deg_seq[:20] + '..' if len(deg_seq) > 22 else deg_seq
+            liner.send(
+                ' Expanding {:{},d}: {} (Degeneracy: {:{},d}) -> {:{},d} Sequence(s)\n'.format(
+                    idx, ilen, seq_preview, degeneracy, dlen, len(rows), dlen))
+
+    # Single sequence - no parallelization overhead
+    else:
+        for item in work_items:
+            idx, row_id, deg_seq, degeneracy, rows = _expand_single_worker(item)
+            expanded_rows.extend(rows)
+            total_expanded += len(rows)
+
+            seq_preview = deg_seq[:20] + '..' if len(deg_seq) > 22 else deg_seq
+            liner.send(
+                ' Expanding {:{},d}: {} (Degeneracy: {:{},d}) -> {:{},d} Sequence(s)\n'.format(
+                    idx, ilen, seq_preview, degeneracy, dlen, len(rows), dlen))
+
+    liner.send('\n')
+    liner.send(' Expansion Complete: {:,} -> {:,} Concrete Sequence(s)\n'.format(
+        num_input_seqs, total_expanded))
+
+    return expanded_rows, total_expanded

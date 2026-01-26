@@ -23,14 +23,9 @@ def compress(
     '''
     Compress concrete DNA sequences into IUPAC-degenerate oligos for `Degenerate Mode`.
 
-    This reduces synthesis cost for large variant libraries by grouping similar concrete
-    sequences into fewer degenerate representations while preserving the full set of
-    originals (lossless compression).
-
     Required Parameters:
-        - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with
-            variant sequences. Must contain a unique 'ID' column; all other columns
-            are treated as strict-ATGC DNA (A/T/G/C only) and concatenated.
+        - `input_data` (`str` / `pd.DataFrame`): Path to input CSV or DataFrame with an
+            'ID' column and one or more strict-ATGC DNA columns.
 
     Optional Parameters:
         - `mapping_file` (`str`): Filename for output mapping DataFrame that links each
@@ -56,6 +51,8 @@ def compress(
             `compression_ratio`, `min_degeneracy`, `max_degeneracy`, `mean_degeneracy`.
 
     Notes:
+        - All non-'ID' columns in `input_data` are concatenated (left-to-right) to form
+          the concrete sequence per variant.
         - Compression is lossless: expanding the degenerate oligos recovers exactly the
           set of unique input sequences (no extras, no missing).
         - Sequences of different lengths are compressed independently by length group.

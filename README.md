@@ -33,12 +33,12 @@ To learn more, please check out [our paper in ACS Synthetic Biology](https://pub
     </a>
 </h1>
 
-**Design and analysis of oligopool variants using `Oligopool Calculator`.** **(a)** In `Design Mode`, `Oligopool Calculator` can be used to generate optimized `barcode`s, `primer`s, `spacer`s, `motif`s and `split` longer oligos into shorter `pad`ded fragments for downstream synthesis and assembly. **(b)** Once the library is assembled and cloned, barcoded amplicon sequencing data can be processed via `Analysis Mode` for characterization. `Analysis Mode` proceeds by first `index`ing one or more sets of barcodes, `pack`ing the reads, and then producing count matrices either using `acount` (association counting) or `xcount` (combinatorial counting).
+**Design and analysis of oligopool variants using `Oligopool Calculator`.** **(a)** In `Design Mode`, `Oligopool Calculator` can be used to generate optimized `barcode`s, `primer`s, `spacer`s, `motif`s and `split` longer oligos into shorter `pad`ded fragments for downstream synthesis and assembly. `Degenerate Mode` can `compress` ML-generated variant libraries into IUPAC-degenerate oligos for cost-efficient synthesis. **(b)** Once the library is assembled and cloned, barcoded amplicon sequencing data can be processed via `Analysis Mode` for characterization. `Analysis Mode` proceeds by first `index`ing one or more sets of barcodes, `pack`ing the reads, and then producing count matrices either using `acount` (association counting) or `xcount` (combinatorial counting).
 
 <a id="features"></a>
 ## ✨ Features
 
-- 🧬 **Design mode:** constraint-based design of barcodes, primers, motifs/anchors, and spacers with with background screening and utilities (`barcode`, `primer`, `motif`, `spacer`, `background`, `merge`, `revcomp`, `lenstat`, `verify`, `final`).
+- 🧬 **Design mode:** constraint-based design of barcodes, primers, motifs/anchors, and spacers with background screening and utilities (`barcode`, `primer`, `motif`, `spacer`, `background`, `merge`, `revcomp`, `lenstat`, `verify`, `final`).
 - 🔧 **Assembly mode:** fragment long oligos into overlapping pieces and add Type IIS primer pads for scarless assembly (`split`, `pad`).
 - 🧪 **Degenerate mode:** compress ML-generated variant libraries into IUPAC-degenerate oligos for cost-efficient synthesis and selection-based assays (`compress`, `expand`).
 - 📈 **Analysis mode:** fast NGS-based activity quantification with read indexing, packing, and barcode/associate counting (`index`, `pack`, `acount`, `xcount`) extensible with callback methods (via Python library).

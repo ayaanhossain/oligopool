@@ -48,10 +48,23 @@ https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/
 - **Patch Mode**: `patch_mode=True` / `--patch-mode` fills only missing values (None/NaN/empty/`'-'`) and never overwrites existing designs.
 - **Cross-set barcodes**: `cross_barcode_columns` and `minimum_cross_distance` must be provided together.
 
-## Package Overview
+## The Four Modes
 
-This guide is intentionally operational (contracts, gotchas, and workflow scaffolding). For scientific
-background, benchmarks, and examples, defer to the README, `docs/docs.md`, the notebook, and the paper.
+`Oligopool Calculator` provides four operational modes for oligopool library design and analysis:
+
+| Mode | Purpose | Key Modules |
+|------|---------|-------------|
+| **Design** | Build synthesis-ready oligo architectures | `barcode`, `primer`, `motif`, `spacer`, `background`, `merge`, `revcomp`, `lenstat`, `verify`, `final` |
+| **Assembly** | Fragment long oligos for overlap-based assembly | `split`, `pad` |
+| **Degenerate** | Compress similar sequences into IUPAC oligos | `compress`, `expand` |
+| **Analysis** | Quantify variants from NGS reads | `index`, `pack`, `acount`, `xcount` |
+
+**Typical workflows:**
+- **Standard library**: Design Mode → synthesize → clone → sequence → Analysis Mode
+- **Long oligos (>200 bp)**: Design Mode → Assembly Mode → synthesize fragments → assemble → clone → sequence → Analysis Mode
+- **ML-generated variants**: Degenerate Mode → synthesize → select → sequence (no barcodes needed)
+
+For scientific background, benchmarks, and tutorials, see `docs/docs.md`, the notebook, and the paper.
 
 ## Key Concepts
 

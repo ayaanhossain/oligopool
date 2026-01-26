@@ -408,71 +408,6 @@ df, _ = op.primer(
 
 ---
 
-## Assembly Mode - Module Reference
-
-Assembly Mode provides tools for fragmenting long oligos that exceed synthesis length limits into overlapping pieces for assembly workflows.
-
-### split
-
-**Purpose**: Break long oligos into overlapping fragments for assembly.
-
-**When to use**: When oligos exceed synthesis length limits (typically >200 bp).
-
-**API**: See [`split`](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md#split) [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/api.md)] for parameters.
-
-**Key concept**: Each `SplitN` column = a separate oligo pool to synthesize. If `split` returns `Split1`, `Split2`, `Split3`, you order **three separate pools** from your vendor.
-
-**Return formats** (different defaults for library vs CLI):
-- **Library default** (`separate_outputs=False`): Single DataFrame with `Split1`, `Split2`, ... columns
-- **Library with** `separate_outputs=True`: List of DataFrames `[df_Split1, df_Split2, ...]`
-- **CLI default**: Separate files (`out.Split1.oligopool.split.csv`, etc.)
-- **CLI with** `--no-separate-outputs`: Single combined file
-
-**Tips**:
-- Raw split output is NOT synthesis-ready - use `pad` to add primers/Type IIS sites
-- Even-numbered splits (`Split2`, `Split4`, ...) are reverse-complemented for PCR assembly
-- Fragment count is auto-determined and can vary per oligo
-- Use `separate_outputs=True` in library mode for cleaner pad workflows (see Long Oligo Assembly)
-
----
-
-### pad
-
-**Purpose**: Add amplification primers with Type IIS sites for assembly.
-
-**When to use**: After split, for each fragment.
-
-**API**: See [`pad`](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md#pad) [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/api.md)] for parameters.
-
-**Critical workflow**: Run `pad` **once per split column**, then `final` on each:
-
-```python
-# Using separate_outputs=True (recommended)
-split_dfs, _ = op.split(..., separate_outputs=True)  # Returns [df_Split1, df_Split2, ...]
-
-for i, split_df in enumerate(split_dfs, start=1):
-    pad_df, _ = op.pad(split_df, split_column=f'Split{i}', typeIIS_system='BsaI', ...)
-    final_df, _ = op.final(pad_df, output_file=f'synthesis_Split{i}')
-```
-
-**Tips**:
-- You cannot pad all columns in one call - iterate
-- Output: `5primeSpacer`, `ForwardPrimer`, `<split_column>`, `ReversePrimer`, `3primeSpacer`
-- **Exclude your Type IIS motif from upstream elements** (e.g., `GGTCTC`/`GAGACC` for BsaI in `excluded_motifs`) - `pad` validates fragments and fails early if internal sites found
-
-**Post-synthesis**: PCR amplify → Type IIS digest (removes pads, leaves enzyme-specific overhangs) → mung bean nuclease (blunts overhangs; skip for blunt-cutters like `MlyI`) → assemble via **split-designed overlaps** (Gibson, overlap-extension PCR). Type IIS removes pads; the 15–30 bp overlaps from `split` drive assembly.
-
-**Supported Type IIS enzymes (34 total):**
-`AcuI`, `AlwI`, `BbsI`, `BccI`, `BceAI`, `BciVI`, `BcoDI`, `BmrI`, `BpuEI`, `BsaI`, `BseRI`, `BsmAI`,
-`BsmBI`, `BsmFI`, `BsmI`, `BspCNI`, `BspQI`, `BsrDI`, `BsrI`, `BtgZI`, `BtsCI`, `BtsI`, `BtsIMutI`,
-`EarI`, `EciI`, `Esp3I`, `FauI`, `HgaI`, `HphI`, `HpyAV`, `MlyI`, `MnlI`, `SapI`, `SfaNI`
-
-**Why these enzymes**: These 34 are the "batteries included" set—each has a pre-validated recognition sequence and cut offset stored internally. All cut outside their recognition site (essential for scarless excision) and are commercially available. Common choices: `BsaI` and `BsmBI` (Golden Gate standards), `SapI` (longer recognition = fewer conflicts), `MlyI` (blunt cutter, no nuclease step needed).
-
-For unsupported enzymes, design primers/sites manually with `primer` or `motif`.
-
----
-
 ### merge
 
 **Purpose**: Collapse multiple contiguous columns into one.
@@ -544,6 +479,71 @@ For unsupported enzymes, design primers/sites manually with `primer` or `motif`.
 provided `ID` as the DataFrame index).
 
 **API**: See [`final`](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md#final) [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/api.md)] for parameters.
+
+---
+
+## Assembly Mode - Module Reference
+
+Assembly Mode provides tools for fragmenting long oligos that exceed synthesis length limits into overlapping pieces for assembly workflows.
+
+### split
+
+**Purpose**: Break long oligos into overlapping fragments for assembly.
+
+**When to use**: When oligos exceed synthesis length limits (typically >200 bp).
+
+**API**: See [`split`](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md#split) [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/api.md)] for parameters.
+
+**Key concept**: Each `SplitN` column = a separate oligo pool to synthesize. If `split` returns `Split1`, `Split2`, `Split3`, you order **three separate pools** from your vendor.
+
+**Return formats** (different defaults for library vs CLI):
+- **Library default** (`separate_outputs=False`): Single DataFrame with `Split1`, `Split2`, ... columns
+- **Library with** `separate_outputs=True`: List of DataFrames `[df_Split1, df_Split2, ...]`
+- **CLI default**: Separate files (`out.Split1.oligopool.split.csv`, etc.)
+- **CLI with** `--no-separate-outputs`: Single combined file
+
+**Tips**:
+- Raw split output is NOT synthesis-ready - use `pad` to add primers/Type IIS sites
+- Even-numbered splits (`Split2`, `Split4`, ...) are reverse-complemented for PCR assembly
+- Fragment count is auto-determined and can vary per oligo
+- Use `separate_outputs=True` in library mode for cleaner pad workflows (see Long Oligo Assembly)
+
+---
+
+### pad
+
+**Purpose**: Add amplification primers with Type IIS sites for assembly.
+
+**When to use**: After split, for each fragment.
+
+**API**: See [`pad`](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md#pad) [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/api.md)] for parameters.
+
+**Critical workflow**: Run `pad` **once per split column**, then `final` on each:
+
+```python
+# Using separate_outputs=True (recommended)
+split_dfs, _ = op.split(..., separate_outputs=True)  # Returns [df_Split1, df_Split2, ...]
+
+for i, split_df in enumerate(split_dfs, start=1):
+    pad_df, _ = op.pad(split_df, split_column=f'Split{i}', typeIIS_system='BsaI', ...)
+    final_df, _ = op.final(pad_df, output_file=f'synthesis_Split{i}')
+```
+
+**Tips**:
+- You cannot pad all columns in one call - iterate
+- Output: `5primeSpacer`, `ForwardPrimer`, `<split_column>`, `ReversePrimer`, `3primeSpacer`
+- **Exclude your Type IIS motif from upstream elements** (e.g., `GGTCTC`/`GAGACC` for BsaI in `excluded_motifs`) - `pad` validates fragments and fails early if internal sites found
+
+**Post-synthesis**: PCR amplify → Type IIS digest (removes pads, leaves enzyme-specific overhangs) → mung bean nuclease (blunts overhangs; skip for blunt-cutters like `MlyI`) → assemble via **split-designed overlaps** (Gibson, overlap-extension PCR). Type IIS removes pads; the 15–30 bp overlaps from `split` drive assembly.
+
+**Supported Type IIS enzymes (34 total):**
+`AcuI`, `AlwI`, `BbsI`, `BccI`, `BceAI`, `BciVI`, `BcoDI`, `BmrI`, `BpuEI`, `BsaI`, `BseRI`, `BsmAI`,
+`BsmBI`, `BsmFI`, `BsmI`, `BspCNI`, `BspQI`, `BsrDI`, `BsrI`, `BtgZI`, `BtsCI`, `BtsI`, `BtsIMutI`,
+`EarI`, `EciI`, `Esp3I`, `FauI`, `HgaI`, `HphI`, `HpyAV`, `MlyI`, `MnlI`, `SapI`, `SfaNI`
+
+**Why these enzymes**: These 34 are the "batteries included" set—each has a pre-validated recognition sequence and cut offset stored internally. All cut outside their recognition site (essential for scarless excision) and are commercially available. Common choices: `BsaI` and `BsmBI` (Golden Gate standards), `SapI` (longer recognition = fewer conflicts), `MlyI` (blunt cutter, no nuclease step needed).
+
+For unsupported enzymes, design primers/sites manually with `primer` or `motif`.
 
 ---
 

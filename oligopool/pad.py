@@ -85,7 +85,7 @@ def pad(
     liner = ut.liner_engine(verbose)
 
     # Padding Verbiage Print
-    liner.send('\n[Oligopool Calculator: Design Mode - Pad]\n')
+    liner.send('\n[Oligopool Calculator: Assembly Mode - Pad]\n')
 
     # Required Argument Parsing
     liner.send('\n Required Arguments\n')

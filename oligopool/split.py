@@ -87,7 +87,7 @@ def split(
     liner = ut.liner_engine(verbose)
 
     # Splitting Verbiage Print
-    liner.send('\n[Oligopool Calculator: Design Mode - Split]\n')
+    liner.send('\n[Oligopool Calculator: Assembly Mode - Split]\n')
 
     # Required Argument Parsing
     liner.send('\n Required Arguments\n')

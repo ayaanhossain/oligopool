@@ -5,17 +5,19 @@ from .descriptions import PACKAGE_DESCRIPTIONS as _PKG_DESC
 
 __api__ = [
     'barcode',
-    'background',
     'primer',
     'motif',
     'spacer',
+    'background',
+    'split',
+    'pad',
     'merge',
     'revcomp',
     'lenstat',
     'verify',
     'final',
-    'split',
-    'pad',
+    'compress',
+    'expand',
     'index',
     'pack',
     'acount',
@@ -33,25 +35,27 @@ __all__ = ['__author__', '__version__']
 # Setup
 __author__ = 'Ayaan Hossain'
 
-__version__ = '2026.01.25'
+__version__ = '2026.01.26'
 
 _LAZY_ATTRS = {
-    # Core design functions
+    # Design Mode functions
     'barcode': ('.barcode', 'barcode'),
-    'background': ('.background', 'background'),
     'primer': ('.primer', 'primer'),
     'motif': ('.motif', 'motif'),
     'spacer': ('.spacer', 'spacer'),
-    # Auxiliary design functions
+    'background': ('.background', 'background'),
     'merge': ('.merge', 'merge'),
     'revcomp': ('.revcomp', 'revcomp'),
     'lenstat': ('.lenstat', 'lenstat'),
     'verify': ('.verify', 'verify'),
     'final': ('.final', 'final'),
-    # Assembly design functions
+    # Assembly Mode functions
     'split': ('.split', 'split'),
     'pad': ('.pad', 'pad'),
-    # Analysis functions
+    # Degenerate Mode functions
+    'compress': ('.compress', 'compress'),
+    'expand': ('.expand', 'expand'),
+    # Analysis Mode functions
     'index': ('.index', 'index'),
     'pack': ('.pack', 'pack'),
     'acount': ('.acount', 'acount'),
@@ -91,13 +95,19 @@ Design Mode - build synthesis-ready oligo architectures
     motif       {_PKG_DESC["motif"]}
     spacer      {_PKG_DESC["spacer"]}
     background  {_PKG_DESC["background"]}
-    split       {_PKG_DESC["split"]}
-    pad         {_PKG_DESC["pad"]}
     merge       {_PKG_DESC["merge"]}
     revcomp     {_PKG_DESC["revcomp"]}
     lenstat     {_PKG_DESC["lenstat"]}
     verify      {_PKG_DESC["verify"]}
     final       {_PKG_DESC["final"]}
+
+Assembly Mode - fragment long oligos for assembly
+    split       {_PKG_DESC["split"]}
+    pad         {_PKG_DESC["pad"]}
+
+Degenerate Mode - compress variant libraries for synthesis
+    compress    {_PKG_DESC["compress"]}
+    expand      {_PKG_DESC["expand"]}
 
 Analysis Mode - quantify variants from NGS reads
     index       {_PKG_DESC["index"]}

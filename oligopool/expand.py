@@ -1,0 +1,275 @@
+import time as tt
+
+import atexit as ae
+
+import numpy as np
+import pandas as pd
+
+from .base import utils as ut
+from .base import validation_parsing as vp
+from .base import core_degenerate as cd
+
+from typing import Tuple
+
+
+def expand(
+    input_data:str|pd.DataFrame,
+    sequence_column:str,
+    output_file:str|None=None,
+    expansion_limit:int|None=None,
+    verbose:bool=True) -> Tuple[pd.DataFrame, dict]:
+    '''
+    Expand IUPAC-degenerate sequences into all concrete A/T/G/C sequences.
+
+    This is a verification tool to confirm that compress output correctly represents
+    all original variants. The expansion enumerates all possible concrete sequences
+    from degenerate IUPAC codes.
+
+    Required Parameters:
+        - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with
+            degenerate sequences. Must contain an `ID` column (or `DegenerateID`
+            from `compress` output).
+        - `sequence_column` (`str`): Column name containing IUPAC-degenerate sequences
+            to expand.
+
+    Optional Parameters:
+        - `output_file` (`str`): Filename for output DataFrame with expanded sequences
+            (default: `None`). A `.oligopool.expand.csv` suffix is added if missing.
+        - `expansion_limit` (`int`): Safety cap for maximum total expanded sequences.
+            If the estimated expansion would exceed this limit, expansion is infeasible
+            (default: `None` for no limit).
+        - `verbose` (`bool`): If `True`, logs progress updates to stdout (default: `True`).
+
+    Returns:
+        - `output_df` (`pd.DataFrame`): DataFrame with expanded sequences.
+            Contains columns from input plus `ExpandedSeq` for each concrete sequence.
+        - `stats` (`dict`): Statistics dictionary with expansion results including
+            `input_sequences`, `expanded_sequences`, `expansion_factor`.
+
+    Notes:
+        - Primarily used as a verification tool to confirm compress output.
+        - Does NOT recover original variant IDs; use mapping_df from compress for that.
+        - IUPAC codes: N=any, R=A/G, Y=C/T, S=C/G, W=A/T, K=G/T, M=A/C,
+          B=C/G/T, D=A/G/T, H=A/C/T, V=A/C/G.
+        - Expansion can be exponential; use expansion_limit for safety with highly
+          degenerate sequences.
+    '''
+
+    # Argument Aliasing
+    indata   = input_data
+    seqcol   = sequence_column
+    outfile  = output_file
+    limit    = expansion_limit
+    verbose  = verbose
+
+    # Start Liner
+    liner = ut.liner_engine(verbose)
+
+    # Expansion Verbiage Print
+    liner.send('\n[Oligopool Calculator: Degenerate Mode - Expand]\n')
+
+    # Required Argument Parsing
+    liner.send('\n Required Arguments\n')
+
+    # Parse and validate input data
+    (indf,
+     indata_valid) = vp.get_parsed_expand_data_info(
+        data=indata,
+        data_field='     Input Data  ',
+        sequence_column=seqcol,
+        sequence_column_field='  Sequence Column',
+        liner=liner)
+
+    input_rows = len(indf.index) if isinstance(indf, pd.DataFrame) else 0
+
+    # Optional Argument Parsing
+    liner.send('\n Optional Arguments\n')
+
+    # Validate output file
+    outfile_valid = vp.get_outdf_validity(
+        outdf=outfile,
+        outdf_suffix='.oligopool.expand.csv',
+        outdf_field='    Output File  ',
+        liner=liner)
+
+    # Validate expansion_limit (optional)
+    limit_valid = vp.get_optional_numeric_validity(
+        numeric=limit,
+        numeric_field=' Expansion Limit ',
+        numeric_pre_desc=' At most ',
+        numeric_post_desc=' Total Expansion(s)',
+        minval=1,
+        maxval=float('inf'),
+        precheck=False,
+        liner=liner)
+
+    # First Pass Validation
+    if not all([
+        indata_valid,
+        outfile_valid,
+        limit_valid]):
+        liner.send('\n')
+        raise RuntimeError('Invalid Argument Input(s).')
+
+    # Start Timer
+    t0 = tt.time()
+
+    # Adjust outfile suffix
+    if outfile is not None:
+        outfile = ut.get_adjusted_path(
+            path=outfile,
+            suffix='.oligopool.expand.csv')
+
+    # Adjust Numeric Parameters
+    if limit is not None:
+        limit = round(limit)
+
+    # Setup stats
+    stats = {
+        'status': False,
+        'basis': 'unsolved',
+        'step': 0,
+        'step_name': 'initializing',
+        'vars': {},
+        'warns': {},
+    }
+
+    # Schedule file cleanup on error
+    ofdeletion = None
+    if outfile is not None:
+        ofdeletion = ae.register(
+            ut.remove_file,
+            outfile)
+
+    # Step 1: Parse degenerate sequences
+    liner.send('\n[Step 1: Parsing Degenerate Sequences]\n')
+    stats['step'] = 1
+    stats['step_name'] = 'parsing-sequences'
+
+    # Count input sequences
+    num_input_seqs = len(indf)
+    liner.send(' Degenerate Oligo(s): {:,}\n'.format(num_input_seqs))
+
+    # Estimate total expansions
+    total_estimated = 0
+    for seq in indf[seqcol]:
+        total_estimated += cd.get_expansion_count(seq)
+
+    liner.send(' Estimated Expansion: {:,} Concrete Sequence(s)\n'.format(total_estimated))
+
+    # Check expansion limit
+    if limit is not None and total_estimated > limit:
+
+        stats = {
+            'status'  : False,
+            'basis'   : 'infeasible',
+            'step'    : 1,
+            'step_name': 'parsing-sequences',
+            'vars'    : {
+                'input_sequences': num_input_seqs,
+                'estimated_expansion': int(total_estimated),
+                'expansion_limit': int(limit),
+            },
+            'warns'   : {},
+        }
+
+        liner.send(' Verdict: Estimated Expansion Exceeds Limit\n')
+        liner.send(' Time Elapsed: {:.2f} sec\n'.format(tt.time() - t0))
+
+        liner.close()
+
+        stats = ut.stamp_stats(
+            stats=stats,
+            module='expand',
+            input_rows=input_rows,
+            output_rows=0)
+        return (None, stats)
+
+    liner.send(' Time Elapsed: {:.2f} sec\n'.format(tt.time() - t0))
+
+    # Step 2: Expand sequences
+    liner.send('\n[Step 2: Expanding Sequences]\n')
+    stats['step'] = 2
+    stats['step_name'] = 'expanding-sequences'
+
+    expanded_rows = []
+    total_expanded = 0
+
+    for idx, (row_id, deg_seq) in enumerate(indf[seqcol].items(), start=1):
+        base = indf.loc[row_id].to_dict()
+        deg_seq = str(deg_seq)
+        degeneracy = cd.get_expansion_count(deg_seq)
+
+        expanded_seqs = cd.get_expanded_sequences(deg_seq)
+        total_expanded += len(expanded_seqs)
+
+        for expanded_seq in expanded_seqs:
+            row = dict(base)
+            row['ID'] = row_id
+            row['ExpandedSeq'] = expanded_seq
+            row['OligoLength'] = len(expanded_seq)
+            expanded_rows.append(row)
+
+        seq_preview = deg_seq[:20] + '..' if len(deg_seq) > 22 else deg_seq
+        liner.send(
+            ' Expanding {:>5}: {} (Degeneracy: {:>5}) -> {:>5} Sequence(s)\n'.format(
+                idx, seq_preview, degeneracy, len(expanded_seqs)))
+
+    liner.send('\n')
+    liner.send(' Expansion Complete: {:,} -> {:,} Concrete Sequence(s)\n'.format(
+        num_input_seqs, total_expanded))
+    liner.send(' Time Elapsed: {:.2f} sec\n'.format(tt.time() - t0))
+
+    # Build output DataFrame
+    output_df = pd.DataFrame(expanded_rows)
+
+    # Reorder columns to put ExpandedSeq and OligoLength at end
+    cols = [c for c in output_df.columns if c not in ('ExpandedSeq', 'OligoLength')]
+    cols.extend(['ExpandedSeq', 'OligoLength'])
+    output_df = output_df[cols]
+
+    # Write output
+    if outfile is not None:
+        ut.write_df_csv(
+            df=output_df,
+            outfile=outfile,
+            sep=',')
+
+    # Compute statistics
+    expansion_factor = total_expanded / num_input_seqs if num_input_seqs > 0 else 1.0
+
+    # Build stats dictionary
+    stats['status'] = True
+    stats['basis'] = 'solved'
+    stats['vars'] = {
+        'input_sequences': num_input_seqs,
+        'expanded_sequences': total_expanded,
+        'expansion_factor': round(expansion_factor, 2),
+        'expansion_limited': limit is not None,
+    }
+
+    # Expansion Statistics
+    liner.send('\n[Expansion Statistics]\n')
+
+    liner.send('  Expansion Status     : Successful\n')
+    liner.send(' Degenerate Oligo(s)   : {:,}\n'.format(num_input_seqs))
+    liner.send('   Concrete Sequence(s): {:,}\n'.format(total_expanded))
+    liner.send('  Expansion Factor     : {:.1f}x\n'.format(expansion_factor))
+    liner.send('  Expansion Limited    : {}\n'.format('Yes' if limit is not None else 'No'))
+    liner.send(' Time Elapsed: {:.2f} sec\n'.format(tt.time() - t0))
+
+    # Unschedule file deletion
+    if ofdeletion is not None:
+        ae.unregister(ofdeletion)
+
+    # Close Liner
+    liner.close()
+
+    # Stamp stats
+    stats = ut.stamp_stats(
+        stats=stats,
+        module='expand',
+        input_rows=input_rows,
+        output_rows=len(output_df))
+
+    return (output_df, stats)

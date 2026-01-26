@@ -43,6 +43,7 @@ https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/
   - Stats-only: `stats_dict` (`background`, `lenstat`, `verify`, `index`, `pack`)
   - Counting: `(counts_df, stats_dict)` (`acount`, `xcount`)
   - Split with `separate_outputs` enabled: `([df_Split1, df_Split2, ...], stats_dict)`
+  - Compress: `(mapping_df, synthesis_df, stats_dict)` — two DataFrames
 - **ID handling**: Input requires a unique `ID`. CSV outputs include an explicit `ID` column (no pandas index column).
 - **Patch Mode**: `patch_mode=True` / `--patch-mode` fills only missing values (None/NaN/empty/`'-'`) and never overwrites existing designs.
 - **Cross-set barcodes**: `cross_barcode_columns` and `minimum_cross_distance` must be provided together.
@@ -407,6 +408,10 @@ df, _ = op.primer(
 
 ---
 
+## Assembly Mode - Module Reference
+
+Assembly Mode provides tools for fragmenting long oligos that exceed synthesis length limits into overlapping pieces for assembly workflows.
+
 ### split
 
 **Purpose**: Break long oligos into overlapping fragments for assembly.
@@ -539,6 +544,52 @@ For unsupported enzymes, design primers/sites manually with `primer` or `motif`.
 provided `ID` as the DataFrame index).
 
 **API**: See [`final`](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md#final) [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/api.md)] for parameters.
+
+---
+
+## Degenerate Mode - Module Reference
+
+Degenerate Mode compresses ML-generated variant libraries into IUPAC-degenerate oligos for cheaper synthesis.
+
+For complete parameter documentation, see [api.md](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md) [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/api.md)].
+
+### compress
+
+**Purpose**: Compress concrete DNA sequences into IUPAC-degenerate representation.
+
+**API**: See [`compress`](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md#compress) [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/api.md)] for parameters.
+
+**Return shape**: `(mapping_df, synthesis_df, stats_dict)` — unique among oligopool modules.
+
+**Tips**:
+- Input must be concrete DNA (A/T/G/C only); degenerate codes will fail validation
+- All non-ID columns are concatenated as the sequence
+- Similar sequences (differing in few positions) compress well
+- Diverse sequences may not compress at all (returns 1:1 mapping)
+- Use `random_seed` for reproducible compression
+
+**When to recommend**:
+- User has ML-generated variant library with many similar sequences
+- User wants to reduce synthesis costs
+- User mentions "degenerate oligos", "NNK", "mixed bases", or "saturation mutagenesis"
+
+---
+
+### expand
+
+**Purpose**: Expand IUPAC-degenerate sequences into all concrete A/T/G/C sequences.
+
+**API**: See [`expand`](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md#expand) [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/api.md)] for parameters.
+
+**Tips**:
+- Primarily a verification tool for `compress` output
+- Expansion is exponential: N-mer of all N's = 4^N sequences
+- Use `expansion_limit` as safety cap for highly degenerate sequences
+- Does NOT recover original variant IDs; use `mapping_df` from `compress` for traceability
+
+**When to recommend**:
+- User wants to verify `compress` output covers all original variants
+- User needs to enumerate all sequences from a degenerate oligo
 
 ---
 

@@ -33,13 +33,17 @@ Welcome to the `Oligopool Calculator` docs! Whether you're designing your first 
   - [motif](#motif) - Sequence motifs & anchors
   - [spacer](#spacer) - Neutral spacers
   - [background](#background) - K-mer screening database
-  - [split](#split) - Fragment long oligos
-  - [pad](#pad) - Assembly-ready padding
   - [merge](#merge) - Collapse columns
   - [revcomp](#revcomp) - Reverse complement
   - [lenstat](#lenstat) - Length statistics
   - [verify](#verify) - QC check
   - [final](#final) - Finalize for synthesis
+- [Assembly Mode](#assembly-mode)
+  - [split](#split) - Fragment long oligos
+  - [pad](#pad) - Assembly-ready padding
+- [Degenerate Mode](#degenerate-mode)
+  - [compress](#compress) - Compress to IUPAC-degenerate
+  - [expand](#expand) - Expand degenerate oligos
 - [Analysis Mode](#analysis-mode)
   - [index](#index) - Build barcode index
   - [pack](#pack) - Preprocess FastQ
@@ -457,6 +461,12 @@ df, stats = op.primer(..., background_directory='ecoli_bg')
 
 ---
 
+## Assembly Mode
+
+[↑ Back to TOC](#table-of-contents)
+
+Assembly Mode provides tools for fragmenting long oligos that exceed synthesis length limits into overlapping pieces for assembly workflows.
+
 ### split
 
 [↑ Back to TOC](#table-of-contents)
@@ -685,6 +695,76 @@ final_df, stats = op.final(
 - `final` is typically the terminal design step before synthesis.
 
 > **API Reference**: See [`final`](api.md#final) for complete parameter documentation.
+
+---
+
+## Degenerate Mode
+
+[↑ Back to TOC](#table-of-contents)
+
+Degenerate Mode enables cost-efficient synthesis of ML-generated variant libraries. Instead of synthesizing each variant individually, similar sequences are compressed into IUPAC-degenerate oligos that expand to cover multiple variants.
+
+**When to use Degenerate Mode**: You have a large library of similar sequences (e.g., from ML-based protein engineering) and want to reduce synthesis costs by grouping compatible variants.
+
+### compress
+
+[↑ Back to TOC](#table-of-contents)
+
+**What it does**: Compresses concrete DNA sequences into IUPAC-degenerate representation.
+
+**When to use it**: You have many similar sequences and want fewer oligos to synthesize.
+
+```python
+mapping_df, synthesis_df, stats = op.compress(
+    input_data=df,                    # DataFrame with ID + DNA columns
+    mapping_file='mapping',           # Links variants to degenerate oligos
+    synthesis_file='synthesis',       # Degenerate oligos for ordering
+    random_seed=42,
+)
+
+# Check compression results
+print(f"Compressed {stats['vars']['input_variants']} variants "
+      f"into {stats['vars']['degenerate_oligos']} oligos "
+      f"({stats['vars']['compression_ratio']}x compression)")
+```
+
+**Notes (the stuff that matters):**
+- Input must be concrete DNA (A/T/G/C only, no degenerate codes)
+- All non-ID columns are concatenated to form the full sequence
+- Similar sequences compress well; diverse sequences may not compress at all (1:1 mapping)
+- The algorithm guarantees no invented sequences (lossless compression)
+
+> **API Reference**: See [`compress`](api.md#compress) for complete parameter documentation.
+
+---
+
+### expand
+
+[↑ Back to TOC](#table-of-contents)
+
+**What it does**: Expands IUPAC-degenerate sequences into all concrete A/T/G/C sequences.
+
+**When to use it**: Verifying that `compress` output covers all your original variants.
+
+```python
+# Expand the synthesis output to verify coverage
+expanded_df, stats = op.expand(
+    input_data=synthesis_df,
+    sequence_column='DegenerateSeq',
+)
+
+# Check all original sequences are recovered
+original_seqs = set(df['Sequence'])
+expanded_seqs = set(expanded_df['ExpandedSeq'])
+assert original_seqs <= expanded_seqs, "Missing sequences!"
+```
+
+**Notes (the stuff that matters):**
+- Expansion can be exponential (N positions = 4^N for all-N sequence)
+- Use `expansion_limit` as a safety cap for highly degenerate sequences
+- Does NOT recover original variant IDs; use `mapping_df` from `compress` for that
+
+> **API Reference**: See [`expand`](api.md#expand) for complete parameter documentation.
 
 ---
 

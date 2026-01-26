@@ -1,3 +1,13 @@
+2026.01.26
+1. Degenerate Mode: added `compress` module to compress ML-generated variant libraries into IUPAC-degenerate oligos for cost-efficient synthesis.
+2. Degenerate Mode: added `expand` module to expand IUPAC-degenerate oligos into concrete sequences for verification.
+3. Core: added `base/core_degenerate.py` with Monte Carlo rollout compression algorithm using bitmask-encoded IUPAC codes.
+4. CLI: added `compress` and `expand` subcommands with full parameter support.
+5. Docs: added Degenerate Mode sections to `api.md`, `docs.md`, and `agent-skills.md` with usage examples.
+6. Notebook: enhanced Degenerate Mode section in `OligopoolCalculatorInAction.ipynb` with scientific motivation, IUPAC code table, realistic 500-variant example, and post-selection workflow.
+7. Notebook: added consistent problem-solution framing, comparison tables, and key takeaways across all sections (Design Mode, Assembly Mode, Degenerate Mode, Analysis Mode).
+8. README: added Degenerate Mode to Features section and updated `help(op)` and CLI command list examples.
+
 2026.01.25
 1. Docs: added Example Notebook links to all documentation files (agent-skills.md, docs.md, api.md, docker-notes.md).
 2. Docs: added agent instruction to fetch related documentation in agent-skills.md.

@@ -16,13 +16,17 @@ PACKAGE_DESCRIPTIONS = {
     'motif': 'sequence motifs or anchors',
     'spacer': 'neutral fill to reach target length',
     'background': 'k-mer database for off-target screening',
-    'split': 'fragment long oligos for assembly',
-    'pad': 'Type IIS primer pads for scarless excision',
     'merge': 'collapse columns into single element',
     'revcomp': 'reverse complement a column range',
     'lenstat': 'length statistics and free-space check',
     'verify': 'QC checks before synthesis',
     'final': 'concatenate into synthesis-ready oligos',
+    # Assembly Mode
+    'split': 'fragment long oligos for assembly',
+    'pad': 'Type IIS primer pads for scarless excision',
+    # Degenerate Mode
+    'compress': 'compress variants into IUPAC-degenerate oligos',
+    'expand': 'expand IUPAC-degenerate oligos into concrete sequences',
     # Analysis Mode
     'index': 'index barcodes and associated variants',
     'pack': 'filter/merge/deduplicate FastQ reads',
@@ -41,13 +45,17 @@ CLI_DESCRIPTIONS = {
     'motif': 'design or add motifs/anchors',
     'spacer': 'neutral spacers to meet length targets',
     'background': 'build k-mer background database',
-    'split': 'break long oligos into overlapping fragments',
-    'pad': 'add excisable primer pads for scarless assembly',
     'merge': 'collapse contiguous columns',
     'revcomp': 'reverse-complement a column range',
     'lenstat': 'compute length stats and free space',
     'verify': 'verify constraints before synthesis',
     'final': 'finalize into synthesis-ready oligos',
+    # Assembly Mode
+    'split': 'break long oligos into overlapping fragments',
+    'pad': 'add excisable primer pads for scarless assembly',
+    # Degenerate Mode
+    'compress': 'compress sequences into IUPAC-degenerate oligos',
+    'expand': 'expand IUPAC oligos to concrete sequences',
     # Analysis Mode
     'index': 'build barcode/associate index',
     'pack': 'preprocess and deduplicate FastQ reads',

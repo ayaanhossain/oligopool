@@ -19,13 +19,19 @@ Complete parameter reference for all `oligopool` modules.
 - [motif](#motif) - Sequence motifs & anchors
 - [spacer](#spacer) - Neutral spacers
 - [background](#background) - K-mer screening database
-- [split](#split) - Fragment long oligos
-- [pad](#pad) - Assembly-ready padding
 - [merge](#merge) - Collapse columns
 - [revcomp](#revcomp) - Reverse complement
 - [lenstat](#lenstat) - Length statistics
 - [verify](#verify) - QC check
 - [final](#final) - Finalize for synthesis
+
+**Assembly Mode**
+- [split](#split) - Fragment long oligos
+- [pad](#pad) - Assembly-ready padding
+
+**Degenerate Mode**
+- [compress](#compress) - Compress to IUPAC-degenerate oligos
+- [expand](#expand) - Expand degenerate oligos
 
 **Analysis Mode**
 - [index](#index) - Build barcode index
@@ -391,6 +397,10 @@ op background \
 
 ---
 
+## Assembly Mode
+
+Assembly Mode provides tools for fragmenting long oligos that exceed synthesis length limits into overlapping pieces for assembly workflows.
+
 ### split
 
 **Purpose**: Break long oligos into overlapping fragments for overlap-based assembly (Gibson, overlap-extension PCR, etc.).
@@ -749,6 +759,114 @@ df, stats = op.final(
 op final \
     --input-data library.csv \
     --output-file synthesis_ready
+```
+
+[↑ Back to TOC](#table-of-contents)
+
+---
+
+## Degenerate Mode
+
+Degenerate Mode enables cost-efficient synthesis of ML-generated variant libraries by compressing similar sequences into IUPAC-degenerate oligos.
+
+### compress
+
+**Purpose**: Compress concrete DNA sequences into IUPAC-degenerate representation for cheaper synthesis.
+
+**Signature**:
+```python
+mapping_df, synthesis_df, stats = op.compress(
+    # Required
+    input_data,                    # str | pd.DataFrame
+
+    # Optional
+    mapping_file=None,             # str | None
+    synthesis_file=None,           # str | None
+    rollout_simulations=100,       # int
+    rollout_horizon=4,             # int
+    random_seed=None,              # int | None
+    verbose=True,                  # bool
+)
+```
+
+**Required Parameters**
+
+- `input_data` (str | DataFrame): CSV path or DataFrame with `ID` column + DNA sequence columns. All non-ID columns are concatenated as the sequence. Must contain only A/T/G/C (no degenerate codes).
+
+**Optional Parameters**
+
+- `mapping_file` (str | None, default=None): Output CSV for variant-to-degenerate mapping
+- `synthesis_file` (str | None, default=None): Output CSV for degenerate oligos ready for synthesis
+- `rollout_simulations` (int, default=100): Monte Carlo simulations per decision (higher = better compression, slower)
+- `rollout_horizon` (int, default=4): Lookahead positions for rollouts
+- `random_seed` (int | None, default=None): RNG seed for reproducibility
+- `verbose` (bool, default=True): Print progress output
+
+**Returns**: `(mapping_df, synthesis_df, stats_dict)`
+- `mapping_df`: Maps original variant IDs to degenerate oligo IDs (`ID`, `Sequence`, `DegenerateID`)
+- `synthesis_df`: Degenerate oligos for ordering (`DegenerateID`, `DegenerateSeq`, `Degeneracy`, `OligoLength`)
+- `stats_dict`: Includes `compression_ratio`, `min_degeneracy`, `max_degeneracy`, `mean_degeneracy`
+
+**Notes**:
+- Core guarantee (lossless): `degeneracy(prefix) <= count(compatible variants)` — no invented sequences
+- Sequences of different lengths are compressed independently
+- If sequences are too diverse to compress, returns 1:1 mapping
+
+**CLI Equivalent**:
+```bash
+op compress \
+    --input-data variants.csv \
+    --mapping-file mapping \
+    --synthesis-file synthesis \
+    --random-seed 42
+```
+
+[↑ Back to TOC](#table-of-contents)
+
+---
+
+### expand
+
+**Purpose**: Expand IUPAC-degenerate sequences into all concrete A/T/G/C sequences.
+
+**Signature**:
+```python
+df, stats = op.expand(
+    # Required
+    input_data,                    # str | pd.DataFrame
+    sequence_column,               # str
+
+    # Optional
+    output_file=None,              # str | None
+    expansion_limit=None,          # int | None
+    verbose=True,                  # bool
+)
+```
+
+**Required Parameters**
+
+- `input_data` (str | DataFrame): CSV path or DataFrame with `ID` column (or `DegenerateID` from `compress` output)
+- `sequence_column` (str): Column containing IUPAC-degenerate sequences to expand
+
+**Optional Parameters**
+
+- `output_file` (str | None, default=None): Output CSV path
+- `expansion_limit` (int | None, default=None): Safety cap for maximum total expanded sequences
+- `verbose` (bool, default=True): Print progress output
+
+**Returns**: `(DataFrame, stats_dict)` — output contains original columns plus `ExpandedSeq` and `OligoLength`
+
+**Notes**:
+- Primarily used as a verification tool to confirm `compress` output
+- IUPAC codes: N=any, R=A/G, Y=C/T, S=C/G, W=A/T, K=G/T, M=A/C, B=C/G/T, D=A/G/T, H=A/C/T, V=A/C/G
+- Expansion can be exponential; use `expansion_limit` for safety with highly degenerate sequences
+
+**CLI Equivalent**:
+```bash
+op expand \
+    --input-data synthesis.csv \
+    --sequence-column DegenerateSeq \
+    --output-file expanded
 ```
 
 [↑ Back to TOC](#table-of-contents)

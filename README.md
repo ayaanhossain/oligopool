@@ -4,7 +4,7 @@
     </a>
 </h1>
 
-<h4><p align="center">Version: 2026.01.25</p></h4>
+<h4><p align="center">Version: 2026.01.26</p></h4>
 
 <p align="center">
   <a href="#features" style="text-decoration: none !important;">✨ Features</a> •
@@ -40,6 +40,7 @@ To learn more, please check out [our paper in ACS Synthetic Biology](https://pub
 
 - 🧬 **Design mode:** constraint-based design of primers, barcodes, motifs/anchors, and spacers, with background screening, assembly helpers (`split`, `pad`), and utilities (`merge`, `revcomp`, `lenstat`, `verify`, `final`).
 - 🔁 **Iterative & multiplexed workflows:** patch mode for extending existing pools, cross-set barcode separation, and per-group primer design with cross-compatibility screening.
+- 🧪 **Degenerate mode:** compress ML-generated variant libraries into IUPAC-degenerate oligos for cost-efficient synthesis (`compress`, `expand`).
 - 📈 **Analysis mode:** fast activity quantification with read indexing, packing, and barcode/associate counting (`index`, `pack`, `acount`, `xcount`) extensible with callback methods (via Python library).
 - ⚡ **Performance:** scalable to very large libraries and high-throughput sequencing datasets, with published benchmarks demonstrating efficient design and analysis on commodity hardware (see paper).
 - 🔒 **Rich constraints:** IUPAC sequence constraints, motif exclusion, repeat screening, Hamming-distance barcodes, and primer thermodynamic constraints (including optional paired-primer Tm matching).
@@ -85,7 +86,7 @@ Python 3.10.9 | packaged by conda-forge | (main, Feb  2 2023, 20:20:04) [GCC 11.
 Type "help", "copyright", "credits" or "license" for more information.
 >>> import oligopool as op
 >>> op.__version__
-'2026.01.25'
+'2026.01.26'
 >>>
 ```
 
@@ -120,16 +121,22 @@ Type "help", "copyright", "credits" or "license" for more information.
     Design Mode - build synthesis-ready oligo architectures
         barcode     orthogonal barcodes with Hamming distance guarantees
         primer      Tm-optimized primers with off-target screening
-        motif       sequence motifs or constant anchors
+        motif       sequence motifs or anchors
         spacer      neutral fill to reach target length
         background  k-mer database for off-target screening
+        merge       collapse columns into single element
+        revcomp     reverse complement a column range
+        lenstat     length statistics and free-space check
+        verify      QC checks before synthesis
+        final       concatenate into synthesis-ready oligos
+
+    Assembly Mode - fragment long oligos for assembly
         split       fragment long oligos for assembly
         pad         Type IIS primer pads for scarless excision
-        merge       collapse columns into single element
-        revcomp     reverse complement column range
-        lenstat     length statistics and free-space check
-        verify      QC before synthesis
-        final       concatenate into synthesis-ready oligos
+
+    Degenerate Mode - compress variant libraries for synthesis
+        compress    compress variants into IUPAC-degenerate oligos
+        expand      expand IUPAC-degenerate oligos into concrete sequences
 
     Analysis Mode - quantify variants from NGS reads
         index       index barcodes and associated variants
@@ -170,7 +177,7 @@ Run `op` with no arguments to see the command list, and run `op COMMAND` to see 
 ```bash
 $ op
 
-oligopool v2026.01.25
+oligopool v2026.01.26
 by ah
 
 Oligopool Calculator is a suite of algorithms for
@@ -184,21 +191,24 @@ COMMANDS Available:
     cite        show citation information
 
     barcode     orthogonal barcodes with cross-set separation
-    primer      thermodynamic primers with Tm matching
-    motif       sequence motifs or constant anchors
+    primer      thermodynamic primers with optional Tm matching
+    motif       design or add motifs/anchors
     spacer      neutral spacers to meet length targets
 
-    background  k-mer database for off-target screening
+    background  build k-mer background database
 
     split       break long oligos into overlapping fragments
     pad         add excisable primer pads for scarless assembly
 
     merge       collapse contiguous columns
-    revcomp     reverse complement a column range
+    revcomp     reverse-complement a column range
 
-    lenstat     length statistics and free-space check
-    verify      QC constraints before synthesis
-    final       concatenate columns into synthesis-ready oligos
+    lenstat     compute length stats and free space
+    verify      verify constraints before synthesis
+    final       finalize into synthesis-ready oligos
+
+    compress    compress sequences into IUPAC-degenerate oligos
+    expand      expand IUPAC oligos to concrete sequences
 
     index       build barcode/associate index
     pack        preprocess and deduplicate FastQ reads

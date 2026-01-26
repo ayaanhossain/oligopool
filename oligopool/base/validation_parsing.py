@@ -686,7 +686,8 @@ def get_parsed_data_info(
     data_field,
     required_fields,
     liner,
-    allow_missing_cols=None):
+    allow_missing_cols=None,
+    id_aliases=None):
     '''
     Determine if given data is a valid,
     non-empty CSV file or a DataFrame.
@@ -764,6 +765,17 @@ def get_parsed_data_info(
 
     # df was extracted?
     df_extracted = data_is_df or data_is_csv
+
+    # Allow alternate ID column names (e.g., DegenerateID) by renaming to 'ID'
+    # before running the standard missing-value and indexing checks.
+    if df_extracted and \
+       not df is None and \
+       'ID' not in df.columns and \
+       id_aliases:
+        for alias in id_aliases:
+            if alias in df.columns:
+                df.rename(columns={alias: 'ID'}, inplace=True)
+                break
 
     # Update data and data_type
     if   data_is_df:
@@ -3947,3 +3959,217 @@ def get_parsed_memory_info(
 
     # Return adjusted memlimit and validity
     return memlimit, memlimit_valid
+
+
+def get_parsed_compress_data_info(
+    data,
+    data_field,
+    liner):
+    '''
+    Parse input for compress: validate ID column exists and all other columns
+    are non-empty DNA sequences (A/T/G/C only, no degenerate codes).
+    Internal use only.
+
+    :: data
+       type - string / pd.DataFrame
+       desc - path to CSV file or a pandas DataFrame storing variant sequences
+    :: data_field
+       type - string
+       desc - data fieldname used in printing
+    :: liner
+       type - coroutine
+       desc - dynamic printing
+
+    Returns:
+        Tuple of (df, dna_columns, valid):
+        - df: parsed DataFrame indexed by ID (or None if invalid)
+        - dna_columns: list of DNA sequence column names
+        - valid: boolean indicating overall validity
+    '''
+
+    data_field = _normalize_field(data_field)
+
+    # Is data valid CSV or DataFrame?
+    (df,
+    data_name,
+    df_valid) = get_parsed_data_info(
+        data=data,
+        data_field=data_field,
+        required_fields=('ID',),
+        liner=liner)
+
+    dna_columns = []
+
+    if not df_valid:
+        return (None, dna_columns, False)
+
+    # Get all non-ID columns as potential DNA columns
+    dna_columns = [col for col in df.columns]
+
+    if not dna_columns:
+        liner.send(
+            '{}: {} w/ {:,} Record(s) [NO DNA COLUMNS FOUND]\n'.format(
+                data_field,
+                data_name,
+                len(df.index)))
+        return (None, [], False)
+
+    # Check that all entries are concrete DNA (A/T/G/C only)
+    strict_dna_alpha = set('ATGC')
+    non_concrete_found = False
+
+    for column in dna_columns:
+        for idx, value in enumerate(df[column]):
+            if not isinstance(value, str):
+                liner.send(
+                    '{}: {} w/ {:,} Record(s) [NON-STRING VALUE IN COLUMN=\'{}\']\n'.format(
+                        data_field,
+                        data_name,
+                        len(df.index),
+                        column))
+                return (None, [], False)
+
+            value_upper = value.upper().strip()
+            if not value_upper:
+                liner.send(
+                    '{}: {} w/ {:,} Record(s) [EMPTY VALUE IN COLUMN=\'{}\']\n'.format(
+                        data_field,
+                        data_name,
+                        len(df.index),
+                        column))
+                return (None, [], False)
+
+            if not set(value_upper) <= strict_dna_alpha:
+                invalid_chars = set(value_upper) - strict_dna_alpha
+                examples = ut.get_row_examples(
+                    df=df,
+                    invalid_mask=~df[column].str.upper().str.match(r'^[ATGC]+$'),
+                    id_col='ID',
+                    limit=5)
+                example_note = ut.format_row_examples(examples)
+                liner.send(
+                    '{}: {} w/ {:,} Record(s) [NON-CONCRETE DNA (A/T/G/C only) IN COLUMN=\'{}\']{}\n'.format(
+                        data_field,
+                        data_name,
+                        len(df.index),
+                        column,
+                        example_note))
+                return (None, [], False)
+
+    # Uppercase all DNA columns
+    for col in dna_columns:
+        df[col] = df[col].str.upper()
+
+    # Show success
+    liner.send(
+        '{}: {} w/ {:,} Variant(s)\n'.format(
+            data_field,
+            data_name,
+            len(df.index)))
+
+    return (df, dna_columns, True)
+
+
+def get_parsed_expand_data_info(
+    data,
+    data_field,
+    sequence_column,
+    sequence_column_field,
+    liner):
+    '''
+    Parse input for expand: validate ID + sequence_column exist and
+    sequence_column contains valid IUPAC sequences.
+    Internal use only.
+
+    :: data
+       type - string / pd.DataFrame
+       desc - path to CSV file or a pandas DataFrame storing degenerate sequences
+    :: data_field
+       type - string
+       desc - data fieldname used in printing
+    :: sequence_column
+       type - string
+       desc - column name containing IUPAC sequences
+    :: sequence_column_field
+       type - string
+       desc - sequence_column fieldname used in printing
+    :: liner
+       type - coroutine
+       desc - dynamic printing
+
+    Returns:
+        Tuple of (df, valid):
+        - df: parsed DataFrame indexed by ID (or None if invalid)
+        - valid: boolean indicating overall validity
+    '''
+
+    data_field = _normalize_field(data_field)
+    sequence_column_field = _normalize_field(sequence_column_field)
+
+    # Is data valid CSV or DataFrame?
+    (df,
+    data_name,
+    df_valid) = get_parsed_data_info(
+        data=data,
+        data_field=data_field,
+        required_fields=('ID',),
+        liner=liner,
+        id_aliases=('DegenerateID',))
+
+    if not df_valid:
+        return (None, False)
+
+    # Show input data success
+    liner.send(
+        '{}: {} w/ {:,} Oligo(s)\n'.format(
+            data_field,
+            data_name,
+            len(df.index)))
+
+    # Check sequence_column is a valid string
+    if not isinstance(sequence_column, str):
+        liner.send(
+            '{}: {} [INPUT TYPE IS INVALID]\n'.format(
+                sequence_column_field, sequence_column))
+        return (None, False)
+
+    # Check sequence_column exists
+    if sequence_column not in df.columns:
+        liner.send(
+            '{}: \'{}\' [COLUMN DOES NOT EXIST]\n'.format(
+                sequence_column_field, sequence_column))
+        return (None, False)
+
+    # Check that all values in sequence_column are valid IUPAC sequences
+    iupac_alpha = set(ut.ddna_space.keys()) - {'-'}
+
+    for idx, value in enumerate(df[sequence_column]):
+        if not isinstance(value, str):
+            liner.send(
+                '{}: \'{}\' [NON-STRING VALUE IN COLUMN]\n'.format(
+                    sequence_column_field, sequence_column))
+            return (None, False)
+
+        value_upper = value.upper().strip()
+        if not value_upper:
+            liner.send(
+                '{}: \'{}\' [EMPTY VALUE IN COLUMN]\n'.format(
+                    sequence_column_field, sequence_column))
+            return (None, False)
+
+        if not set(value_upper) <= iupac_alpha:
+            invalid_chars = set(value_upper) - iupac_alpha
+            liner.send(
+                '{}: \'{}\' [INVALID IUPAC CHARACTER(S): {}]\n'.format(
+                    sequence_column_field, sequence_column, sorted(invalid_chars)))
+            return (None, False)
+
+    # Uppercase the sequence column
+    df[sequence_column] = df[sequence_column].str.upper()
+
+    # Show success
+    liner.send(
+        '{}: \'{}\' ... Parsed\n'.format(
+            sequence_column_field, sequence_column))
+
+    return (df, True)

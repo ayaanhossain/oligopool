@@ -64,6 +64,8 @@ COMMAND_TO_API = {
     'verify': ('verify', 'verify'),
     'lenstat': ('lenstat', 'lenstat'),
     'final': ('final', 'final'),
+    'compress': ('compress', 'compress'),
+    'expand': ('expand', 'expand'),
     'index': ('index', 'index'),
     'pack': ('pack', 'pack'),
     'acount': ('acount', 'acount'),
@@ -362,7 +364,7 @@ class OligopoolParser(argparse.ArgumentParser):
             return text
 
         middle_lines = [line for line in command_lines if line not in (manual_line, cite_line, complete_line)]
-        gap_after = {'spacer', 'background', 'pad', 'revcomp', 'final'}
+        gap_after = {'spacer', 'background', 'pad', 'revcomp', 'final', 'expand'}
         middle_out = []
         for line in middle_lines:
             middle_out.append(line)
@@ -1897,6 +1899,113 @@ A ".oligopool.final.csv" suffix is added if missing.''')
     return parser
 
 
+def _add_compress(cmdpar):
+    '''Register the compress subcommand parser.'''
+    parser = cmdpar.add_parser(
+        'compress',
+        help=_CLI_DESC['compress'],
+        description='Compress DNA sequences into IUPAC-degenerate representation for Degenerate Mode.',
+        epilog=_notes_epilog('compress'),
+        usage=argparse.SUPPRESS,
+        formatter_class=OligopoolFormatter,
+        add_help=False)
+    req = parser.add_argument_group('Required Arguments')
+    opt = parser.add_argument_group('Optional Arguments')
+    req.add_argument(
+        '--input-data',
+        required=True,
+        type=str,
+        metavar='\b',
+        help='''>>[required string]
+Path to input CSV with an ID column and DNA sequence columns.
+All columns except ID are concatenated as the sequence.''')
+    opt.add_argument(
+        '--mapping-file',
+        type=str,
+        default=None,
+        metavar='\b',
+        help='''>>[optional string]
+Output filename for variant-to-degenerate mapping.
+A ".oligopool.compress.csv" suffix is added if missing.''')
+    opt.add_argument(
+        '--synthesis-file',
+        type=str,
+        default=None,
+        metavar='\b',
+        help='''>>[optional string]
+Output filename for degenerate oligos ready for synthesis.
+A ".oligopool.compress.csv" suffix is added if missing.''')
+    opt.add_argument(
+        '--rollout-simulations',
+        type=int,
+        default=100,
+        metavar='\b',
+        help='''>>[optional integer]
+Monte Carlo rollouts per decision (default: 100).''')
+    opt.add_argument(
+        '--rollout-horizon',
+        type=int,
+        default=4,
+        metavar='\b',
+        help='''>>[optional integer]
+Lookahead positions for rollouts (default: 4).''')
+    opt.add_argument(
+        '--random-seed',
+        type=int,
+        default=None,
+        metavar='\b',
+        help='''>>[optional integer]
+Random seed for reproducible compression.''')
+    _add_common_options(parser, opt)
+    return parser
+
+
+def _add_expand(cmdpar):
+    '''Register the expand subcommand parser.'''
+    parser = cmdpar.add_parser(
+        'expand',
+        help=_CLI_DESC['expand'],
+        description='Expand IUPAC-degenerate sequences into concrete A/T/G/C sequences.',
+        epilog=_notes_epilog('expand'),
+        usage=argparse.SUPPRESS,
+        formatter_class=OligopoolFormatter,
+        add_help=False)
+    req = parser.add_argument_group('Required Arguments')
+    opt = parser.add_argument_group('Optional Arguments')
+    req.add_argument(
+        '--input-data',
+        required=True,
+        type=str,
+        metavar='\b',
+        help='''>>[required string]
+Path to input CSV with degenerate sequences.
+Must contain an ID column (or DegenerateID from compress output).''')
+    req.add_argument(
+        '--sequence-column',
+        required=True,
+        type=str,
+        metavar='\b',
+        help='''>>[required string]
+Column name containing IUPAC-degenerate sequences to expand.''')
+    opt.add_argument(
+        '--output-file',
+        type=str,
+        default=None,
+        metavar='\b',
+        help='''>>[optional string]
+Output filename for expanded sequences.
+A ".oligopool.expand.csv" suffix is added if missing.''')
+    opt.add_argument(
+        '--expansion-limit',
+        type=int,
+        default=None,
+        metavar='\b',
+        help='''>>[optional integer]
+Maximum total expanded sequences (safety cap). Default: unlimited.''')
+    _add_common_options(parser, opt)
+    return parser
+
+
 def _add_index(cmdpar):
     '''Register the index subcommand parser.'''
     parser = cmdpar.add_parser(
@@ -2282,6 +2391,8 @@ def _get_parsers():
     _add_lenstat(cmdpar)
     _add_verify(cmdpar)
     _add_final(cmdpar)
+    _add_compress(cmdpar)
+    _add_expand(cmdpar)
     _add_index(cmdpar)
     _add_pack(cmdpar)
     _add_acount(cmdpar)
@@ -2483,6 +2594,24 @@ def main(argv=None):
                 result = final(
                     input_data=args.input_data,
                     output_file=args.output_file,
+                    verbose=args.verbose)
+            case 'compress':
+                compress = _load_api_func('compress')
+                result = compress(
+                    input_data=args.input_data,
+                    mapping_file=args.mapping_file,
+                    synthesis_file=args.synthesis_file,
+                    rollout_simulations=args.rollout_simulations,
+                    rollout_horizon=args.rollout_horizon,
+                    random_seed=args.random_seed,
+                    verbose=args.verbose)
+            case 'expand':
+                expand = _load_api_func('expand')
+                result = expand(
+                    input_data=args.input_data,
+                    sequence_column=args.sequence_column,
+                    output_file=args.output_file,
+                    expansion_limit=args.expansion_limit,
                     verbose=args.verbose)
             case 'index':
                 index = _load_api_func('index')

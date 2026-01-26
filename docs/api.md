@@ -811,6 +811,7 @@ mapping_df, synthesis_df, stats = op.compress(
 - Core guarantee (lossless): `degeneracy(prefix) <= count(compatible variants)` — no invented sequences
 - Sequences of different lengths are compressed independently
 - If sequences are too diverse to compress, returns 1:1 mapping
+- Monte Carlo rollouts are parallelized across CPU cores automatically via numba
 
 **CLI Equivalent**:
 ```bash
@@ -860,6 +861,7 @@ df, stats = op.expand(
 - Primarily used as a verification tool to confirm `compress` output
 - IUPAC codes: N=any, R=A/G, Y=C/T, S=C/G, W=A/T, K=G/T, M=A/C, B=C/G/T, D=A/G/T, H=A/C/T, V=A/C/G
 - Expansion can be exponential; use `expansion_limit` for safety with highly degenerate sequences
+- Expansion is parallelized across CPU cores automatically for performance
 
 **CLI Equivalent**:
 ```bash

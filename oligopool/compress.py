@@ -199,33 +199,15 @@ def compress(
     stats['step'] = 1
     stats['step_name'] = 'parsing-oligopool'
 
-    # Concatenate DNA columns
-    liner.send(' Concatenating {:,} DNA Column(s) ...'.format(len(dna_cols)))
-    sequences = ut.get_df_concat(df=indf[dna_cols])
-    variant_ids = list(indf.index)
-    id_to_sequence = dict(zip(variant_ids, sequences))
-
-    # Count unique sequences
-    unique_sequences = set(sequences)
-    liner.send(' Unique Sequence(s): {:,} Variant(s)\n'.format(len(unique_sequences)))
-
-    # Group by length
-    length_groups = {}
-    for seq, vid in zip(sequences, variant_ids):
-        seq_len = len(seq)
-        if seq_len not in length_groups:
-            length_groups[seq_len] = {'sequences': [], 'ids': []}
-        length_groups[seq_len]['sequences'].append(seq)
-        length_groups[seq_len]['ids'].append(vid)
-
-    # Report length groups
-    min_len = min(length_groups.keys())
-    max_len = max(length_groups.keys())
-    if min_len == max_len:
-        liner.send(' Sequence Length(s): {:,} Base Pair(s)\n'.format(min_len))
-    else:
-        liner.send(' Sequence Length(s): {:,}-{:,} Base Pair(s) ({:,} Length Group(s))\n'.format(
-            min_len, max_len, len(length_groups)))
+    # Parse oligopool sequences
+    (sequences,
+     variant_ids,
+     id_to_sequence,
+     length_groups,
+     unique_count) = cd.get_parsed_oligopool_sequences(
+        indf=indf,
+        dna_cols=dna_cols,
+        liner=liner)
 
     liner.send(' Time Elapsed: {:.2f} sec\n'.format(tt.time() - t0))
 
@@ -234,42 +216,15 @@ def compress(
     stats['step'] = 2
     stats['step_name'] = 'compressing-sequences'
 
-    all_results = []  # List of (degenerate_seq, covered_ids, degeneracy, length)
-    total_input_variants = 0
-    total_degenerate_oligos = 0
-
-    for seq_length in sorted(length_groups.keys()):
-        group = length_groups[seq_length]
-        group_seqs = group['sequences']
-        group_ids = group['ids']
-
-        liner.send(' Length Group {:,} bp: {:,} Variant(s)\n'.format(
-            seq_length, len(group_seqs)))
-
-        # Compress this length group
-        results, covered = cd.get_compressed_group(
-            sequences=group_seqs,
-            ids=group_ids,
-            nsims=nsims,
-            horizon=horizon,
-            rng=np.random.default_rng(rng.integers(0, 2**31 - 1)),
-            liner=liner,
-            group_length=seq_length,
-        )
-
-        # Collect results with length info
-        for (deg_seq, covered_ids, degeneracy) in results:
-            all_results.append((deg_seq, covered_ids, degeneracy, seq_length))
-
-        # Compute compression ratio for this group
-        unique_in_group = len(set(group_seqs))
-        compression_ratio = unique_in_group / len(results) if results else 1.0
-
-        liner.send(' Group Complete: {:,} -> {:,} Degenerate Oligo(s) ({:.1f}x Compression)\n'.format(
-            unique_in_group, len(results), compression_ratio))
-
-        total_input_variants += unique_in_group
-        total_degenerate_oligos += len(results)
+    # Compress all length groups
+    (all_results,
+     total_input_variants,
+     total_degenerate_oligos) = cd.get_all_compressed_groups(
+        length_groups=length_groups,
+        nsims=nsims,
+        horizon=horizon,
+        rng=rng,
+        liner=liner)
 
     liner.send(' Time Elapsed: {:.2f} sec\n'.format(tt.time() - t0))
 
@@ -278,37 +233,13 @@ def compress(
     stats['step'] = 3
     stats['step_name'] = 'building-output'
 
-    # Build mapping DataFrame
-    mapping_rows = []
-    synthesis_rows = []
-    degenerate_idx = 0
+    # Build DataFrames
+    (mapping_df,
+     synthesis_df) = cd.get_compression_dataframes(
+        all_results=all_results,
+        id_to_sequence=id_to_sequence,
+        liner=liner)
 
-    for (deg_seq, covered_ids, degeneracy, seq_length) in all_results:
-        degenerate_idx += 1
-        deg_id = 'D{}'.format(degenerate_idx)
-
-        # Build sequence for each covered variant ID
-        for vid in covered_ids:
-            orig_seq = id_to_sequence.get(vid)
-            mapping_rows.append({
-                'ID': vid,
-                'Sequence': orig_seq,
-                'DegenerateID': deg_id,
-            })
-
-        # Build synthesis row
-        synthesis_rows.append({
-            'DegenerateID': deg_id,
-            'DegenerateSeq': deg_seq,
-            'Degeneracy': degeneracy,
-            'OligoLength': seq_length,
-        })
-
-    mapping_df = pd.DataFrame(mapping_rows)
-    synthesis_df = pd.DataFrame(synthesis_rows)
-
-    liner.send('   Mapping DataFrame: {:,} Row(s)\n'.format(len(mapping_df)))
-    liner.send(' Synthesis DataFrame: {:,} Row(s)\n'.format(len(synthesis_df)))
     liner.send(' Time Elapsed: {:.2f} sec\n'.format(tt.time() - t0))
 
     # Write outputs
@@ -324,8 +255,10 @@ def compress(
             index=False)
 
     # Compute statistics
-    compression_ratio = total_input_variants / total_degenerate_oligos if total_degenerate_oligos > 0 else 1.0
-    degeneracies = synthesis_df['Degeneracy'].values if len(synthesis_df) > 0 else [1]
+    compression_ratio = total_input_variants / total_degenerate_oligos \
+        if total_degenerate_oligos > 0 else 1.0
+    degeneracies = synthesis_df['Degeneracy'].values \
+        if len(synthesis_df) > 0 else [1]
     min_degeneracy = int(min(degeneracies))
     max_degeneracy = int(max(degeneracies))
     mean_degeneracy = float(np.mean(degeneracies))
@@ -337,7 +270,9 @@ def compress(
         'input_variants': total_input_variants,
         'degenerate_oligos': total_degenerate_oligos,
         'compression_ratio': round(compression_ratio, 2),
-        'length_groups': {k: len(set(v['sequences'])) for k, v in length_groups.items()},
+        'length_groups': {
+            k: len(set(v['sequences']))
+            for k, v in length_groups.items()},
         'min_degeneracy': min_degeneracy,
         'max_degeneracy': max_degeneracy,
         'mean_degeneracy': round(mean_degeneracy, 2),
@@ -346,13 +281,24 @@ def compress(
     # Compression Statistics
     liner.send('\n[Compression Statistics]\n')
 
+    plen = ut.get_printlen(
+        value=max(stats['vars'][field] for field in (
+            'input_variants',
+            'degenerate_oligos')))
+
     liner.send(' Compression Status    : Successful\n')
-    liner.send('       Input Variant(s): {:,}\n'.format(total_input_variants))
-    liner.send('  Degenerate Oligo(s)  : {:,}\n'.format(total_degenerate_oligos))
-    liner.send(' Compression Ratio     : {:.1f}x\n'.format(compression_ratio))
-    liner.send('         Min Degeneracy: {:,} Variant(s) per Oligo\n'.format(min_degeneracy))
-    liner.send('         Max Degeneracy: {:,} Variant(s) per Oligo\n'.format(max_degeneracy))
-    liner.send('        Mean Degeneracy: {:.1f} Variant(s) per Oligo\n'.format(mean_degeneracy))
+    liner.send('       Input Variant(s): {:{},d}\n'.format(
+        total_input_variants, plen))
+    liner.send('  Degenerate Oligo(s)  : {:{},d}\n'.format(
+        total_degenerate_oligos, plen))
+    liner.send(' Compression Ratio     : {:.1f}x\n'.format(
+        compression_ratio))
+    liner.send('         Min Degeneracy: {:,} Variant(s) per Oligo\n'.format(
+        min_degeneracy))
+    liner.send('         Max Degeneracy: {:,} Variant(s) per Oligo\n'.format(
+        max_degeneracy))
+    liner.send('        Mean Degeneracy: {:.1f} Variant(s) per Oligo\n'.format(
+        mean_degeneracy))
     liner.send(' Time Elapsed: {:.2f} sec\n'.format(tt.time() - t0))
 
     # Unschedule file deletion

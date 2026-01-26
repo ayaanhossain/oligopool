@@ -2,9 +2,6 @@ import time as tt
 
 import atexit as ae
 
-from concurrent.futures import ProcessPoolExecutor
-from concurrent.futures import as_completed
-
 import numpy as np
 import pandas as pd
 
@@ -13,33 +10,6 @@ from .base import validation_parsing as vp
 from .base import core_degenerate as cd
 
 from typing import Tuple
-
-
-def _expand_single_sequence(args):
-    '''
-    Expand a single degenerate sequence.
-    Worker function for parallel expansion.
-    Internal use only.
-
-    :: args
-       type - tuple
-       desc - (idx, row_id, deg_seq, base_dict)
-    '''
-
-    idx, row_id, deg_seq, base_dict = args
-    deg_seq = str(deg_seq)
-    degeneracy = cd.get_expansion_count(deg_seq)
-    expanded_seqs = cd.get_expanded_sequences(deg_seq)
-
-    rows = []
-    for expanded_seq in expanded_seqs:
-        row = dict(base_dict)
-        row['ID'] = row_id
-        row['ExpandedSeq'] = expanded_seq
-        row['OligoLength'] = len(expanded_seq)
-        rows.append(row)
-
-    return idx, row_id, deg_seq, degeneracy, rows
 
 
 def expand(
@@ -177,17 +147,12 @@ def expand(
     stats['step'] = 1
     stats['step_name'] = 'parsing-sequences'
 
-    # Count input sequences
-    num_input_seqs = len(indf)
-    liner.send(' Degenerate Oligo(s): {:,}\n'.format(num_input_seqs))
-
-    # Estimate total expansions
-    total_estimated = 0
-    for seq in indf[seqcol]:
-        total_estimated += cd.get_expansion_count(seq)
-
-    liner.send(' Estimated Expansion: {:,} Concrete Sequence(s)\n'.format(
-        total_estimated))
+    # Parse degenerate sequences
+    (num_input_seqs,
+     total_estimated) = cd.get_parsed_degenerate_info(
+        indf=indf,
+        seqcol=seqcol,
+        liner=liner)
 
     # Check expansion limit
     if limit is not None and total_estimated > limit:
@@ -224,59 +189,13 @@ def expand(
     stats['step'] = 2
     stats['step_name'] = 'expanding-sequences'
 
-    # Compute print lengths for progress output
-    ilen = ut.get_printlen(value=num_input_seqs)
-    dlen = ut.get_printlen(value=total_estimated)
+    # Expand all sequences
+    (expanded_rows,
+     total_expanded) = cd.get_expanded_dataframe(
+        indf=indf,
+        seqcol=seqcol,
+        liner=liner)
 
-    # Prepare work items
-    work_items = []
-    for idx, (row_id, deg_seq) in enumerate(indf[seqcol].items(), start=1):
-        base_dict = indf.loc[row_id].to_dict()
-        work_items.append((idx, row_id, deg_seq, base_dict))
-
-    # Expand sequences in parallel
-    expanded_rows = []
-    total_expanded = 0
-    results_by_idx = {}
-
-    # Use parallel expansion for multiple sequences
-    if num_input_seqs > 1:
-        with ProcessPoolExecutor() as executor:
-            futures = {
-                executor.submit(_expand_single_sequence, item): item[0]
-                for item in work_items
-            }
-
-            for future in as_completed(futures):
-                idx, row_id, deg_seq, degeneracy, rows = future.result()
-                results_by_idx[idx] = (row_id, deg_seq, degeneracy, rows)
-
-        # Process results in order
-        for idx in sorted(results_by_idx.keys()):
-            row_id, deg_seq, degeneracy, rows = results_by_idx[idx]
-            expanded_rows.extend(rows)
-            total_expanded += len(rows)
-
-            seq_preview = deg_seq[:20] + '..' if len(deg_seq) > 22 else deg_seq
-            liner.send(
-                ' Expanding {:{},d}: {} (Degeneracy: {:{},d}) -> {:{},d} Sequence(s)\n'.format(
-                    idx, ilen, seq_preview, degeneracy, dlen, len(rows), dlen))
-
-    # Single sequence - no parallelization overhead
-    else:
-        for item in work_items:
-            idx, row_id, deg_seq, degeneracy, rows = _expand_single_sequence(item)
-            expanded_rows.extend(rows)
-            total_expanded += len(rows)
-
-            seq_preview = deg_seq[:20] + '..' if len(deg_seq) > 22 else deg_seq
-            liner.send(
-                ' Expanding {:{},d}: {} (Degeneracy: {:{},d}) -> {:{},d} Sequence(s)\n'.format(
-                    idx, ilen, seq_preview, degeneracy, dlen, len(rows), dlen))
-
-    liner.send('\n')
-    liner.send(' Expansion Complete: {:,} -> {:,} Concrete Sequence(s)\n'.format(
-        num_input_seqs, total_expanded))
     liner.send(' Time Elapsed: {:.2f} sec\n'.format(tt.time() - t0))
 
     # Build output DataFrame
@@ -295,7 +214,8 @@ def expand(
             sep=',')
 
     # Compute statistics
-    expansion_factor = total_expanded / num_input_seqs if num_input_seqs > 0 else 1.0
+    expansion_factor = total_expanded / num_input_seqs \
+        if num_input_seqs > 0 else 1.0
 
     # Build stats dictionary
     stats['status'] = True
@@ -310,10 +230,18 @@ def expand(
     # Expansion Statistics
     liner.send('\n[Expansion Statistics]\n')
 
+    plen = ut.get_printlen(
+        value=max(stats['vars'][field] for field in (
+            'input_sequences',
+            'expanded_sequences')))
+
     liner.send('  Expansion Status     : Successful\n')
-    liner.send(' Degenerate Oligo(s)   : {:,}\n'.format(num_input_seqs))
-    liner.send('   Concrete Sequence(s): {:,}\n'.format(total_expanded))
-    liner.send('  Expansion Factor     : {:.1f}x\n'.format(expansion_factor))
+    liner.send(' Degenerate Oligo(s)   : {:{},d}\n'.format(
+        num_input_seqs, plen))
+    liner.send('   Concrete Sequence(s): {:{},d}\n'.format(
+        total_expanded, plen))
+    liner.send('  Expansion Factor     : {:.1f}x\n'.format(
+        expansion_factor))
     liner.send('  Expansion Limited    : {}\n'.format(
         'Yes' if limit is not None else 'No'))
     liner.send(' Time Elapsed: {:.2f} sec\n'.format(tt.time() - t0))

@@ -83,8 +83,6 @@ If you are on `Windows` or simply prefer to, `Oligopool Calculator` can also be 
 Successful installation will look like this.
 ```python
 $ python
-Python 3.10.9 | packaged by conda-forge | (main, Feb  2 2023, 20:20:04) [GCC 11.3.0] on linux
-Type "help", "copyright", "credits" or "license" for more information.
 >>> import oligopool as op
 >>> op.__version__
 '2026.01.26'
@@ -110,8 +108,6 @@ A notebook demonstrating [`Oligopool Calculator` in action](https://github.com/a
 
 ```python
 $ python
-Python 3.12.6 | packaged by conda-forge | (main, Sep 30 2024, 18:08:52) [GCC 13.3.0] on linux
-Type "help", "copyright", "credits" or "license" for more information.
 >>>
 >>> import oligopool as op
 >>> help(op)

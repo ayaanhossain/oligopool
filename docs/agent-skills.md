@@ -70,139 +70,58 @@ For scientific background, benchmarks, and tutorials, see `docs/docs.md`, the no
 ## Key Concepts
 
 ### DataFrame-Centric Design
-- Most design/transform modules operate on pandas DataFrames and return `(out_df, stats_dict)`
-- Input is a CSV path or DataFrame with an `ID` primary-key column (and DNA sequence columns)
-- Some modules return only a `stats` dict (no DataFrame): `background`, `lenstat`, `verify`, `index`, `pack`
-- Counting modules return `(counts_df, stats_dict)`: `acount`, `xcount`
-- When a DataFrame is passed with `ID` already set as the index, the library preserves that on return;
-  otherwise it returns a DataFrame with an explicit `ID` column
-- Chain modules to build libraries iteratively (new columns) and use Patch Mode to extend pools (new rows)
+- Input: CSV path or DataFrame with unique `ID` column + DNA columns
+- Output: `(out_df, stats_dict)` for most modules; stats-only for `background`, `lenstat`, `verify`, `index`, `pack`
+- If `ID` is the DataFrame index on input, it's preserved; otherwise explicit `ID` column returned
+- Chain modules (new columns) or use `patch_mode=True` (new rows)
 
 ### The Stats Dictionary
-Every module returns a `stats` dict:
 ```python
-stats = {
-    'status': True/False,      # Success or failure
-    'basis': 'solved',         # Short reason code (see common values below)
-    'step': 1,                 # Pipeline step number
-    'step_name': 'designing',  # Step name
-    'vars': {...},             # Module-specific variables
-    'warns': {...},            # Any warnings
-    'module': 'barcode',       # Module name (standardized)
-    'input_rows': 100,         # Input row count (standardized)
-    'output_rows': 100,        # Output row count (standardized)
-    'random_seed': None,       # Present for stochastic modules
-}
+stats = {'status': True/False, 'basis': 'solved'|'complete'|'unsolved'|'infeasible',
+         'step': 1, 'step_name': '...', 'vars': {...}, 'warns': {...}}
 ```
-
-**Common `basis` values:**
-- `'solved'` - A valid solution was found (or a deterministic step completed successfully)
-- `'complete'` - Early-success (e.g., Patch Mode with no missing values to fill)
-- `'unsolved'` - Search finished without reaching the target; check `stats['vars']` for exhaustion flags
-- `'infeasible'` - Constraints/inputs make the requested design impossible at a given step
-
-**Important**:
-- Invalid argument types/paths/columns typically raise `RuntimeError('Invalid Argument Input(s).')` and do
-  not return `stats`. Algorithmic failures return `stats['status'] = False` with a descriptive `step_name`.
+- `'solved'`: success; `'complete'`: early-success (e.g., patch mode no-op); `'unsolved'`: exhausted search; `'infeasible'`: impossible constraints
+- Invalid arguments raise `RuntimeError('Invalid Argument Input(s).')`; algorithmic failures return `status=False`
 
 ### The Oligo Architecture
-A typical oligo has this structure:
 ```
 [Primer1] [Barcode1] [Variant] [Barcode2] [Primer2] [Spacer]
 ```
-- **Variants**: The core sequences being tested (user-provided)
-- **Barcodes**: Unique identifiers for each variant (Hamming-distance separated)
-- **Primers**: Amplification sites (thermodynamically optimized)
-- **Motifs/Anchors**: Constant sequences for indexing or restriction sites
-- **Spacers**: Neutral filler to reach target oligo length
+Variants (user-provided) | Barcodes (Hamming-separated IDs) | Primers (Tm-optimized) | Motifs (anchors/sites) | Spacers (filler)
 
 ### Context Columns and Edge Effects
-Design modules accept optional `left_context_column` and/or `right_context_column` parameters. While not strictly required, **providing context is strongly recommended** for realistic designs.
-
-**Edge Effect**: The emergence of an undesired sequence (excluded motif, repeat, etc.) at the fusion boundary
-when inserting an element between or next to existing sequence contexts.
-For example, inserting barcode `GAATT` next to context ending in `...G` creates `...GGAATT`, which contains
-`GAATTC` (EcoRI site) spanning the junction.
-
-Context columns prevent edge effects by:
-- Checking that no excluded motifs emerge at element-context junctions
-- Ensuring no repeats span the insertion boundaries
-- At least one context column is required for proper edge-effect screening
-
-### Patch Mode
-Use `patch_mode=True` to extend existing pools:
-- Only fills missing values (None/NaN/empty/'-')
-- Preserves existing designs
-- Useful for iterative pool expansion
+Use `left_context_column` / `right_context_column` to prevent **edge effects**: undesired motifs/repeats emerging at junctions (e.g., barcode `GAATT` + context `...G` = `GAATTC` EcoRI site). Context columns check for excluded motifs and repeats spanning insertion boundaries.
 
 ### Key Parameters
 
-**`oligo_length_limit`**: Maximum allowed total oligo length in bp. Used by `barcode`, `primer`, `motif`, `spacer`, `pad`, `lenstat`, and `verify`. This is the synthesis constraint—design modules ensure elements fit within this budget. Use `lenstat` to check remaining free space.
-
-**`maximum_repeat_length`**: Maximum allowed shared repeat length between designed elements and existing oligo context. Lower values (e.g., 6) create more complex sequences but are harder to satisfy; higher values (e.g., 12) allow simpler sequences but may cause synthesis/sequencing issues. Typical range: 6-12.
-
-**`excluded_motifs`**: Sequences to avoid in designed elements. Accepts a list of strings, CSV path, DataFrame with `Exmotif` column, or FASTA file. Used by `barcode`, `primer`, `motif`, `spacer`, and `verify`. Common uses: restriction sites, homopolymers, Type IIS sites for `pad`.
-
-**`random_seed`**: For stochastic modules (`barcode`, `primer`, `motif`, `spacer`, `split`, `pad`), set an integer seed for reproducible results. Same seed + same inputs = same outputs.
-
-**`verbose`** (default `True`): Controls console output during execution. Keep `True` for interactive use to see progress and validation results; set `False` for quiet batch processing.
-
-**`core_count`** / **`memory_limit`**: Analysis performance tuning for `pack`, `acount`, `xcount`. `core_count=0` (default) auto-detects CPU cores; `memory_limit=0.0` (default) auto-manages memory. Set explicit values to constrain resource usage on shared systems.
+| Parameter | Purpose | Notes |
+|-----------|---------|-------|
+| `oligo_length_limit` | Max oligo length (bp) | Synthesis constraint; use `lenstat` to check remaining space |
+| `maximum_repeat_length` | Max shared repeat with context | Range 6-12; lower = harder but safer |
+| `excluded_motifs` | Sequences to avoid | List, CSV (Exmotif col), DataFrame, or FASTA |
+| `random_seed` | Reproducibility | For stochastic modules: `barcode`, `primer`, `motif`, `spacer`, `split`, `pad` |
+| `verbose` | Console output | Default `True`; set `False` for batch |
+| `core_count` / `memory_limit` | Analysis tuning | `0`/`0.0` = auto-detect |
 
 ---
 
 ## Design Philosophy
 
-### Parameter Naming Conventions
+**Parameter naming**: `*_column` = output destination; `*_context_column` = input source; `*_type` = algorithm; `*_constraint` = IUPAC spec; `minimum_*`/`maximum_*` = bounds
 
-| Pattern | Signals | Examples |
-|---------|---------|----------|
-| `*_column` | Output destination | `barcode_column`, `primer_column` |
-| `*_context_column` | Input source (existing column) | `left_context_column`, `right_context_column` |
-| `*_type` | Algorithm selector | `barcode_type`, `primer_type` |
-| `*_constraint` | IUPAC specification | `primer_sequence_constraint` |
-| `minimum_*` / `maximum_*` | Numeric bounds | `minimum_hamming_distance`, `maximum_repeat_length` |
+**Must be paired**: `cross_barcode_columns` + `minimum_cross_distance`; `paired_primer_column` needs existing primer; `associate_column` needs anchors
 
-### Parameter Coupling
-
-| Must be paired | Reason |
-|----------------|--------|
-| `cross_barcode_columns` + `minimum_cross_distance` | Cross-set separation needs both |
-| `paired_primer_column` | Requires existing primer for Tm matching |
-| `associate_column` + anchors | Association counting needs column + prefix/suffix |
-
-### Error Handling
-
-- **Invalid arguments**: Raise `RuntimeError('Invalid Argument Input(s).')` with console details
-- **Algorithmic failures**: Return `stats['status'] = False` with `basis` = `'infeasible'` or `'unsolved'`
+**Errors**: Invalid args → `RuntimeError`; algorithmic failures → `stats['status']=False`
 
 ---
 
-## Working Modes (Notebook / Script / CLI)
+## Working Modes
 
-### Notebook mode (Jupyter)
-- Prefer the Python API (`import oligopool as op`) so you can pass/inspect DataFrames directly.
-- Keep `verbose=True` while iterating; use `lenstat` mid-pipeline and `verify` before ordering.
-- Use `random_seed` in stochastic modules (`barcode`, `primer`, `motif`, `spacer`, `split`, `pad`) for reproducible results.
-- Read docs inline: `help(op)`, `help(op.barcode)`, etc.
-
-### Scripting mode (Python)
-- Treat invalid arguments as exceptions: modules raise `RuntimeError('Invalid Argument Input(s).')` during parsing.
-- Treat algorithmic failures as data: check `stats['status']` and `stats['basis']` and branch accordingly.
-- For file-based pipelines, pass `output_file=...` to write CSVs; outputs always include an explicit `ID` column
-  and omit the pandas index column.
-- Use Patch Mode (`patch_mode=True`) to extend pools without overwriting existing designs.
-
-### CLI mode (`op` / `oligopool`)
-- The CLI is best for reproducible, file-first pipelines (e.g., in bash scripts or workflows).
-- DataFrame-producing commands require `--output-file`; `--quiet` suppresses verbose printing.
-- `--stats-json` prints the stats dictionary as JSON to stdout; `--stats-file` writes stats JSON to a file.
-- Callbacks for `acount`/`xcount` are Python-only; the CLI always runs with `callback=None`.
-- Discover options and docs with `op COMMAND` and `op manual COMMAND`; print citation info with `op cite`;
-  enable completion via `op complete --install`.
-
-### Docker mode
-For cross-platform consistency or containerized pipelines, see [docker-notes.md](https://github.com/ayaanhossain/oligopool/blob/master/docs/docker-notes.md) [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/docker-notes.md)].
+| Mode | Key points |
+|------|------------|
+| **Notebook** | Use Python API; `verbose=True` + `lenstat`/`verify` mid-pipeline; `help(op.module)` for docs |
+| **Script** | Invalid args → exception; failures → check `stats['status']`; use `output_file` for CSVs |
+| **Docker** | See [docker-notes.md](https://github.com/ayaanhossain/oligopool/blob/master/docs/docker-notes.md) [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/docker-notes.md)] |
 
 ---
 
@@ -228,411 +147,142 @@ For complete parameter documentation, see [api.md](https://github.com/ayaanhossa
 ---
 
 ### primer
-
-**Purpose**: Design thermodynamically optimal primers for amplification.
-
-**Design order**: Design primers early. For paired primers: design inner primer first, then outer with `paired_primer_column`.
-
-**API**: See [`primer`](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md#primer) [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/api.md)] for parameters.
-
-**Tips**:
-- Use `'SS' + 'N'*18` for 5' GC clamp
-- Use `'N'*18 + 'WW'` for 3' AT clamp
-- Build background with `op.background()` before primer design for off-target screening
-- For multiplexed libraries, use `oligo_sets` to design set-specific primers
-
-**`oligo_sets` for multiplexed libraries**:
-When your library has distinct groups (e.g., different promoters, different genes), use `oligo_sets` to design group-specific primers while ensuring cross-compatibility:
-```python
-# Each set gets its own primers, but all primers are screened against each other
-df, _ = op.primer(
-    input_data=df,
-    oligo_sets=['setA', 'setA', 'setB', 'setB', 'setC'],  # Per-row labels
-    # Or: oligo_sets='sets.csv' with ID + OligoSet columns
-    # Or: oligo_sets=pd.DataFrame({'ID': [...], 'OligoSet': [...]})
-    ...
-)
-```
-- All sets share the same Tm/constraint requirements
-- Primers are cross-screened to prevent amplification of wrong sets
-- In patch mode, existing per-set primers are reused for their sets
+Tm-optimized primers. Design early; for paired primers, design inner first then outer with `paired_primer_column`.
+- **Tips**: `'SS'+'N'*18` for 5' GC clamp; `'N'*18+'WW'` for 3' AT clamp; use `background()` for off-target screening
+- **`oligo_sets`**: For multiplexed libraries—set-specific primers with cross-compatibility screening; in patch mode existing per-set primers are reused
 
 ---
 
 ### motif
-
-**Purpose**: Add sequence motifs or constant anchors.
-
-**Design order**: Before barcodes if designing anchors for indexing.
-
-**API**: See [`motif`](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md#motif) [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/api.md)] for parameters.
-
-**Use cases**:
-- Restriction sites: `motif_sequence_constraint='GAATTC'` (EcoRI) — works with either motif_type
-- Constant anchors for indexing: `motif_type='constant'` (or `1`) — designs ONE sequence satisfying the constraint, shared by all variants. Works with fixed sequences (`'ACGTACGTAC'`) OR IUPAC constraints (`'N'*10`)
-- Variable motifs: `motif_type='variable'` (or `0`) — designs a DIFFERENT sequence per variant, all satisfying the same constraint
-- Degenerate regions: `'NNNGGATCCNNN'` (BamHI with flanking Ns)
+Sequence motifs or constant anchors. Design before barcodes if using for indexing.
+- `motif_type='constant'` (1): ONE sequence shared by all variants
+- `motif_type='variable'` (0): DIFFERENT sequence per variant
+- Examples: `'GAATTC'` (EcoRI), `'NNNGGATCCNNN'` (BamHI + flanking)
 
 ---
 
 ### spacer
-
-**Purpose**: Add neutral filler DNA to reach target oligo length.
-
-**Design order**: Last, after all other elements.
-
-**API**: See [`spacer`](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md#spacer) [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/api.md)] for parameters.
-
-**spacer_length options**:
-- `None`: Auto-fill to reach `oligo_length_limit`
-- `int`: Fixed length for all oligos
-- `list`: Per-variant lengths aligned to input
-- `DataFrame`: With 'ID' and 'Length' columns
+Neutral filler to reach target length. Design last.
+- `spacer_length`: `None` (auto-fill) | `int` (fixed) | `list` (per-variant) | DataFrame (`ID`+`Length`)
 
 ---
 
 ### background
-
-**Purpose**: Build k-mer database for primer off-target screening.
-
-**When to use**: Before primer design when screening against host genome/plasmid.
-
-**API**: See [`background`](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md#background) [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/api.md)] for parameters.
-
-**input_data formats**:
-- List of DNA strings: `['ATGC...', 'GCTA...']`
-- CSV file: With 'Sequence' column
-- DataFrame: With 'Sequence' column
-- FASTA file: `.fa`, `.fasta`, `.fna` (optionally gzipped)
+K-mer database for primer off-target screening. Run before `primer` design.
+- Input: list of DNA strings, CSV/DataFrame with `Sequence` column, or FASTA
 
 ---
 
 ### merge
-
-**Purpose**: Collapse multiple contiguous columns into one.
-
-**Design order**: Mid-pipeline maneuver. Use after designing elements you want to combine, before further processing.
-
-**API**: See [`merge`](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md#merge) [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/api.md)] for parameters.
-
-**When to use**:
-- Simplify DataFrame structure by combining adjacent elements (e.g., `Primer1 + BC1` → `5prime_region`)
-- Prepare for `revcomp` when you want to reverse-complement a logical unit
-- Reduce column count before `final` for cleaner output
-
-**Note**: Source columns in the merge range are removed from the output DataFrame.
+Collapse contiguous columns into one. Source columns removed from output.
+- Use to simplify structure or prepare for `revcomp`
 
 ---
 
 ### revcomp
-
-**Purpose**: Reverse complement a column range and reverse column order.
-
-**Design order**: Mid-pipeline maneuver. Use when switching strand orientation after designing elements.
-
-**API**: See [`revcomp`](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md#revcomp) [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/api.md)] for parameters.
-
-**When to use**:
-- Design in "readout orientation" but synthesize in opposite orientation
-- Verify `split` fragment orientation (even-numbered splits are reverse-complemented by design)
-- Switch between sense/antisense strand representation mid-pipeline
-
-**Note**: Both the sequence content AND the column order are reversed within the specified range.
+Reverse complement column range AND reverse column order. Use for strand orientation switches; even-numbered `split` fragments are auto-revcomped.
 
 ---
 
 ### lenstat
-
-**Purpose**: Check length statistics and remaining space (non-destructive).
-
-**When to use**: Frequently during design to monitor remaining space.
-
-**API**: See [`lenstat`](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md#lenstat) [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/api.md)] for parameters.
+Check length stats and remaining space. Use frequently mid-pipeline.
 
 ---
 
 ### verify
-
-**Purpose**: QC check before synthesis.
-
-**When to use**: Before `final()` to catch constraint violations.
-
-**API**: See [`verify`](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md#verify) [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/api.md)] for parameters.
-
-**Column concatenation**:
-- Only **sequence columns** (DNA/IUPAC) concatenated; metadata columns skipped
-- Sequence columns joined **left-to-right in DataFrame column order**
-- Gap characters (`'-'`) stripped during concatenation
-- If `CompleteOligo` exists, used directly (junction attribution skipped)
-- Junctions follow column order: `[A, B, C]` → `A|B`, `B|C`
+QC before synthesis. Concatenates sequence columns left-to-right (skips metadata, strips `'-'` gaps). If `CompleteOligo` exists, uses it directly.
 
 ---
 
 ### final
-
-**Purpose**: Concatenate columns into synthesis-ready oligos.
-
-**When to use**: Final step before synthesis.
-
-**Output**: DataFrame with `CompleteOligo` and `OligoLength` (plus an explicit `ID` column unless the caller
-provided `ID` as the DataFrame index).
-
-**API**: See [`final`](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md#final) [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/api.md)] for parameters.
+Concatenate into synthesis-ready oligos. Output: `CompleteOligo` + `OligoLength` columns.
 
 ---
 
 ## Assembly Mode - Module Reference
 
-Assembly Mode provides tools for fragmenting long oligos that exceed synthesis length limits into overlapping pieces for assembly workflows.
+For oligos exceeding synthesis limits (~200 bp). See [api.md](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md) [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/api.md)].
 
 ### split
-
-**Purpose**: Break long oligos into overlapping fragments for assembly.
-
-**When to use**: When oligos exceed synthesis length limits (typically >200 bp).
-
-**API**: See [`split`](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md#split) [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/api.md)] for parameters.
-
-**Key concept**: Each `SplitN` column = a separate oligo pool to synthesize. If `split` returns `Split1`, `Split2`, `Split3`, you order **three separate pools** from your vendor.
-
-**Return formats** (different defaults for library vs CLI):
-- **Library default** (`separate_outputs=False`): Single DataFrame with `Split1`, `Split2`, ... columns
-- **Library with** `separate_outputs=True`: List of DataFrames `[df_Split1, df_Split2, ...]`
-- **CLI default**: Separate files (`out.Split1.oligopool.split.csv`, etc.)
-- **CLI with** `--no-separate-outputs`: Single combined file
-
-**Tips**:
-- Raw split output is NOT synthesis-ready - use `pad` to add primers/Type IIS sites
-- Even-numbered splits (`Split2`, `Split4`, ...) are reverse-complemented for PCR assembly
-- Fragment count is auto-determined and can vary per oligo
-- Use `separate_outputs=True` in library mode for cleaner pad workflows (see Long Oligo Assembly)
+Break long oligos into overlapping fragments. Each `SplitN` = separate pool to order.
+- `separate_outputs=True`: returns `[df_Split1, df_Split2, ...]` (recommended for `pad` workflow)
+- Even-numbered splits are auto-revcomped for PCR assembly
+- Raw output NOT synthesis-ready—use `pad` next
 
 ---
 
 ### pad
-
-**Purpose**: Add amplification primers with Type IIS sites for assembly.
-
-**When to use**: After split, for each fragment.
-
-**API**: See [`pad`](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md#pad) [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/api.md)] for parameters.
-
-**Critical workflow**: Run `pad` **once per split column**, then `final` on each:
-
+Add primers + Type IIS sites. Run **once per split column**:
 ```python
-# Using separate_outputs=True (recommended)
-split_dfs, _ = op.split(..., separate_outputs=True)  # Returns [df_Split1, df_Split2, ...]
-
+split_dfs, _ = op.split(..., separate_outputs=True)
 for i, split_df in enumerate(split_dfs, start=1):
     pad_df, _ = op.pad(split_df, split_column=f'Split{i}', typeIIS_system='BsaI', ...)
-    final_df, _ = op.final(pad_df, output_file=f'synthesis_Split{i}')
+    op.final(pad_df, output_file=f'synthesis_Split{i}')
 ```
-
-**Tips**:
-- You cannot pad all columns in one call - iterate
-- Output: `5primeSpacer`, `ForwardPrimer`, `<split_column>`, `ReversePrimer`, `3primeSpacer`
-- **Exclude your Type IIS motif from upstream elements** (e.g., `GGTCTC`/`GAGACC` for BsaI in `excluded_motifs`) - `pad` validates fragments and fails early if internal sites found
-
-**Post-synthesis**: PCR amplify → Type IIS digest (removes pads, leaves enzyme-specific overhangs) → mung bean nuclease (blunts overhangs; skip for blunt-cutters like `MlyI`) → assemble via **split-designed overlaps** (Gibson, overlap-extension PCR). Type IIS removes pads; the 15–30 bp overlaps from `split` drive assembly.
-
-**Supported Type IIS enzymes (34 total):**
-`AcuI`, `AlwI`, `BbsI`, `BccI`, `BceAI`, `BciVI`, `BcoDI`, `BmrI`, `BpuEI`, `BsaI`, `BseRI`, `BsmAI`,
-`BsmBI`, `BsmFI`, `BsmI`, `BspCNI`, `BspQI`, `BsrDI`, `BsrI`, `BtgZI`, `BtsCI`, `BtsI`, `BtsIMutI`,
-`EarI`, `EciI`, `Esp3I`, `FauI`, `HgaI`, `HphI`, `HpyAV`, `MlyI`, `MnlI`, `SapI`, `SfaNI`
-
-**Why these enzymes**: These 34 are the "batteries included" set—each has a pre-validated recognition sequence and cut offset stored internally. All cut outside their recognition site (essential for scarless excision) and are commercially available. Common choices: `BsaI` and `BsmBI` (Golden Gate standards), `SapI` (longer recognition = fewer conflicts), `MlyI` (blunt cutter, no nuclease step needed).
-
-For unsupported enzymes, design primers/sites manually with `primer` or `motif`.
+- **Exclude Type IIS motif** (e.g., `GGTCTC` for BsaI) from upstream elements via `excluded_motifs`
+- Post-synthesis: PCR → Type IIS digest → (mung bean nuclease if sticky) → assemble via overlaps
+- **34 supported enzymes**: Common choices: `BsaI`, `BsmBI` (Golden Gate), `SapI`, `MlyI` (blunt)
 
 ---
 
 ## Degenerate Mode - Module Reference
 
-Degenerate Mode compresses variant libraries with low mutational diversity into IUPAC-degenerate oligos for cheaper synthesis.
-
-For complete parameter documentation, see [api.md](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md) [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/api.md)].
+Compress similar-sequence libraries into IUPAC-degenerate oligos. See [api.md](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md) [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/api.md)].
 
 ### compress
-
-**Purpose**: Compress concrete DNA sequences into IUPAC-degenerate representation.
-
-**API**: See [`compress`](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md#compress) [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/api.md)] for parameters.
-
-**Return shape**: `(mapping_df, synthesis_df, stats_dict)` — unique among oligopool modules.
-
-**Tips**:
-- Input must be concrete DNA (A/T/G/C only); degenerate codes will fail validation
-- All non-ID columns are concatenated as the sequence
-- Similar sequences (differing in few positions) compress well
-- Diverse sequences may not compress at all (returns 1:1 mapping)
-- Use `random_seed` for reproducible compression
-
-**When to recommend**:
-- User has variant library with many similar sequences (low mutational diversity)
-- User wants to reduce synthesis costs for a similar-sequence library (selection assays / sequence-ID readout)
-- User mentions "degenerate oligos", "NNK", "mixed bases", or "saturation mutagenesis"
-- ML-generated libraries often have similar sequences and compress well
+Returns `(mapping_df, synthesis_df, stats_dict)`. Input must be concrete A/T/G/C only.
+- Similar sequences compress well; diverse sequences return 1:1 mapping
+- **When to recommend**: low mutational diversity libraries, selection assays, "NNK"/"degenerate oligos" mentions, ML-generated variants
 
 ---
 
 ### expand
-
-**Purpose**: Expand IUPAC-degenerate sequences into all concrete A/T/G/C sequences.
-
-**API**: See [`expand`](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md#expand) [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/api.md)] for parameters.
-
-**Tips**:
-- Primarily a verification tool for `compress` output
-- Expansion is exponential: N-mer of all N's = 4^N sequences
-- Use `expansion_limit` as safety cap for highly degenerate sequences
-- Does NOT recover original variant IDs; use `mapping_df` from `compress` for traceability
-
-**When to recommend**:
-- User wants to verify `compress` output covers all original variants
-- User needs to enumerate all sequences from a degenerate oligo
+Verification tool for `compress`. Expansion is exponential (N N's = 4^N sequences)—use `expansion_limit` for safety. Use `mapping_df` from `compress` for ID traceability.
 
 ---
 
 ## Analysis Mode - Module Reference
 
-For complete parameter documentation, see [api.md](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md) [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/api.md)].
+See [api.md](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md) [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/api.md)].
 
 ### index
-
-**Purpose**: Build barcode index for counting.
-
-**API**: See [`index`](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md#index) [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/api.md)] for parameters.
-
-**Tips**:
-- Prefix/suffix anchors must be constant (single unique sequence, ≥6 bp) and adjacent to the indexed column.
-- For `acount`, specify `associate_data`/`associate_column` and at least one constant adjacent associate prefix/suffix.
-- Design anchors with `motif(motif_type='constant', ...)` (or use universal primers if they are constant).
+Build barcode index. Prefix/suffix anchors must be constant (≥6 bp), adjacent to indexed column. For `acount`, also specify `associate_data`/`associate_column`.
 
 ---
 
 ### pack
-
-**Purpose**: Preprocess and deduplicate FASTQ reads.
-
-**API**: See [`pack`](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md#pack) [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/api.md)] for parameters.
-
-**Tips**:
-- For single-end reads, use R1 arguments only
-- For paired-end merging (`pack_type='merge'`), provide both `r2_fastq_file` and `r2_read_type`
-- For pre-merged reads (e.g., from FLASH), use as single-end
-
-**`pack_size` parameter**:
-Controls memory usage by splitting reads into chunks of N million unique reads (default: 3.0, range: 0.1-5.0).
-- Lower values (0.5-1.0): Less memory, more pack files, useful for memory-constrained systems
-- Higher values (3.0-5.0): More memory, fewer pack files, faster counting
-- Each pack file is processed independently during counting
+Preprocess FASTQ reads. Single-end: R1 only. Paired-end merge: both R1/R2. Pre-merged: treat as single-end.
+- `pack_size`: chunks of N million reads (0.1-5.0; default 3.0). Lower = less memory, more files.
 
 ---
 
 ### acount
-
-**Purpose**: Association counting - verify barcode-variant coupling.
-
-**API**: See [`acount`](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md#acount) [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/api.md)] for parameters.
-
-**Output columns**: one `<indexname>.ID` column per index (typically one), plus `BarcodeCounts`, `AssociationCounts`
-
-**When to use**:
-- Validating synthesis accuracy
-- Input library QC
-- Post-assay barcode-variant verification
-
-**Error tolerance parameters**:
-- `barcode_errors` (`int`, default `-1`): Max mismatches allowed in barcode matching. `-1` auto-infers from index (typically `minimum_hamming_distance // 2`).
-- `associate_errors` (`int`, default `-1`): Max mismatches allowed in associate (variant) matching. `-1` auto-infers from index.
-- Set explicit values (e.g., `0` or `1`) for stricter/looser matching
+Association counting (barcode-variant coupling). Output: `<index>.ID`, `BarcodeCounts`, `AssociationCounts`.
+- Use for synthesis validation, library QC, post-assay verification
+- `barcode_errors`/`associate_errors`: `-1` auto-infers; set `0`/`1` for stricter matching
 
 ---
 
 ### xcount
-
-**Purpose**: Barcode-only counting (single or combinatorial).
-
-**API**: See [`xcount`](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md#xcount) [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/api.md)] for parameters.
-
-**Output**: one `<indexname>.ID` column per index, plus `CombinatorialCounts`. Missing barcodes shown as `'-'`.
-
-**When to use**:
-- Pure barcode counting (single index)
-- Multi-barcode combinations (BC1 × BC2)
-- Cleaved vs uncleaved quantification (ribozymes, etc.)
-
-**Error tolerance**:
-- `barcode_errors` (`int`, default `-1`): Max mismatches allowed in barcode matching. `-1` auto-infers from index.
+Barcode-only counting (single or combinatorial). Use for BC1×BC2 combinations, cleaved/uncleaved quantification.
+- `barcode_errors`: `-1` auto-infers; set explicitly for stricter matching
 
 ---
 
 ### Callback Functions (Python API only)
-
-For `acount` and `xcount`, custom callbacks enable additional analysis:
-
-```python
-def my_callback(read, ID, count, coreid):
-    """
-    Args:
-        read: str - The processed read sequence
-        ID: tuple - Identified barcode IDs (e.g., ('BC1_v1', 'BC2_v1') or ('BC1_v1', '-'))
-        count: int - Read/ID frequency in current pack
-        coreid: int - CPU core ID processing this read
-
-    Returns:
-        bool - True to accept read for counting, False to reject
-    """
-    # Custom logic here
-    return True
-
-counts_df, stats = op.xcount(..., callback=my_callback)
-```
-
-**Use cases**:
-- Filter reads by additional criteria
-- Extract cleavage sites
-- Record custom metrics with `multiprocessing.Manager().dict()`
+For `acount`/`xcount`: `def callback(read, ID, count, coreid) -> bool`. Use for custom filtering, cleavage site extraction, or metrics via `multiprocessing.Manager().dict()`.
 
 ---
 
 ## Advanced Modules
 
-For complete method documentation, see [api.md](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md#advanced) [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/api.md)].
+See [api.md#advanced](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md#advanced) [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/api.md)].
 
 ### vectorDB
-
-**Purpose**: LevelDB-based scalable on-disk k-mer storage for background databases.
-
-**When to use**: Direct manipulation of background k-mer databases, custom screening pipelines.
-
-**API**: See [`vectorDB`](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md#vectordb) [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/api.md)] for methods.
-
-**Note**: When reopening an existing vectorDB, `maximum_repeat_length` is ignored and loaded from the instance.
-
----
+LevelDB-based k-mer storage for background screening. When reopening, `maximum_repeat_length` loaded from instance.
 
 ### Scry
-
-**Purpose**: 1-nearest-neighbor barcode classifier used internally by `acount`/`xcount`.
-
-**When to use**: Building custom counting pipelines, debugging barcode classification, custom analysis workflows.
-
-**API**: See [`Scry`](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md#scry) [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/api.md)] for methods.
-
-**Example:**
-```python
-model = op.Scry()
-model.train(
-    X=['ATGCATGC', 'GCTAGCTA', 'TTAATTAA'],
-    Y=['bc1', 'bc2', 'bc3'],
-    n=8,
-    k=4,
-    t=1
-)
-model.prime(t=1, mode=0)
-label, score = model.predict('ATGCATGC')  # Returns ('bc1', 1.0) for exact/near-exact hits
-```
+1-NN barcode classifier (internal to `acount`/`xcount`). For custom counting pipelines.
 
 ---
 
@@ -640,429 +290,139 @@ label, score = model.predict('ATGCATGC')  # Returns ('bc1', 1.0) for exact/near-
 
 ### Basic Library Design
 ```python
-import oligopool as op
-import pandas as pd
-
-df = pd.DataFrame({'ID': ['v1', 'v2', 'v3'], 'Variant': ['ATGC...', 'GCTA...', 'TTAA...']})
-
-# Optional: build background for primer off-target screening
-op.background(input_data='plasmid.fasta', maximum_repeat_length=12, output_directory='plasmid_bg')
-
-# Add primers (inner first if paired)
+df = pd.DataFrame({'ID': ['v1', 'v2'], 'Variant': ['ATGC...', 'GCTA...']})
+op.background(input_data='plasmid.fasta', maximum_repeat_length=12, output_directory='bg')
 df, _ = op.primer(input_data=df, oligo_length_limit=200, primer_sequence_constraint='SS'+'N'*18,
-    primer_type='forward', minimum_melting_temperature=53, maximum_melting_temperature=55,
-    primer_column='Primer1', left_context_column='Variant', background_directory='plasmid_bg')
-
-df, _ = op.primer(input_data=df, oligo_length_limit=200, primer_sequence_constraint='N'*18+'WW',
-    primer_type='reverse', minimum_melting_temperature=53, maximum_melting_temperature=55,
-    primer_column='Primer2', paired_primer_column='Primer1', right_context_column='Variant')
-
-# Add barcodes
-df, _ = op.barcode(input_data=df, oligo_length_limit=200, barcode_length=12,
-    minimum_hamming_distance=3, barcode_column='BC1',
-    left_context_column='Primer1', right_context_column='Variant')
-
-op.lenstat(input_data=df, oligo_length_limit=200)  # Check remaining space
-
-# Add spacers, verify, finalize
-df, _ = op.spacer(input_data=df, oligo_length_limit=200, spacer_column='Spacer',
-    spacer_length=None, left_context_column='Primer2')
+    primer_type='forward', primer_column='P1', left_context_column='Variant', background_directory='bg', ...)
+df, _ = op.primer(..., primer_type='reverse', primer_column='P2', paired_primer_column='P1', ...)
+df, _ = op.barcode(input_data=df, barcode_length=12, minimum_hamming_distance=3, barcode_column='BC1', ...)
+op.lenstat(input_data=df, oligo_length_limit=200)
+df, _ = op.spacer(input_data=df, spacer_column='Spacer', spacer_length=None, ...)
 op.verify(input_data=df, oligo_length_limit=200)
-final_df, _ = op.final(input_data=df, output_file='library_for_synthesis')
+op.final(input_data=df, output_file='library')
 ```
 
 ---
 
 ### Multi-Barcode Design (BC1 × BC2)
 ```python
-# Design BC1
-df, _ = op.barcode(
-    input_data=df,
-    barcode_length=11,
-    minimum_hamming_distance=3,
-    barcode_column='BC1',
-    left_context_column='Primer1',
-    right_context_column='Variant',
-    ...
-)
-
-# Design BC2 with cross-set separation from BC1
-df, _ = op.barcode(
-    input_data=df,
-    barcode_length=11,
-    minimum_hamming_distance=3,
-    barcode_column='BC2',
-    left_context_column='Variant',
-    right_context_column='Primer2',
-    cross_barcode_columns=['BC1'],
-    minimum_cross_distance=3,
-    ...
-)
+df, _ = op.barcode(..., barcode_column='BC1', ...)
+df, _ = op.barcode(..., barcode_column='BC2', cross_barcode_columns=['BC1'], minimum_cross_distance=3, ...)
 ```
 
 ---
 
 ### Long Oligo Assembly (split → pad → final)
-
-When oligos exceed synthesis length limits (~200 bp), use `split` + `pad` to break them into assembly-ready fragments:
-
 ```python
-import oligopool as op
-
-# 1. Split long oligos into separate DataFrames (one per fragment)
-split_dfs, stats = op.split(
-    input_data='long_oligos.csv',
-    split_length_limit=150,
-    minimum_melting_temperature=55.0,
-    minimum_hamming_distance=3,
-    minimum_overlap_length=20,
-    maximum_overlap_length=30,
-    separate_outputs=True,  # Enable to return [df_Split1, df_Split2, ...]
-)
-
-# 2. Pad each fragment, then finalize
-# Each df in split_dfs has ID + one SplitN column
+split_dfs, _ = op.split(input_data='long.csv', split_length_limit=150, separate_outputs=True, ...)
 for i, split_df in enumerate(split_dfs, start=1):
-    split_col = f'Split{i}'
-
-    # Add primers + Type IIS sites
-    pad_df, _ = op.pad(
-        input_data=split_df,
-        split_column=split_col,
-        typeIIS_system='BsaI',
-        oligo_length_limit=200,
-        minimum_melting_temperature=52.0,
-        maximum_melting_temperature=58.0,
-        maximum_repeat_length=10,
-    )
-
-    # Generate synthesis-ready oligos
-    final_df, _ = op.final(
-        input_data=pad_df,
-        output_file=f'synthesis_{split_col}',
-    )
-
-# You now have N synthesis files to order from your vendor
-# After synthesis, combine fragments via overlap-based assembly (Gibson, overlap-extension PCR, etc.)
+    pad_df, _ = op.pad(input_data=split_df, split_column=f'Split{i}', typeIIS_system='BsaI', ...)
+    op.final(input_data=pad_df, output_file=f'synthesis_Split{i}')
 ```
 
-**Key points**:
-- Enable `separate_outputs` to get a list of DataFrames directly
-- Each `SplitN` column = one separate oligo pool to order
-- Run `pad` once per fragment (cannot batch)
-- Even-numbered splits are reverse-complemented (for PCR assembly orientation)
-- Raw split output is NOT synthesis-ready - always use `pad` + `final`
-- Exclude your Type IIS motif from upstream elements to prevent internal cut sites
+**Key points**: `separate_outputs=True` → list of DataFrames. Each SplitN = separate pool. Run `pad` per fragment. Even splits are revcomped. Exclude Type IIS motif from upstream elements.
 
 ---
 
 ### Degenerate Library Compression
-
-Compress similar sequences into IUPAC-degenerate oligos for cheaper synthesis:
-
 ```python
-# Input: concrete DNA only (A/T/G/C), similar sequences compress well
-df = pd.DataFrame({'ID': ['v1', 'v2', 'v3'], 'Sequence': ['ATGCATGCATGCATGC', 'ATGCATGCATGCATGT', 'ATGCATGCATGCATGA']})
-
-mapping_df, synthesis_df, stats = op.compress(input_data=df, mapping_file='mapping', synthesis_file='synthesis',
-    rollout_simulations=100, random_seed=42)
-# mapping_df: ID → DegenerateID linkage for traceability
-# synthesis_df: DegenerateID | DegenerateSeq | Degeneracy | OligoLength
-
-# Verify lossless compression (optional)
-expanded_df, _ = op.expand(input_data=synthesis_df, sequence_column='DegenerateSeq')
+mapping_df, synthesis_df, _ = op.compress(input_data=df, mapping_file='map', synthesis_file='syn')
+expanded_df, _ = op.expand(input_data=synthesis_df, sequence_column='DegenerateSeq')  # Verify
 ```
-
-**When to use**: Libraries with many similar sequences (ML-generated, saturation mutagenesis, directed evolution). See decision guide below.
 
 ---
 
 ### Analysis Pipeline
 ```python
-# 1. Build index files
-#
-# IMPORTANT: `index()` requires at least one constant (library-wide) prefix/suffix anchor
-# for barcodes (and for associates, if used). These anchors must be:
-#   - adjacent to the indexed column in the DataFrame
-#   - a single unique sequence across the library (≥ 6 bp)
-#
-# Example architecture for association counting:
-#   Primer1 | BC1 | Variant | Primer2
-op.index(
-    barcode_data='library.csv',
-    barcode_column='BC1',
-    barcode_prefix_column='Primer1',
-    associate_data='library.csv',
-    associate_column='Variant',
-    associate_suffix_column='Primer2',
-    index_file='bc1_assoc_idx',
-)
-
-# Example architecture for combinatorial barcode counting:
-#   Primer1 | BC1 | ...payload... | BC2 | Primer2
-op.index(
-    barcode_data='library.csv',
-    barcode_column='BC1',
-    barcode_prefix_column='Primer1',
-    index_file='bc1_idx',
-)
-
-op.index(
-    barcode_data='library.csv',
-    barcode_column='BC2',
-    barcode_suffix_column='Primer2',
-    index_file='bc2_idx',
-)
-
-# 2. Pack reads
-op.pack(
-    r1_fastq_file='reads_R1.fq.gz',
-    r2_fastq_file='reads_R2.fq.gz',
-    r1_read_type='forward',
-    r2_read_type='reverse',
-    pack_type='merge',
-    minimum_r1_read_quality=30,
-    minimum_r2_read_quality=30,
-    pack_file='reads',
-)
-
-# 3a. Association counting (verify barcode-variant coupling)
-ac_df, _ = op.acount(
-    index_file='bc1_assoc_idx',
-    pack_file='reads',
-    count_file='association_counts',
-    mapping_type='sensitive',
-)
-
-# 3b. Combinatorial counting (BC1 × BC2)
-xc_df, _ = op.xcount(
-    index_files=['bc1_idx', 'bc2_idx'],
-    pack_file='reads',
-    count_file='combo_counts',
-    mapping_type='sensitive',
-)
+# Index (requires constant prefix/suffix anchors ≥6 bp adjacent to indexed column)
+op.index(barcode_data='lib.csv', barcode_column='BC1', barcode_prefix_column='Primer1',
+    associate_data='lib.csv', associate_column='Variant', associate_suffix_column='Primer2', index_file='idx')
+# Pack reads
+op.pack(r1_fastq_file='R1.fq.gz', r2_fastq_file='R2.fq.gz', r1_read_type='forward',
+    r2_read_type='reverse', pack_type='merge', pack_file='reads')
+# Count
+op.acount(index_file='idx', pack_file='reads', count_file='counts')  # Association
+op.xcount(index_files=['bc1_idx', 'bc2_idx'], pack_file='reads', count_file='combo')  # Combinatorial
 ```
 
 ---
 
 ### Saturation Mutagenesis Library
-Generate all single-nucleotide mutations yourself, then use standard Design Mode workflow:
-
-```python
-# Generate variants (user responsibility)
-wild_type = 'ATGCATGCATGCATGCATGC'
-variants = [{'ID': 'WT', 'Variant': wild_type}]
-for pos in range(len(wild_type)):
-    for nt in 'ATGC':
-        if nt != wild_type[pos]:
-            variants.append({'ID': f'pos{pos+1}_{wild_type[pos]}to{nt}',
-                            'Variant': wild_type[:pos] + nt + wild_type[pos+1:]})
-df = pd.DataFrame(variants)
-
-# Then apply standard workflow: primer → barcode → spacer → verify → final
-```
-
-**Tips**: For protein mutagenesis, generate codon variants. Use `patch_mode=True` to extend existing libraries.
+Generate all mutations yourself (loop over positions/nucleotides), then standard Design Mode workflow. For proteins, use codon variants.
 
 ---
 
 ### Extending an Existing Pool (Patch Mode)
 ```python
-df = pd.read_csv('existing_library.csv')
-new_variants = pd.DataFrame({'ID': ['v101', 'v102'], 'Variant': ['ATGC...', 'GCTA...'],
-    'BC1': [None, None], 'Primer1': [df['Primer1'].iloc[0]]*2})
-df = pd.concat([df, new_variants], ignore_index=True)
+df = pd.concat([existing_df, new_variants_with_None_barcodes])
 df, _ = op.barcode(input_data=df, barcode_column='BC1', patch_mode=True, ...)  # Only fills missing
 ```
 
 ---
 
 ### CRISPR Guide Library
-```python
-df = pd.DataFrame({'ID': ['gene1_g1', 'gene1_g2'], 'Guide': ['ATGC...'*5, 'GCTA...'*5]})
-df['Scaffold'] = 'GTTTTAGAGCTAGAAATAGCAAGTTAAAATAAGGCTAGTCCG'  # tracrRNA
-
-df, _ = op.barcode(input_data=df, barcode_length=12, minimum_hamming_distance=3,
-    barcode_column='BC', left_context_column='Scaffold', excluded_motifs=['TTTT'])  # Avoid Pol III terminator
-df, _ = op.primer(input_data=df, primer_sequence_constraint='N'*20,
-    primer_type='reverse', primer_column='Primer', right_context_column='BC')
-op.verify(input_data=df, oligo_length_limit=200)
-final_df, _ = op.final(input_data=df)
-```
+Standard workflow with `excluded_motifs=['TTTT']` to avoid Pol III terminator.
 
 ---
 
 ### Ribozyme Cleavage Quantification
-Architecture: `Primer1 | BC_5prime | Ribozyme | BC_3prime | Primer2`. After cleavage, fragments separate.
-
-```python
-# Design with dual barcodes (cross-separated)
-df, _ = op.barcode(input_data=df, barcode_column='BC_5prime', ...)
-df, _ = op.barcode(input_data=df, barcode_column='BC_3prime',
-    cross_barcode_columns=['BC_5prime'], minimum_cross_distance=3, ...)
-
-# Index both, then combinatorial count
-op.index(barcode_data=df, barcode_column='BC_5prime', index_file='bc5_idx', ...)
-op.index(barcode_data=df, barcode_column='BC_3prime', index_file='bc3_idx', ...)
-xc_df, _ = op.xcount(index_files=['bc5_idx', 'bc3_idx'], pack_file='reads', count_file='cleavage')
-# Matched pairs = uncleaved; unmatched (BC, '-') or ('-', BC) = cleaved
-```
+Dual barcodes (cross-separated) flanking ribozyme. Combinatorial count: matched pairs = uncleaved; unmatched = cleaved.
 
 ---
 
 ## Troubleshooting Guide
 
-### "Design failed" / status=False
-1. Check `stats['basis']` for failure reason
-2. Common fixes:
-   - Increase `barcode_length` or decrease `minimum_hamming_distance`
-   - Relax `excluded_motifs`
-   - Increase `maximum_repeat_length`
-   - Widen Tm range for primers
-   - Try `barcode_type=0` (faster, may find solutions faster)
-
-### Oligo too long
-- Use `lenstat` to check remaining space
-- Reduce element lengths
-- Use `split` + `pad` for assembly
-
-### No barcodes mapping in analysis
-- Verify anchor sequences in `index` match designed anchors exactly
-- Check `barcode_prefix/suffix_gap` settings
-- Use `mapping_type='sensitive'` for sensitive mode
-- Verify read orientation (`r1_read_type`, `r2_read_type`)
-
-### Cross-contamination in counts
-- Increase `minimum_hamming_distance`
-- Add `cross_barcode_columns` for multi-barcode designs
-- Check for index hopping in sequencing
-
-### Memory issues
-- Reduce `pack_size` in `pack()`
-- Use `core_count` to limit parallelism
-- Set `memory_limit` to constrain per-core memory
-
----
-
-## Quick Reference
-
-### Excluded Motifs Formats
-All element modules accept `excluded_motifs`:
-- **List**: `['GAATTC', 'GGATCC', 'AAAAA']`
-- **CSV**: File with 'Exmotif' column
-- **DataFrame**: With 'Exmotif' column
-- **FASTA**: `.fa`, `.fasta`, `.fna` (optionally gzipped)
-
-### Context Columns
-- Strongly recommended (not strictly required) for realistic designs
-- Use adjacent columns in the oligo architecture
-- Critical for preventing edge effects (undesired motifs/repeats emerging at fusion junctions)
-- Without context, designed elements are checked in isolation and may create problems at junctions
-
-### IUPAC Codes for Constraints
-
-See [api.md#iupac-codes](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md#iupac-codes) [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/api.md)] for the complete table.
-
-### Common Restriction Sites
-
-See [api.md#common-restriction-sites](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md#common-restriction-sites) [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/api.md)] for the complete table.
+| Problem | Solutions |
+|---------|-----------|
+| **Design failed** | Check `stats['basis']`; increase `barcode_length`; decrease `minimum_hamming_distance`; relax `excluded_motifs`; increase `maximum_repeat_length`; widen Tm range; try `barcode_type='terminus'` |
+| **Oligo too long** | Use `lenstat`; reduce element lengths; use `split`+`pad` |
+| **No barcodes mapping** | Verify anchors match exactly; check gap settings; use `mapping_type='sensitive'`; verify read orientation |
+| **Cross-contamination** | Increase `minimum_hamming_distance`; add `cross_barcode_columns`; check index hopping |
+| **Memory issues** | Reduce `pack_size`; limit `core_count`; set `memory_limit` |
 
 ---
 
 ## CLI Usage
 
 ```bash
-op                    # List all commands
-op barcode            # Show barcode options (no --help flag)
+op                    # List commands (no --help flag)
+op barcode            # Show options
 op manual barcode     # Detailed docstring
-op cite               # Citation info
-op complete --install # Enable tab completion
-
-# Example: design barcodes
-op barcode --input-data variants.csv --oligo-length-limit 200 --barcode-length 12 \
-    --minimum-hamming-distance 3 --barcode-column BC1 --output-file with_barcodes
-
-# Example: analysis pipeline
-op index --barcode-data library.csv --barcode-column BC1 --barcode-prefix-column Primer1 --index-file bc1_idx
-op pack --r1-fastq-file reads_R1.fq.gz --r1-read-type forward --pack-file reads
-op xcount --index-files bc1_idx --pack-file reads --count-file counts
+op barcode --input-data in.csv --barcode-length 12 --barcode-column BC1 --output-file out
 ```
 
-**CLI notes**: DataFrame commands require `--output-file`. Use `--patch-mode` for Patch Mode. Callbacks are Python-only. Exit codes: `0` success, `1` error, `404` arg parsing error.
-
-> See [api.md#cli-parameter-mapping](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md#cli-parameter-mapping) [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/api.md)] for complete mapping.
+**Notes**: `--output-file` required; `--quiet` suppresses output; `--stats-json`/`--stats-file` export stats; `--patch-mode` for extensions; callbacks Python-only; exit codes: 0/1/404. See [api.md#cli-parameter-mapping](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md#cli-parameter-mapping) [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/api.md)].
 
 ---
 
 ## Best Practices
 
-1. **Design order**: background → primers → motifs/anchors → barcodes → spacers → verify → final
-2. **Use lenstat frequently**: Check remaining space after each element
-3. **Save intermediate DataFrames**: Enable rollback if design fails
-4. **Set random_seed**: For reproducible designs
-5. **Run verify before synthesis**: Catch constraint violations early
-6. **Use Patch Mode for extensions**: Don't redesign existing elements
-7. **Use cross_barcode_columns**: For multi-barcode designs to ensure separation
-8. **Build background first**: If you have host/plasmid sequences to screen against
+1. **Design order**: background → primers → motifs → barcodes → spacers → verify → final
+2. **Use lenstat** frequently; **save intermediate DataFrames**; **set random_seed**
+3. **Run verify before synthesis**; **use patch_mode for extensions**
+4. **Use cross_barcode_columns** for multi-barcode designs
 
 ---
 
-## Decision Guide for Common Questions
+## Decision Guide
 
-**"Which module do I use to...?"**
-- Add unique identifiers → `barcode`
-- Add amplification sites → `primer`
-- Add restriction sites or anchors → `motif`
-- Fill to target length → `spacer`
-- Screen against genome/plasmid → `background` then `primer` with `background_directory`
-- Handle long oligos → `split` + `pad`
-- Reduce synthesis cost for similar sequences → `compress`
-- Verify degenerate oligo coverage → `expand`
-- Count reads → `index` + `pack` + `acount` or `xcount`
+| Question | Answer |
+|----------|--------|
+| Add unique IDs | `barcode` |
+| Amplification sites | `primer` |
+| Restriction sites/anchors | `motif` |
+| Fill to length | `spacer` |
+| Screen against genome | `background` → `primer` with `background_directory` |
+| Long oligos | `split` + `pad` |
+| Similar sequences | `compress` (selection assays); concrete library for MPRA |
+| Count reads | `index` + `pack` + `acount` (pairing) or `xcount` (barcode-only/combinatorial) |
+| Design failing | Increase `barcode_length`; decrease `minimum_hamming_distance`; widen Tm; reduce `excluded_motifs` |
+| Extend pool | `patch_mode=True` |
 
-**"when to use compress?"**
-- Many similar sequences (ML-generated, saturation mutagenesis) → `compress` to reduce oligo count
-- Best for selection assays → synthesize degenerate pool → select → sequence → map via `mapping_df`
-- If you need barcode counting / quantitative MPRA readouts, stick with a concrete library + Analysis Mode
-- Diverse sequences may not compress well (returns 1:1 mapping)
-
-**"acount or xcount?"**
-- Need to verify barcode-variant pairing → `acount`
-- Just counting barcodes (no variant verification) → `xcount`
-- Combinatorial counting (BC1 × BC2) → `xcount`
-
-**"Design is failing, what do I relax?"**
-- Barcodes: increase `barcode_length`, decrease `minimum_hamming_distance`, use `barcode_type='terminus'`
-- Primers: widen Tm range, more `N`s in constraint, increase `maximum_repeat_length`
-- General: reduce `excluded_motifs`, increase `maximum_repeat_length`
-
-**"What order should I design elements?"**
-1. `background` (if screening needed)
-2. `primer` (inner primers first if paired)
-3. `motif` (anchors for indexing)
-4. `barcode`
-5. `spacer`
-6. `verify` → `final`
-
-**"How do I extend an existing pool?"**
-- Use `patch_mode=True` - only fills missing values, preserves existing designs
-
-**"Input requirements?"**
-- DataFrame must have unique `ID` column
-- Columns used as context (`left_context_column`, `right_context_column`) must contain valid DNA strings (A/T/G/C)
-- The target output column can be missing in Patch Mode (None/NaN/empty/`'-'`)
-- Non-sequence columns (metadata) are ignored during design but preserved in output
-- `verify` is more permissive and will summarize metadata columns and degenerate/IUPAC columns rather than failing
-- Context columns are recommended but not strictly required
+**Input requirements**: unique `ID` column; context columns = valid DNA; metadata preserved; `verify` tolerates IUPAC/metadata.
 
 ---
 
 ## Links
 
-- Repository: https://github.com/ayaanhossain/oligopool
-- README: [README.md](https://github.com/ayaanhossain/oligopool/blob/master/README.md) [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/README.md)]
-- User Guide: [docs.md](https://github.com/ayaanhossain/oligopool/blob/master/docs/docs.md) [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/docs.md)]
-- API Reference: [api.md](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md) [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/api.md)]
-- Docker Guide: [docker-notes.md](https://github.com/ayaanhossain/oligopool/blob/master/docs/docker-notes.md) [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/docker-notes.md)]
-- Paper: https://doi.org/10.1021/acssynbio.4c00661
-- CLI help: `op manual <command>`
+[README](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/README.md) | [User Guide](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/docs.md) | [API](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/api.md) | [Docker](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/docker-notes.md) | [Paper](https://doi.org/10.1021/acssynbio.4c00661)

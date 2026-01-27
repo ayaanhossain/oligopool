@@ -1201,28 +1201,40 @@ def get_expanded_dataframe(
     total_expanded = 0
     results_by_idx = {}
 
-    # Use parallel expansion for multiple sequences
+    # Use parallel expansion for multiple sequences (fall back to serial on restricted systems).
     if num_input_seqs > 1:
-        with ProcessPoolExecutor() as executor:
-            futures = {
-                executor.submit(_expand_single_worker, item): item[0]
-                for item in work_items
-            }
+        try:
+            with ProcessPoolExecutor() as executor:
+                futures = {
+                    executor.submit(_expand_single_worker, item): item[0]
+                    for item in work_items
+                }
 
-            for future in as_completed(futures):
-                idx, row_id, deg_seq, degeneracy, rows = future.result()
-                results_by_idx[idx] = (row_id, deg_seq, degeneracy, rows)
+                for future in as_completed(futures):
+                    idx, row_id, deg_seq, degeneracy, rows = future.result()
+                    results_by_idx[idx] = (row_id, deg_seq, degeneracy, rows)
+        except (PermissionError, OSError):
+            liner.send(' Warning: Parallel expansion unavailable; using serial expansion\n')
+            for item in work_items:
+                idx, row_id, deg_seq, degeneracy, rows = _expand_single_worker(item)
+                expanded_rows.extend(rows)
+                total_expanded += len(rows)
 
-        # Process results in order
-        for idx in sorted(results_by_idx.keys()):
-            row_id, deg_seq, degeneracy, rows = results_by_idx[idx]
-            expanded_rows.extend(rows)
-            total_expanded += len(rows)
+                seq_preview = deg_seq[:20] + '..' if len(deg_seq) > 22 else deg_seq
+                liner.send(
+                    ' Expanding {:{},d}: {} (Degeneracy: {:{},d}) -> {:{},d} Sequence(s)\n'.format(
+                        idx, ilen, seq_preview, degeneracy, dlen, len(rows), dlen))
+        else:
+            # Process results in order
+            for idx in sorted(results_by_idx.keys()):
+                row_id, deg_seq, degeneracy, rows = results_by_idx[idx]
+                expanded_rows.extend(rows)
+                total_expanded += len(rows)
 
-            seq_preview = deg_seq[:20] + '..' if len(deg_seq) > 22 else deg_seq
-            liner.send(
-                ' Expanding {:{},d}: {} (Degeneracy: {:{},d}) -> {:{},d} Sequence(s)\n'.format(
-                    idx, ilen, seq_preview, degeneracy, dlen, len(rows), dlen))
+                seq_preview = deg_seq[:20] + '..' if len(deg_seq) > 22 else deg_seq
+                liner.send(
+                    ' Expanding {:{},d}: {} (Degeneracy: {:{},d}) -> {:{},d} Sequence(s)\n'.format(
+                        idx, ilen, seq_preview, degeneracy, dlen, len(rows), dlen))
 
     # Single sequence - no parallelization overhead
     else:

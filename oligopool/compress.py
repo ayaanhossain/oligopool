@@ -21,44 +21,36 @@ def compress(
     random_seed:int|None=None,
     verbose:bool=True) -> Tuple[pd.DataFrame, pd.DataFrame, dict]:
     '''
-    Compress concrete DNA sequences into IUPAC-degenerate oligos for `Degenerate Mode`.
+    Compress concrete DNA sequences into IUPAC-degenerate oligos.
 
     Required Parameters:
-        - `input_data` (`str` / `pd.DataFrame`): Path to input CSV or DataFrame with an
-            'ID' column and one or more strict-ATGC DNA columns.
+        - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated oligopool variants.
 
     Optional Parameters:
-        - `mapping_file` (`str`): Filename for output mapping DataFrame that links each
-            original variant ID to its assigned degenerate oligo ID (default: `None`).
+        - `mapping_file` (`str`): Filename for output mapping DataFrame (default: `None`).
             A `.oligopool.compress.csv` suffix is added if missing.
-        - `synthesis_file` (`str`): Filename for output synthesis DataFrame containing
-            the degenerate oligos ready for ordering (default: `None`).
+        - `synthesis_file` (`str`): Filename for output synthesis DataFrame (default: `None`).
             A `.oligopool.compress.csv` suffix is added if missing.
-        - `rollout_simulations` (`int`): Number of Monte Carlo simulations per decision
-            during compression. Higher values give better compression but take longer
-            (default: `100`).
-        - `rollout_horizon` (`int`): Number of positions to look ahead during Monte Carlo
-            rollouts. Higher values can improve compression quality (default: `4`).
+        - `rollout_simulations` (`int`): Number of Monte Carlo simulations per decision (default: `100`).
+        - `rollout_horizon` (`int`): Number of positions to look ahead during rollouts (default: `4`).
         - `random_seed` (`int` / `None`): Seed for local RNG (default: `None`).
         - `verbose` (`bool`): If `True`, logs progress updates to stdout (default: `True`).
 
     Returns:
-        - `mapping_df` (`pd.DataFrame`): DataFrame mapping original variant IDs to
-            degenerate oligo IDs. Columns: `ID`, `Sequence`, `DegenerateID`.
-        - `synthesis_df` (`pd.DataFrame`): DataFrame of degenerate oligos for synthesis.
-            Columns: `DegenerateID`, `DegenerateSeq`, `Degeneracy`, `OligoLength`.
-        - `stats` (`dict`): Statistics dictionary with compression results including
-            `compression_ratio`, `min_degeneracy`, `max_degeneracy`, `mean_degeneracy`.
+        - A tuple of (mapping_df, synthesis_df) DataFrames; saves to files if specified.
+        - A dictionary of stats from the last step in pipeline.
 
     Notes:
-        - All non-'ID' columns in `input_data` are concatenated (left-to-right) to form
-          the concrete sequence per variant.
+        - `input_data` must contain a unique 'ID' column; all other columns must be non-empty strict-ATGC DNA strings.
+        - All non-'ID' columns are concatenated (left-to-right) to form the sequence per variant.
         - Compression is lossless: expanding the degenerate oligos recovers exactly the
           set of unique input sequences (no extras, no missing).
         - Sequences of different lengths are compressed independently by length group.
-        - `rollout_simulations` and `rollout_horizon` trade off runtime vs compression ratio.
-        - `mapping_df` is your traceability map for mapping sequenced survivors back to
-          original `ID`s; `expand` is useful as a sanity check for compression.
+        - `rollout_simulations` and `rollout_horizon` trade off runtime vs compression ratio;
+          higher values give better compression but take longer.
+        - `mapping_df` links each original variant `ID` to its `DegenerateID` for traceability;
+          `synthesis_df` contains the degenerate oligos ready for ordering.
+        - Use `expand` to verify that compression output covers exactly the original sequences.
     '''
 
     # Preserve return style when the caller intentionally used ID as index.

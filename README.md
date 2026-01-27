@@ -17,15 +17,15 @@
   <a href="#license" style="text-decoration: none !important;">⚖️ License</a>
 </p>
 
-`Oligopool Calculator` is a suite of algorithms for automated design and analysis of [oligopool libraries](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9300125/) - developed for interactive use and AI-assisted workflows.
+`Oligopool Calculator` is a suite of algorithms for automated design, assembly, compression, and analysis of [oligopool libraries](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9300125/) - developed for seamless integration into Python scripts, CLI pipelines, Jupyter notebooks, and containerized environments, with first-class support for AI-assisted workflows.
 
-It supports scalable design of primers, barcodes, motifs/anchors, and spacers; assembly-aware splitting/padding of long constructs; and rapid packing/counting of barcoded reads for activity quantification.
+It supports scalable design of primers, barcodes, motifs/anchors, and spacers; assembly-aware splitting/padding of long constructs; compression of similar sequences into IUPAC-degenerate oligos; and rapid packing/counting of barcoded reads for activity quantification.
 
 We have used `Oligopool Calculator` in multiple projects to build libraries of tens of thousands of promoters (see [here](https://www.nature.com/articles/s41467-022-32829-5) and [here](https://www.nature.com/articles/s41587-020-0584-2)), ribozymes, and mRNA stability elements (see [here](https://www.nature.com/articles/s41467-024-54059-7)).
 
 To learn more, please check out [our paper in ACS Synthetic Biology](https://pubs.acs.org/doi/10.1021/acssynbio.4c00661).
 
-`Oligopool Calculator` streamlines the design and analysis of massively parallel barcoded measurements, including iterative workflows where new oligos are continuously added to an existing pool. It has been benchmarked to design millions of compact barcodes and universal primer binding sites, and to process hundreds of millions of sequencing reads per hour on an 8-core desktop.
+`Oligopool Calculator` streamlines the design, assembly, compression, and analysis of massively parallel assays, including iterative workflows where new oligos are continuously added to an existing pool. It has been benchmarked to design pools containing millions of oligos, and to process hundreds of millions of sequencing reads per hour on low-cost desktop-grade hardware.
 
 <h1 align="center">
     <a href="https://github.com/ayaanhossain/oligopool/" style="text-decoration: none !important;">
@@ -33,14 +33,14 @@ To learn more, please check out [our paper in ACS Synthetic Biology](https://pub
     </a>
 </h1>
 
-**Design and analysis of oligopool variants using `Oligopool Calculator`.** **(a)** In `Design Mode`, `Oligopool Calculator` generates optimized `barcode`s, `primer`s, `spacer`s, and `motif`s. `Assembly Mode` can `split` longer oligos into shorter `pad`ded fragments for synthesis and assembly. `Degenerate Mode` can `compress` ML-generated variant libraries into IUPAC-degenerate oligos for cost-efficient synthesis. **(b)** Once the library is assembled and cloned, barcoded amplicon sequencing data can be processed via `Analysis Mode` for characterization. `Analysis Mode` proceeds by first `index`ing one or more sets of barcodes, `pack`ing the reads, and then producing count matrices either using `acount` (association counting) or `xcount` (combinatorial counting).
+**Design and analysis of oligopool variants using `Oligopool Calculator`.** **(a)** In `Design Mode`, `Oligopool Calculator` generates optimized `barcode`s, `primer`s, `spacer`s, and `motif`s. `Assembly Mode` can `split` longer oligos into shorter `pad`ded fragments for synthesis and assembly. `Degenerate Mode` can `compress` similar variants into IUPAC-degenerate oligos for cost-efficient synthesis. **(b)** Once the library is assembled and cloned, barcoded amplicon sequencing data can be processed via `Analysis Mode` for characterization. `Analysis Mode` proceeds by first `index`ing one or more sets of barcodes, `pack`ing the reads, and then producing count matrices either using `acount` (association counting) or `xcount` (combinatorial counting).
 
 <a id="features"></a>
 ## ✨ Features
 
 - 🧬 **Design mode:** constraint-based design of barcodes, primers, motifs/anchors, and spacers with background screening and utilities (`barcode`, `primer`, `motif`, `spacer`, `background`, `merge`, `revcomp`, `lenstat`, `verify`, `final`).
 - 🔧 **Assembly mode:** fragment long oligos into overlapping pieces and add Type IIS primer pads for scarless assembly (`split`, `pad`).
-- 🧪 **Degenerate mode:** compress ML-generated variant libraries into IUPAC-degenerate oligos for cost-efficient synthesis and selection-based assays (`compress`, `expand`).
+- 🧪 **Degenerate mode:** compress variant libraries with low mutational diversity into IUPAC-degenerate oligos for cost-efficient synthesis (`compress`, `expand`).
 - 📈 **Analysis mode:** fast NGS-based activity quantification with read indexing, packing, and barcode/associate counting (`index`, `pack`, `acount`, `xcount`) extensible with callback methods (via Python library).
 - 🔁 **Iterative & multiplexed workflows:** patch mode for extending existing pools, cross-set barcode separation, and per-group primer design with cross-compatibility screening.
 - ⚡ **Performance:** scalable to very large libraries and high-throughput sequencing datasets, with published benchmarks demonstrating efficient design and analysis on commodity hardware (see paper).
@@ -132,11 +132,11 @@ Type "help", "copyright", "credits" or "license" for more information.
         final       concatenate into synthesis-ready oligos
 
     Assembly Mode - fragment long oligos for assembly
-        split       fragment long oligos for assembly
+        split       fragment oligos into overlapping pieces
         pad         Type IIS primer pads for scarless excision
 
     Degenerate Mode - compress variant libraries for synthesis
-        compress    compress variants into IUPAC-degenerate oligos
+        compress    reduce similar variants to IUPAC-degenerate oligos
         expand      expand IUPAC-degenerate oligos into concrete sequences
 
     Analysis Mode - quantify variants from NGS reads

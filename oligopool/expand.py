@@ -21,39 +21,28 @@ def expand(
     '''
     Expand IUPAC-degenerate sequences into all concrete A/T/G/C sequences.
 
-    This is a Degenerate Mode utility: use it to sanity-check that `compress`
-    output covers exactly (and only) the original concrete sequences.
-
     Required Parameters:
-        - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame
-            with degenerate sequences. Must contain an `ID` column (or `DegenerateID`
-            from `compress` output).
-        - `sequence_column` (`str`): Column name containing IUPAC-degenerate
-            sequences to expand.
+        - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with degenerate sequences.
+        - `sequence_column` (`str`): Column name containing IUPAC-degenerate sequences to expand.
 
     Optional Parameters:
-        - `output_file` (`str`): Filename for output DataFrame with expanded
-            sequences (default: `None`). A `.oligopool.expand.csv` suffix is
-            added if missing.
-        - `expansion_limit` (`int` / `None`): Safety cap for maximum total
-            expanded sequences. If estimated expansion exceeds this limit,
-            expansion is infeasible (default: `None` for no limit).
+        - `output_file` (`str`): Filename for output DataFrame (default: `None`).
+            A `.oligopool.expand.csv` suffix is added if missing.
+        - `expansion_limit` (`int` / `None`): Safety cap for maximum total expanded sequences;
+            if estimated expansion exceeds this limit, expansion fails (default: `None` for no limit).
         - `verbose` (`bool`): If `True`, logs progress to stdout (default: `True`).
 
     Returns:
-        - `output_df` (`pd.DataFrame`): DataFrame with expanded sequences.
-            Contains columns from input plus `ExpandedSeq` for each concrete
-            sequence.
-        - `stats` (`dict`): Statistics dictionary with expansion results
-            including `input_sequences`, `expanded_sequences`, `expansion_factor`.
+        - A pandas DataFrame with expanded sequences; saves to `output_file` if specified.
+        - A dictionary of stats from the last step in pipeline.
 
     Notes:
-        - Output IDs correspond to the input IDs (often `DegenerateID`), not
-          original variant IDs; use `mapping_df` from `compress` to map back
-          to variant `ID`s.
-        - Expansion can be exponential; use `expansion_limit` when working
-          with highly degenerate sequences.
-        - Expansion is parallelized across available CPU cores for performance.
+        - `input_data` must contain an 'ID' column (or 'DegenerateID' from `compress` output).
+        - Useful as a sanity-check that `compress` output covers exactly (and only) the original sequences.
+        - Output IDs correspond to the input IDs (often `DegenerateID`), not original variant IDs;
+          use `mapping_df` from `compress` to map back to variant `ID`s.
+        - Expansion can be exponential (e.g., 10 N's = 4^10 sequences); use `expansion_limit`
+          as a safety cap when working with highly degenerate sequences.
     '''
 
     # Argument Aliasing

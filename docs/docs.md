@@ -702,9 +702,9 @@ For other enzymes, design primers manually with the appropriate recognition/cut 
 
 [↑ Back to TOC](#table-of-contents)
 
-Degenerate Mode enables cost-efficient synthesis of ML-generated variant libraries. Instead of synthesizing each variant individually, similar sequences are compressed into IUPAC-degenerate oligos that expand to cover multiple variants.
+Degenerate Mode enables cost-efficient synthesis of variant libraries with low mutational diversity. Instead of synthesizing each variant individually, similar sequences are compressed into IUPAC-degenerate oligos that expand to cover multiple variants.
 
-**When to use Degenerate Mode**: You have a large library of similar sequences (e.g., from ML-based protein engineering) and want to reduce synthesis costs by grouping compatible variants.
+**When to use Degenerate Mode**: You have a large library of similar sequences and want to reduce synthesis costs by grouping compatible variants. Best for selection assays where you identify winners by sequencing (no barcode counting required). ML-generated libraries and saturation mutagenesis libraries often compress well.
 
 ### compress
 
@@ -730,7 +730,8 @@ print(f"Compressed {stats['vars']['input_variants']} variants "
 
 **Notes (the stuff that matters):**
 - Input must be concrete DNA (A/T/G/C only, no degenerate codes)
-- All non-ID columns are concatenated to form the full sequence
+- All non-ID columns are concatenated (left-to-right) to form the full sequence
+- Include only columns you intend to make degenerate (e.g., diverse barcodes can prevent good compression)
 - Similar sequences compress well; diverse sequences may not compress at all (1:1 mapping)
 - The algorithm guarantees no invented sequences (lossless compression)
 
@@ -756,7 +757,7 @@ expanded_df, stats = op.expand(
 # Check all original sequences are recovered
 original_seqs = set(df['Sequence'])
 expanded_seqs = set(expanded_df['ExpandedSeq'])
-assert original_seqs <= expanded_seqs, "Missing sequences!"
+assert original_seqs == expanded_seqs, "Lossless guarantee violated!"
 ```
 
 **Notes (the stuff that matters):**

@@ -62,7 +62,8 @@ https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/
 **Typical workflows:**
 - **Standard library**: Design Mode → synthesize → clone → sequence → Analysis Mode
 - **Long oligos (>200 bp)**: Design Mode → Assembly Mode → synthesize fragments → assemble → clone → sequence → Analysis Mode
-- **ML-generated variants**: Degenerate Mode → synthesize → select → sequence (no barcodes needed)
+- **Cost-optimized library**: Design Mode → Degenerate Mode → synthesize → assay/selection → sequence → map via `mapping_df`
+- **Selection assays**: Degenerate Mode → synthesize → select → sequence winners → map via `mapping_df`
 
 For scientific background, benchmarks, and tutorials, see `docs/docs.md`, the notebook, and the paper.
 
@@ -447,7 +448,7 @@ For unsupported enzymes, design primers/sites manually with `primer` or `motif`.
 
 ## Degenerate Mode - Module Reference
 
-Degenerate Mode compresses ML-generated variant libraries into IUPAC-degenerate oligos for cheaper synthesis.
+Degenerate Mode compresses variant libraries with low mutational diversity into IUPAC-degenerate oligos for cheaper synthesis.
 
 For complete parameter documentation, see [api.md](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md) [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/api.md)].
 
@@ -467,9 +468,10 @@ For complete parameter documentation, see [api.md](https://github.com/ayaanhossa
 - Use `random_seed` for reproducible compression
 
 **When to recommend**:
-- User has ML-generated variant library with many similar sequences
-- User wants to reduce synthesis costs
+- User has variant library with many similar sequences (low mutational diversity)
+- User wants to reduce synthesis costs for a similar-sequence library (selection assays / sequence-ID readout)
 - User mentions "degenerate oligos", "NNK", "mixed bases", or "saturation mutagenesis"
+- ML-generated libraries often have similar sequences and compress well
 
 ---
 
@@ -771,7 +773,7 @@ mapping_df, synthesis_df, stats = op.compress(input_data=df, mapping_file='mappi
 expanded_df, _ = op.expand(input_data=synthesis_df, sequence_column='DegenerateSeq')
 ```
 
-**When to use**: ML-generated variants, saturation mutagenesis, directed evolution - any library with many similar sequences where synthesis cost scales with oligo count.
+**When to use**: Libraries with many similar sequences (ML-generated, saturation mutagenesis, directed evolution). See decision guide below.
 
 ---
 
@@ -1018,11 +1020,11 @@ op xcount --index-files bc1_idx --pack-file reads --count-file counts
 - Verify degenerate oligo coverage → `expand`
 - Count reads → `index` + `pack` + `acount` or `xcount`
 
-**"compress or standard design?"**
+**"when to use compress?"**
 - Many similar sequences (ML-generated, saturation mutagenesis) → `compress` to reduce oligo count
-- Diverse sequences or need precise barcoding → standard Design Mode workflow
-- Selection-based assay (all variants compete) → `compress` works well
-- Need individual variant tracking → standard design with barcodes
+- Best for selection assays → synthesize degenerate pool → select → sequence → map via `mapping_df`
+- If you need barcode counting / quantitative MPRA readouts, stick with a concrete library + Analysis Mode
+- Diverse sequences may not compress well (returns 1:1 mapping)
 
 **"acount or xcount?"**
 - Need to verify barcode-variant pairing → `acount`

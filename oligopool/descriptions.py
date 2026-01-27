@@ -22,10 +22,10 @@ PACKAGE_DESCRIPTIONS = {
     'verify': 'QC checks before synthesis',
     'final': 'concatenate into synthesis-ready oligos',
     # Assembly Mode
-    'split': 'fragment long oligos for assembly',
+    'split': 'fragment oligos into overlapping pieces',
     'pad': 'Type IIS primer pads for scarless excision',
     # Degenerate Mode
-    'compress': 'compress variants into IUPAC-degenerate oligos',
+    'compress': 'reduce similar variants to IUPAC-degenerate oligos',
     'expand': 'expand IUPAC-degenerate oligos into concrete sequences',
     # Analysis Mode
     'index': 'index barcodes and associated variants',

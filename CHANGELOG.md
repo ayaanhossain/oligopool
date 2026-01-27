@@ -1,3 +1,10 @@
+2026.01.27
+1. Docs: unified Degenerate Mode messaging across all documentation - reframed as selection/sequence-identity workflow for low mutational diversity libraries.
+2. Docs: added Four Modes overview (Design, Assembly, Degenerate, Analysis) to README and agent-skills.md with workflow diagrams and integration points.
+3. Docs: optimized agent-skills.md for token efficiency - reduced from ~1000 to ~430 lines while preserving all essential information.
+4. Docstrings: aligned `compress` and `expand` docstrings with `barcode`/`primer` style (condensed parameters, added Notes sections).
+5. CLI: differentiated `split` and `compress` descriptions from their mode headers in help output.
+
 2026.01.26
 1. Degenerate Mode: added `compress` module to compress ML-generated variant libraries into IUPAC-degenerate oligos for cost-efficient synthesis.
 2. Degenerate Mode: added `expand` module to expand IUPAC-degenerate oligos into concrete sequences for verification.

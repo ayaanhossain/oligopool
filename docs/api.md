@@ -767,7 +767,7 @@ op pad \
 
 ## Degenerate Mode
 
-Degenerate Mode enables cost-efficient synthesis of ML-generated variant libraries by compressing similar sequences into IUPAC-degenerate oligos.
+Degenerate Mode compresses variant libraries with low mutational diversity into IUPAC-degenerate oligos for cost-efficient synthesis.
 
 ### compress
 
@@ -861,7 +861,7 @@ df, stats = op.expand(
 - Primarily used as a verification tool to confirm `compress` output
 - IUPAC codes: N=any, R=A/G, Y=C/T, S=C/G, W=A/T, K=G/T, M=A/C, B=C/G/T, D=A/G/T, H=A/C/T, V=A/C/G
 - Expansion can be exponential; use `expansion_limit` for safety with highly degenerate sequences
-- Expansion is parallelized across CPU cores automatically for performance
+- Expansion is parallelized across CPU cores when supported (falls back to serial on restricted systems)
 
 **CLI Equivalent**:
 ```bash

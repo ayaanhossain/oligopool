@@ -270,7 +270,7 @@ Barcode-only counting (single or combinatorial). Use for BC1×BC2 combinations, 
 ---
 
 ### Callback Functions (Python API only)
-For `acount`/`xcount`: `def callback(read, ID, count, coreid) -> bool`. Use for custom filtering, cleavage site extraction, or metrics via `multiprocessing.Manager().dict()`.
+For `acount`/`xcount`: `def callback(r1, r2, ID, count, coreid) -> bool` (r2 is `None` for merged reads). Use for custom filtering, cleavage site extraction, or metrics via `multiprocessing.Manager().dict()`.
 
 ---
 

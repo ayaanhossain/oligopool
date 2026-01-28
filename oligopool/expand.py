@@ -15,6 +15,7 @@ from typing import Tuple
 def expand(
     input_data:str|pd.DataFrame,
     sequence_column:str,
+    mapping_file:str|pd.DataFrame|None=None,
     output_file:str|None=None,
     expansion_limit:int|None=None,
     verbose:bool=True) -> Tuple[pd.DataFrame, dict]:
@@ -26,6 +27,9 @@ def expand(
         - `sequence_column` (`str`): Column name containing IUPAC-degenerate sequences to expand.
 
     Optional Parameters:
+        - `mapping_file` (`str` / `pd.DataFrame`): Path to CSV or DataFrame with `ID` and `DegenerateID`
+            columns (the `mapping_df` output from `compress`); if provided, original variant `ID`s
+            are restored in the output (default: `None`).
         - `output_file` (`str`): Filename for output DataFrame (default: `None`).
             A `.oligopool.expand.csv` suffix is added if missing.
         - `expansion_limit` (`int` / `None`): Safety cap for maximum total expanded sequences;
@@ -39,8 +43,7 @@ def expand(
     Notes:
         - `input_data` must contain an 'ID' column (or 'DegenerateID' from `compress` output).
         - Useful as a sanity-check that `compress` output covers exactly (and only) the original sequences.
-        - Output IDs correspond to the input IDs (often `DegenerateID`), not original variant IDs;
-          use `mapping_df` from `compress` to map back to variant `ID`s.
+        - When `mapping_file` is provided, output includes both `DegenerateID` and original `ID` columns.
         - Expansion can be exponential (e.g., 10 N's = 4^10 sequences); use `expansion_limit`
           as a safety cap when working with highly degenerate sequences.
     '''
@@ -48,6 +51,7 @@ def expand(
     # Argument Aliasing
     indata   = input_data
     seqcol   = sequence_column
+    mapfile  = mapping_file
     outfile  = output_file
     limit    = expansion_limit
     verbose  = verbose
@@ -75,6 +79,33 @@ def expand(
     # Optional Argument Parsing
     liner.send('\n Optional Arguments\n')
 
+    # Validate mapping file (optional)
+    mapdf = None
+    mapfile_valid = True
+    if mapfile is not None:
+        # Load mapping file if path
+        if isinstance(mapfile, str):
+            try:
+                mapdf = pd.read_csv(mapfile)
+                liner.send('   Mapping File  : Loaded from {}\n'.format(mapfile))
+            except Exception:
+                liner.send('   Mapping File  : [INVALID] Cannot read file\n')
+                mapfile_valid = False
+        elif isinstance(mapfile, pd.DataFrame):
+            mapdf = mapfile.copy()
+            liner.send('   Mapping File  : DataFrame w/ {:,} Row(s)\n'.format(len(mapdf)))
+        else:
+            liner.send('   Mapping File  : [INVALID] Must be path or DataFrame\n')
+            mapfile_valid = False
+
+        # Validate required columns
+        if mapdf is not None:
+            if 'ID' not in mapdf.columns or 'DegenerateID' not in mapdf.columns:
+                liner.send('   Mapping File  : [INVALID] Missing ID or DegenerateID column\n')
+                mapfile_valid = False
+    else:
+        liner.send('   Mapping File  : None Specified\n')
+
     # Validate output file
     outfile_valid = vp.get_outdf_validity(
         outdf=outfile,
@@ -96,6 +127,7 @@ def expand(
     # First Pass Validation
     if not all([
         indata_valid,
+        mapfile_valid,
         outfile_valid,
         limit_valid]):
         liner.send('\n')
@@ -190,6 +222,38 @@ def expand(
     # Build output DataFrame
     output_df = pd.DataFrame(expanded_rows)
 
+    # Join with mapping to restore original IDs
+    if mapdf is not None:
+        # Current 'ID' column contains DegenerateID values
+        # Rename to 'DegenerateID' before join
+        output_df.rename(columns={'ID': 'DegenerateID'}, inplace=True)
+
+        # Check if mapping has Sequence column for exact matching
+        if 'Sequence' in mapdf.columns:
+            # Exact match: join on DegenerateID AND ExpandedSeq == Sequence
+            # This gives 1:1 mapping from expanded sequence to original ID
+            output_df = output_df.merge(
+                mapdf[['ID', 'Sequence', 'DegenerateID']],
+                left_on=['DegenerateID', 'ExpandedSeq'],
+                right_on=['DegenerateID', 'Sequence'],
+                how='left')
+            # Drop the redundant Sequence column from mapping
+            output_df.drop(columns=['Sequence'], inplace=True)
+        else:
+            # Fallback: join only on DegenerateID (may produce multiple rows per expanded seq)
+            output_df = output_df.merge(
+                mapdf[['ID', 'DegenerateID']],
+                on='DegenerateID',
+                how='left')
+
+        # Reorder to put ID first, then DegenerateID
+        id_cols = ['ID', 'DegenerateID']
+        other_cols = [c for c in output_df.columns if c not in id_cols]
+        output_df = output_df[id_cols + other_cols]
+
+        liner.send(' Mapped {:,} Expanded Sequence(s) to Original IDs\n'.format(
+            len(output_df)))
+
     # Reorder columns to put ExpandedSeq and OligoLength at end
     cols = [c for c in output_df.columns if c not in ('ExpandedSeq', 'OligoLength')]
     cols.extend(['ExpandedSeq', 'OligoLength'])
@@ -214,6 +278,7 @@ def expand(
         'expanded_sequences': total_expanded,
         'expansion_factor': round(expansion_factor, 2),
         'expansion_limited': limit is not None,
+        'ids_mapped': mapdf is not None,
     }
 
     # Expansion Statistics

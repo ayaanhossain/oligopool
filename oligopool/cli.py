@@ -1988,6 +1988,14 @@ Must contain an ID column (or DegenerateID from compress output).''')
         help='''>>[required string]
 Column name containing IUPAC-degenerate sequences to expand.''')
     opt.add_argument(
+        '--mapping-file',
+        type=str,
+        default=None,
+        metavar='\b',
+        help='''>>[optional string]
+Path to mapping CSV with ID and DegenerateID columns (from compress).
+If provided, restores original variant IDs in output.''')
+    opt.add_argument(
         '--output-file',
         type=str,
         default=None,
@@ -2610,6 +2618,7 @@ def main(argv=None):
                 result = expand(
                     input_data=args.input_data,
                     sequence_column=args.sequence_column,
+                    mapping_file=args.mapping_file,
                     output_file=args.output_file,
                     expansion_limit=args.expansion_limit,
                     verbose=args.verbose)

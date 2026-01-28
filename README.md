@@ -4,7 +4,7 @@
     </a>
 </h1>
 
-<h4><p align="center">Version: 2026.01.27</p></h4>
+<h4><p align="center">Version: 2026.01.31</p></h4>
 
 <p align="center">
   <a href="#features" style="text-decoration: none !important;">✨ Features</a> •
@@ -17,7 +17,7 @@
   <a href="#license" style="text-decoration: none !important;">⚖️ License</a>
 </p>
 
-`Oligopool Calculator` is a suite of algorithms for automated design, assembly, compression, and analysis of [oligopool libraries](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9300125/) - developed for seamless integration into Python scripts, CLI pipelines, Jupyter notebooks, and containerized environments, with first-class support for AI-assisted workflows.
+`Oligopool Calculator` is the Swiss-army knife for [oligopool libraries](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9300125/) - a comprehensive suite of algorithms for automated design, assembly, compression, and analysis, developed for seamless integration into Python scripts, CLI pipelines, Jupyter notebooks, and containerized environments, with first-class support for AI-assisted workflows.
 
 It supports scalable design of primers, barcodes, motifs/anchors, and spacers; assembly-aware splitting/padding of long constructs; compression of similar sequences into IUPAC-degenerate oligos; and rapid packing/counting of barcoded reads for activity quantification.
 
@@ -85,7 +85,7 @@ Successful installation will look like this.
 $ python
 >>> import oligopool as op
 >>> op.__version__
-'2026.01.27'
+'2026.01.31'
 >>>
 ```
 
@@ -174,7 +174,7 @@ Run `op` with no arguments to see the command list, and run `op COMMAND` to see 
 ```bash
 $ op
 
-oligopool v2026.01.27
+oligopool v2026.01.31
 by ah
 
 Oligopool Calculator is a suite of algorithms for

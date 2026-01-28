@@ -35,6 +35,14 @@ complement_table = str.maketrans(
     '-ACGTURYSWKMBVDHN',
     '-TGCATKYWSRMBDHVN')
 
+# Bytes complement table for fast byte-level reverse complement
+complement_bytes = bytes.maketrans(
+    b'-ACGTURYSWKMBVDHN',
+    b'-TGCATKYWSRMBDHVN')
+
+# ASCII code for 'N' for byte filtering
+N_BYTE = ord('N')
+
 dna_alpha = set(
     '-ATGC')
 
@@ -2888,6 +2896,19 @@ def get_revcomp(seq):
 
     return get_comp(seq)[::-1]
 
+def get_revcomp_bytes(seq_bytes):
+    '''
+    Return the reverse complement of seq as bytes.
+    Internal use only.
+
+    :: seq_bytes
+       type - bytes
+       desc - a bytes object in alphabet
+              {A, T, G, C}
+    '''
+
+    return seq_bytes.translate(complement_bytes)[::-1]
+
 def stream_spectrum(seq, k):
     '''
     Stream the k-mer spectrum of seq.
@@ -3044,6 +3065,7 @@ def stream_fastq_engine(
     filepath,
     invert=False,
     qualvec=False,
+    readbytes=False,
     skipcount=0,
     coreid=0,
     ncores=1,
@@ -3068,6 +3090,12 @@ def stream_fastq_engine(
        desc - if True will compute and return
               the quality vector instead of
               just the quality string
+    :: readbytes
+       type - boolean
+       desc - if True will return read as
+              bytes instead of string for
+              faster downstream processing
+              (default=False)
     :: skipcount
        type - integer
        desc - total number of reads from
@@ -3159,17 +3187,35 @@ def stream_fastq_engine(
                 read = fqe[1]
                 qual = fqe[2]
 
-                # Do we correct Orientation?
-                if invert:
-                    read = get_revcomp(
-                        seq=read)
-                    qual = qual[::-1]
+                # Convert to bytes early if requested
+                if readbytes:
+                    read = read.encode('ascii')
+                    qual = qual.encode('ascii')
 
-                # Vectorize Quality
-                if qualvec:
-                    qual = np.frombuffer(
-                        qual.encode(),
-                        dtype=np.int8) - 33
+                    # Do we correct Orientation?
+                    if invert:
+                        read = get_revcomp_bytes(
+                            seq_bytes=read)
+                        qual = qual[::-1]
+
+                    # Vectorize Quality
+                    if qualvec:
+                        qual = np.frombuffer(
+                            qual,
+                            dtype=np.int8) - 33
+
+                else:
+                    # Do we correct Orientation?
+                    if invert:
+                        read = get_revcomp(
+                            seq=read)
+                        qual = qual[::-1]
+
+                    # Vectorize Quality
+                    if qualvec:
+                        qual = np.frombuffer(
+                            qual.encode(),
+                            dtype=np.int8) - 33
 
                 # Return Results
                 yield (read, qual)

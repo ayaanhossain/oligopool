@@ -18,6 +18,11 @@ from . import utils as ut
 
 editmat = ps.matrix_create("ACGTN-", 1, -1)
 
+# Mismatch Density Threshold
+# Maximum allowed mismatch rate in overlap region
+
+MAX_MISMATCH_DENSITY = 0.10  # 10% mismatch rate
+
 # Parser and Setup Functions
 
 def get_extracted_overlap_parameters(
@@ -197,6 +202,78 @@ def get_extracted_overlap_parameters(
 # Engine Helper Functions
 
 @nb.njit
+def get_exact_innie_overlap(r1_bytes, r2_bytes, min_overlap=10):
+    '''
+    Find exact suffix-prefix overlap between R1 and R2.
+    Internal use only.
+
+    :: r1_bytes
+       type - np.array (uint8)
+       desc - R1 read as byte array
+    :: r2_bytes
+       type - np.array (uint8)
+       desc - R2 read as byte array
+    :: min_overlap
+       type - integer
+       desc - minimum overlap length to consider
+
+    Returns overlap length if found, -1 otherwise.
+    '''
+
+    # Compute max overlap
+    max_overlap = min(len(r1_bytes), len(r2_bytes))
+
+    # Search from longest to shortest (greedy)
+    for olen in range(max_overlap, min_overlap - 1, -1):
+        # Check suffix of R1 against prefix of R2
+        match = True
+        r1_start = len(r1_bytes) - olen
+        for i in range(olen):
+            if r1_bytes[r1_start + i] != r2_bytes[i]:
+                match = False
+                break
+        if match:
+            return olen
+
+    return -1  # No exact match found
+
+@nb.njit
+def get_exact_outie_overlap(r1_bytes, r2_bytes, min_overlap=10):
+    '''
+    Find exact suffix-prefix overlap for outie orientation.
+    Internal use only.
+
+    :: r1_bytes
+       type - np.array (uint8)
+       desc - R1 read as byte array
+    :: r2_bytes
+       type - np.array (uint8)
+       desc - R2 read as byte array
+    :: min_overlap
+       type - integer
+       desc - minimum overlap length to consider
+
+    Returns overlap length if found, -1 otherwise.
+    '''
+
+    # Compute max overlap
+    max_overlap = min(len(r1_bytes), len(r2_bytes))
+
+    # Search from longest to shortest (greedy)
+    for olen in range(max_overlap, min_overlap - 1, -1):
+        # Check prefix of R1 against suffix of R2
+        match = True
+        r2_start = len(r2_bytes) - olen
+        for i in range(olen):
+            if r1_bytes[i] != r2_bytes[r2_start + i]:
+                match = False
+                break
+        if match:
+            return olen
+
+    return -1  # No exact match found
+
+@nb.njit
 def qualpass(qvec, threshold):
     '''
     Return Q-Score vector.
@@ -214,30 +291,85 @@ def qualpass(qvec, threshold):
 
 def get_concatenated_reads(r1, r2):
     '''
-    Return r1+r2 joined with '-' delimiters.
+    Return (r1, r2) tuple for storage.
     Internal use only.
 
     :: r1
-       type - string
+       type - string / bytes
        desc - R1 read sequence
     :: r2
-       type - string
+       type - string / bytes
        desc - R2 read sequence
+
+    Returns tuple (r1, r2) or (r1, None) if r2 is None.
     '''
 
-    return r1 if r2 is None else r1 + '-----' + r2
+    # Note: upstream FastQ streaming may supply bytes for speed.
+    # Pack files are expected to store read sequences as strings.
+    if type(r1) is bytes:
+        r1 = r1.decode('ascii')
+    if type(r2) is bytes:
+        r2 = r2.decode('ascii')
+    return (r1, r2)
 
 @nb.njit
+def get_innie_consensus_fast(r1_bytes, r2_bytes, qv1, qv2, olen):
+    '''
+    Return consensus innie merged read using byte arrays.
+    Internal use only.
+
+    :: r1_bytes
+       type - np.array (uint8)
+       desc - R1 read as byte array
+    :: r2_bytes
+       type - np.array (uint8)
+       desc - R2 read as byte array
+    :: qv1
+       type - np.array (int8)
+       desc - R1 Q-Score vector
+    :: qv2
+       type - np.array (int8)
+       desc - R2 Q-Score vector
+    :: olen
+       type - integer
+       desc - overlap length
+    '''
+
+    # Pre-allocate result array
+    r1_len = len(r1_bytes)
+    r2_len = len(r2_bytes)
+    result_len = r1_len + r2_len - olen
+    result = np.empty(result_len, dtype=np.uint8)
+
+    # Non-overlapping prefix from R1
+    prefix_len = r1_len - olen
+    for i in range(prefix_len):
+        result[i] = r1_bytes[i]
+
+    # Overlap region - quality-based selection
+    r1_start = r1_len - olen
+    for k in range(olen):
+        if qv1[r1_start + k] < qv2[k]:
+            result[prefix_len + k] = r2_bytes[k]
+        else:
+            result[prefix_len + k] = r1_bytes[r1_start + k]
+
+    # Non-overlapping suffix from R2
+    for i in range(olen, r2_len):
+        result[r1_len + i - olen] = r2_bytes[i]
+
+    return result
+
 def get_innie_consensus(r1, r2, qv1, qv2, olen):
     '''
     Return consensus innie merged read.
     Internal use only.
 
     :: r1
-       type - string
+       type - string / bytes
        desc - R1 read sequence
     :: r2
-       type - string
+       type - string / bytes
        desc - R2 read sequence
     :: qv1
        type - np.array
@@ -250,30 +382,26 @@ def get_innie_consensus(r1, r2, qv1, qv2, olen):
        desc - overlap length
     '''
 
-    # Book-keeping
-    i = len(r1)-olen
-    j = 0
+    # Check if input is bytes
+    is_bytes = type(r1) is bytes
 
-    # Split Merged Parts
-    ml = nb.typed.List(r1)
-    ml.extend(r2[olen:])
+    # Convert to byte arrays
+    if is_bytes:
+        r1_bytes = np.frombuffer(r1, dtype=np.uint8)
+        r2_bytes = np.frombuffer(r2, dtype=np.uint8)
+    else:
+        r1_bytes = np.frombuffer(r1.encode(), dtype=np.uint8)
+        r2_bytes = np.frombuffer(r2.encode(), dtype=np.uint8)
 
-    # Compute Merged Region based
-    # on Q-Score Values
-    while i < len(r1):
-        if qv1[i] < qv2[j]:
-            ml[i] = r2[j]
-        i += 1
-        j += 1
+    # Compute consensus using fast path
+    result_bytes = get_innie_consensus_fast(
+        r1_bytes, r2_bytes, qv1, qv2, olen)
 
-    # Compute Result
-    result = ''.join(ml)
-
-    # Free Memory
-    ml = None
-
-    # Return Result
-    return result
+    # Return same type as input
+    if is_bytes:
+        return result_bytes.tobytes()
+    else:
+        return result_bytes.tobytes().decode('ascii')
 
 def get_innie_merged(r1, r2, qv1, qv2):
     '''
@@ -281,10 +409,10 @@ def get_innie_merged(r1, r2, qv1, qv2):
     Internal use only.
 
     :: r1
-       type - string
+       type - string / bytes
        desc - R1 read sequence
     :: r2
-       type - string
+       type - string / bytes
        desc - R2 read sequence
     :: qv1
        type - np.array
@@ -294,13 +422,50 @@ def get_innie_merged(r1, r2, qv1, qv2):
        desc - R2 Q-Score vector
     '''
 
-    # Find Overlap Locations
+    # Check if input is bytes (optimized path)
+    is_bytes = type(r1) is bytes
+
+    # Fast-path: Check for exact overlap first
+    if is_bytes:
+        r1_bytes = np.frombuffer(r1, dtype=np.uint8)
+        r2_bytes = np.frombuffer(r2, dtype=np.uint8)
+    else:
+        r1_bytes = np.frombuffer(r1.encode(), dtype=np.uint8)
+        r2_bytes = np.frombuffer(r2.encode(), dtype=np.uint8)
+
+    exact_olen = get_exact_innie_overlap(
+        r1_bytes=r1_bytes,
+        r2_bytes=r2_bytes,
+        min_overlap=10)
+
+    # Exact match found - direct concatenation
+    if exact_olen > 0:
+        merged = r1 + r2[exact_olen:]
+        return merged, 0  # Score 0 = perfect match
+
+    # Slow-path: Use alignment for reads with mismatches
+    # Note: edlib expects strings; keep byte-optimized consensus paths but
+    # decode once for alignment when upstream streaming uses bytes.
+    if is_bytes:
+        r1_ed = r1.decode('ascii')
+        r2_ed = r2.decode('ascii')
+    else:
+        r1_ed = r1
+        r2_ed = r2
+
+    # Adaptive seed length based on read length
+    seed_len = max(10, min(20, len(r1) // 10))
+
+    # Adaptive k based on estimated overlap and mismatch density
+    est_overlap = int(0.4 * min(len(r1), len(r2)))
+    k_seed = max(4, int(est_overlap * MAX_MISMATCH_DENSITY))
+
     aln = ed.align(
-        query=r1[-10:],
-        target=r2,
+        query=r1_ed[-seed_len:],
+        target=r2_ed,
         mode='HW',
         task='distance',
-        k=4)
+        k=k_seed)
 
     # Bad Alignment?
     if aln['editDistance'] == -1:
@@ -337,15 +502,18 @@ def get_innie_merged(r1, r2, qv1, qv2):
         return None, None
 
     # Define Query Slice
-    qslice = r2[:end]
+    qslice = r2_ed[:end]
+
+    # Density-based k for validation alignment
+    k_validate = max(10, int(end * MAX_MISMATCH_DENSITY))
 
     # Infix Align r1 and r2
     aln = ed.align(
         query=qslice,
-        target=r1,
+        target=r1_ed,
         mode='HW',
         task='path',
-        k=10)
+        k=k_validate)
 
     # Bad Alignment?
     if aln['editDistance'] == -1:
@@ -387,16 +555,51 @@ def get_innie_merged(r1, r2, qv1, qv2):
     return merged, score
 
 @nb.njit
+def get_outie_consensus_fast(r1_bytes, r2_bytes, qv1, qv2, olen):
+    '''
+    Return consensus outie merged read using byte arrays.
+    Internal use only.
+
+    :: r1_bytes
+       type - np.array (uint8)
+       desc - R1 read as byte array
+    :: r2_bytes
+       type - np.array (uint8)
+       desc - R2 read as byte array
+    :: qv1
+       type - np.array (int8)
+       desc - R1 Q-Score vector
+    :: qv2
+       type - np.array (int8)
+       desc - R2 Q-Score vector
+    :: olen
+       type - integer
+       desc - overlap length
+    '''
+
+    # Pre-allocate result array (overlap region only)
+    result = np.empty(olen, dtype=np.uint8)
+
+    # Overlap region - quality-based selection
+    r2_start = len(r2_bytes) - olen
+    for k in range(olen):
+        if qv1[k] < qv2[r2_start + k]:
+            result[k] = r2_bytes[r2_start + k]
+        else:
+            result[k] = r1_bytes[k]
+
+    return result
+
 def get_outie_consensus(r1, r2, qv1, qv2, olen):
     '''
     Return consensus outie merged read.
     Internal use only.
 
     :: r1
-       type - string
+       type - string / bytes
        desc - R1 read sequence
     :: r2
-       type - string
+       type - string / bytes
        desc - R2 read sequence
     :: qv1
        type - np.array
@@ -409,29 +612,26 @@ def get_outie_consensus(r1, r2, qv1, qv2, olen):
        desc - overlap length
     '''
 
-    # Book-keeping
-    i = 0
-    j = len(r2)-olen
+    # Check if input is bytes
+    is_bytes = type(r1) is bytes
 
-    # Split Merged Parts
-    ml = nb.typed.List(r1[:olen])
+    # Convert to byte arrays
+    if is_bytes:
+        r1_bytes = np.frombuffer(r1, dtype=np.uint8)
+        r2_bytes = np.frombuffer(r2, dtype=np.uint8)
+    else:
+        r1_bytes = np.frombuffer(r1.encode(), dtype=np.uint8)
+        r2_bytes = np.frombuffer(r2.encode(), dtype=np.uint8)
 
-    # Compute Merged Region based
-    # on Q-Score Values
-    while i < olen:
-        if qv1[i] < qv2[j]:
-            ml[i] = r2[j]
-        i += 1
-        j += 1
+    # Compute consensus using fast path
+    result_bytes = get_outie_consensus_fast(
+        r1_bytes, r2_bytes, qv1, qv2, olen)
 
-    # Compute Result
-    result = ''.join(ml)
-
-    # Free Memory
-    ml = None
-
-    # Return Result
-    return result
+    # Return same type as input
+    if is_bytes:
+        return result_bytes.tobytes()
+    else:
+        return result_bytes.tobytes().decode('ascii')
 
 def get_outie_merged(r1, r2, qv1, qv2):
     '''
@@ -439,10 +639,10 @@ def get_outie_merged(r1, r2, qv1, qv2):
     Internal use only.
 
     :: r1
-       type - string
+       type - string / bytes
        desc - R1 read sequence
     :: r2
-       type - string
+       type - string / bytes
        desc - R2 read sequence
     :: qv1
        type - np.array
@@ -452,13 +652,50 @@ def get_outie_merged(r1, r2, qv1, qv2):
        desc - R2 Q-Score vector
     '''
 
-    # Find Overlap Locations
+    # Check if input is bytes (optimized path)
+    is_bytes = type(r1) is bytes
+
+    # Fast-path: Check for exact overlap first
+    if is_bytes:
+        r1_bytes = np.frombuffer(r1, dtype=np.uint8)
+        r2_bytes = np.frombuffer(r2, dtype=np.uint8)
+    else:
+        r1_bytes = np.frombuffer(r1.encode(), dtype=np.uint8)
+        r2_bytes = np.frombuffer(r2.encode(), dtype=np.uint8)
+
+    exact_olen = get_exact_outie_overlap(
+        r1_bytes=r1_bytes,
+        r2_bytes=r2_bytes,
+        min_overlap=10)
+
+    # Exact match found - return overlap region
+    if exact_olen > 0:
+        merged = r1[:exact_olen]
+        return merged, 0  # Score 0 = perfect match
+
+    # Slow-path: Use alignment for reads with mismatches
+    # Note: edlib expects strings; keep byte-optimized consensus paths but
+    # decode once for alignment when upstream streaming uses bytes.
+    if is_bytes:
+        r1_ed = r1.decode('ascii')
+        r2_ed = r2.decode('ascii')
+    else:
+        r1_ed = r1
+        r2_ed = r2
+
+    # Adaptive seed length based on read length
+    seed_len = max(10, min(20, len(r2) // 10))
+
+    # Adaptive k based on estimated overlap and mismatch density
+    est_overlap = int(0.4 * min(len(r1), len(r2)))
+    k_seed = max(4, int(est_overlap * MAX_MISMATCH_DENSITY))
+
     aln = ed.align(
-        query=r2[-10:],
-        target=r1,
+        query=r2_ed[-seed_len:],
+        target=r1_ed,
         mode='HW',
         task='distance',
-        k=4)
+        k=k_seed)
 
     # Bad Alignment?
     if aln['editDistance'] == -1:
@@ -494,22 +731,25 @@ def get_outie_merged(r1, r2, qv1, qv2):
         del end_locs     # Memory Management
         return None, None
 
-    # Define Query Slice
-    qslice = r1[:end]
+    # Define Query Slice (edlib expects strings)
+    qslice_ed = r1_ed[:end]
+
+    # Density-based k for validation alignment
+    k_validate = max(10, int(end * MAX_MISMATCH_DENSITY))
 
     # Infix Align r1 and r2
     aln = ed.align(
-        query=qslice,
-        target=r2,
+        query=qslice_ed,
+        target=r2_ed,
         mode='HW',
         task='path',
-        k=10)
+        k=k_validate)
 
     # Bad Alignment?
     if aln['editDistance'] == -1:
         # Too many mutations,
         # Skip this Read
-        del qslice  # Memory Management
+        del qslice_ed  # Memory Management
         aln.clear() # Memory Management
         del aln     # Memory Management
         return None, float('inf')
@@ -519,7 +759,7 @@ def get_outie_merged(r1, r2, qv1, qv2):
        'I' in aln['cigar']:
         # We don't care about Indels,
         # Skip this Read
-        del qslice  # Memory Management
+        del qslice_ed  # Memory Management
         aln.clear() # Memory Management
         del aln     # Memory Management
         return None, float('inf')
@@ -527,7 +767,7 @@ def get_outie_merged(r1, r2, qv1, qv2):
     # Compute Merged Read
     score = aln['editDistance']
     if score == 0:
-        merged = qslice
+        merged = r1[:end]
     else:
         merged = get_outie_consensus(
             r1=r1,
@@ -537,7 +777,7 @@ def get_outie_merged(r1, r2, qv1, qv2):
             olen=end)
 
     # Memory Management
-    del qslice
+    del qslice_ed
     aln.clear()
     del aln
 
@@ -548,14 +788,14 @@ def get_merged_reads(r1, r2, qv1, qv2,
     mergefnhigh,
     mergefnlow):
     '''
-    Return assembled read from r1 and r2.
+    Return assembled read from r1 and r2 as tuple.
     Internal use only.
 
     :: r1
-       type - string
+       type - string / bytes
        desc - R1 read sequence
     :: r2
-       type - string
+       type - string / bytes
        desc - R2 read sequence
     :: qv1
        type - np.array
@@ -571,12 +811,16 @@ def get_merged_reads(r1, r2, qv1, qv2,
        type - function
        desc - low priority merging
               function
+
+    Returns (merged_read, None) on success, None on failure.
     '''
 
     # Do we not need to assemble?
     if r2 is None:
         # Nothing to Merge
-        return r1
+        if type(r1) is bytes:
+            r1 = r1.decode('ascii')
+        return (r1, None)
 
     # High Priority Assembly
     (high_assembled,
@@ -585,7 +829,9 @@ def get_merged_reads(r1, r2, qv1, qv2,
 
     # Is High Priority Enough?
     if high_score == 0:
-        return high_assembled
+        if type(high_assembled) is bytes:
+            high_assembled = high_assembled.decode('ascii')
+        return (high_assembled, None)
 
     # Low Priority Assembly
     (low_assembled,
@@ -595,12 +841,16 @@ def get_merged_reads(r1, r2, qv1, qv2,
     # Only High Priority Assembly was Successful
     if not high_assembled is None and \
        low_assembled is None:
-       return high_assembled
+       if type(high_assembled) is bytes:
+           high_assembled = high_assembled.decode('ascii')
+       return (high_assembled, None)
 
     # Only Low Priority Assembly was Successful
     if not low_assembled is None and \
        high_assembled is None:
-       return low_assembled
+       if type(low_assembled) is bytes:
+           low_assembled = low_assembled.decode('ascii')
+       return (low_assembled, None)
 
     # Nothing Assembled?
     if high_assembled is None and \
@@ -613,8 +863,12 @@ def get_merged_reads(r1, r2, qv1, qv2,
 
     # Return Assembly with Best Score
     if high_score < low_score:
-        return high_assembled
-    return low_assembled
+        if type(high_assembled) is bytes:
+            high_assembled = high_assembled.decode('ascii')
+        return (high_assembled, None)
+    if type(low_assembled) is bytes:
+        low_assembled = low_assembled.decode('ascii')
+    return (low_assembled, None)
 
 def get_skipcount(
     previousreads,
@@ -811,23 +1065,25 @@ def stream_processed_fastq(
         coreid=coreid,
         ncores=ncores)
 
-    # Setup R1 Streamer
+    # Setup R1 Streamer (use bytes for faster processing)
     reader1 = ut.stream_fastq_engine(
         filepath=r1file,
         invert=r1type,
         qualvec=r1qual > 0,
+        readbytes=True,
         skipcount=skipcount,
         coreid=coreid,
         ncores=ncores,
         fastqid=1,
         liner=liner)
 
-    # Setup R2 Streamer
+    # Setup R2 Streamer (use bytes for faster processing)
     if not r2file is None:
         reader2 = ut.stream_fastq_engine(
             filepath=r2file,
             invert=r2type,
             qualvec=r2qual > 0,
+            readbytes=True,
             skipcount=skipcount,
             coreid=coreid,
             ncores=ncores,
@@ -879,8 +1135,8 @@ def stream_processed_fastq(
         # Apply Ambiguity, Length, and Quality Filters
         filterpass = True
 
-        # Filter I on R1
-        if   r1.count('N') > 10:
+        # Filter I on R1 (works with both bytes and strings)
+        if   r1.count(ut.N_BYTE) > 10:
             c_ambiguousreads += 1 # Update Ambiguous Read Count based on R1
             filterpass = False    # This Read will be Skipped
         elif len(r1) < r1length:
@@ -890,9 +1146,9 @@ def stream_processed_fastq(
             c_ambiguousreads += 1 # Update Ambiguous Read Count based on R1
             filterpass = False    # This Read will be Skipped
 
-        # Filter I on R2
+        # Filter I on R2 (works with both bytes and strings)
         if filterpass and (not r2 is None):
-            if   r2.count('N') > 10:
+            if   r2.count(ut.N_BYTE) > 10:
                 c_ambiguousreads += 1 # Update Ambiguous Read Count based on R2
                 filterpass = False    # This Read will be Skipped
             elif len(r2) < r2length:

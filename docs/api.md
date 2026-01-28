@@ -838,6 +838,7 @@ df, stats = op.expand(
     sequence_column,               # str
 
     # Optional
+    mapping_file=None,             # str | pd.DataFrame | None
     output_file=None,              # str | None
     expansion_limit=None,          # int | None
     verbose=True,                  # bool
@@ -851,11 +852,12 @@ df, stats = op.expand(
 
 **Optional Parameters**
 
+- `mapping_file` (str | DataFrame | None, default=None): CSV path or DataFrame with `ID` and `DegenerateID` columns (the `mapping_df` from `compress`); restores original variant IDs in output
 - `output_file` (str | None, default=None): Output CSV path
 - `expansion_limit` (int | None, default=None): Safety cap for maximum total expanded sequences
 - `verbose` (bool, default=True): Print progress output
 
-**Returns**: `(DataFrame, stats_dict)` — output contains original columns plus `ExpandedSeq` and `OligoLength`
+**Returns**: `(DataFrame, stats_dict)` — output contains original columns plus `ExpandedSeq` and `OligoLength`; if `mapping_file` provided, includes both `ID` and `DegenerateID` columns
 
 **Notes**:
 - Primarily used as a verification tool to confirm `compress` output
@@ -868,6 +870,7 @@ df, stats = op.expand(
 op expand \
     --input-data synthesis.csv \
     --sequence-column DegenerateSeq \
+    --mapping-file mapping.csv \
     --output-file expanded
 ```
 

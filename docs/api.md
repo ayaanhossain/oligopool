@@ -1017,6 +1017,7 @@ stats = op.pack(
 **Notes**:
 - `pack_type='concatenate'`: joins R1+R2 (use when reads don't overlap)
 - `pack_type='merge'`: assembles overlapping R1+R2 into consensus (use when reads overlap)
+- Pack files store reads as `(r1, r2)` tuples; merged/single-end reads use `r2=None`
 - Deduplication is performed automatically
 
 **CLI Equivalent**:
@@ -1083,10 +1084,11 @@ counts_df, stats = op.acount(
 
 **Callback Signature** (Python only):
 ```python
-def callback(read, ID, count, coreid):
+def callback(r1, r2, ID, count, coreid):
     """
     Args:
-        read: str - Processed read sequence
+        r1: str - Read 1 sequence (always present)
+        r2: str | None - Read 2 sequence (None for merged/single-end reads)
         ID: tuple - Identified barcode IDs
         count: int - Read frequency in current pack
         coreid: int - CPU core ID

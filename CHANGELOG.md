@@ -1,3 +1,26 @@
+2026.01.31
+1. Pack format: migrated from delimiter-based concatenation (`r1 + '-----' + r2`) to tuple-based storage `(r1, r2)` for cleaner semantics and type safety.
+2. Core: `get_concatenated_reads()` now returns `(r1, r2)` tuple instead of delimiter-joined string.
+3. Core: `get_merged_reads()` now returns `(merged, None)` tuple on success for consistent format.
+4. Analysis: `acount_engine()` and `xcount_engine()` extract R1 from tuple (`read_tuple[0]`) instead of stripping delimiter.
+5. Analysis: `stream_packed_reads()` updated to handle tuple-based pack format for callback validation.
+6. Cleanup: removed `CONCAT_DELIMITER`, `CONCAT_DELIMITER_BYTES` constants and `strip_concat_delimiter()` function from utils.py.
+7. Tests: updated `smoke_concat_delimiter.py` to verify tuple-based storage format.
+8. Merging: added `MAX_MISMATCH_DENSITY = 0.10` threshold for adaptive alignment k-values.
+9. Merging: added numba-compiled `get_exact_innie_overlap()` and `get_exact_outie_overlap()` for fast-path exact overlap detection.
+10. Merging: added numba-compiled `get_innie_consensus_fast()` and `get_outie_consensus_fast()` using byte arrays for ~10x faster consensus building.
+11. Merging: `get_innie_merged()` and `get_outie_merged()` now use fast-path exact overlap before falling back to alignment.
+12. Merging: adaptive seed length (`max(10, min(20, len(r) // 10))`) and density-based k-values for better accuracy on variable-length reads.
+13. Merging: full bytes support throughout merge pipeline for reduced memory allocations.
+14. Utils: added `complement_bytes` translation table and `get_revcomp_bytes()` for fast byte-level reverse complement.
+15. Utils: added `N_BYTE` constant for efficient byte-level N filtering.
+16. Utils: added `readbytes` parameter to `stream_fastq_engine()` for returning reads as bytes, enabling faster downstream processing.
+17. Counting: dual-read processing - anchor search now tries R1 first, then R2 if anchor not found.
+18. Counting: associate matching now searches both R1 and R2 for associate sequences.
+19. Counting: **BREAKING** callback signature changed from `callback(read=..., ID=..., count=..., coreid=...)` to `callback(r1=..., r2=..., ID=..., count=..., coreid=...)` where r2 is None for merged reads.
+20. Counting: callback validation updated to test with r1/r2 signature and mixed merged/concat read tuples.
+21. Pack storage: `get_concatenated_reads()` and `get_merged_reads()` now decode bytes to strings, ensuring consistent string storage in pack files.
+
 2026.01.27
 1. Docs: unified Degenerate Mode messaging across all documentation - reframed as selection/sequence-identity workflow for low mutational diversity libraries.
 2. Docs: added Four Modes overview (Design, Assembly, Degenerate, Analysis) to README and agent-skills.md with workflow diagrams and integration points.

@@ -844,6 +844,7 @@ stats = op.pack(
 - For paired-end workflows, both reads must pass the length/quality filters for the pair to be retained.
 - If reads are merged externally, pass the merged reads as single-end (R1 only) and leave all R2 args as `None`.
 - `pack_type=0` (concatenated) tends to be IO-bound; `pack_type=1` (merged) is more compute-heavy. Pack files are reusable across counting runs.
+- Internally, pack files store reads as `(r1, r2)` tuples; merged/single-end reads use `r2=None` (relevant for Python callbacks).
 
 > **API Reference**: See [`pack`](api.md#pack) for complete parameter documentation.
 
@@ -915,9 +916,9 @@ Output includes all observed combinations. Reads missing a barcode show `'-'` fo
 
 **Custom callbacks** (Python API only):
 ```python
-def my_filter(read, ID, count, coreid):
-    # Custom logic here
-    return True  # Accept read
+def my_filter(r1, r2, ID, count, coreid):
+    # r2 is None for merged reads; otherwise you get (r1, r2)
+    return True  # Accept read(s)
 
 df, stats = op.xcount(..., callback=my_filter)
 ```

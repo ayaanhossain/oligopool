@@ -18,7 +18,7 @@ def xcount(
     count_file:str,
     mapping_type:int|str=0,
     barcode_errors:int=-1,
-    callback:Callable[[str, Tuple, int, int], bool]|None=None,
+    callback:Callable[[str, str|None, Tuple, int, int], bool]|None=None,
     core_count:int=0,
     memory_limit:float=0.0,
     verbose:bool=True) -> Tuple[pd.DataFrame, dict]:
@@ -50,7 +50,8 @@ def xcount(
           `'-'` (gaps) in the output combination.
         - CLI note: callback functions are not currently supported via the `op`/`oligopool` CLI
           (the CLI always runs with `callback=None`); use the Python API to supply callbacks.
-        - Callback signature: `callback(read, ID, count, coreid) -> bool` (return `True` to accept the read).
+        - Callback signature: `callback(r1, r2, ID, count, coreid) -> bool` (return `True` to accept the read);
+          `r2` is `None` for merged/single-end reads.
         - Associate information in indexes is ignored.
         - Barcodes can be isolated or be sub-barcodes of a larger combinatorial assembly.
     '''

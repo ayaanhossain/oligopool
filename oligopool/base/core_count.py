@@ -70,7 +70,7 @@ def get_meta_info(packfile):
 
 def stream_random_reads(count):
     '''
-    Stream several random reads.
+    Stream several random read tuples.
     Internal use only.
 
     :: count
@@ -80,13 +80,19 @@ def stream_random_reads(count):
     '''
 
     for _ in range(count):
-        yield get_random_DNA(
-            length=np.random.randint(
-                10, 1000))
+        r1 = get_random_DNA(
+            length=np.random.randint(10, 1000))
+        # 50% chance of having r2 (simulating concat vs merged)
+        if np.random.randint(2) == 0:
+            r2 = get_random_DNA(
+                length=np.random.randint(10, 1000))
+        else:
+            r2 = None
+        yield r1, r2
 
 def stream_packed_reads(packzero, count):
     '''
-    Stream several experiment reads.
+    Stream several experiment read tuples.
     Internal use only.
 
     :: packfile
@@ -106,7 +112,11 @@ def stream_packed_reads(packzero, count):
 
     # Read Streaming Loop
     for readidx in indexvec:
-        yield packzero[readidx][0]
+        # Pack format: [[r1, r2], count]
+        read_tuple = packzero[readidx][0]
+        r1 = read_tuple[0]
+        r2 = read_tuple[1]  # None for merged reads
+        yield r1, r2
 
 def stream_IDs(indexfiles, count):
     '''
@@ -216,13 +226,14 @@ def get_parsed_callback(
     failedinputs = []
     for readcount in range(count):
 
-        # Get a Read!
-        read = next(streamers[np.random.randint(2)])
+        # Get a Read Tuple!
+        r1, r2 = next(streamers[np.random.randint(2)])
 
         # Execute Callback
         try:
             callback_input = {
-                  'read': read,
+                    'r1': r1,
+                    'r2': r2,
                     'ID': next(IDstreamer),
                  'count': np.random.randint(1, 10001),
                 'coreid': np.random.randint(ncores)}
@@ -375,9 +386,7 @@ def exoneration_procedure(
        desc - dictionary of core counters
     '''
 
-    # Adjust Read
-    if '-----' in exoread:
-        exoread = exoread.replace('-----', '')
+    # Note: exoread is R1 extracted from (r1, r2) tuple in count engines
 
     # Exoneration Flag
     exonerated = False
@@ -1377,30 +1386,41 @@ def acount_engine(
             if not cpack:
                 break
 
-            # Fetch Read and Frequency
-            (read,
+            # Fetch Read Tuple and Frequency
+            # Read tuple format: (r1, r2) for concat, (merged, None) for merged
+            (read_tuple,
             freq) = cpack.pop()
+
+            # Extract both reads from tuple
+            r1 = read_tuple[0]
+            r2 = read_tuple[1]  # None for merged reads
 
             # Update Book-keeping
             cctrs['analyzedreads'] += freq
             verbiagereach += 1
             readcount     += 1
 
-            # Anchor Read
+            # Try anchor on R1 first
             (anchoredread,
             anchorstatus) = get_anchored_read(
-                read=read,
+                read=r1,
                 metamap=metamap)
 
-            # Anchor Absent
+            # If R1 failed and R2 exists, try R2
+            if not anchorstatus and r2 is not None:
+                (anchoredread,
+                anchorstatus) = get_anchored_read(
+                    read=r2,
+                    metamap=metamap)
+
+            # Anchor Absent in both reads
             if not anchorstatus:
-                exoread = read
+                exoread = r1  # Use r1 for exoneration
                 exofreq = freq
                 continue
 
-            # Setup Read References
-            barcoderead   = anchoredread
-            associateread = anchoredread
+            # Barcode detection on anchored read
+            barcoderead = anchoredread
 
             # Compute Barcode Index
             index = get_barcode_index(
@@ -1413,13 +1433,26 @@ def acount_engine(
                 cctrs['incalcreads'] += freq
                 continue
 
-            # Compute Associate Match
+            # Compute Associate Match - try both reads
             associatematch, basalmatch = get_associate_match(
-                associateread=associateread,
+                associateread=r1,
                 associateerrors=associateerrors,
                 associatedict=associatedict,
                 index=index,
                 metamap=metamap)
+
+            # If R1 failed and R2 exists, try R2
+            if not associatematch and r2 is not None:
+                associatematch_r2, basalmatch_r2 = get_associate_match(
+                    associateread=r2,
+                    associateerrors=associateerrors,
+                    associatedict=associatedict,
+                    index=index,
+                    metamap=metamap)
+                if associatematch_r2:
+                    associatematch = True
+                if basalmatch_r2:
+                    basalmatch = True
 
             # Associate Absent / Incorrect
             if not associatematch:
@@ -1435,9 +1468,10 @@ def acount_engine(
             # Compute Callback Evaluation
             if associatematch and (not callback is None):
                 try:
-                    # Execute Callback
+                    # Execute Callback with both reads
                     evaluation = callback(
-                        read=anchoredread,
+                        r1=r1,
+                        r2=r2,
                         ID=(IDdict[index],),
                         count=freq,
                         coreid=coreid)
@@ -1453,7 +1487,8 @@ def acount_engine(
 
                     # Dump input for Stats
                     ut.savedump(dobj={
-                          'read': anchoredread,
+                            'r1': r1,
+                            'r2': r2,
                             'ID': (index,),
                          'count': freq,
                         'coreid': coreid},
@@ -1854,9 +1889,14 @@ def xcount_engine(
             if not cpack:
                 break
 
-            # Fetch Read and Frequency
-            (read,
+            # Fetch Read Tuple and Frequency
+            # Read tuple format: (r1, r2) for concat, (merged, None) for merged
+            (read_tuple,
             freq) = cpack.pop()
+
+            # Extract both reads from tuple
+            r1 = read_tuple[0]
+            r2 = read_tuple[1]  # None for merged reads
 
             # Update Book-keeping
             cctrs['analyzedreads'] += freq
@@ -1869,13 +1909,20 @@ def xcount_engine(
             partialmap = False
             for idx in range(numindex):
 
-                # Anchor Read
+                # Try anchor on R1 first
                 (anchoredread,
                 anchorstatus) = get_anchored_read(
-                    read=read,
+                    read=r1,
                     metamap=metamaps[idx])
 
-                # Anchor Absent
+                # If R1 failed and R2 exists, try R2
+                if not anchorstatus and r2 is not None:
+                    (anchoredread,
+                    anchorstatus) = get_anchored_read(
+                        read=r2,
+                        metamap=metamaps[idx])
+
+                # Anchor Absent in both reads
                 if not anchorstatus:
                     indextuple.append('-')
                     continue
@@ -1903,7 +1950,7 @@ def xcount_engine(
 
             # All Anchors Absent
             if not partialanc:
-                exoread = read
+                exoread = r1  # Use r1 for exoneration
                 exofreq = freq
                 continue
 
@@ -1918,9 +1965,10 @@ def xcount_engine(
             # Compute Callback Evaluation
             if not callback is None:
                 try:
-                    # Execute Callback
+                    # Execute Callback with both reads
                     evaluation = callback(
-                        read=anchoredread,
+                        r1=r1,
+                        r2=r2,
                         ID=tuple(IDdict[it] if not it == '-' else None for it in indextuple),
                         count=freq,
                         coreid=coreid)
@@ -1936,7 +1984,8 @@ def xcount_engine(
 
                     # Dump input for Stats
                     ut.savedump(dobj={
-                          'read': anchoredread,
+                            'r1': r1,
+                            'r2': r2,
                             'ID': indextuple,
                          'count': freq,
                         'coreid': coreid},

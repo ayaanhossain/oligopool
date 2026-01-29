@@ -17,7 +17,7 @@
   <a href="#license" style="text-decoration: none !important;">⚖️ License</a>
 </p>
 
-**Oligopool Calculator** is a Swiss-army knife for [oligopool libraries](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9300125/): a unified toolkit for high-throughput **design**, **assembly**, **compression**, and **analysis** of massively parallel assays, designed to integrate seamlessly with Python, the CLI, Jupyter, containers, and AI-assisted workflows.
+`Oligopool Calculator` is a Swiss-army knife for [oligopool libraries](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9300125/): a unified toolkit for high-throughput design, assembly, compression, and analysis of massively parallel assays, designed to integrate seamlessly with Python, the CLI, Jupyter, containers, and AI-assisted workflows.
 
 Design modules generate primers, barcodes, motifs/anchors, and spacers; assembly modules split/pad long constructs; Degenerate Mode compresses similar sequences into IUPAC‑degenerate oligos; and Analysis Mode packs and counts barcoded reads for activity quantification.
 

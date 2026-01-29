@@ -21,6 +21,8 @@
 20. Counting: callback validation updated to test with r1/r2 signature and mixed merged/concat read tuples.
 21. Pack storage: `get_concatenated_reads()` and `get_merged_reads()` now decode bytes to strings, ensuring consistent string storage in pack files.
 22. Degenerate: `expand` now accepts optional `mapping_file` parameter to restore original variant IDs from `compress` output.
+23. Index: added `associate_prefix_gap` / `associate_suffix_gap` to support non-adjacent associate anchors in `index()` for `acount`.
+24. Counting: added `failed_reads_file` and `failed_reads_sample_size` parameters to `acount()` and `xcount()` for diagnostic sampling of failed reads by category (phix, low_complexity, anchor_missing, barcode_absent, etc.).
 
 2026.01.27
 1. Docs: unified Degenerate Mode messaging across all documentation - reframed as selection/sequence-identity workflow for low mutational diversity libraries.

@@ -246,7 +246,7 @@ Verification tool for `compress`. Expansion is exponential (N N's = 4^N sequence
 See [api.md](https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md) [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/api.md)].
 
 ### index
-Build barcode index. Prefix/suffix anchors must be constant (≥6 bp), adjacent to indexed column. For `acount`, also specify `associate_data`/`associate_column`.
+Build barcode index. Prefix/suffix anchors must be constant (≥6 bp); use `{barcode|associate}_{prefix|suffix}_gap` if anchors are not adjacent in the read. For `acount`, also specify `associate_data`/`associate_column`.
 
 ---
 

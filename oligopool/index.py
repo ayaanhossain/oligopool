@@ -21,6 +21,8 @@ def index(
     associate_column:str|None=None,
     associate_prefix_column:str|None=None,
     associate_suffix_column:str|None=None,
+    associate_prefix_gap:int=0,
+    associate_suffix_gap:int=0,
     verbose:bool=True) -> dict:
     '''
     Build an index object for mapping barcodes (and optional associates) in NGS reads.
@@ -40,6 +42,8 @@ def index(
         - `associate_column` (`str`): Column name for the associate elements to index (default: `None`).
         - `associate_prefix_column` (`str`): Column for the constant associate prefix (default: `None`).
         - `associate_suffix_column` (`str`): Column for the constant associate suffix (default: `None`).
+        - `associate_prefix_gap` (`int`): Distance between the prefix and associate (default: 0).
+        - `associate_suffix_gap` (`int`): Distance between the suffix and associate (default: 0).
         - `verbose` (`bool`): If `True`, logs updates to stdout (default: `True`).
 
     Returns:
@@ -68,11 +72,13 @@ def index(
     barcodesuffix   = barcode_suffix_column
     barcodepregap   = barcode_prefix_gap
     barcodepostgap  = barcode_suffix_gap
-    associatedata   = associate_data
-    associatecol    = associate_column
-    associateprefix = associate_prefix_column
-    associatesuffix = associate_suffix_column
-    verbose         = verbose
+    associatedata    = associate_data
+    associatecol     = associate_column
+    associateprefix  = associate_prefix_column
+    associatesuffix  = associate_suffix_column
+    associatepregap  = associate_prefix_gap
+    associatepostgap = associate_suffix_gap
+    verbose          = verbose
 
     # Start Liner
     liner = ut.liner_engine(verbose)
@@ -229,6 +235,28 @@ def index(
         typecontext=None,
         liner=liner)
 
+    # Full associatepregap Validation
+    associatepregap_valid = vp.get_numeric_validity(
+        numeric=associatepregap,
+        numeric_field=' Associate Pregap ',
+        numeric_pre_desc=' Allow Exactly ',
+        numeric_post_desc=' bp Gap b/w Prefix and Associate',
+        minval=0,
+        maxval=float('inf'),
+        precheck=False,
+        liner=liner)
+
+    # Full associatepostgap Validation
+    associatepostgap_valid = vp.get_numeric_validity(
+        numeric=associatepostgap,
+        numeric_field=' Associate Postgap',
+        numeric_pre_desc=' Allow Exactly ',
+        numeric_post_desc=' bp Gap b/w Associate and Suffix',
+        minval=0,
+        maxval=float('inf'),
+        precheck=False,
+        liner=liner)
+
     # First Pass Validation
     if not all([
         barcodedata_valid,
@@ -241,7 +269,9 @@ def index(
         associatedata_valid,
         associatecol_valid,
         associateprefix_valid,
-        associatesuffix_valid]):
+        associatesuffix_valid,
+        associatepregap_valid,
+        associatepostgap_valid]):
         liner.send('\n')
         raise RuntimeError(
             'Invalid Argument Input(s).')
@@ -456,6 +486,8 @@ def index(
         associatedict=associatedict,
         associateprefix=associateprefix,
         associatesuffix=associatesuffix,
+        associatepregap=associatepregap,
+        associatepostgap=associatepostgap,
         indexdir=indexdir,
         indexqueue=indexqueue,
         liner=liner)

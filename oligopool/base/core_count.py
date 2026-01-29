@@ -16,6 +16,29 @@ from . import utils as ut
 from . import phiX  as px
 
 
+# Failure Categories for Read Counting
+
+ACOUNT_FAILURE_CATEGORIES = (
+    'phix_match',
+    'low_complexity',
+    'anchor_missing',
+    'barcode_absent',
+    'associate_prefix_missing',
+    'associate_mismatch',
+    'callback_false',
+    'incalculable',
+)
+
+XCOUNT_FAILURE_CATEGORIES = (
+    'phix_match',
+    'low_complexity',
+    'anchor_missing',
+    'barcode_absent',
+    'callback_false',
+    'incalculable',
+)
+
+
 # Parser and Setup Functions
 
 def get_random_DNA(length):
@@ -361,7 +384,10 @@ def exoneration_procedure(
     exofreq,
     phiXkval,
     phiXspec,
-    cctrs):
+    cctrs,
+    sampler=None,
+    r1=None,
+    r2=None):
     '''
     Determine exoneration for given
     read and update core counters.
@@ -384,12 +410,23 @@ def exoneration_procedure(
     :: cctrs
        type - dict
        desc - dictionary of core counters
+    :: sampler
+       type - FailureSampler / None
+       desc - optional failure sampler for
+              collecting failed read samples
+    :: r1
+       type - string / None
+       desc - read 1 for failure sampling
+    :: r2
+       type - string / None
+       desc - read 2 for failure sampling
     '''
 
     # Note: exoread is R1 extracted from (r1, r2) tuple in count engines
 
     # Exoneration Flag
     exonerated = False
+    matched_kmer = None
 
     # PhiX Match?
     for kmer in ut.stream_spectrum(
@@ -399,7 +436,18 @@ def exoneration_procedure(
         if kmer in phiXspec:
             cctrs['phiXreads'] += exofreq
             exonerated = True
+            matched_kmer = kmer
             break
+
+    # Sample PhiX match
+    if exonerated and sampler is not None:
+        sampler.add_sample(
+            category='phix_match',
+            r1=r1 if r1 else exoread,
+            r2=r2,
+            freq=exofreq,
+            diagnostic='kmer={}'.format(matched_kmer))
+        return
 
     # Nucleotide Composition
     acount = exoread.count('A')
@@ -419,6 +467,15 @@ def exoneration_procedure(
            (tcount + gcount >= dinukethresh):
             cctrs['lowcomplexreads'] += exofreq
             exonerated = True
+            if sampler is not None:
+                sampler.add_sample(
+                    category='low_complexity',
+                    r1=r1 if r1 else exoread,
+                    r2=r2,
+                    freq=exofreq,
+                    diagnostic='A={};T={};G={};C={}'.format(
+                        acount, tcount, gcount, ccount))
+            return
 
     # Mononucleotide Match?
     if not exonerated:
@@ -430,6 +487,15 @@ def exoneration_procedure(
            tcount >= mononukethresh:
             cctrs['lowcomplexreads'] += exofreq
             exonerated = True
+            if sampler is not None:
+                sampler.add_sample(
+                    category='low_complexity',
+                    r1=r1 if r1 else exoread,
+                    r2=r2,
+                    freq=exofreq,
+                    diagnostic='A={};T={};G={};C={}'.format(
+                        acount, tcount, gcount, ccount))
+            return
 
     # Trinucleotide Match?
     if not exonerated:
@@ -441,10 +507,26 @@ def exoneration_procedure(
            (tcount + ccount + gcount >= trinukethresh):
             cctrs['lowcomplexreads'] += exofreq
             exonerated = True
+            if sampler is not None:
+                sampler.add_sample(
+                    category='low_complexity',
+                    r1=r1 if r1 else exoread,
+                    r2=r2,
+                    freq=exofreq,
+                    diagnostic='A={};T={};G={};C={}'.format(
+                        acount, tcount, gcount, ccount))
+            return
 
     # Uncategorized Discard
     if not exonerated:
         cctrs['incalcreads'] += exofreq
+        if sampler is not None:
+            sampler.add_sample(
+                category='anchor_missing',
+                r1=r1 if r1 else exoread,
+                r2=r2,
+                freq=exofreq,
+                diagnostic='')
 
 def get_anchored_read(
     read,
@@ -806,6 +888,21 @@ def get_associate_match(
     if not trimstatus:
         return False, 0
 
+    # Gap Trim
+    if metamap.get('associategapped'):
+        # Localise Gap Lengths
+        pregap  = metamap.get('associatepregap', 0)
+        postgap = metamap.get('associatepostgap', 0)
+        # Pregap Trim
+        if pregap:
+            associateread = associateread[+pregap:]
+        # Postgap Trim
+        if postgap:
+            associateread = associateread[:-postgap]
+        # Nothing Remains after Gap Trim
+        if not associateread:
+            return False, 0
+
     # Match Associate
     associate, associatetval = associatedict[index]
     if (associateerrors > -1) and \
@@ -1126,7 +1223,9 @@ def acount_engine(
     restart,
     shutdown,
     launchtime,
-    liner):
+    liner,
+    failuresamplequeue=None,
+    failed_reads_sample_size=1000):
     '''
     Association count read packs stored in packfile
     and enqueue the final read count matrix in to
@@ -1240,6 +1339,13 @@ def acount_engine(
     :: liner
        type - coroutine
        desc - dynamic printing
+    :: failuresamplequeue
+       type - SafeQueue / None
+       desc - queue for storing failure sample
+              file paths (None = disabled)
+    :: failed_reads_sample_size
+       type - integer
+       desc - maximum samples per failure category
     '''
 
     # Open indexfile
@@ -1296,6 +1402,13 @@ def acount_engine(
         'experimentreads': 0}
     callbackabort = False
 
+    # Initialize failure sampler if enabled
+    sampler = None
+    if failuresamplequeue is not None:
+        sampler = ut.FailureSampler(
+            sample_size=failed_reads_sample_size,
+            categories=ACOUNT_FAILURE_CATEGORIES)
+
     # Compute Printing Lengths
     clen = ut.get_printlen(value=ncores)
     slen = plen = ut.get_printlen(
@@ -1333,6 +1446,8 @@ def acount_engine(
         # Book-keeping Variables
         exoread   = None
         exofreq   = None
+        exo_r1    = None  # Track r1 for failure sampling
+        exo_r2    = None  # Track r2 for failure sampling
         readcount = 0
 
         verbiagereach  = 0
@@ -1361,11 +1476,16 @@ def acount_engine(
                     exofreq=exofreq,
                     phiXkval=phiXkval,
                     phiXspec=phiXspec,
-                    cctrs=cctrs)
+                    cctrs=cctrs,
+                    sampler=sampler,
+                    r1=exo_r1,
+                    r2=exo_r2)
 
                 # Clear for Next Exoneration
                 exoread = None
                 exofreq = None
+                exo_r1  = None
+                exo_r2  = None
 
             # Time to Show Update?
             if verbiagereach >= verbiagetarget:
@@ -1417,6 +1537,8 @@ def acount_engine(
             if not anchorstatus:
                 exoread = r1  # Use r1 for exoneration
                 exofreq = freq
+                exo_r1  = r1  # Track for failure sampling
+                exo_r2  = r2
                 continue
 
             # Barcode detection on anchored read
@@ -1431,6 +1553,12 @@ def acount_engine(
             # Barcode Absent
             if index is None:
                 cctrs['incalcreads'] += freq
+                if sampler is not None:
+                    sampler.add_sample(
+                        category='barcode_absent',
+                        r1=r1, r2=r2, freq=freq,
+                        diagnostic='trimmed_read={}'.format(
+                            barcoderead[:50] if len(barcoderead) > 50 else barcoderead))
                 continue
 
             # Compute Associate Match - try both reads
@@ -1460,10 +1588,23 @@ def acount_engine(
                 # Associate Constants Missing
                 if not basalmatch:
                     cctrs['incalcreads'] += freq
+                    if sampler is not None:
+                        sampler.add_sample(
+                            category='associate_prefix_missing',
+                            r1=r1, r2=r2, freq=freq,
+                            diagnostic='barcode_id={}'.format(IDdict[index]))
                     continue
                 # Associate Mismatches with Reference
                 else:
                     cctrs['misassocreads'] += freq
+                    if sampler is not None:
+                        expected_assoc = associatedict[index][0]
+                        sampler.add_sample(
+                            category='associate_mismatch',
+                            r1=r1, r2=r2, freq=freq,
+                            diagnostic='barcode_id={};expected_assoc={}'.format(
+                                IDdict[index],
+                                expected_assoc[:30] if len(expected_assoc) > 30 else expected_assoc))
 
             # Compute Callback Evaluation
             if associatematch and (not callback is None):
@@ -1503,6 +1644,11 @@ def acount_engine(
                     # Callback Evaluation is False
                     if not evaluation:
                         cctrs['falsereads'] += freq
+                        if sampler is not None:
+                            sampler.add_sample(
+                                category='callback_false',
+                                r1=r1, r2=r2, freq=freq,
+                                diagnostic='barcode_id={}'.format(IDdict[index]))
                         continue
 
             # Tally Read Counts
@@ -1590,10 +1736,18 @@ def acount_engine(
     incalcreads.increment(incr=cctrs['incalcreads'])
     experimentreads.increment(incr=cctrs['experimentreads'])
 
+    # Save and queue failure samples if enabled
+    if sampler is not None and failuresamplequeue is not None:
+        samplepath = '{}/{}.{}.failures'.format(countdir, coreid, batchid)
+        save_failure_samples(sampler=sampler, filepath=samplepath)
+        failuresamplequeue.put(samplepath.split('/')[-1])
+
     # Counting Completed
     nactive.decrement()
     if shutdown.is_set():
         countqueue.put(None)
+        if failuresamplequeue is not None:
+            failuresamplequeue.put(None)
 
     # Release Control
     tt.sleep(0)
@@ -1623,7 +1777,9 @@ def xcount_engine(
     restart,
     shutdown,
     launchtime,
-    liner):
+    liner,
+    failuresamplequeue=None,
+    failed_reads_sample_size=1000):
     '''
     Combinatorial count barcodes from multiple
     indexes in packed reads and enque the count
@@ -1660,11 +1816,6 @@ def xcount_engine(
        desc - maximum number of mutations
               tolerated in barcodes before
               discarding reads from counting
-    :: associateerrors
-       type - Real / None
-       desc - maximum number of mutations
-              tolerated in associates before
-              discarding reads from counting
     :: previousreads
        type - SafeCounter
        desc - total number of reads processed
@@ -1681,10 +1832,6 @@ def xcount_engine(
        type - SafeCounter
        desc - total number of reads processed
               attributed to low complexity products
-    :: misassocreads
-       type - SafeCounter
-       desc - total number of reads processed
-              attributed to mis-association
     :: falsereads
        type - SafeCounter
        desc - total number of reads processed
@@ -1737,6 +1884,13 @@ def xcount_engine(
     :: liner
        type - coroutine
        desc - dynamic printing
+    :: failuresamplequeue
+       type - SafeQueue / None
+       desc - queue for storing failure sample
+              file paths (None = disabled)
+    :: failed_reads_sample_size
+       type - integer
+       desc - maximum samples per failure category
     '''
 
     # Aggregate Index Files
@@ -1799,6 +1953,13 @@ def xcount_engine(
         'experimentreads': 0}
     callbackabort = False
 
+    # Initialize failure sampler if enabled
+    sampler = None
+    if failuresamplequeue is not None:
+        sampler = ut.FailureSampler(
+            sample_size=failed_reads_sample_size,
+            categories=XCOUNT_FAILURE_CATEGORIES)
+
     # Compute Printing Lengths
     clen = ut.get_printlen(value=ncores)
     slen = plen = ut.get_printlen(
@@ -1836,6 +1997,8 @@ def xcount_engine(
         # Book-keeping Variables
         exoread   = None
         exofreq   = None
+        exo_r1    = None  # Track r1 for failure sampling
+        exo_r2    = None  # Track r2 for failure sampling
         readcount = 0
 
         verbiagereach  = 0
@@ -1864,11 +2027,16 @@ def xcount_engine(
                     exofreq=exofreq,
                     phiXkval=phiXkval,
                     phiXspec=phiXspec,
-                    cctrs=cctrs)
+                    cctrs=cctrs,
+                    sampler=sampler,
+                    r1=exo_r1,
+                    r2=exo_r2)
 
                 # Clear for Next Exoneration
                 exoread = None
                 exofreq = None
+                exo_r1  = None
+                exo_r2  = None
 
             # Time to Show Update?
             if verbiagereach >= verbiagetarget:
@@ -1952,11 +2120,18 @@ def xcount_engine(
             if not partialanc:
                 exoread = r1  # Use r1 for exoneration
                 exofreq = freq
+                exo_r1  = r1  # Track for failure sampling
+                exo_r2  = r2
                 continue
 
             # All Barcodes Absent
             if not partialmap:
                 cctrs['incalcreads'] += freq
+                if sampler is not None:
+                    sampler.add_sample(
+                        category='barcode_absent',
+                        r1=r1, r2=r2, freq=freq,
+                        diagnostic='')
                 continue
 
             # Convert Tuples to Indexes
@@ -2000,6 +2175,11 @@ def xcount_engine(
                     # Callback Evaluation is False
                     if not evaluation:
                         cctrs['falsereads'] += freq
+                        if sampler is not None:
+                            sampler.add_sample(
+                                category='callback_false',
+                                r1=r1, r2=r2, freq=freq,
+                                diagnostic='')
                         continue
 
             # All Components Valid
@@ -2084,10 +2264,261 @@ def xcount_engine(
     incalcreads.increment(incr=cctrs['incalcreads'])
     experimentreads.increment(incr=cctrs['experimentreads'])
 
+    # Save and queue failure samples if enabled
+    if sampler is not None and failuresamplequeue is not None:
+        samplepath = '{}/{}.{}.failures'.format(countdir, coreid, batchid)
+        save_failure_samples(sampler=sampler, filepath=samplepath)
+        failuresamplequeue.put(samplepath.split('/')[-1])
+
     # Counting Completed
     nactive.decrement()
     if shutdown.is_set():
         countqueue.put(None)
+        if failuresamplequeue is not None:
+            failuresamplequeue.put(None)
 
     # Release Control
     tt.sleep(0)
+
+# Failure Sampling Helper Functions
+
+def save_failure_samples(sampler, filepath):
+    '''
+    Save failure samples to a file.
+    Internal use only.
+
+    :: sampler
+       type - ut.FailureSampler
+       desc - sampler containing failure samples
+    :: filepath
+       type - string
+       desc - path to save samples
+    '''
+    data = {
+        'samples': sampler.get_samples(),
+        'seen_counts': sampler.get_seen_counts(),
+        'sample_size': sampler.sample_size
+    }
+    ut.savedump(dobj=data, filepath=filepath)
+
+def load_failure_samples(filepath):
+    '''
+    Load failure samples from a file.
+    Internal use only.
+
+    :: filepath
+       type - string
+       desc - path to load samples from
+    '''
+    return ut.loaddump(dfile=filepath)
+
+def merge_failure_samples(sample_files, sample_size):
+    '''
+    Merge failure samples from multiple workers.
+    Produces a uniform sample (up to sample_size per category) from the
+    union of all worker failure streams, using each worker's per-category
+    reservoir sample and seen_counts.
+    Internal use only.
+
+    :: sample_files
+       type - list
+       desc - list of paths to sample files
+    :: sample_size
+       type - integer
+       desc - maximum samples to keep per category
+    '''
+    # Load all sample files
+    worker_data = [load_failure_samples(fp) for fp in sample_files]
+    if not worker_data:
+        return {}, {}
+
+    # If sample_size differs across worker files (shouldn't happen within a
+    # single run), merge conservatively to avoid over-drawing from any worker
+    # reservoir.
+    sample_size = min(
+        int(sample_size),
+        *[int(d.get('sample_size', sample_size)) for d in worker_data])
+
+    # Preserve category ordering from the first worker file, then append any
+    # additional categories seen in other files (should be identical).
+    category_order = list(worker_data[0].get('samples', {}).keys())
+    for data in worker_data[1:]:
+        for cat in data.get('samples', {}).keys():
+            if cat not in category_order:
+                category_order.append(cat)
+
+    merged_samples = {}
+    merged_seen_counts = {}
+
+    for category in category_order:
+        # Total stream length for this failure category
+        worker_seen = [
+            int(data.get('seen_counts', {}).get(category, 0))
+            for data in worker_data
+        ]
+        total_seen = sum(worker_seen)
+        merged_seen_counts[category] = total_seen
+
+        # Nothing to merge
+        if total_seen <= 0:
+            merged_samples[category] = []
+            continue
+
+        # Number of samples to keep overall for this category
+        target = min(sample_size, total_seen)
+
+        # Draw how many samples to take from each worker stream using a
+        # multivariate hypergeometric decomposition.
+        remaining_total = total_seen
+        remaining_draws = target
+        take_counts = []
+        for idx, seen_i in enumerate(worker_seen):
+            if remaining_draws <= 0 or seen_i <= 0:
+                take_counts.append(0)
+                remaining_total -= seen_i
+                continue
+
+            # Last worker gets whatever is left (guaranteed <= seen_i)
+            if idx == (len(worker_seen) - 1):
+                take = remaining_draws
+            else:
+                take = np.random.hypergeometric(
+                    ngood=seen_i,
+                    nbad=remaining_total - seen_i,
+                    nsample=remaining_draws)
+                take = int(take)
+
+            take_counts.append(take)
+            remaining_total -= seen_i
+            remaining_draws -= take
+
+        # Select the requested number of samples from each worker's reservoir.
+        merged = []
+        for data, take in zip(worker_data, take_counts):
+            if take <= 0:
+                continue
+            reservoir = data.get('samples', {}).get(category, [])
+            if not reservoir:
+                continue
+            # Note: reservoir size is min(sample_size, seen_i) so take <= len(reservoir)
+            merged.extend(rn.sample(reservoir, take))
+
+        merged_samples[category] = merged
+
+    return merged_samples, merged_seen_counts
+
+def write_failed_reads(samples, seen_counts, filepath, liner):
+    '''
+    Write failed reads samples to CSV file.
+    Internal use only.
+
+    :: samples
+       type - dict
+       desc - dictionary of category -> list of (r1, r2, freq, diagnostic) tuples
+    :: seen_counts
+       type - dict
+       desc - dictionary of category -> total samples seen
+    :: filepath
+       type - string
+       desc - output CSV file path
+    :: liner
+       type - coroutine
+       desc - dynamic printing
+    '''
+    # Start Timer
+    t0 = tt.time()
+
+    # Show Update
+    liner.send(' Writing Failed Reads ...')
+
+    # Count total rows
+    total_rows = sum(len(cat_samples) for cat_samples in samples.values())
+
+    # Write CSV
+    # Note: use csv.writer to correctly quote fields that may contain commas,
+    # newlines, quotes, etc. (e.g., diagnostic strings like "A=10,T=5,...").
+    import csv
+    with open(filepath, 'w', newline='') as outfile:
+        writer = csv.writer(outfile)
+        writer.writerow(
+            ('failure_reason', 'r1', 'r2', 'read_count', 'diagnostic_info'))
+
+        # Write samples grouped by failure category
+        for category, cat_samples in samples.items():
+            for (r1, r2, freq, diagnostic) in cat_samples:
+                writer.writerow((
+                    category,
+                    r1 if r1 else '',
+                    r2 if r2 else '',
+                    freq,
+                    diagnostic if diagnostic else ''))
+
+    # Final Updates
+    liner.send(
+        ' Rows Written: {:,} Failed Read Sample(s)\n'.format(total_rows))
+    liner.send(
+        ' Time Elapsed: {:.2f} sec\n'.format(tt.time() - t0))
+
+def aggregate_failure_samples(
+    failuresamplequeue,
+    countdir,
+    failed_reads_file,
+    failed_reads_sample_size,
+    prodcount,
+    liner):
+    '''
+    Aggregate failure samples from worker processes and write to CSV.
+    Internal use only.
+
+    :: failuresamplequeue
+       type - SafeQueue
+       desc - queue storing paths to failure sample files
+    :: countdir
+       type - string
+       desc - path to workspace count directory
+    :: failed_reads_file
+       type - string
+       desc - output CSV file path
+    :: failed_reads_sample_size
+       type - integer
+       desc - maximum samples per category
+    :: prodcount
+       type - integer
+       desc - total number of producers
+    :: liner
+       type - coroutine
+       desc - dynamic printing
+    '''
+    # Collect sample file paths
+    sample_files = []
+
+    # Wait for all producers to finish
+    finished_count = 0
+    while finished_count < prodcount:
+        token = failuresamplequeue.get()
+        if token is None:
+            finished_count += 1
+        else:
+            sample_path = '{}/{}'.format(countdir, token)
+            if os.path.exists(sample_path):
+                sample_files.append(sample_path)
+        tt.sleep(0)
+
+    # Merge samples if any exist
+    if sample_files:
+        liner.send('\n[Step 5: Writing Failed Read Samples]\n')
+
+        samples, seen_counts = merge_failure_samples(
+            sample_files=sample_files,
+            sample_size=failed_reads_sample_size)
+
+        # Write to CSV
+        write_failed_reads(
+            samples=samples,
+            seen_counts=seen_counts,
+            filepath=failed_reads_file,
+            liner=liner)
+
+        # Cleanup temp files
+        for sample_path in sample_files:
+            ut.remove_file(filepath=sample_path)

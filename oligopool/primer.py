@@ -55,7 +55,7 @@ def primer(
         - `left_context_column` (`str`): Column for left DNA context (default: `None`).
         - `right_context_column` (`str`): Column for right DNA context (default: `None`).
         - `patch_mode` (`bool`): If `True`, fill only missing values in an existing primer column
-            (does not overwrite existing primers). (Default: `False`).
+            (does not overwrite existing primers). (default: `False`).
         - `oligo_sets` (`list` / `str` / `pd.DataFrame`): Per-oligo grouping labels to design
             set-specific primers; can be a list aligned to `input_data` or a CSV/DataFrame
             with 'ID' and 'OligoSet' columns (default: `None`).

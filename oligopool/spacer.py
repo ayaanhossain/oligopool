@@ -45,7 +45,7 @@ def spacer(
         - `left_context_column` (`str`): Column for left DNA context (default: `None`).
         - `right_context_column` (`str`): Column for right DNA context (default: `None`).
         - `patch_mode` (`bool`): If `True`, fill only missing values in an existing spacer column
-            (does not overwrite existing spacers). (Default: `False`).
+            (does not overwrite existing spacers). (default: `False`).
         - `excluded_motifs` (`list` / `str` / `pd.DataFrame`): Motifs to exclude;
             can be a list, CSV, DataFrame, or FASTA file (default: `None`).
         - `random_seed` (`int` / `None`): Seed for local RNG (default: `None`).

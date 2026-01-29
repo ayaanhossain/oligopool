@@ -804,12 +804,14 @@ stats = op.index(
     associate_data='library.csv',          # Can be same or different file
     associate_column='Variant',
     associate_suffix_column='Anchor3',
+    associate_suffix_gap=0,                # Bases between variant and suffix anchor in read
 )
 ```
 
 **Notes (the stuff that bites people):**
 - You must specify at least one of `barcode_prefix_column` or `barcode_suffix_column`; anchors should be constant (single-unique) sequences and ideally adjacent to the barcode/associate.
 - `barcode_prefix_gap`/`barcode_suffix_gap` specify how many bases separate the anchor and barcode in the read (real sequencing is messy; this makes it configurable).
+- If your associate anchors are not directly adjacent, use `associate_prefix_gap`/`associate_suffix_gap` to specify the exact gaps in the read.
 - For association counting, partial presence of the associate sequence can be sufficient, but the associate anchors must be adjacent and fully present.
 - You can use multiple index files with `xcount` for combinatorial counting (associate info is ignored in that mode).
 
@@ -870,6 +872,7 @@ df, stats = op.acount(
 **Notes (the stuff that bites people):**
 - Reads with unresolved associates are excluded from the counts (that's the point of `acount`).
 - `callback` is Python-only; the CLI always runs with `callback=None`.
+- If you want to inspect *examples* of discarded reads, set `failed_reads_file` to write a small per-category diagnostic CSV.
 - `acount` operates on a single index + pack pair (for combinatorial counting, use `xcount`).
 
 > **API Reference**: See [`acount`](api.md#acount) for complete parameter documentation.
@@ -912,6 +915,7 @@ Output includes all observed combinations. Reads missing a barcode show `'-'` fo
 **Notes (the stuff that bites people):**
 - Reads are retained if at least one barcode maps; missing barcodes are represented as `'-'` in the output combination.
 - `callback` is Python-only; the CLI always runs with `callback=None`.
+- If you want to inspect *examples* of discarded reads, set `failed_reads_file` to write a small per-category diagnostic CSV.
 - Associate information in the index is ignored in `xcount` mode.
 
 **Custom callbacks** (Python API only):

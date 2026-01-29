@@ -11,6 +11,7 @@ import atexit  as ae
 
 import contextlib  as cl
 import collections as cx
+import random      as rn
 
 import ctypes       as ct
 import multiprocess as mp
@@ -352,6 +353,72 @@ class SafeQueue:
             self.queue   = None
             self.counter = None
             self.alive.value = False
+
+class FailureSampler:
+    '''
+    Reservoir sampler for failed reads across multiple failure categories.
+    Uses Algorithm R for reservoir sampling - keeps up to sample_size samples
+    per category with uniform probability. Internal use only.
+    '''
+
+    def __init__(self, sample_size, categories):
+        '''
+        Initialize the failure sampler.
+
+        :: sample_size
+           type - integer
+           desc - maximum samples to keep per category
+        :: categories
+           type - tuple
+           desc - tuple of failure category names
+        '''
+        self.sample_size = sample_size
+        self.categories = {cat: [] for cat in categories}
+        self.seen_counts = {cat: 0 for cat in categories}
+
+    def add_sample(self, category, r1, r2, freq, diagnostic):
+        '''
+        Add a sample using reservoir sampling (Algorithm R).
+        Keeps up to sample_size samples per category with uniform probability.
+
+        :: category
+           type - string
+           desc - failure category name
+        :: r1
+           type - string
+           desc - read 1 sequence
+        :: r2
+           type - string / None
+           desc - read 2 sequence (None for merged reads)
+        :: freq
+           type - integer
+           desc - read frequency/count
+        :: diagnostic
+           type - string
+           desc - diagnostic information specific to failure type
+        '''
+        if category not in self.categories:
+            return
+
+        self.seen_counts[category] += 1
+        samples = self.categories[category]
+
+        # If we haven't filled the reservoir yet, just add
+        if len(samples) < self.sample_size:
+            samples.append((r1, r2, freq, diagnostic))
+        else:
+            # Reservoir sampling: replace with probability sample_size/seen_count
+            j = rn.randint(0, self.seen_counts[category] - 1)
+            if j < self.sample_size:
+                samples[j] = (r1, r2, freq, diagnostic)
+
+    def get_samples(self):
+        '''Return all collected samples as a dictionary.'''
+        return self.categories
+
+    def get_seen_counts(self):
+        '''Return counts of samples seen per category.'''
+        return self.seen_counts
 
 
 # --= Decorators and Contexts =--

@@ -1031,7 +1031,7 @@ def _add_background(cmdpar):
         type=str,
         metavar='\b',
         help='''>>[required string]
-Path to a CSV file with background sequences.
+Path to input CSV with background sequences.
 Required columns: ID, Sequence.''')
     req.add_argument(
         '--maximum-repeat-length',
@@ -1040,7 +1040,7 @@ Required columns: ID, Sequence.''')
         metavar='\b',
         help='''>>[required integer]
 Maximum repeat length allowed between primers and background.
-Range: 6 to 20.''')
+(6 to 20).''')
     req.add_argument(
         '--output-directory',
         required=True,
@@ -1122,7 +1122,7 @@ Output CSV filename. A ".oligopool.barcode.csv" suffix is added if missing.''')
         help='''>>[optional int/string]
 Barcode design mode: 0 or 'terminus' = terminus optimized (fast),
 1 or 'spectrum' = spectrum optimized (slow). Aliases: 'term', 't', 'fast', 'spec', 's', 'slow'.
-(default: 0)''')
+(default: 0).''')
     opt.add_argument(
         '--left-context-column',
         type=str,
@@ -1395,7 +1395,7 @@ Output CSV filename. A ".oligopool.motif.csv" suffix is added if missing.''')
         metavar='\b',
         help='''>>[optional int/string]
 Motif type: 0 or 'per-variant' = non-constant, 1 or 'constant' = constant.
-Aliases: 'var', 'non-constant', 'const', 'anchor', 'fixed'. (default: 0)''')
+Aliases: 'var', 'non-constant', 'const', 'anchor', 'fixed'. (default: 0).''')
     opt.add_argument(
         '--left-context-column',
         type=str,
@@ -1607,14 +1607,14 @@ Output CSV filename. A ".oligopool.split.csv" suffix is added if missing.''')
         '--separate-outputs',
         action='store_true',
         default=True,
-        help='''>>[optional flag]
+        help='''>>[optional switch]
 Write separate CSV files per split fragment (e.g., output.Split1.oligopool.split.csv).
 Enabled by default in CLI mode. Use --no-separate-outputs to write a single combined file.''')
     opt.add_argument(
         '--no-separate-outputs',
         action='store_false',
         dest='separate_outputs',
-        help='''>>[optional flag]
+        help='''>>[optional switch]
 Write a single combined CSV with all Split columns instead of separate files.''')
     opt.add_argument(
         '--random-seed',
@@ -1731,7 +1731,7 @@ Path to input CSV with an ID column and DNA sequence columns.''')
         type=str,
         metavar='\b',
         help='''>>[required string]
-Column name for merged DNA (overwrites if present).''')
+Column name to store merged DNA (overwrites if present).''')
     req.add_argument(
         '--output-file',
         required=True,
@@ -2009,7 +2009,7 @@ A ".oligopool.expand.csv" suffix is added if missing.''')
         default=None,
         metavar='\b',
         help='''>>[optional integer]
-Maximum total expanded sequences (safety cap). Default: unlimited.''')
+Maximum total expanded sequences (safety cap) (default: unlimited).''')
     _add_common_options(parser, opt)
     return parser
 
@@ -2046,7 +2046,7 @@ Column name containing barcodes to index.''')
         type=str,
         metavar='\b',
         help='''>>[required string]
-Output index filename (".oligopool.index" is appended if missing).''')
+Output index filename. A ".oligopool.index" suffix is added if missing.''')
     opt.add_argument(
         '--barcode-prefix-column',
         type=str,
@@ -2070,7 +2070,7 @@ At least one of --barcode-prefix-column or --barcode-suffix-column is required.'
         metavar='\b',
         help='''>>[optional integer]
 Distance in bp between prefix anchor and barcode in reads.
-(default: 0)''')
+(default: 0).''')
     opt.add_argument(
         '--barcode-suffix-gap',
         type=int,
@@ -2078,7 +2078,7 @@ Distance in bp between prefix anchor and barcode in reads.
         metavar='\b',
         help='''>>[optional integer]
 Distance in bp between suffix anchor and barcode in reads.
-(default: 0)''')
+(default: 0).''')
     opt.add_argument(
         '--associate-data',
         type=str,
@@ -2109,6 +2109,22 @@ At least one of --associate-prefix-column or --associate-suffix-column is requir
         help='''>>[optional string]
 Column with constant associate suffix anchor.
 At least one of --associate-prefix-column or --associate-suffix-column is required.''')
+    opt.add_argument(
+        '--associate-prefix-gap',
+        type=int,
+        default=0,
+        metavar='\b',
+        help='''>>[optional integer]
+Distance in bp between prefix anchor and associate in reads.
+(default: 0).''')
+    opt.add_argument(
+        '--associate-suffix-gap',
+        type=int,
+        default=0,
+        metavar='\b',
+        help='''>>[optional integer]
+Distance in bp between suffix anchor and associate in reads.
+(default: 0).''')
     _add_common_options(parser, opt)
     return parser
 
@@ -2154,7 +2170,7 @@ Aliases: 'concatenate', 'concat', 'cat', 'joined', 'join', 'merge', 'assemble', 
         type=str,
         metavar='\b',
         help='''>>[required string]
-Output pack filename (".oligopool.pack" is appended if missing).''')
+Output pack filename. A ".oligopool.pack" suffix is added if missing.''')
     opt.add_argument(
         '--minimum-r1-read-length',
         type=int,
@@ -2205,7 +2221,7 @@ Minimum average R2 read quality (default: None).''')
         metavar='\b',
         help='''>>[optional float]
 Target million unique reads per pack (0.1 to 5.0).
-(default: 3.0)''')
+(default: 3.0).''')
     opt.add_argument(
         '--core-count',
         type=int,
@@ -2242,21 +2258,21 @@ def _add_acount(cmdpar):
         type=str,
         metavar='\b',
         help='''>>[required string]
-Index file path (".oligopool.index" is appended if missing).''')
+Index file path. A ".oligopool.index" suffix is added if missing.''')
     req.add_argument(
         '--pack-file',
         required=True,
         type=str,
         metavar='\b',
         help='''>>[required string]
-Pack file path (".oligopool.pack" is appended if missing).''')
+Pack file path. A ".oligopool.pack" suffix is added if missing.''')
     req.add_argument(
         '--count-file',
         required=True,
         type=str,
         metavar='\b',
         help='''>>[required string]
-Output count matrix filename (".oligopool.acount.csv" is appended if missing).''')
+Output count matrix filename. A ".oligopool.acount.csv" suffix is added if missing.''')
     opt.add_argument(
         '--mapping-type',
         type=_parse_type_param,
@@ -2264,7 +2280,7 @@ Output count matrix filename (".oligopool.acount.csv" is appended if missing).''
         metavar='\b',
         help='''>>[optional int/string]
 Mapping mode: 0 or 'fast' for fast, 1 or 'sensitive' for sensitive.
-Aliases: 'quick', 'near-exact', 'sens', 'accurate', 'slow'. (default: 0)''')
+Aliases: 'quick', 'near-exact', 'sens', 'accurate', 'slow'. (default: 0).''')
     opt.add_argument(
         '--barcode-errors',
         type=int,
@@ -2272,7 +2288,7 @@ Aliases: 'quick', 'near-exact', 'sens', 'accurate', 'slow'. (default: 0)''')
         metavar='\b',
         help='''>>[optional integer]
 Max barcode errors (-1 = auto-infer).
-(default: -1)''')
+(default: -1).''')
     opt.add_argument(
         '--associate-errors',
         type=int,
@@ -2280,7 +2296,7 @@ Max barcode errors (-1 = auto-infer).
         metavar='\b',
         help='''>>[optional integer]
 Max associate errors (-1 = auto-infer).
-(default: -1)''')
+(default: -1).''')
     opt.add_argument(
         '--core-count',
         type=int,
@@ -2295,6 +2311,22 @@ CPU cores to use (0 = auto).''')
         metavar='\b',
         help='''>>[optional float]
 GB of memory per core (0 = auto).''')
+    opt.add_argument(
+        '--failed-reads-file',
+        type=str,
+        default=None,
+        metavar='\b',
+        help='''>>[optional string]
+Output CSV path for failed read samples.
+A ".oligopool.acount.failed_reads.csv" suffix is added if missing.''')
+    opt.add_argument(
+        '--failed-reads-sample-size',
+        type=int,
+        default=1000,
+        metavar='\b',
+        help='''>>[optional integer]
+Maximum samples per failure category.
+(default: 1000).''')
     _add_common_options(parser, opt)
     return parser
 
@@ -2319,21 +2351,21 @@ def _add_xcount(cmdpar):
         metavar='\b',
         help='''>>[required string]
 Comma-separated or space-separated list of index files for combinatorial counting.
-Each path may omit the ".oligopool.index" suffix.''')
+A ".oligopool.index" suffix is added to each path if missing.''')
     req.add_argument(
         '--pack-file',
         required=True,
         type=str,
         metavar='\b',
         help='''>>[required string]
-Pack file path (".oligopool.pack" is appended if missing).''')
+Pack file path. A ".oligopool.pack" suffix is added if missing.''')
     req.add_argument(
         '--count-file',
         required=True,
         type=str,
         metavar='\b',
         help='''>>[required string]
-Output count matrix filename (".oligopool.xcount.csv" is appended if missing).''')
+Output count matrix filename. A ".oligopool.xcount.csv" suffix is added if missing.''')
     opt.add_argument(
         '--mapping-type',
         type=_parse_type_param,
@@ -2341,7 +2373,7 @@ Output count matrix filename (".oligopool.xcount.csv" is appended if missing).''
         metavar='\b',
         help='''>>[optional int/string]
 Mapping mode: 0 or 'fast' for fast, 1 or 'sensitive' for sensitive.
-Aliases: 'quick', 'near-exact', 'sens', 'accurate', 'slow'. (default: 0)''')
+Aliases: 'quick', 'near-exact', 'sens', 'accurate', 'slow'. (default: 0).''')
     opt.add_argument(
         '--barcode-errors',
         type=int,
@@ -2349,7 +2381,7 @@ Aliases: 'quick', 'near-exact', 'sens', 'accurate', 'slow'. (default: 0)''')
         metavar='\b',
         help='''>>[optional integer]
 Max barcode errors (-1 = auto-infer).
-(default: -1)''')
+(default: -1).''')
     opt.add_argument(
         '--core-count',
         type=int,
@@ -2364,6 +2396,22 @@ CPU cores to use (0 = auto).''')
         metavar='\b',
         help='''>>[optional float]
 GB of memory per core (0 = auto).''')
+    opt.add_argument(
+        '--failed-reads-file',
+        type=str,
+        default=None,
+        metavar='\b',
+        help='''>>[optional string]
+Output CSV path for failed read samples.
+A ".oligopool.xcount.failed_reads.csv" suffix is added if missing.''')
+    opt.add_argument(
+        '--failed-reads-sample-size',
+        type=int,
+        default=1000,
+        metavar='\b',
+        help='''>>[optional integer]
+Maximum samples per failure category.
+(default: 1000).''')
     _add_common_options(parser, opt)
     return parser
 
@@ -2636,6 +2684,8 @@ def main(argv=None):
                     associate_column=args.associate_column,
                     associate_prefix_column=args.associate_prefix_column,
                     associate_suffix_column=args.associate_suffix_column,
+                    associate_prefix_gap=args.associate_prefix_gap,
+                    associate_suffix_gap=args.associate_suffix_gap,
                     verbose=args.verbose)
             case 'pack':
                 pack = _load_api_func('pack')
@@ -2666,6 +2716,8 @@ def main(argv=None):
                     callback=None,
                     core_count=args.core_count,
                     memory_limit=args.memory_limit,
+                    failed_reads_file=args.failed_reads_file,
+                    failed_reads_sample_size=args.failed_reads_sample_size,
                     verbose=args.verbose)
             case 'xcount':
                 xcount = _load_api_func('xcount')
@@ -2678,6 +2730,8 @@ def main(argv=None):
                     callback=None,
                     core_count=args.core_count,
                     memory_limit=args.memory_limit,
+                    failed_reads_file=args.failed_reads_file,
+                    failed_reads_sample_size=args.failed_reads_sample_size,
                     verbose=args.verbose)
             case _:
                 parser.print_help()

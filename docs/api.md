@@ -903,6 +903,8 @@ stats = op.index(
     associate_column=None,         # str | None
     associate_prefix_column=None,  # str | None
     associate_suffix_column=None,  # str | None
+    associate_prefix_gap=0,        # int
+    associate_suffix_gap=0,        # int
 
     # Optional
     verbose=True,                  # bool
@@ -928,6 +930,8 @@ stats = op.index(
 - `associate_column` (str | None, default=None): Column for associate elements
 - `associate_prefix_column` (str | None, default=None): Column for constant associate prefix anchor
 - `associate_suffix_column` (str | None, default=None): Column for constant associate suffix anchor
+- `associate_prefix_gap` (int, default=0): Bases between prefix anchor and associate in read
+- `associate_suffix_gap` (int, default=0): Bases between associate and suffix anchor in read
 
 **Optional Parameters**
 
@@ -1059,6 +1063,8 @@ counts_df, stats = op.acount(
     callback=None,                 # callable | None
     core_count=0,                  # int
     memory_limit=0.0,              # float
+    failed_reads_file=None,        # str | None
+    failed_reads_sample_size=1000, # int
     verbose=True,                  # bool
 )
 ```
@@ -1077,6 +1083,8 @@ counts_df, stats = op.acount(
 - `callback` (callable | None, default=None): Custom read filter function (Python API only)
 - `core_count` (int, default=0): CPU cores (`0`=auto)
 - `memory_limit` (float, default=0.0): GB per core (`0`=auto)
+- `failed_reads_file` (str | None, default=None): Output CSV path for failed read samples (`.oligopool.acount.failed_reads.csv` appended if missing). `None` disables sampling.
+- `failed_reads_sample_size` (int, default=1000): Maximum samples per failure category (1-100,000)
 - `verbose` (bool, default=True): Print progress output
 
 **Returns**: `(counts_DataFrame, stats_dict)` — output contains `<indexname>.ID`, `BarcodeCounts`, `AssociationCounts`
@@ -1084,6 +1092,15 @@ counts_df, stats = op.acount(
 **Notes**:
 - Use `acount` when you need to verify barcode-variant coupling (requires associates in index)
 - `mapping_type='sensitive'` is slower but catches more errors
+- Failed reads sampling collects representative samples from each failure category for diagnostics:
+  - `phix_match`: PhiX contamination detected
+  - `low_complexity`: Low-complexity sequence (mono/di/trinucleotide)
+  - `anchor_missing`: No anchor found in read
+  - `barcode_absent`: Barcode not identified
+  - `associate_prefix_missing`: Associate prefix/suffix constants not found
+  - `associate_mismatch`: Associate does not match expected variant
+  - `callback_false`: Callback function returned False
+  - `incalculable`: Other uncategorized failures
 
 **Callback Signature** (Python only):
 ```python
@@ -1107,7 +1124,9 @@ op acount \
     --index-file bc1_index \
     --pack-file sample \
     --count-file results \
-    --mapping-type 1
+    --mapping-type 1 \
+    --failed-reads-file failures \
+    --failed-reads-sample-size 500
 ```
 
 [↑ Back to TOC](#table-of-contents)
@@ -1132,6 +1151,8 @@ counts_df, stats = op.xcount(
     callback=None,                 # callable | None
     core_count=0,                  # int
     memory_limit=0.0,              # float
+    failed_reads_file=None,        # str | None
+    failed_reads_sample_size=1000, # int
     verbose=True,                  # bool
 )
 ```
@@ -1149,6 +1170,8 @@ counts_df, stats = op.xcount(
 - `callback` (callable | None, default=None): Custom read filter function (Python API only)
 - `core_count` (int, default=0): CPU cores (`0`=auto)
 - `memory_limit` (float, default=0.0): GB per core (`0`=auto)
+- `failed_reads_file` (str | None, default=None): Output CSV path for failed read samples (`.oligopool.xcount.failed_reads.csv` appended if missing). `None` disables sampling.
+- `failed_reads_sample_size` (int, default=1000): Maximum samples per failure category (1-100,000)
 - `verbose` (bool, default=True): Print progress output
 
 **Returns**: `(counts_DataFrame, stats_dict)` — output contains one `<indexname>.ID` column per index, plus `CombinatorialCounts`. Missing barcodes shown as `'-'`
@@ -1157,6 +1180,13 @@ counts_df, stats = op.xcount(
 - Use `xcount` for barcode-only counting without associate verification
 - For combinatorial counting (BC1 × BC2), pass multiple indexes as a list
 - Single index: counts each barcode; multiple indexes: counts barcode combinations
+- Failed reads sampling collects representative samples from each failure category for diagnostics:
+  - `phix_match`: PhiX contamination detected
+  - `low_complexity`: Low-complexity sequence (mono/di/trinucleotide)
+  - `anchor_missing`: No anchor found in read
+  - `barcode_absent`: Barcode not identified
+  - `callback_false`: Callback function returned False
+  - `incalculable`: Other uncategorized failures
 
 **CLI Equivalent**:
 ```bash
@@ -1164,7 +1194,8 @@ counts_df, stats = op.xcount(
 op xcount \
     --index-files bc1_index \
     --pack-file sample \
-    --count-file counts
+    --count-file counts \
+    --failed-reads-file failures
 
 # Combinatorial (BC1 x BC2)
 op xcount \

@@ -22,6 +22,8 @@ def acount(
     callback:Callable[[str, str|None, Tuple, int, int], bool]|None=None,
     core_count:int=0,
     memory_limit:float=0.0,
+    failed_reads_file:str|None=None,
+    failed_reads_sample_size:int=1000,
     verbose:bool=True) -> Tuple[pd.DataFrame, dict]:
     '''
     Count barcoded reads while verifying each barcode is coupled with its expected associated variant.
@@ -40,6 +42,8 @@ def acount(
         - `callback` (`callable`): Custom read processing function (default: `None`).
         - `core_count` (`int`): CPU cores to use (0: auto-infer, default: 0).
         - `memory_limit` (`float`): GB of memory per core (0: auto-infer, default: 0)
+        - `failed_reads_file` (`str` / `None`): Output CSV path for failed read samples (None: disabled, default: `None`).
+        - `failed_reads_sample_size` (`int`): Maximum samples per failure category (default: 1000).
         - `verbose` (`bool`): If `True`, logs updates to stdout (default: `True`).
 
     Returns:
@@ -56,6 +60,9 @@ def acount(
         - Association counting operates on a single index and pack file pair.
         - Here partial presence of associate variant suffices; however, their `{prefix|suffix}`
           constants must be adjacent and present completely.
+        - Failed reads sampling collects representative samples from each failure category for diagnostics.
+          Categories: phix_match, low_complexity, anchor_missing, barcode_absent, associate_prefix_missing,
+          associate_mismatch, callback_false, incalculable.
     '''
 
     # Alias Arguments
@@ -68,6 +75,8 @@ def acount(
     callback  = callback
     ncores    = core_count
     memlimit  = memory_limit
+    failedreadsfile = failed_reads_file
+    failedreadssamplesize = failed_reads_sample_size
     verbose   = verbose
 
     # Start Liner
@@ -174,6 +183,29 @@ def acount(
         ncores_valid=ncores_valid,
         liner=liner)
 
+    # Full failedreadsfile Validation
+    failedreadsfile_valid = vp.get_optional_outfile_validity(
+        outfile=failedreadsfile,
+        outfile_suffix='.oligopool.acount.failed_reads.csv',
+        outfile_field='    Failed Reads ',
+        liner=liner)
+
+    # Adjust failedreadsfile Suffix
+    if failedreadsfile_valid and failedreadsfile is not None:
+        failedreadsfile = ut.get_adjusted_path(
+            path=failedreadsfile,
+            suffix='.oligopool.acount.failed_reads.csv')
+
+    # Full failedreadssamplesize Validation
+    failedreadssamplesize_valid = True
+    if failedreadsfile is not None:
+        failedreadssamplesize_valid = vp.get_sample_size_validity(
+            sample_size=failedreadssamplesize,
+            sample_size_field='    Sample Size  ',
+            liner=liner)
+    else:
+        liner.send('    Sample Size  : N/A (Disabled)\n')
+
     # First Pass Validation
     if not all([
         indexfile_valid,
@@ -184,7 +216,9 @@ def acount(
         associateerrors_valid,
         callback_valid,
         ncores_valid,
-        memlimit_valid]):
+        memlimit_valid,
+        failedreadsfile_valid,
+        failedreadssamplesize_valid]):
         liner.send('\n')
         raise RuntimeError(
             'Invalid Argument Input(s).')
@@ -268,6 +302,11 @@ def acount(
 
     # Define countqueue
     countqueue = mp.SimpleQueue()
+
+    # Define failuresamplequeue (if enabled)
+    failuresamplequeue = None
+    if failedreadsfile is not None:
+        failuresamplequeue = ut.SafeQueue()
 
     # Pack File Processing Book-keeping
     callbackerror = mp.Event()
@@ -367,7 +406,9 @@ def acount(
                 restarts[coreid],
                 shutdowns[coreid],
                 et,
-                liner,))
+                liner,
+                failuresamplequeue,
+                failedreadssamplesize,))
 
         # Show Update
         liner.send(
@@ -444,7 +485,9 @@ def acount(
                     restarts[coreid],
                     shutdowns[coreid],
                     et,
-                    liner,))
+                    liner,
+                    failuresamplequeue,
+                    failedreadssamplesize,))
             readcounters[coreid].start()
 
         # Next Iteration
@@ -508,6 +551,18 @@ def acount(
         # Update Stats
         stats['step'] = 4
         stats['step_name'] = 'writing-count-matrix'
+
+    # Aggregate failed reads samples if enabled (Step 5)
+    if failuresamplequeue is not None:
+        cc.aggregate_failure_samples(
+            failuresamplequeue=failuresamplequeue,
+            countdir=countdir,
+            failed_reads_file=failedreadsfile,
+            failed_reads_sample_size=failedreadssamplesize,
+            prodcount=ncores,
+            liner=liner)
+        stats['step'] = 5
+        stats['step_name'] = 'writing-failed-reads'
 
     # Update Stats
     stats['vars']['analyzed_reads']    = int(analyzedreads.value())

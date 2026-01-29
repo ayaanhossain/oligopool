@@ -51,7 +51,7 @@ def barcode(
         - `left_context_column` (`str`): Column for left DNA context (default: `None`).
         - `right_context_column` (`str`): Column for right DNA context (default: `None`).
         - `patch_mode` (`bool`): If `True`, fill only missing values in an existing barcode column
-            (does not overwrite existing barcodes). (Default: `False`).
+            (does not overwrite existing barcodes). (default: `False`).
         - `cross_barcode_columns` (`list[str]` / `None`): Existing barcode column(s) to enforce
           cross-set separation against (default: `None`).
         - `minimum_cross_distance` (`int` / `None`): Minimum Hamming distance enforced between each

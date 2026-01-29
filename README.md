@@ -17,15 +17,13 @@
   <a href="#license" style="text-decoration: none !important;">⚖️ License</a>
 </p>
 
-`Oligopool Calculator` is the Swiss-army knife for [oligopool libraries](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9300125/) - a comprehensive suite of algorithms for automated design, assembly, compression, and analysis, developed for seamless integration into Python scripts, CLI pipelines, Jupyter notebooks, and containerized environments, with first-class support for AI-assisted workflows.
+**Oligopool Calculator** is a Swiss-army knife for [oligopool libraries](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9300125/): a unified toolkit for high-throughput **design**, **assembly**, **compression**, and **analysis** of massively parallel assays, designed to integrate seamlessly with Python, the CLI, Jupyter, containers, and AI-assisted workflows.
 
-It supports scalable design of primers, barcodes, motifs/anchors, and spacers; assembly-aware splitting/padding of long constructs; compression of similar sequences into IUPAC-degenerate oligos; and rapid packing/counting of barcoded reads for activity quantification.
+Design modules generate primers, barcodes, motifs/anchors, and spacers; assembly modules split/pad long constructs; Degenerate Mode compresses similar sequences into IUPAC‑degenerate oligos; and Analysis Mode packs and counts barcoded reads for activity quantification.
 
-We have used `Oligopool Calculator` in multiple projects to build libraries of tens of thousands of promoters (see [here](https://www.nature.com/articles/s41467-022-32829-5) and [here](https://www.nature.com/articles/s41587-020-0584-2)), ribozymes, and mRNA stability elements (see [here](https://www.nature.com/articles/s41467-024-54059-7)).
+`Oligopool Calculator` has been used to build libraries of tens of thousands of promoters (see [here](https://www.nature.com/articles/s41467-022-32829-5), and [here](https://www.nature.com/articles/s41587-020-0584-2)), ribozymes, and mRNA stability elements (see [here](https://www.nature.com/articles/s41467-024-54059-7)). It has been benchmarked to design pools containing millions of oligos and to process hundreds of millions of sequencing reads per hour on low‑cost desktop‑grade hardware.
 
 To learn more, please check out [our paper in ACS Synthetic Biology](https://pubs.acs.org/doi/10.1021/acssynbio.4c00661).
-
-`Oligopool Calculator` streamlines the design, assembly, compression, and analysis of massively parallel assays, including iterative workflows where new oligos are continuously added to an existing pool. It has been benchmarked to design pools containing millions of oligos, and to process hundreds of millions of sequencing reads per hour on low-cost desktop-grade hardware.
 
 <h1 align="center">
     <a href="https://github.com/ayaanhossain/oligopool/" style="text-decoration: none !important;">

@@ -496,6 +496,8 @@ def index_engine(
     associatedict,
     associateprefix,
     associatesuffix,
+    associatepregap,
+    associatepostgap,
     indexdir,
     indexqueue,
     liner):
@@ -542,6 +544,12 @@ def index_engine(
     :: associatesuffix
        type - string / None
        desc - constant associate suffix
+    :: associatepregap
+       type - integer
+       desc - gap between prefix and associate
+    :: associatepostgap
+       type - integer
+       desc - gap between associate and suffix
     :: indexdir
        type - string
        desc - path to directory temporarily
@@ -565,17 +573,20 @@ def index_engine(
     # Counting Meta Data Initialization
     maxtval = 2
     metamap = {
-        'variantcount'   : barcodecount,
-        'barcodename'    : barcodename,
-        'barcodelen'     : barcodelen,
-        'barcodeprefix'  : barcodeprefix,
-        'barcodesuffix'  : barcodesuffix,
-        'barcodepregap'  : barcodepregap,
-        'barcodepostgap' : barcodepostgap,
-        'barcodegapped'  : any((barcodepregap, barcodepostgap)),
-        'association'    : len(associatedict) > 0,
-        'associateprefix': associateprefix,
-        'associatesuffix': associatesuffix
+        'variantcount'    : barcodecount,
+        'barcodename'     : barcodename,
+        'barcodelen'      : barcodelen,
+        'barcodeprefix'   : barcodeprefix,
+        'barcodesuffix'   : barcodesuffix,
+        'barcodepregap'   : barcodepregap,
+        'barcodepostgap'  : barcodepostgap,
+        'barcodegapped'   : any((barcodepregap, barcodepostgap)),
+        'association'     : len(associatedict) > 0,
+        'associateprefix' : associateprefix,
+        'associatesuffix' : associatesuffix,
+        'associatepregap' : associatepregap,
+        'associatepostgap': associatepostgap,
+        'associategapped' : any((associatepregap, associatepostgap))
     }
 
     # Compute Barcode Set t-value

@@ -1185,6 +1185,46 @@ def get_outfile_validity(
     # Return outfile validity
     return outfile_valid
 
+def get_optional_outfile_validity(
+    outfile,
+    outfile_suffix,
+    outfile_field,
+    liner):
+    '''
+    Determine if an optional outfile points to an existing
+    empty file or non-existent but creatable path?
+    Internal use only.
+
+    :: outfile
+       type - string / None
+       desc - an optional output file storing
+              computed information
+    :: outfile_suffix
+       type - string
+       desc - required outfile suffix
+    :: outfile_field
+       type - string
+       desc - outfile fieldname used in
+              printing
+    :: liner
+       type - coroutine
+       desc - dynamic printing
+    '''
+
+    outfile_field = _normalize_field(outfile_field)
+
+    # outfile is None - feature disabled
+    if outfile is None:
+        liner.send('{}: Disabled\n'.format(outfile_field))
+        return True
+
+    # Regular outfile validation
+    return get_outfile_validity(
+        outfile=outfile,
+        outfile_suffix=outfile_suffix,
+        outfile_field=outfile_field,
+        liner=liner)
+
 def get_outdir_validity(
     outdir,
     outdir_suffix,
@@ -2197,6 +2237,36 @@ def get_optional_numeric_validity(
         minval=minval,
         maxval=maxval,
         precheck=precheck,
+        liner=liner)
+
+def get_sample_size_validity(
+    sample_size,
+    sample_size_field,
+    liner):
+    '''
+    Determine if sample_size is a valid positive integer.
+    Internal use only.
+
+    :: sample_size
+       type - integer
+       desc - sample size to validate
+    :: sample_size_field
+       type - string
+       desc - sample size fieldname used in
+              printing
+    :: liner
+       type - coroutine
+       desc - dynamic printing
+    '''
+
+    return get_numeric_validity(
+        numeric=sample_size,
+        numeric_field=sample_size_field,
+        numeric_pre_desc=' ',
+        numeric_post_desc=' Samples per Category',
+        minval=1,
+        maxval=100000,
+        precheck=False,
         liner=liner)
 
 def get_parsed_spacerlen_info(

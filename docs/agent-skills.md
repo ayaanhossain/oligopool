@@ -260,12 +260,14 @@ Preprocess FASTQ reads. Single-end: R1 only. Paired-end merge: both R1/R2. Pre-m
 Association counting (barcode-variant coupling). Output: `<index>.ID`, `BarcodeCounts`, `AssociationCounts`.
 - Use for synthesis validation, library QC, post-assay verification
 - `barcode_errors`/`associate_errors`: `-1` auto-infers; set `0`/`1` for stricter matching
+- `failed_reads_file`: sample failed reads by category for diagnostics
 
 ---
 
 ### xcount
 Barcode-only counting (single or combinatorial). Use for BC1×BC2 combinations, cleaved/uncleaved quantification.
 - `barcode_errors`: `-1` auto-infers; set explicitly for stricter matching
+- `failed_reads_file`: sample failed reads by category for diagnostics
 
 ---
 

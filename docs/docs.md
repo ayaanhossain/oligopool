@@ -154,6 +154,9 @@ df, stats = op.barcode(
 )
 ```
 
+For the main element-design modules (`barcode`, `primer`, `motif`, `spacer`), at least one of
+`left_context_column` or `right_context_column` is required.
+
 **Edge effects** occur when an undesired sequence (excluded motif, repeat) emerges at the fusion boundary when inserting an element. For example, inserting barcode `GAATT` next to context ending in `...G` creates `...GGAATT`, which contains `GAATTC` (EcoRI site) spanning the junction. Context columns let the algorithm check and prevent these.
 
 ### Reproducibility
@@ -219,12 +222,10 @@ You can also pass a CSV path, a DataFrame with an `Exmotif` column, or a FASTA f
 > **Note**: Excluded motifs are applied globally to all variants (no per-variant exclusion).
 
 **Notes (the stuff that bites people):**
-- You must provide at least one context column (`left_context_column` or `right_context_column`) so edge effects can be screened.
 - Terminus vs spectrum: terminus optimized barcodes enforce distinctive 5'/3' ends; spectrum optimized barcodes saturate k-mers (slower but tighter). Higher `minimum_hamming_distance` buys you error tolerance but shrinks the design space.
 - If you plan to index barcodes from reads, design constant anchors first with `motif(motif_type=1, ...)`.
-- Patch mode (`patch_mode=True`) fills only missing values (`None`, `NaN`, `''`, `'-'`) and never overwrites existing barcodes (existing values must already be valid ATGC of length `barcode_length`).
+- Patch mode preserves existing barcodes; any pre-existing values must be valid ATGC strings of length `barcode_length`.
 - Cross-set separation is strict: set `cross_barcode_columns` and `minimum_cross_distance` together; the cross-set barcodes must be strict ATGC strings of length `barcode_length`.
-- `excluded_motifs` works the same way in `primer`, `motif`, and `spacer`.
 
 **Cross-set separation** (for multiplexed designs):
 ```python
@@ -312,11 +313,10 @@ df, stats = op.primer(
 ```
 
 **Notes (the stuff that bites people):**
-- You must provide at least one context column (`left_context_column` or `right_context_column`) so edge effects can be screened.
 - `maximum_repeat_length` controls non-repetitiveness against `input_data` only; screening against a background requires `background_directory`.
 - If `paired_primer_column` is provided, the paired primer type is inferred and Tm matching is applied within 1°C.
 - When `oligo_sets` is provided, primers are designed per set and screened for cross-set compatibility; if `paired_primer_column` is also provided, it must be constant within each set.
-- Patch mode (`patch_mode=True`) preserves existing primer sequences and fills only missing values; in `oligo_sets` mode, existing per-set primers are reused and only missing-only sets trigger new primer design.
+- Patch mode preserves existing primers; in `oligo_sets` mode, existing per-set primers are reused and only missing sets trigger new primer design.
 
 > **API Reference**: See [`primer`](api.md#primer) for complete parameter documentation.
 
@@ -360,10 +360,9 @@ df, stats = op.motif(
 **Why anchors matter**: When you index barcodes later, you need constant flanking sequences to locate them in reads. Design anchors with `motif_type=1` *before* designing barcodes.
 
 **Notes (the stuff that bites people):**
-- You must provide at least one context column (`left_context_column` or `right_context_column`) so edge effects can be screened.
 - Constant bases in `motif_sequence_constraint` can force an excluded motif (or repeat) and make the design infeasible.
 - For anchors, tune `maximum_repeat_length` to control how distinct the anchor is from surrounding sequence.
-- Patch mode (`patch_mode=True`) fills only missing values; for `motif_type=1`, an existing compatible constant anchor (must be unique across existing rows) is reused for new rows.
+- Patch mode fills only missing values; for `motif_type=1`, an existing compatible constant anchor is reused for new rows.
 
 > **API Reference**: See [`motif`](api.md#motif) for complete parameter documentation.
 
@@ -410,7 +409,6 @@ You can also pass a CSV path or a DataFrame with `ID` and `Length` columns. See 
 [API Reference](api.md#spacer) for details.
 
 **Notes (the stuff that bites people):**
-- You must provide at least one context column (`left_context_column` or `right_context_column`) so edge effects can be screened.
 - If a row is already at (or over) `oligo_length_limit`, its spacer is set to `'-'` (a deliberate "no-space" sentinel).
 - If `spacer_length` is a CSV/DataFrame, it must contain `ID` and `Length` columns aligned to your input IDs.
 - Patch mode (`patch_mode=True`) fills only missing values and never overwrites existing spacers (some rows may still end up with `'-'` if no spacer can fit).
@@ -569,9 +567,8 @@ Checks:
 **Notes (the stuff that bites people):**
 - `verify` is stats-only and never modifies or writes your DataFrame.
 - Metadata columns are tracked and excluded from sequence-only checks; degenerate/IUPAC columns are flagged (not treated as hard errors).
-- Excluded-motif checks report motif "emergence" in assembled oligos (a motif occurring more times than its minimum occurrence across the library), which is often what you care about in practice.
-- Excluded-motif matching is literal substring matching; degenerate/IUPAC bases are not treated as wildcards (so degenerate columns can hide potential motifs).
-- When emergent motifs are detected, `verify` also reports which column junctions contribute to motif emergence (helpful for debugging edge effects), attributing only occurrences beyond the baseline minimum. This requires separate sequence columns (run `verify` before `final`).
+- Excluded-motif checks report motif "emergence" (occurs more times than the minimum across the library) and, when possible, attribute excess occurrences to column junctions (run `verify` before `final`).
+- Motif matching is literal substring matching; degenerate/IUPAC bases are not treated as wildcards (so degenerate columns can hide potential motifs).
 - Junction attribution follows column order: for `[Primer1, BC1, Variant, Primer2]`, junctions are `Primer1|BC1`, `BC1|Variant`, `Variant|Primer2`.
 
 > **API Reference**: See [`verify`](api.md#verify) for complete parameter documentation.
@@ -675,12 +672,11 @@ final3_df, _ = op.final(input_data=pad3_df, output_file='synthesis_split3')
 ```
 
 **Notes (the stuff that bites people):**
-- **Run `pad` separately for each fragment** (e.g., `Split1`, `Split2`, ...). You cannot pad all columns in one call.
 - **The chosen Type IIS recognition site must be absent from your split fragments** (in either orientation). If fragments contain internal cut sites, they will be cleaved during digest. `pad` checks this and fails early if conflicts are found.
 - **Exclude your Type IIS motif from upstream design elements.** If you plan to use `BsaI` for padding, add its recognition site (`GGTCTC`) and reverse complement (`GAGACC`) to `excluded_motifs` when designing primers, barcodes, motifs, and spacers. This helps prevent internal cut sites from showing up in newly designed elements (it doesn't "clean" a core/variant sequence that already contains the site — in that case, choose a different enzyme or redesign the offending sequences).
 - Output columns are `5primeSpacer`, `ForwardPrimer`, `<split_column>`, `ReversePrimer`, `3primeSpacer` (other `split_df` columns are not preserved).
 - If a fragment can't fit under `oligo_length_limit`, the spacer(s) for that row are set to `'-'` (a deliberate "no-space" sentinel).
-- The supported Type IIS enzymes list is the "batteries included" set for pad removal: common, well-characterized Type IIS systems with cut patterns implemented in `pad`, plus enough variety to give you fallbacks when a recognition site conflicts with your sequences.
+- The supported Type IIS enzymes list is the "batteries included" set for pad excision: each one has a recognition motif plus a 3' cut offset into adjacent `N` bases implemented in `pad` (e.g., BsaI: `GGTCTC` + `N*5`), enabling complete pad removal (optionally followed by blunting). Upstream/complex cutters are not included.
 - Choose an enzyme whose recognition site is absent from your fragments and that matches your downstream handling preferences (e.g., sticky-end cutters vs blunt cutters like `MlyI`).
 
 **Post-synthesis workflow** (after you get your oligos back):

@@ -1,0 +1,53 @@
+# MPRA Library Design Pipeline
+# Run with: op pipeline --config mpra_pipeline.yaml
+# Dry run:  op pipeline --config mpra_pipeline.yaml --dry-run
+
+pipeline:
+  name: "MPRA Library Design"
+  steps:
+    - primer
+    - barcode
+    - spacer
+    - final
+
+# Step 1: Design forward primer
+primer:
+  input_data: "variants.csv"
+  output_file: "01_primer.oligopool.primer.csv"
+  oligo_length_limit: 150
+  primer_sequence_constraint: "NNNNNNNNNNNNNNNNNNNN"  # 20 bp
+  primer_type: forward
+  primer_column: "FwdPrimer"
+  minimum_melting_temperature: 52
+  maximum_melting_temperature: 58
+  maximum_repeat_length: 8
+  right_context_column: "Promoter"
+  random_seed: 42
+
+# Step 2: Design barcode
+barcode:
+  input_data: "01_primer.oligopool.primer.csv"
+  output_file: "02_barcode.oligopool.barcode.csv"
+  oligo_length_limit: 150
+  barcode_length: 12
+  minimum_hamming_distance: 3
+  maximum_repeat_length: 8
+  barcode_column: "Barcode"
+  barcode_type: terminus
+  left_context_column: "Promoter"
+  random_seed: 42
+
+# Step 3: Add spacer to reach target length
+spacer:
+  input_data: "02_barcode.oligopool.barcode.csv"
+  output_file: "03_spacer.oligopool.spacer.csv"
+  oligo_length_limit: 150
+  maximum_repeat_length: 8
+  spacer_column: "Spacer"
+  left_context_column: "Barcode"
+  random_seed: 42
+
+# Step 4: Finalize into synthesis-ready oligos
+final:
+  input_data: "03_spacer.oligopool.spacer.csv"
+  output_file: "04_final.oligopool.final.csv"

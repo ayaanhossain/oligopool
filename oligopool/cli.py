@@ -21,7 +21,6 @@ import ast
 import argparse
 import datetime as dt
 import difflib
-import functools
 import importlib
 import json
 import os
@@ -34,6 +33,18 @@ import argcomplete
 
 from . import __version__
 from .descriptions import CLI_DESCRIPTIONS as _CLI_DESC
+from .base.config_loader import (
+    load_config,
+    get_command_config,
+    get_pipeline_steps,
+    get_pipeline_name,
+    validate_config_structure,
+    convert_config_keys_to_args,
+    is_parallel_pipeline,
+    parse_parallel_steps,
+    build_execution_levels,
+    validate_parallel_pipeline,
+)
 
 
 # Printed by `_print_header()`.
@@ -223,6 +234,89 @@ Notes:
   - Use "op complete --print-instructions" to enable tab-completion.
 '''
 
+CLI_PIPELINE_MANUAL = '''
+Pipeline Execution from YAML Config
+
+The pipeline command executes multi-step workflows from a single YAML config file.
+Supports both sequential and parallel (DAG) execution.
+
+Usage:
+  op pipeline --config <config.yaml>
+  op pipeline --config <config.yaml> --dry-run
+
+Arguments:
+  --config       Path to YAML pipeline config file (required)
+  --dry-run      Validate config without executing steps
+  --quiet        Suppress verbose output
+
+Sequential Pipeline Format:
+  pipeline:
+    name: "My Pipeline"
+    steps:
+      - barcode
+      - spacer
+      - final
+
+  barcode:
+    input_data: "input.csv"
+    output_file: "step1.csv"
+    # ... parameters
+
+Parallel Pipeline Format (DAG):
+  pipeline:
+    name: "Parallel Pipeline"
+    steps:
+      - name: fwd_primer         # Step identifier
+        command: primer          # Command to run
+      - name: rev_primer
+        command: primer          # Runs in parallel with fwd_primer
+      - name: add_barcode
+        command: barcode
+        after: [fwd_primer]      # Depends on fwd_primer
+      - name: finalize
+        command: final
+        after: [add_barcode, rev_primer]  # Waits for both
+
+  fwd_primer:                    # Config section matches step name
+    input_data: "variants.csv"
+    output_file: "fwd.csv"
+    primer_type: forward
+    # ...
+
+  rev_primer:
+    input_data: "variants.csv"
+    output_file: "rev.csv"
+    primer_type: reverse
+    # ...
+
+Step Fields:
+  name      Step identifier (required for parallel pipelines)
+  command   Oligopool command to run (defaults to name)
+  after     List of step names to wait for (optional)
+  config    Config section name (defaults to name)
+
+Execution:
+  - Steps with no 'after' dependencies run first (level 1)
+  - Steps at the same level execute in parallel
+  - Subsequent levels wait for their dependencies
+  - --dry-run shows execution levels and parallelism
+
+Notes:
+  - Use snake_case for parameter names (e.g., barcode_length)
+  - Paths are explicit - you control the data flow
+  - Output files are auto-suffixed (e.g., .oligopool.barcode.csv)
+  - Cycles in dependencies are detected and rejected
+
+Single Command Config:
+  You can also use --config with individual commands:
+    op barcode --config barcode.yaml
+    op barcode --config barcode.yaml --barcode-length 20  # CLI overrides
+
+See also:
+  - docs/docs.md#config-files for full documentation
+  - op manual <command> for command parameters
+'''
+
 CLI_COMPLETE_MANUAL = '''
 Enable tab-completion (argcomplete)
 
@@ -260,6 +354,7 @@ MANUAL_META_TOPICS = (
     'package',
     'complete',
     'completion',
+    'pipeline',
 )
 
 MANUAL_TOPIC_CHOICES = tuple(sorted(set(MANUAL_COMMAND_TOPICS) | set(MANUAL_META_TOPICS)))
@@ -359,11 +454,13 @@ class OligopoolParser(argparse.ArgumentParser):
 
         manual_line = next((line for line in command_lines if line.lstrip().startswith('manual')), None)
         cite_line = next((line for line in command_lines if line.lstrip().startswith('cite')), None)
+        pipeline_line = next((line for line in command_lines if line.lstrip().startswith('pipeline')), None)
         complete_line = next((line for line in command_lines if line.lstrip().startswith('complete')), None)
-        if manual_line is None or cite_line is None or complete_line is None:
+        if manual_line is None or cite_line is None or pipeline_line is None or complete_line is None:
             return text
 
-        middle_lines = [line for line in command_lines if line not in (manual_line, cite_line, complete_line)]
+        special_lines = {manual_line, cite_line, pipeline_line, complete_line}
+        middle_lines = [line for line in command_lines if line not in special_lines]
         gap_after = {'spacer', 'background', 'pad', 'revcomp', 'final', 'expand'}
         middle_out = []
         for line in middle_lines:
@@ -380,6 +477,8 @@ class OligopoolParser(argparse.ArgumentParser):
         out.append('\n')
         out.append(manual_line)
         out.append(cite_line)
+        out.append('\n')
+        out.append(pipeline_line)
         out.append('\n')
         out.extend(middle_out)
         out.append('\n')
@@ -420,30 +519,21 @@ class OligopoolFormatter(argparse.RawTextHelpFormatter):
         return text
 
     def _fill_text(self, text, width, indent):
-        lines = functools.reduce(
-            lambda x, y: x + y,
-            map(
-                lambda t: textwrap.wrap(
-                    text=t.strip(),
-                    width=width),
-                text.split('\n\n')),
-            [])
-
-        for i in range(len(lines)):
-            lines[i] = indent + lines[i]
-            lines[i] = lines[i].split(' ')
-            if lines[i][0] == '*' and lines[i][-1] == '+':
-                lines[i] = '\r\n' + ' '.join(
-                    lines[i][1:-1]) + '\n '
-            elif lines[i][0] == '*':
-                lines[i] = '\r\n' + ' '.join(
-                    lines[i][1:])
-            elif lines[i][-1] == '+':
-                lines[i] = '\r' + ' '.join(
-                    lines[i][:-1]) + '\n '
-            else:
-                lines[i] = '\r' + ' '.join(lines[i])
-        return '\n'.join(lines)
+        # Wrap paragraphs while keeping output free of control characters
+        # (important for piping help text and for machine parsing).
+        paragraphs = text.split('\n\n')
+        filled = []
+        for para in paragraphs:
+            para = para.strip()
+            if not para:
+                filled.append('')
+                continue
+            filled.append(textwrap.fill(
+                para,
+                width=width,
+                initial_indent=indent,
+                subsequent_indent=indent))
+        return '\n\n'.join(filled)
 
 
 # === Banner helpers ===
@@ -715,11 +805,384 @@ def _handle_result(result, args):
     return 0
 
 
+def _inject_config_args(arg_list, command, parser=None):
+    '''Pre-parse config file and inject values into arg list.
+
+    This allows config values to satisfy argparse 'required' checks.
+    CLI args in the original list take precedence (they come later).
+
+    Returns a new arg list with config values prepended.
+    '''
+    # Optionally restrict injections to flags that exist for this subcommand.
+    valid_flags = None
+    if parser is not None:
+        try:
+            subparsers = next(
+                act for act in parser._actions
+                if isinstance(act, argparse._SubParsersAction)
+            )
+            subparser = subparsers.choices.get(command)
+            if subparser is not None:
+                valid_flags = set(subparser._option_string_actions.keys())
+        except Exception:
+            valid_flags = None
+
+    # Find --config in arg list
+    config_path = None
+    for i, arg in enumerate(arg_list):
+        if arg == '--config' and i + 1 < len(arg_list):
+            config_path = arg_list[i + 1]
+            break
+        if arg.startswith('--config='):
+            config_path = arg.split('=', 1)[1]
+            break
+
+    if config_path is None:
+        return arg_list
+
+    # Load config
+    try:
+        config = load_config(config_path)
+    except Exception:
+        # Let normal error handling deal with it later
+        return arg_list
+
+    # Get command-specific config
+    cmd_config = get_command_config(config, command)
+    if not cmd_config:
+        return arg_list
+
+    # Convert keys to CLI format and build arg list
+    injected = []
+    for key, value in cmd_config.items():
+        # Convert snake_case to kebab-case
+        cli_key = f'--{key.replace("_", "-")}'
+        if valid_flags is not None and cli_key not in valid_flags:
+            continue
+
+        # Check if this arg is already in the original list (CLI takes precedence)
+        if cli_key in arg_list:
+            continue
+        # Check for --key=value form
+        if any(a.startswith(f'{cli_key}=') for a in arg_list):
+            continue
+
+        # Convert value to string(s) for CLI
+        if value is None:
+            continue
+        if isinstance(value, bool):
+            if value:
+                injected.append(cli_key)
+            # False booleans are just omitted
+        elif isinstance(value, list):
+            # Join list items with commas
+            injected.extend([cli_key, ','.join(str(v) for v in value)])
+        else:
+            injected.extend([cli_key, str(value)])
+
+    # Insert injected args after the command (so original CLI args come later and win)
+    # arg_list[0] is the command, so insert after it
+    if arg_list:
+        return [arg_list[0]] + injected + arg_list[1:]
+    return injected + arg_list
+
+
+def _apply_step_type_conversions(step_config):
+    '''Apply type conversions to step config values.'''
+    if 'excluded_motifs' in step_config:
+        step_config['excluded_motifs'] = _parse_list_str(step_config['excluded_motifs'])
+    if 'spacer_length' in step_config:
+        step_config['spacer_length'] = _parse_list_int(step_config['spacer_length'])
+    if 'barcode_type' in step_config:
+        step_config['barcode_type'] = _parse_type_param(step_config['barcode_type'])
+    if 'primer_type' in step_config:
+        step_config['primer_type'] = _parse_type_param(step_config['primer_type'])
+    if 'motif_type' in step_config:
+        step_config['motif_type'] = _parse_type_param(step_config['motif_type'])
+    if 'cross_barcode_columns' in step_config:
+        step_config['cross_barcode_columns'] = _parse_list_str(step_config['cross_barcode_columns'])
+    if 'index_files' in step_config:
+        step_config['index_files'] = _parse_list_str(step_config['index_files'])
+    return step_config
+
+
+def _execute_step(step_name, command, config_key, config):
+    '''Execute a single pipeline step.
+
+    Returns:
+        tuple: (step_name, success: bool, result_or_error, stats_summary)
+    '''
+    try:
+        step_config = get_command_config(config, config_key)
+        step_config = convert_config_keys_to_args(step_config)
+        step_config = _apply_step_type_conversions(step_config)
+        step_config['verbose'] = False  # Suppress step output in pipeline mode
+
+        func = _load_api_func(command)
+        result = func(**step_config)
+
+        # Check result status and extract summary info
+        stats = result[1] if isinstance(result, tuple) else result
+        summary = None
+        if isinstance(stats, dict):
+            if 'status' in stats and not stats['status']:
+                return (step_name, False, f'Step "{step_name}" failed.', None)
+            # Extract useful summary info
+            summary = {}
+            if 'basis' in stats:
+                summary['basis'] = stats['basis']
+            if 'time' in stats:
+                summary['time'] = stats['time']
+
+        return (step_name, True, result, summary)
+
+    except Exception as exc:
+        return (step_name, False, f'Step "{step_name}" raised exception: {exc}', None)
+
+
+def _run_pipeline_sequential(config, steps, dry_run, verbose):
+    '''Execute a sequential (non-parallel) pipeline.'''
+    pipeline_name = get_pipeline_name(config)
+
+    if verbose:
+        print(f'Pipeline: {pipeline_name}')
+        print(f'Steps: {len(steps)}')
+        print()
+
+    if dry_run:
+        print('Dry run: config validation passed.')
+        for i, step in enumerate(steps, 1):
+            step_config = get_command_config(config, step)
+            step_config = convert_config_keys_to_args(step_config)
+            print(f'  Step {i}: {step}')
+            if step_config:
+                for key, value in step_config.items():
+                    if key not in ('verbose', 'stats_json', 'stats_file'):
+                        print(f'    --{key.replace("_", "-")}: {value}')
+        return 0
+
+    # Execute pipeline steps sequentially
+    for i, step in enumerate(steps, 1):
+        if verbose:
+            print(f'  [{i}/{len(steps)}] {step} ... ', end='', flush=True)
+
+        step_name, success, result_or_error, summary = _execute_step(
+            step_name=step,
+            command=step,
+            config_key=step,
+            config=config,
+        )
+
+        if not success:
+            if verbose:
+                print('FAILED')
+            print(f'error: {result_or_error}', file=sys.stderr)
+            return 1
+
+        if verbose:
+            print('done')
+
+    if verbose:
+        print()
+        print(f'Pipeline completed successfully.')
+
+    return 0
+
+
+def _run_pipeline_parallel(config, dry_run, verbose):
+    '''Execute a parallel/DAG pipeline.'''
+    import concurrent.futures
+
+    pipeline_name = get_pipeline_name(config)
+
+    # Validate parallel pipeline config
+    warnings = validate_parallel_pipeline(config)
+    if warnings:
+        for warning in warnings:
+            print(f'config error: {warning}', file=sys.stderr)
+        return 1
+
+    # Parse steps and build execution levels
+    steps = parse_parallel_steps(config)
+    levels = build_execution_levels(steps)
+
+    # Validate all commands are known
+    for step in steps:
+        if step['command'] not in COMMAND_TO_API:
+            print(f'error: Unknown command "{step["command"]}" in step "{step["name"]}".', file=sys.stderr)
+            close_matches = difflib.get_close_matches(step['command'], COMMAND_TO_API.keys(), n=3, cutoff=0.6)
+            if close_matches:
+                print(f'did you mean: {", ".join(close_matches)}', file=sys.stderr)
+            return 1
+
+    total_steps = len(steps)
+
+    if verbose:
+        print(f'Pipeline: {pipeline_name}')
+        print(f'Steps: {total_steps} across {len(levels)} levels')
+        print()
+
+    if dry_run:
+        print('Dry run: config validation passed.')
+        print()
+        for level_idx, level in enumerate(levels):
+            parallel_marker = ' (parallel)' if len(level) > 1 else ''
+            print(f'  Level {level_idx + 1}{parallel_marker}:')
+            for step in level:
+                step_config = get_command_config(config, step['config_key'])
+                step_config = convert_config_keys_to_args(step_config)
+                deps = f' (after: {", ".join(step["after"])})' if step['after'] else ''
+                print(f'    {step["name"]}: {step["command"]}{deps}')
+        return 0
+
+    # Execute levels
+    completed_step = 0
+    results = {}
+
+    for level_idx, level in enumerate(levels):
+        level_names = [s['name'] for s in level]
+        is_parallel = len(level) > 1
+
+        if is_parallel:
+            # Execute level steps in parallel
+            if verbose:
+                print(f'  Level {level_idx + 1}: {", ".join(level_names)} (parallel) ... ', end='', flush=True)
+
+            with concurrent.futures.ThreadPoolExecutor(max_workers=len(level)) as executor:
+                futures = {
+                    executor.submit(
+                        _execute_step,
+                        step['name'],
+                        step['command'],
+                        step['config_key'],
+                        config,
+                    ): step
+                    for step in level
+                }
+
+                failed = None
+                for future in concurrent.futures.as_completed(futures):
+                    step = futures[future]
+                    step_name, success, result_or_error, summary = future.result()
+
+                    if not success:
+                        failed = result_or_error
+                        # Cancel remaining futures
+                        for f in futures:
+                            f.cancel()
+                        break
+
+                    results[step_name] = result_or_error
+                    completed_step += 1
+
+                if failed:
+                    if verbose:
+                        print('FAILED')
+                    print(f'error: {failed}', file=sys.stderr)
+                    return 1
+
+            if verbose:
+                print('done')
+
+        else:
+            # Single step - execute directly
+            step = level[0]
+            if verbose:
+                print(f'  Level {level_idx + 1}: {step["name"]} ... ', end='', flush=True)
+
+            step_name, success, result_or_error, summary = _execute_step(
+                step['name'],
+                step['command'],
+                step['config_key'],
+                config,
+            )
+
+            if not success:
+                if verbose:
+                    print('FAILED')
+                print(f'error: {result_or_error}', file=sys.stderr)
+                return 1
+
+            if verbose:
+                print('done')
+
+            results[step_name] = result_or_error
+            completed_step += 1
+
+    if verbose:
+        print()
+        print(f'Pipeline completed successfully.')
+
+    return 0
+
+
+def _run_pipeline(config, dry_run, verbose):
+    '''Execute a multi-step pipeline from config.
+
+    Supports both sequential and parallel (DAG) pipelines.
+
+    Parameters:
+        config (dict): Loaded pipeline config.
+        dry_run (bool): If True, validate without executing.
+        verbose (bool): Whether to print verbose output.
+
+    Returns:
+        int: Exit code (0 for success, 1 for failure).
+    '''
+    # Validate basic config structure
+    warnings = validate_config_structure(config)
+    if warnings:
+        for warning in warnings:
+            print(f'config warning: {warning}', file=sys.stderr)
+
+    # Get pipeline steps
+    steps = get_pipeline_steps(config)
+    if not steps:
+        print('error: No pipeline steps defined in config.', file=sys.stderr)
+        print('Expected format (sequential):', file=sys.stderr)
+        print('  pipeline:', file=sys.stderr)
+        print('    steps:', file=sys.stderr)
+        print('      - command1', file=sys.stderr)
+        print('      - command2', file=sys.stderr)
+        print('Or (parallel):', file=sys.stderr)
+        print('  pipeline:', file=sys.stderr)
+        print('    steps:', file=sys.stderr)
+        print('      - name: step1', file=sys.stderr)
+        print('        command: barcode', file=sys.stderr)
+        print('      - name: step2', file=sys.stderr)
+        print('        command: primer', file=sys.stderr)
+        print('        after: [step1]', file=sys.stderr)
+        return 1
+
+    # Check if parallel or sequential pipeline
+    if is_parallel_pipeline(config):
+        return _run_pipeline_parallel(config, dry_run, verbose)
+    else:
+        # Sequential pipeline - validate commands
+        for step in steps:
+            if step not in COMMAND_TO_API:
+                print(f'error: Unknown pipeline step "{step}".', file=sys.stderr)
+                close_matches = difflib.get_close_matches(step, COMMAND_TO_API.keys(), n=3, cutoff=0.6)
+                if close_matches:
+                    print(f'did you mean: {", ".join(close_matches)}', file=sys.stderr)
+                return 1
+
+        return _run_pipeline_sequential(config, steps, dry_run, verbose)
+
+
 # === Subcommand parsing ===
 
-def _add_common_options(parser, opt_group=None):
+def _add_common_options(parser, opt_group=None, include_config=True):
     '''Register common CLI flags on the target parser/group.'''
     target = opt_group if opt_group is not None else parser
+    if include_config:
+        target.add_argument(
+            '--config',
+            type=str,
+            default=None,
+            metavar='\b',
+            help='''>>[optional string]
+Path to YAML config file. CLI args override config values.''')
     target.add_argument(
         '--stats-json',
         action='store_true',
@@ -966,7 +1429,7 @@ def _print_manual(topic):
     key = str(topic).strip().lower()
     if key in ('list', 'topic', 'topics'):
         command_topics = ', '.join(MANUAL_COMMAND_TOPICS)
-        meta_topics = 'topic/topics/list, cli/manual, library/package, complete/completion'
+        meta_topics = 'topic/topics/list, cli/manual, library/package, complete/completion, pipeline'
         print('Available command topics:')
         print(textwrap.fill(command_topics, width=79, initial_indent='  ', subsequent_indent='  '))
         print('Available meta topics:')
@@ -977,6 +1440,9 @@ def _print_manual(topic):
         return 0
     if key in ('complete', 'completion'):
         print(CLI_COMPLETE_MANUAL.strip())
+        return 0
+    if key == 'pipeline':
+        print(CLI_PIPELINE_MANUAL.strip())
         return 0
     if key in ('library', 'package'):
         doc = _strip_header(op.__doc__)
@@ -1009,6 +1475,35 @@ def _print_cite():
     '''Print citation information for the project.'''
     print(CITATION_TEXT.strip())
     return 0
+
+
+# === Pipeline subcommand ===
+
+def _add_pipeline(cmdpar):
+    '''Register the pipeline subcommand parser.'''
+    parser = cmdpar.add_parser(
+        'pipeline',
+        help=_CLI_DESC['pipeline'],
+        description='Execute a multi-step pipeline from a YAML config file.',
+        usage=argparse.SUPPRESS,
+        formatter_class=OligopoolFormatter,
+        add_help=False)
+    req = parser.add_argument_group('Required Arguments')
+    opt = parser.add_argument_group('Optional Arguments')
+    req.add_argument(
+        '--config',
+        required=True,
+        type=str,
+        metavar='\b',
+        help='''>>[required string]
+Path to YAML pipeline config file.''')
+    opt.add_argument(
+        '--dry-run',
+        action='store_true',
+        help='''>>[optional switch]
+Validate config without executing steps.''')
+    _add_common_options(parser, opt, include_config=False)
+    return parser
 
 
 # === Module subcommands ===
@@ -2454,6 +2949,7 @@ def _get_parsers():
     _add_acount(cmdpar)
     _add_xcount(cmdpar)
     _add_complete(cmdpar)
+    _add_pipeline(cmdpar)
 
     return mainpar
 
@@ -2481,7 +2977,24 @@ def main(argv=None):
         if show_banner:
             _print_footer()
         return 0
+
+    # Inject config values into arg list before parsing (for required arg checks)
+    if command and command not in ('manual', 'cite', 'complete', 'pipeline'):
+        arg_list = _inject_config_args(arg_list, command, parser)
+
     args = parser.parse_args(arg_list)
+
+    # Load config file for pipeline command (handled separately)
+    config = None
+    if args.command == 'pipeline' and hasattr(args, 'config') and args.config is not None:
+        try:
+            config = load_config(args.config)
+        except FileNotFoundError:
+            print(f'error: Config file not found: {args.config}', file=sys.stderr)
+            return 1
+        except Exception as exc:
+            print(f'error: Failed to load config: {exc}', file=sys.stderr)
+            return 1
 
     try:
         match args.command:
@@ -2497,6 +3010,14 @@ def main(argv=None):
                 return exit_code
             case 'complete':
                 exit_code = _run_complete(args.shell, args.install, args.print_instructions)
+                if show_banner:
+                    _print_footer()
+                return exit_code
+            case 'pipeline':
+                if config is None:
+                    print('error: --config is required for pipeline command.', file=sys.stderr)
+                    return 1
+                exit_code = _run_pipeline(config, args.dry_run, args.verbose)
                 if show_banner:
                     _print_footer()
                 return exit_code

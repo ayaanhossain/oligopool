@@ -51,6 +51,7 @@ Welcome to the `Oligopool Calculator` docs! Whether you're designing your first 
   - [xcount](#xcount) - Combinatorial counting
 - [Workflows](#workflows)
 - [CLI Reference](#cli-reference)
+- [Config Files](#config-files)
 - [Tips & Tricks](#tips--tricks)
 - [Advanced Modules](#advanced-modules)
 - [Troubleshooting](#troubleshooting)
@@ -1124,6 +1125,193 @@ op complete --install
 **Callbacks are Python-only**: The `callback` parameter in `acount`/`xcount` is not available via CLI. For custom read processing logic, use the Python API.
 
 > **API Reference**: See [api.md](api.md#cli-parameter-mapping) for complete CLI parameter mapping.
+
+---
+
+## Config Files
+
+[↑ Back to TOC](#table-of-contents)
+
+The CLI supports YAML config files for repeatable, documented workflows. Config files eliminate long command lines and enable multi-step pipeline execution.
+
+### Single Command Config
+
+Use `--config` with any command to load parameters from a YAML file:
+
+```bash
+op barcode --config barcode_design.yaml
+```
+
+Example config file (`barcode_design.yaml`):
+
+```yaml
+# Barcode design config
+barcode:
+  input_data: "library.csv"
+  oligo_length_limit: 250
+  barcode_length: 16
+  minimum_hamming_distance: 3
+  maximum_repeat_length: 8
+  barcode_column: "BC"
+  output_file: "library_barcoded.csv"
+  barcode_type: "spectrum"
+  excluded_motifs:
+    - "GGATCC"
+    - "TCTAGA"
+```
+
+Config keys use snake_case (same as Python API). CLI arguments override config values:
+
+```bash
+# Override barcode_length from config
+op barcode --config barcode_design.yaml --barcode-length 20
+```
+
+### Pipeline Execution
+
+Run multi-step workflows from a single config with `op pipeline`:
+
+```bash
+op pipeline --config mpra_pipeline.yaml
+```
+
+Example pipeline config (`mpra_pipeline.yaml`):
+
+```yaml
+# MPRA Design Pipeline
+pipeline:
+  name: "MPRA Library Design"
+  steps:
+    - primer
+    - barcode
+    - spacer
+    - final
+
+primer:
+  input_data: "variants.csv"
+  output_file: "step1_primer.csv"
+  oligo_length_limit: 250
+  primer_sequence_constraint: "N*22"
+  primer_type: "forward"
+  primer_column: "FwdPrimer"
+  minimum_melting_temperature: 52
+  maximum_melting_temperature: 58
+  maximum_repeat_length: 10
+
+barcode:
+  input_data: "step1_primer.csv"
+  output_file: "step2_barcode.csv"
+  oligo_length_limit: 250
+  barcode_length: 16
+  minimum_hamming_distance: 3
+  maximum_repeat_length: 8
+  barcode_column: "BC"
+  left_context_column: "FwdPrimer"
+
+spacer:
+  input_data: "step2_barcode.csv"
+  output_file: "step3_spacer.csv"
+  oligo_length_limit: 250
+  maximum_repeat_length: 8
+  spacer_column: "Spacer"
+  left_context_column: "BC"
+
+final:
+  input_data: "step3_spacer.csv"
+  output_file: "final_library.csv"
+```
+
+Each step's config section specifies explicit `input_data` and `output_file` paths, giving you full control over the data flow.
+
+### Parallel Pipeline Execution
+
+For workflows with independent branches, use the parallel (DAG) format to run steps concurrently:
+
+```yaml
+# parallel_pipeline.yaml
+pipeline:
+  name: "Parallel Design"
+  steps:
+    - name: fwd_primer
+      command: primer
+    - name: rev_primer
+      command: primer
+      # No 'after' - runs in parallel with fwd_primer
+    - name: add_barcode
+      command: barcode
+      after: [fwd_primer]  # Waits for fwd_primer only
+    - name: finalize
+      command: final
+      after: [add_barcode, rev_primer]  # Waits for both
+
+fwd_primer:
+  input_data: "variants.csv"
+  output_file: "fwd_primer.csv"
+  primer_type: "forward"
+  primer_sequence_constraint: "N*20"
+  # ...
+
+rev_primer:
+  input_data: "variants.csv"
+  output_file: "rev_primer.csv"
+  primer_type: "reverse"
+  primer_sequence_constraint: "N*20"
+  # ...
+
+add_barcode:
+  input_data: "fwd_primer.csv"
+  output_file: "with_barcode.csv"
+  # ...
+
+finalize:
+  input_data: "with_barcode.csv"
+  output_file: "final.csv"
+```
+
+**Step fields:**
+- `name`: Step identifier (required)
+- `command`: Oligopool command to run (defaults to `name`)
+- `after`: List of step names this step depends on (optional)
+- `config`: Config section name to use (defaults to `name`)
+
+**Execution model:**
+- Steps with no `after` dependencies form level 1 (run in parallel)
+- Each subsequent level waits for its dependencies
+- `--dry-run` shows execution levels and parallelism
+
+```bash
+op pipeline --config parallel_pipeline.yaml --dry-run
+# Output shows:
+#   Level 1: fwd_primer, rev_primer (parallel)
+#   Level 2: add_barcode
+#   Level 3: finalize
+```
+
+### Dry Run Validation
+
+Validate a pipeline config without executing:
+
+```bash
+op pipeline --config mpra_pipeline.yaml --dry-run
+```
+
+This checks that all steps are valid commands and displays the parameters for each step.
+
+### Config Precedence
+
+Parameter values are resolved in this order (highest priority first):
+
+1. **CLI arguments** - Always win
+2. **Config file values** - Fill in unset args
+3. **Command defaults** - Built-in defaults
+
+### Config Tips
+
+1. **Use comments liberally**: YAML supports `#` comments - document your design choices.
+2. **Keep configs in version control**: Reproducibility for future you.
+3. **Explicit paths over magic**: Pipeline steps use explicit `input_data`/`output_file` paths - no implicit chaining.
+4. **Lists in YAML**: Use YAML list syntax for multi-value parameters like `excluded_motifs`.
+5. **Type aliases work**: Use `"spectrum"` or `1` for `barcode_type` - same as CLI.
 
 ---
 

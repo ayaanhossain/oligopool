@@ -63,5 +63,6 @@ CLI_DESCRIPTIONS = {
     'xcount': 'combinatorial counting (multiple indexes)',
     # Other
     'complete': 'print or install shell completion',
+    'pipeline': 'execute multi-step pipeline from config',
 }
 

@@ -1426,9 +1426,13 @@ Python parameters map to CLI flags by converting `snake_case` to `kebab-case`:
 | `index_files` | `--index-files` | Used by `xcount` (plural, comma/space-separated) |
 
 **CLI-Specific Flags**:
+- `--config PATH`: Load YAML config values for a command (CLI flags override; see `docs/docs.md` "Config Files")
 - `--stats-json`: Print stats dict as JSON to stdout
 - `--stats-file PATH`: Write stats JSON to file
 - `--quiet`: Suppress verbose output (sets `verbose=False`)
+
+**CLI Workflow Runner**:
+- `op pipeline --config PIPELINE.yaml` (and `--dry-run`): Execute multi-step workflows from a single YAML config (see `docs/docs.md` "Config Files")
 
 **Sequence Constraint Shorthand** (CLI):
 ```bash

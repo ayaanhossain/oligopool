@@ -94,9 +94,9 @@ $ python
 
 You can import the library and use its various functions either in a script or interactively inside a `Jupyter` environment. Use `help(...)` to read the docs as necessary and follow along.
 
-There are examples of a [design parser](https://github.com/ayaanhossain/oligopool/blob/master/examples/design-assembly-parser/design_parser.py), a [library compressor](https://github.com/ayaanhossain/oligopool/blob/master/examples/library-compressor/run_degenerate_demo.py), and an [analysis pipeline](https://github.com/ayaanhossain/oligopool/blob/master/examples/analysis-pipeline/analysis_pipeline.py) inside the [`examples`](https://github.com/ayaanhossain/oligopool/tree/master/examples) directory.
+The [`examples`](https://github.com/ayaanhossain/oligopool/tree/master/examples) directory includes a [design parser](https://github.com/ayaanhossain/oligopool/blob/master/examples/design-assembly-parser/design_parser.py), a [library compressor](https://github.com/ayaanhossain/oligopool/blob/master/examples/library-compressor/run_degenerate_demo.py), an [analysis pipeline](https://github.com/ayaanhossain/oligopool/blob/master/examples/analysis-pipeline/analysis_pipeline.py), and a complete [CLI YAML pipeline](https://github.com/ayaanhossain/oligopool/tree/master/examples/cli-pipeline).
 
-A notebook demonstrating [`Oligopool Calculator` in action](https://github.com/ayaanhossain/oligopool/blob/master/examples/OligopoolCalculatorInAction.ipynb) is provided there as well.
+If you want the full end-to-end walkthrough, start with the notebook: [`Oligopool Calculator` in action](https://github.com/ayaanhossain/oligopool/blob/master/examples/OligopoolCalculatorInAction.ipynb).
 
 **Documentation:**
 - [User Guide](https://github.com/ayaanhossain/oligopool/blob/master/docs/docs.md) - Comprehensive tutorials, examples, and workflows

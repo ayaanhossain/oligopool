@@ -1101,9 +1101,9 @@ op complete --install
 
 ### CLI-Specific Notes
 
-**`--output-file` is required for DataFrame-producing commands**: Unlike the Python API where `output_file=None` returns results in-memory, CLI commands that produce a DataFrame require `--output-file`.
+**CLI outputs require an output basename**: Unlike the Python API (where many modules can return results in-memory), CLI commands that write files require an output basename (e.g., `--output-file`, `--index-file`, `--pack-file`, `--count-file`, `--mapping-file`, `--synthesis-file`).
 
-**Output filenames are auto-suffixed**: Most commands append a suffix if missing (e.g., `.oligopool.barcode.csv`), so prefer basenames like `--output-file my_library` to avoid doubled extensions.
+**Output filenames are auto-suffixed**: Commands append a suffix if missing (e.g., `.oligopool.barcode.csv`), so prefer basenames like `--output-file my_library` to avoid doubled extensions.
 
 **Stats output**: Use `--stats-json` to print the stats dict as JSON to stdout, or `--stats-file path.json` to write it to disk.
 

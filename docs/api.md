@@ -1355,7 +1355,7 @@ Supported enzymes for `pad()` (34 total):
 
 `AcuI`, `AlwI`, `BbsI`, `BccI`, `BceAI`, `BciVI`, `BcoDI`, `BmrI`, `BpuEI`, `BsaI`, `BseRI`, `BsmAI`, `BsmBI`, `BsmFI`, `BsmI`, `BspCNI`, `BspQI`, `BsrDI`, `BsrI`, `BtgZI`, `BtsCI`, `BtsI`, `BtsIMutI`, `EarI`, `EciI`, `Esp3I`, `FauI`, `HgaI`, `HphI`, `HpyAV`, `MlyI`, `MnlI`, `SapI`, `SfaNI`
 
-Why this list: `pad()` uses Type IIS as a pad-removal step, so the CLI/library ships with a curated set of common, well-characterized Type IIS systems whose recognition/cut patterns are implemented in the code. The variety is intentional: if one enzyme's recognition site appears in your library, you can often switch to another without changing the assembly strategy.
+Why this list: `pad()` uses Type IIS for pad excision (scarless removal after optional blunting). Each supported system is modeled as a recognition motif plus a 3' cut offset into adjacent `N` bases (e.g., BsaI: `GGTCTC` + `N*5`). Enzymes that cut upstream (or require more complex cut models) are not included. The variety is intentional: if one recognition site conflicts with your library, you can often switch enzymes without changing the workflow.
 
 For other enzymes, design primers/sites manually with `primer` or `motif`.
 

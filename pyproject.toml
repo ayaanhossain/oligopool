@@ -88,6 +88,7 @@ dependencies = [
   "seaborn>=0.13.2",
   "multiprocess>=0.70.17",
   "argcomplete>=3.2.3",
+  "pyyaml>=6.0",
 ]
 dynamic = ["version"]
 

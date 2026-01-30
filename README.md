@@ -44,7 +44,7 @@ To learn more, please check out [our paper in ACS Synthetic Biology](https://pub
 - ⚡ **Performance:** scalable to very large libraries and high-throughput sequencing datasets, with published benchmarks demonstrating efficient design and analysis on commodity hardware (see paper).
 - 🔒 **Rich constraints:** IUPAC sequence constraints, motif exclusion, repeat screening, Hamming-distance barcodes, and primer thermodynamic constraints (including optional paired-primer Tm matching).
 - 📊 **DataFrame-centric:** modules operate on CSV/DataFrames and return updated tables plus `stats`; the CLI can emit JSON and supports reproducible stochastic runs (`random_seed`).
-- 💻 **CLI + library-first:** full-featured command-line pipelines **and** a composable Python API for interactive use in scripts and Jupyter notebooks.
+- 💻 **CLI + library-first:** full-featured command-line interface with YAML config files, multi-step pipelines (sequential or parallel DAG), **and** a composable Python API for interactive use in scripts and Jupyter notebooks.
 - 🤖 **AI-assisted design:** agent-ready documentation for Claude, ChatGPT, and Copilot.
 
 
@@ -185,6 +185,8 @@ COMMANDS Available:
     manual      show module documentation
     cite        show citation information
 
+    pipeline    execute multi-step pipeline from config
+
     barcode     orthogonal barcodes with cross-set separation
     primer      thermodynamic primers with optional Tm matching
     motif       design or add motifs/anchors
@@ -221,8 +223,42 @@ $ op complete --install          # auto-detect shell (restart your shell)
 $ op complete --install bash     # or: zsh|fish
 ```
 
+### YAML Pipelines
+
+Define entire workflows in a single YAML config file and execute with one command:
+```bash
+$ op pipeline --config mpra_design.yaml
+$ op pipeline --config mpra_design.yaml --dry-run  # validate first
+```
+
+Pipelines support **sequential** or **parallel DAG** execution—independent steps run concurrently:
+```yaml
+# mpra_design.yaml
+pipeline:
+  name: "MPRA Library"
+  steps:
+    - name: fwd_primer
+      command: primer
+    - name: rev_primer
+      command: primer          # parallel with fwd_primer
+    - name: add_barcode
+      command: barcode
+      after: [fwd_primer]      # waits for fwd_primer
+    - name: finalize
+      command: final
+      after: [add_barcode, rev_primer]
+
+fwd_primer:
+  input_data: "variants.csv"
+  output_file: "fwd.csv"
+  primer_type: forward
+  # ...
+```
+
+Use `--config` with any command to load parameters from YAML (CLI args override config values). See [`examples/cli-pipeline`](https://github.com/ayaanhossain/oligopool/tree/master/examples/cli-pipeline) for a complete working example.
+
 > **CLI Notes**
-> - Commands that write a DataFrame require `--output-file` (unlike in library mode where it is optional).
+> - Commands that write files require an output basename (e.g., `--output-file`, `--index-file`, `--pack-file`, `--count-file`, `--mapping-file`, `--synthesis-file`), unlike library mode where outputs can be returned in-memory.
 > - Most `--*-type` parameters accept either integers or descriptive strings (case-insensitive), e.g. `--primer-type forward`, `--barcode-type spectrum`, `--motif-type anchor`, `--pack-type merge`, `--mapping-type sensitive`.
 > - For `--primer-sequence-constraint` / `--motif-sequence-constraint`, pass an IUPAC string (`NNNN...`) or a quoted expression like `"'N'*20"` / `'GCC+N*20+CCG'`.
 > - `op split` writes separate files per fragment by default (e.g., `out.Split1.oligopool.split.csv`, `out.Split2...`); use `--no-separate-outputs` to write a single combined file.

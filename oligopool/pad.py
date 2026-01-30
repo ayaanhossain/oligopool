@@ -57,6 +57,8 @@ def pad(
         - Supported Type IIS systems (34): AcuI, AlwI, BbsI, BccI, BceAI, BciVI, BcoDI, BmrI, BpuEI,
           BsaI, BseRI, BsmAI, BsmBI, BsmFI, BsmI, BspCNI, BspQI, BsrDI, BsrI, BtgZI, BtsCI, BtsI,
           BtsIMutI, EarI, EciI, Esp3I, FauI, HgaI, HphI, HpyAV, MlyI, MnlI, SapI, SfaNI.
+        - `pad` supports Type IIS systems modeled as motif + 3' cut offset into adjacent `N` bases; enzymes
+          that cut upstream (or require more complex cut models) are not included in the built-in list.
         - `pad` checks that the chosen Type IIS recognition site is absent from `split_column` (both
           forward and reverse-complement) and treats it as an excluded motif to avoid reintroducing
           the site at pad junctions.

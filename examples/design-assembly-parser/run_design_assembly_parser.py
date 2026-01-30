@@ -1,10 +1,10 @@
 '''
-An example input for design_parser.py
+An example input for design_assembly_parser.py
 
 Author: Ayaan Hossain
 '''
 
-import design_parser as dp
+import design_assembly_parser as dp
 import pprint as pp
 
 def get_promoter_list():

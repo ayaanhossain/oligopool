@@ -3,7 +3,7 @@ An Example of Oligopool Calculator Automated Design Mode Parser.
 
 Use the `design_parser(...)` method for pipeline execution.
 
-Look into run_design_parser.py for an example of
+Look into run_design_assembly_parser.py for an example of
 how to use this parser.
 
 Author: Ayaan Hossain
@@ -508,7 +508,7 @@ def design_parser(
 
     Notes:
     ------
-        See 'run_design_parser.py' for example for an input structure.
+        See 'run_design_assembly_parser.py' for example for an input structure.
     '''
 
     # Book-keeping

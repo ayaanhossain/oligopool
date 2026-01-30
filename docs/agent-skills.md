@@ -94,6 +94,18 @@ Goal: design BC2/BC3 so they stay far from previously designed barcode columns.
   least `minimum_cross_distance` away from every barcode in the union of the
   cross columns.
 
+### Per-set primers (`primer` + `oligo_sets`)
+
+Goal: multiplexing / selective amplification with set-specific primers.
+
+- `oligo_sets` (CLI: `--oligo-sets`) groups rows by label; one primer is designed
+  per set and assigned to all rows in that set.
+- Primers are screened for cross-set compatibility (to reduce cross-dimer risk).
+- With `paired_primer_column`, Tm matching is applied within each set and the
+  paired primer must be constant within each set.
+- With `patch_mode=True`, existing per-set primers are reused; only missing
+  rows/sets trigger new design.
+
 ### Split outputs (`split`)
 
 Goal: avoid "one giant CSV with Split1..SplitN columns" when you actually need
@@ -116,6 +128,23 @@ also exclude the recognition site via `excluded_motifs`.
 
 `acount`/`xcount` support a `callback` function in Python API mode only.
 CLI does not run callbacks.
+
+### Index anchors (`index` / counting)
+
+`index` relies on constant prefix/suffix anchors (typically >=6 bp). If anchors
+are not adjacent in the read, use the gap parameters; mismatched anchors/gaps
+silently reduce usable reads downstream.
+
+### Failed reads sampling (`acount` / `xcount`)
+
+`failed_reads_file` writes a small per-category diagnostic CSV (sampling is off
+by default). It is not returned as a DataFrame.
+
+### Sequence constraint shorthand (CLI)
+
+`--primer-sequence-constraint` / `--motif-sequence-constraint` accept either an
+IUPAC string (`NNNN...`) or shorthand expressions like `"'N'*20"` /
+`GCC+N*20+CCG` (quote as one argument when needed).
 
 ## CLI Config Files + Pipelines
 

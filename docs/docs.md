@@ -680,7 +680,8 @@ final3_df, _ = op.final(input_data=pad3_df, output_file='synthesis_split3')
 - **Exclude your Type IIS motif from upstream design elements.** If you plan to use `BsaI` for padding, add its recognition site (`GGTCTC`) and reverse complement (`GAGACC`) to `excluded_motifs` when designing primers, barcodes, motifs, and spacers. This helps prevent internal cut sites from showing up in newly designed elements (it doesn't "clean" a core/variant sequence that already contains the site — in that case, choose a different enzyme or redesign the offending sequences).
 - Output columns are `5primeSpacer`, `ForwardPrimer`, `<split_column>`, `ReversePrimer`, `3primeSpacer` (other `split_df` columns are not preserved).
 - If a fragment can't fit under `oligo_length_limit`, the spacer(s) for that row are set to `'-'` (a deliberate "no-space" sentinel).
-- The supported Type IIS enzymes list is the "batteries included" set for pad removal.
+- The supported Type IIS enzymes list is the "batteries included" set for pad removal: common, well-characterized Type IIS systems with cut patterns implemented in `pad`, plus enough variety to give you fallbacks when a recognition site conflicts with your sequences.
+- Choose an enzyme whose recognition site is absent from your fragments and that matches your downstream handling preferences (e.g., sticky-end cutters vs blunt cutters like `MlyI`).
 
 **Post-synthesis workflow** (after you get your oligos back):
 1. **PCR amplify** the padded fragments

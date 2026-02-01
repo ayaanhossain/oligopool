@@ -49,15 +49,6 @@ _NB_IUPAC_ORDER = np.array(
 # Numba Helper Functions
 
 @nb.njit
-def _nb_popcount4(mask):
-    '''
-    Return popcount for 4-bit mask [0..15].
-    Internal use only.
-    '''
-
-    return _NB_POPCOUNT_TABLE[mask & 0xF]
-
-@nb.njit
 def _nb_degeneracy_product(masks, length):
     '''
     Return total degeneracy = product of
@@ -397,18 +388,6 @@ def get_degeneracy_product(masks):
     for mask in masks:
         total *= get_popcount4(int(mask))
     return int(total)
-
-def get_validated_concrete_sequence(sequence):
-    '''
-    Validate that sequence contains only
-    A/C/G/T characters. Internal use only.
-
-    :: sequence
-       type - string
-       desc - DNA sequence to validate
-    '''
-
-    return all(ch in BASE_TO_BIT for ch in sequence.strip().upper())
 
 def get_validated_iupac_sequence(sequence):
     '''

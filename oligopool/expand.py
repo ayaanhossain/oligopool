@@ -2,7 +2,6 @@ import time as tt
 
 import atexit as ae
 
-import numpy as np
 import pandas as pd
 
 from .base import utils as ut
@@ -27,9 +26,7 @@ def expand(
         - `sequence_column` (`str`): Column name containing IUPAC-degenerate sequences to expand.
 
     Optional Parameters:
-        - `mapping_file` (`str` / `pd.DataFrame`): Path to CSV or DataFrame with `ID` and `DegenerateID`
-            columns (the `mapping_df` output from `compress`); if provided, original variant `ID`s
-            are restored in the output (default: `None`).
+        - `mapping_file` (`str` / `pd.DataFrame`): Mapping output from `compress` (default: `None`). See Notes.
         - `output_file` (`str`): Filename for output DataFrame (default: `None`).
             A `.oligopool.expand.csv` suffix is added if missing.
         - `expansion_limit` (`int` / `None`): Safety cap for maximum total expanded sequences;
@@ -43,9 +40,10 @@ def expand(
     Notes:
         - `input_data` must contain an 'ID' column (or 'DegenerateID' from `compress` output).
         - Useful as a sanity-check that `compress` output covers exactly (and only) the original sequences.
-        - When `mapping_file` is provided, output includes both `DegenerateID` and original `ID` columns.
+        - `mapping_file` must contain `ID` and `DegenerateID` columns (the `mapping_df` output from `compress`).
+            When provided, output includes both `DegenerateID` and original `ID` columns.
         - Expansion can be exponential (e.g., 10 N's = 4^10 sequences); use `expansion_limit`
-          as a safety cap when working with highly degenerate sequences.
+            as a safety cap when working with highly degenerate sequences.
     '''
 
     # Argument Aliasing

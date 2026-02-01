@@ -9,6 +9,7 @@ import pandas as pd
 from .base import utils as ut
 from .base import validation_parsing as vp
 from .base import core_barcode as cb
+from .base import vectordb as db
 
 from typing import Tuple
 
@@ -28,6 +29,7 @@ def barcode(
     cross_barcode_columns:list[str]|None=None,
     minimum_cross_distance:int|None=None,
     excluded_motifs:list|str|pd.DataFrame|None=None,
+    background_directory:str|None=None,
     random_seed:int|None=None,
     verbose:bool=True) -> Tuple[pd.DataFrame, dict]:
     '''
@@ -35,7 +37,7 @@ def barcode(
     optional context screening and cross-set separation against existing barcode columns.
 
     Required Parameters:
-        - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated oligopool variants.
+        - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated oligo pool variants.
         - `oligo_length_limit` (`int`): Maximum allowed oligo length (≥ 4).
         - `barcode_length` (`int`): Length of the designed barcodes (≥ 4).
         - `minimum_hamming_distance` (`int`): Minimum pairwise Hamming distance (≥ 1).
@@ -45,19 +47,15 @@ def barcode(
     Optional Parameters:
         - `output_file` (`str`): Filename for output DataFrame; required in CLI usage,
             optional in library usage (default: `None`).
-        - `barcode_type` (`int` / `str`): Barcode design mode:
-          0 or 'terminus' = fast terminus optimized, 1 or 'spectrum' = slow spectrum optimized.
-          Also accepts aliases: 'term', 't', 'fast', 'spec', 's', 'slow' (default: 0).
+        - `barcode_type` (`int` / `str`): Barcode design mode (default: 0). See Notes.
         - `left_context_column` (`str`): Column for left DNA context (default: `None`).
         - `right_context_column` (`str`): Column for right DNA context (default: `None`).
         - `patch_mode` (`bool`): If `True`, fill only missing values in an existing barcode column
             (does not overwrite existing barcodes). (default: `False`).
-        - `cross_barcode_columns` (`list[str]` / `None`): Existing barcode column(s) to enforce
-          cross-set separation against (default: `None`).
-        - `minimum_cross_distance` (`int` / `None`): Minimum Hamming distance enforced between each
-          new barcode and the cross set (default: `None`).
-        - `excluded_motifs` (`list` / `str` / `pd.DataFrame`): Motifs to exclude;
-            can be a list, CSV, DataFrame, or FASTA file (default: `None`).
+        - `cross_barcode_columns` (`list[str]` / `None`): Existing barcode column(s) used as a cross-set constraint (default: `None`).
+        - `minimum_cross_distance` (`int` / `None`): Minimum cross-set Hamming distance (default: `None`).
+        - `excluded_motifs` (`list` / `str` / `pd.DataFrame`): Motifs to exclude (default: `None`).
+        - `background_directory` (`str` / `None`): Background k-mer DB directory from `background()` (default: `None`).
         - `random_seed` (`int` / `None`): Seed for local RNG (default: `None`).
         - `verbose` (`bool`): If `True`, logs updates to stdout (default: `True`).
 
@@ -67,18 +65,24 @@ def barcode(
 
     Notes:
         - `input_data` must contain a unique 'ID' column; all other columns must be non-empty DNA strings.
-          Column names must be unique and exclude `barcode_column`.
+            Column names must be unique and exclude `barcode_column`.
+        - `barcode_type`:
+            0 or 'terminus' = fast terminus optimized, 1 or 'spectrum' = slow spectrum optimized
+            (aliases: 'term', 't', 'fast', 'spec', 's', 'slow').
         - Terminus optimization targets distinctive 5'/3' ends; spectrum optimization targets k-mer saturation.
         - At least one of `left_context_column` or `right_context_column` must be specified.
         - If `excluded_motifs` is a CSV or DataFrame, it must have an 'Exmotif' column.
+        - `excluded_motifs` can be a list, CSV, DataFrame, or FASTA file.
+        - `background_directory` screens designed barcodes against k-mers in the background DB (e.g., transcriptome,
+            vector backbone, or other reference sequences).
         - If design is challenging, adjust `barcode_length`, `minimum_hamming_distance`, `maximum_repeat_length`,
-          and/or `excluded_motifs`, or switch `barcode_type`.
+            and/or `excluded_motifs`, or switch `barcode_type`.
         - Constant anchors (e.g., index prefix/suffix) are typically designed first (see `motif`, `motif_type=1`).
         - Cross-set mode is global (not per-row): `cross_barcode_columns` and `minimum_cross_distance` must be set
-          together; each new barcode must be ≥ `minimum_cross_distance` mismatches away from every strict-ATGC
-          barcode in the union of sequences across `cross_barcode_columns` (length must equal `barcode_length`).
+            together; each new barcode must be ≥ `minimum_cross_distance` mismatches away from every strict-ATGC
+            barcode in the union of sequences across `cross_barcode_columns` (length must equal `barcode_length`).
         - Patch mode (`patch_mode=True`) preserves existing values in `barcode_column` and fills only missing values
-          (`None`/NaN/empty/`'-'`); existing values must already be strict ATGC of length `barcode_length`.
+            (`None`/NaN/empty/`'-'`); existing values must already be strict ATGC of length `barcode_length`.
     '''
 
     # Preserve return style when the caller intentionally used ID as index.
@@ -99,6 +103,7 @@ def barcode(
     cross_cols   = cross_barcode_columns
     cross_mind   = minimum_cross_distance
     exmotifs     = excluded_motifs
+    background   = background_directory
     random_seed  = random_seed
     verbose      = verbose
 
@@ -291,6 +296,13 @@ def barcode(
         required=False,
         liner=liner)
 
+    # Full background Parsing and Validation
+    (background_valid,
+    background_type) = vp.get_parsed_background(
+        background=background,
+        background_field=' Background Database',
+        liner=liner)
+
     # First Pass Validation
     if not all([
         indata_valid,
@@ -305,10 +317,20 @@ def barcode(
         rightcontext_valid,
         patch_mode_valid,
         cross_valid,
-        exmotifs_valid,]):
+        exmotifs_valid,
+        background_valid]):
         liner.send('\n')
         raise RuntimeError(
             'Invalid Argument Input(s).')
+
+    # Open Background
+    if background_type == 'path':
+        background = ut.get_adjusted_path(
+            path=background,
+            suffix='.oligopool.background')
+        background = db.vectorDB(
+            path=background,
+            maximum_repeat_length=None)
 
     # Start Timer
     t0 = tt.time()
@@ -402,6 +424,7 @@ def barcode(
            'existing_distance_fail': 0,
            'cross_distance_fail': 0,
                    'repeat_fail': 0,
+              'background_fail': 0,
                   'exmotif_fail': 0,
                      'edge_fail': 0,
                'distance_distro': None,
@@ -603,6 +626,10 @@ def barcode(
             edgeeffectlength,
             maxreplen)
 
+    # Update Edge-Effect Length for Background
+    if background_type is not None:
+        edgeeffectlength = max(edgeeffectlength or 0, background.K)
+
     # Extract Left and Right Context
     if ((not leftcontext  is None) or \
         (not rightcontext is None)):
@@ -698,20 +725,21 @@ def barcode(
         'step'    : 6,
         'step_name': 'computing-barcodes',
         'vars'    : {
-                  'target_count': targetcount,  # Required Number of Barcodes
-                 'barcode_count': 0,            # Barcode Design Count
-                  'orphan_oligo': None,         # Orphan Oligo Indexes
-                     'type_fail': 0,            # Barcode Type Failure Count
-                 'distance_fail': 0,            # Hamming Distance Fail Count
+                     'target_count': targetcount,  # Required Number of Barcodes
+                    'barcode_count': 0,            # Barcode Design Count
+                     'orphan_oligo': None,         # Orphan Oligo Indexes
+                        'type_fail': 0,            # Barcode Type Failure Count
+                    'distance_fail': 0,            # Hamming Distance Fail Count
            'existing_distance_fail': 0,        # Existing Barcode Distance Fail Count
-           'cross_distance_fail': 0,        # Cross Distance Fail Count
-                   'repeat_fail': 0,            # Repeat Fail Count
-                  'exmotif_fail': 0,            # Exmotif Elimination Fail Count
-                     'edge_fail': 0,            # Edge Effect Fail Count
-               'distance_distro': None,         # Hamming Distance Distribution
-               'exmotif_counter': cx.Counter(), # Exmotif Encounter Counter
-               'space_exhausted': False,        # Space Exhausted Bool
-               'trial_exhausted': False,        # Trial Exhausted Bool
+              'cross_distance_fail': 0,        # Cross Distance Fail Count
+                      'repeat_fail': 0,            # Repeat Fail Count
+                  'background_fail': 0,            # Background Fail Count
+                     'exmotif_fail': 0,            # Exmotif Elimination Fail Count
+                        'edge_fail': 0,            # Edge Effect Fail Count
+                  'distance_distro': None,         # Hamming Distance Distribution
+                  'exmotif_counter': cx.Counter(), # Exmotif Encounter Counter
+                  'space_exhausted': False,        # Space Exhausted Bool
+                  'trial_exhausted': False,        # Trial Exhausted Bool
             },
         'warns'   : warns}
     stats['random_seed'] = random_seed
@@ -789,6 +817,7 @@ def barcode(
         existing_coocache=existing_coocache,
         existing_min_distance=minhdist,
         exmotifs=exmotifs,
+        background=background,
         targetcount=targetcount,
         stats=stats,
         liner=liner,
@@ -845,21 +874,21 @@ def barcode(
             'barcode_count')))
 
     liner.send(
-        '   Design Status   : {}\n'.format(
+        '     Design Status   : {}\n'.format(
             barcodestatus))
     liner.send(
-        '   Target Count    : {:{},d} Barcode(s)\n'.format(
+        '     Target Count    : {:{},d} Barcode(s)\n'.format(
             stats['vars']['target_count'],
             plen))
     liner.send(
-        '  Barcode Count    : {:{},d} Barcode(s) ({:6.2f} %)\n'.format(
+        '    Barcode Count    : {:{},d} Barcode(s) ({:6.2f} %)\n'.format(
             stats['vars']['barcode_count'],
             plen,
             ut.safediv(
                 A=stats['vars']['barcode_count'] * 100.,
                 B=targetcount)))
     liner.send(
-        '   Orphan Oligo    : {:{},d} Entries\n'.format(
+        '     Orphan Oligo    : {:{},d} Entries\n'.format(
             len(stats['vars']['orphan_oligo']),
             plen))
 
@@ -872,11 +901,11 @@ def barcode(
                     lambda x: x[1],
                     stats['vars']['distance_distro'])))
 
-            liner.send('   Pair-wise Distance Distribution\n')
+            liner.send(' Pair-wise Distance Distribution\n')
 
             for percentage,distance in stats['vars']['distance_distro']:
                 liner.send(
-                    '     - {:6.2f} % Barcode(s) w/ Distance ≥ {:{},d} Mismatch(es)\n'.format(
+                    '   - {:6.2f} % Barcode(s) w/ Distance ≥ {:{},d} Mismatch(es)\n'.format(
                         percentage,
                         distance,
                         dlen))
@@ -888,6 +917,7 @@ def barcode(
             'existing_distance_fail',
             'cross_distance_fail',
             'repeat_fail',
+            'background_fail',
             'exmotif_fail',
             'edge_fail'))
 
@@ -899,10 +929,11 @@ def barcode(
                           stats['vars']['existing_distance_fail'] + \
                           stats['vars']['cross_distance_fail'] + \
                           stats['vars']['repeat_fail']         + \
+                          stats['vars']['background_fail']     + \
                           stats['vars']['exmotif_fail']        + \
                           stats['vars']['edge_fail']
         liner.send(
-            ' Distance Conflicts: {:{},{}} Event(s) ({:6.2f} %)\n'.format(
+            '   Distance Conflicts: {:{},{}} Event(s) ({:6.2f} %)\n'.format(
                 stats['vars']['distance_fail'],
                 plen,
                 sntn,
@@ -913,7 +944,7 @@ def barcode(
            existing_mask is not None and \
            existing_mask.any():
             liner.send(
-                ' Existing Conflicts: {:{},{}} Event(s) ({:6.2f} %)\n'.format(
+                '   Existing Conflicts: {:{},{}} Event(s) ({:6.2f} %)\n'.format(
                     stats['vars']['existing_distance_fail'],
                     plen,
                     sntn,
@@ -922,7 +953,7 @@ def barcode(
                         B=total_conflicts)))
         if not cross_cols is None:
             liner.send(
-                '    Cross Conflicts: {:{},{}} Event(s) ({:6.2f} %)\n'.format(
+                '      Cross Conflicts: {:{},{}} Event(s) ({:6.2f} %)\n'.format(
                     stats['vars']['cross_distance_fail'],
                     plen,
                     sntn,
@@ -930,7 +961,7 @@ def barcode(
                         A=stats['vars']['cross_distance_fail'] * 100.,
                         B=total_conflicts)))
         liner.send(
-            '   Repeat Conflicts: {:{},{}} Event(s) ({:6.2f} %)\n'.format(
+            '     Repeat Conflicts: {:{},{}} Event(s) ({:6.2f} %)\n'.format(
                 stats['vars']['repeat_fail'],
                 plen,
                 sntn,
@@ -938,7 +969,15 @@ def barcode(
                     A=stats['vars']['repeat_fail'] * 100.,
                     B=total_conflicts)))
         liner.send(
-            '  Exmotif Conflicts: {:{},{}} Event(s) ({:6.2f} %)\n'.format(
+            ' Background Conflicts: {:{},{}} Event(s) ({:6.2f} %)\n'.format(
+                stats['vars']['background_fail'],
+                plen,
+                sntn,
+                ut.safediv(
+                    A=stats['vars']['background_fail'] * 100.,
+                    B=total_conflicts)))
+        liner.send(
+            '    Exmotif Conflicts: {:{},{}} Event(s) ({:6.2f} %)\n'.format(
                 stats['vars']['exmotif_fail'],
                 plen,
                 sntn,
@@ -946,15 +985,15 @@ def barcode(
                     A=stats['vars']['exmotif_fail'] * 100.,
                     B=total_conflicts)))
         liner.send(
-            '     Edge Conflicts: {:{},{}} Event(s) ({:6.2f} %)\n'.format(
+            '       Edge Conflicts: {:{},{}} Event(s) ({:6.2f} %)\n'.format(
                 stats['vars']['edge_fail'],
                 plen,
                 sntn,
                 ut.safediv(
                     A=stats['vars']['edge_fail'] * 100.,
                     B=total_conflicts)))
-        liner.send(f'    Space Exhausted: {stats["vars"]["space_exhausted"]}\n')
-        liner.send(f'    Trial Exhausted: {stats["vars"]["trial_exhausted"]}\n')
+        liner.send(f'      Space Exhausted: {stats["vars"]["space_exhausted"]}\n')
+        liner.send(f'      Trial Exhausted: {stats["vars"]["trial_exhausted"]}\n')
 
         # Enumerate Motif-wise Fail Counts
         if stats['vars']['exmotif_counter']:
@@ -983,6 +1022,10 @@ def barcode(
     # Unschedule outfile deletion
     if barcodestatus == 'Successful':
         ae.unregister(ofdeletion)
+
+    # Close Background
+    if background_type == 'path':
+        background.close()
 
     # Close Liner
     liner.close()

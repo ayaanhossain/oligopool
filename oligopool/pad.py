@@ -29,10 +29,10 @@ def pad(
     spacers to meet `oligo_length_limit`. Produces an assembly-ready pad layout suitable for `final`.
 
     Required Parameters:
-        - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated oligopool variants.
+        - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated oligo pool variants.
         - `oligo_length_limit` (`int`): Maximum allowed padded oligo length (≥ 60).
         - `split_column` (`str`): Column name containing split fragments.
-        - `typeIIS_system` (`str`): Type IIS restriction enzyme to be used for pad excision. See notes.
+        - `typeIIS_system` (`str`): Type IIS restriction enzyme to be used for pad excision. See Notes.
         - `minimum_melting_temperature` (`float`): Minimum padding primer Tm (≥ 25°C).
         - `maximum_melting_temperature` (`float`): Maximum padding primer Tm (≤ 95°C).
         - `maximum_repeat_length` (`int`): Max shared repeat length b/w padding primers & oligos (between 6 and 20).
@@ -50,18 +50,18 @@ def pad(
     Notes:
         - `input_data` must contain a unique 'ID' column; all other columns must be non-empty DNA strings.
         - `pad` expects `split_column` to contain DNA fragments (typically output from `split`).
-          Other columns in `input_data` are not preserved in the output.
+            Other columns in `input_data` are not preserved in the output.
         - Run `pad` separately for each split fragment column (e.g., `Split1`, `Split2`, ...).
         - Output columns are: `5primeSpacer`, `ForwardPrimer`, `<split_column>`, `ReversePrimer`, `3primeSpacer`.
         - Oligo rows already summing to or exceeding `oligo_length_limit` have a `'-'` (dash) as spacer.
         - Supported Type IIS systems (34): AcuI, AlwI, BbsI, BccI, BceAI, BciVI, BcoDI, BmrI, BpuEI,
-          BsaI, BseRI, BsmAI, BsmBI, BsmFI, BsmI, BspCNI, BspQI, BsrDI, BsrI, BtgZI, BtsCI, BtsI,
-          BtsIMutI, EarI, EciI, Esp3I, FauI, HgaI, HphI, HpyAV, MlyI, MnlI, SapI, SfaNI.
+            BsaI, BseRI, BsmAI, BsmBI, BsmFI, BsmI, BspCNI, BspQI, BsrDI, BsrI, BtgZI, BtsCI, BtsI,
+            BtsIMutI, EarI, EciI, Esp3I, FauI, HgaI, HphI, HpyAV, MlyI, MnlI, SapI, SfaNI.
         - `pad` supports Type IIS systems modeled as motif + 3' cut offset into adjacent `N` bases; enzymes
-          that cut upstream (or require more complex cut models) are not included in the built-in list.
+            that cut upstream (or require more complex cut models) are not included in the built-in list.
         - `pad` checks that the chosen Type IIS recognition site is absent from `split_column` (both
-          forward and reverse-complement) and treats it as an excluded motif to avoid reintroducing
-          the site at pad junctions.
+            forward and reverse-complement) and treats it as an excluded motif to avoid reintroducing
+            the site at pad junctions.
         - Type IIS is for pad removal; the overlaps from `split` drive downstream assembly.
     '''
 

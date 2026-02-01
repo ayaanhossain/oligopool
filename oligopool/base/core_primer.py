@@ -1677,7 +1677,7 @@ def primer_objectives(
             liner=liner)
 
         # Update Stats
-        stats['vars']['repeat_fail'] += 1
+        stats['vars']['background_fail'] += 1
 
         # Return Traceback
         return False, traceloc

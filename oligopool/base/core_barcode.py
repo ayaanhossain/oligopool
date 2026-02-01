@@ -5,6 +5,7 @@ import collections as cx
 import numpy as np
 
 from . import utils  as ut
+from . import core_background as cbg
 
 
 # Barcode Conversion Dictionary
@@ -256,7 +257,8 @@ def show_update(
         ' due to Excluded Motif',
         ' due to Edge Effect',
         ' due to Oligopool Repeat',
-        ' due to Composition'][optstate]))
+        ' due to Composition',
+        ' due to Background'][optstate]))
 
     if terminal:
         liner.send('|* Time Elapsed: {:.2f} sec\n'.format(
@@ -402,6 +404,7 @@ def is_exmotif_feasible(
 def is_edge_feasible(
     barcodeseq,
     exmotifs,
+    background,
     contextarray,
     leftselector,
     leftcontexttype,
@@ -420,6 +423,10 @@ def is_edge_feasible(
        type - list / None
        desc - list of motifs to exclude
               in designed barcodes,
+              None otherwise
+    :: background
+       type - vectorDB / None
+       desc - background k-mer database,
               None otherwise
     :: contextarray
        type - np.array
@@ -450,6 +457,7 @@ def is_edge_feasible(
     i = 0
     t = len(contextarray)
     cfails = cx.Counter()
+    bgfails = 0
 
     # Loop through contexts for assignment
     while i < t:
@@ -464,6 +472,15 @@ def is_edge_feasible(
         llen  = 0
         lcntx =  leftselector(aidx)
         rcntx = rightselector(aidx)
+
+        # Background Feasibility
+        bcond = True
+        if background is not None:
+            bcond = cbg.is_background_feasible(
+                seq=barcodeseq,
+                bg=background,
+                leftcontext=lcntx or '',
+                rightcontext=rcntx or '')
 
         # Build out in-context sequence
         if not lcntx is None:
@@ -505,11 +522,13 @@ def is_edge_feasible(
                             break
 
         # We have a winner folks!
-        if mcond:
-            return (True, aidx, None)
+        if mcond and bcond:
+            return (True, aidx, None, 0)
 
         # We lost an assignment, record cause
-        else:
+        if not bcond:
+            bgfails += 1
+        if not mcond:
             cfails[motif] += 1
 
         # Update Iteration
@@ -525,7 +544,7 @@ def is_edge_feasible(
             break
 
     # Failed Assignment
-    return (False, None, cfails)
+    return (False, None, cfails, bgfails)
 
 def is_nonrepetitive(
     barcodeseq,
@@ -627,6 +646,7 @@ def barcode_objectives(
     maxreplen,
     oligorepeats,
     exmotifs,
+    background,
     contextarray,
     leftcontexttype,
     leftselector,
@@ -682,6 +702,10 @@ def barcode_objectives(
        desc - list of motifs to exclude
               in designed barcodes,
               None otherwise
+    :: background
+       type - vectorDB / None
+       desc - background k-mer database,
+              None otherwise
     :: contextarray
        type - np.array
        desc - context assignment array
@@ -718,7 +742,7 @@ def barcode_objectives(
 
     # Objective 1 Failed
     if not obj1:
-        return (False, 1, None, None, None, None)         # Hamming Failure
+        return (False, 1, None, None, None, None, 0)         # Hamming Failure
 
     # Objective 2: Motif Embedding
     obj2, exmotif = is_exmotif_feasible(
@@ -728,12 +752,13 @@ def barcode_objectives(
 
     # Objective 2 Failed
     if not obj2:
-        return (False, 2, None, {exmotif: 1}, None, None) # Motif Failure
+        return (False, 2, None, {exmotif: 1}, None, None, 0) # Motif Failure
 
     # Objective 3: Edge Feasibility (Edge-Effects)
-    obj3, aidx, afails = is_edge_feasible(
+    obj3, aidx, afails, bgfails = is_edge_feasible(
         barcodeseq=barcodeseq,
         exmotifs=exmotifs,
+        background=background,
         contextarray=contextarray,
         leftselector=leftselector,
         leftcontexttype=leftcontexttype,
@@ -742,7 +767,10 @@ def barcode_objectives(
 
     # Objective 3 Failed
     if not obj3:
-        return (False, 3, None, afails, None, None)       # Edge Failure
+        # Background-only edge conflict (no exmotif edge conflicts recorded)
+        if bgfails > 0 and not afails:
+            return (False, 6, None, None, None, None, bgfails)
+        return (False, 3, None, afails, None, None, bgfails)       # Edge Failure
 
     # Objective 4: Contextual Non-Repetitiveness
     obj4 = is_nonrepetitive(
@@ -760,7 +788,7 @@ def barcode_objectives(
         #                 Followed by Infinite Loop
         #                 (Critical Bug)
         contextarray.append(aidx)
-        return (False, 4, None, None, None, None)         # Repeat Failure
+        return (False, 4, None, None, None, None, 0)         # Repeat Failure
 
     # Objective 5: Composition Objective
     subset = None
@@ -777,10 +805,10 @@ def barcode_objectives(
             #                 Followed by Infinite Loop
             #                 (Critical Bug)
             contextarray.append(aidx)
-            return (False, 5, None, None, None, None)     # Repeat Failure
+            return (False, 5, None, None, None, None, 0)     # Repeat Failure
 
     # All conditions met!
-    return (True, 0, aidx, None, subset, coordinates)
+    return (True, 0, aidx, None, subset, coordinates, 0)
 
 def get_distro(
     store,
@@ -873,6 +901,7 @@ def barcode_engine(
     cross_coocache,
     minimum_cross_distance,
     exmotifs,
+    background,
     targetcount,
     stats,
     liner,
@@ -1114,7 +1143,8 @@ def barcode_engine(
         aidx,
         emcounter,
         subset,
-        coordinates) = barcode_objectives(
+        coordinates,
+        bgfails) = barcode_objectives(
             store=store,
             count=count,
             barcodeseq=barcodeseq,
@@ -1127,6 +1157,7 @@ def barcode_engine(
             maxreplen=maxreplen,
             oligorepeats=oligorepeats,
             exmotifs=exmotifs,
+            background=background,
             contextarray=contextarray,
             leftcontexttype=leftcontexttype,
             leftselector=leftselector,
@@ -1199,6 +1230,8 @@ def barcode_engine(
                 stats['vars']['repeat_fail']   += 1
             if optstate == 5:
                 stats['vars']['type_fail']     += 1
+            if optstate == 6:
+                pass
 
             # Infinite Jumper Book-keeping Update
             if jtp == 2:
@@ -1207,6 +1240,8 @@ def barcode_engine(
             # Record Context Failure Motifs
             if not emcounter is None:
                 stats['vars']['exmotif_counter'] += emcounter
+            if bgfails:
+                stats['vars']['background_fail'] += bgfails
 
         # Verbiage Book-keeping
         if verbiage_reach >= verbiage_target:

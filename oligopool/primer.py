@@ -39,11 +39,10 @@ def primer(
     via `oligo_sets`, and patch mode for incremental pool extension.
 
     Required Parameters:
-        - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated oligopool variants.
+        - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated oligo pool variants.
         - `oligo_length_limit` (`int`): Maximum allowed oligo length (≥ 4).
         - `primer_sequence_constraint` (`str`): IUPAC degenerate sequence constraint.
-        - `primer_type` (`int` / `str`): Primer type: 0 or 'forward' for forward,
-          1 or 'reverse' for reverse. Also accepts aliases: 'fwd', 'f', 'rev', 'r'.
+        - `primer_type` (`int` / `str`): Primer direction/type (default: required). See Notes.
         - `minimum_melting_temperature` (`float`): Minimum primer Tm (≥ 25°C).
         - `maximum_melting_temperature` (`float`): Maximum primer Tm (≤ 95°C).
         - `maximum_repeat_length` (`int`): Max shared repeat length with oligos (≥ 6).
@@ -72,22 +71,25 @@ def primer(
 
     Notes:
         - `input_data` must contain a unique 'ID' column; all other columns must be non-empty DNA strings.
-          Column names must be unique and exclude `primer_column`.
+            Column names must be unique and exclude `primer_column`.
         - At least one of `left_context_column` or `right_context_column` must be specified.
+        - `primer_type`:
+            0 or 'forward' for forward, 1 or 'reverse' for reverse (aliases: 'fwd', 'f', 'rev', 'r').
         - The paired primer type is inferred based on the current primer type.
         - If `paired_primer_column` is specified, Tm of the designed primer is optimized within 1°C of it.
         - `maximum_repeat_length` controls non-repetitiveness against `input_data` only; to screen against a
-          background, build a background DB with `background(...)` and pass it via `background_directory`.
+            background, build a background DB with `background(...)` and pass it via `background_directory`.
         - If `excluded_motifs` is a CSV or DataFrame, it must have an 'Exmotif' column.
+        - `excluded_motifs` can be a list, CSV, DataFrame, or FASTA file.
         - Constant motifs in sequence constraint may lead to sub-optimal primers.
         - Chained primer design: design one primer, then its partner via `paired_primer_column`
-          (pairing is inferred from `primer_type`).
+            (pairing is inferred from `primer_type`).
         - `oligo_sets` can be any group labels. Primers are designed per set and screened for cross-set
-          compatibility; if `paired_primer_column` is provided, it must be constant within each set and
-          pairing/Tm matching is applied per set.
+            compatibility; if `paired_primer_column` is provided, it must be constant within each set and
+            pairing/Tm matching is applied per set.
         - Patch mode (`patch_mode=True`) preserves existing values in `primer_column` and fills only missing values
-          (`None`/NaN/empty/`'-'`). With `oligo_sets`, existing per-set primers are reused and missing-only sets
-          trigger new per-set primer design.
+            (`None`/NaN/empty/`'-'`). With `oligo_sets`, existing per-set primers are reused and missing-only sets
+            trigger new per-set primer design.
     '''
 
     # Preserve return style when the caller intentionally used ID as index.
@@ -519,6 +521,7 @@ def primer(
              'heterodimer_MFE': None,          # Heterodimer Free Energy
                      'Tm_fail': 0,             # Melting Temperature Fail Count
                  'repeat_fail': 0,             # Repeat Fail Count
+             'background_fail': 0,             # Background Fail Count
               'homodimer_fail': 0,             # Homodimer Fail Count
             'heterodimer_fail': 0,             # Heterodimer Fail Count
              'crossdimer_fail': 0,             # Cross-primer Dimer Fail Count
@@ -674,6 +677,10 @@ def primer(
         edgeeffectlength = ut.get_edgeeffectlength(
             maxreplen=maxreplen,
             exmotifs=exmotifs)
+
+    # Update Edge-Effect Length for Background
+    if background_type is not None:
+        edgeeffectlength = max(edgeeffectlength or 0, background.K)
 
     # Parsing Sequence Constraint Feasibility
     liner.send('\n[Step 3: Parsing Primer Sequence]\n')
@@ -1042,6 +1049,7 @@ def primer(
              'heterodimer_MFE': None,          # Heterodimer Free Energy
                      'Tm_fail': 0,             # Melting Temperature Fail Count
                  'repeat_fail': 0,             # Repeat Fail Count
+             'background_fail': 0,             # Background Fail Count
               'homodimer_fail': 0,             # Homodimer Fail Count
             'heterodimer_fail': 0,             # Heterodimer Fail Count
              'crossdimer_fail': 0,             # Cross-primer Dimer Fail Count
@@ -1147,6 +1155,7 @@ def primer(
                  'heterodimer_MFE': None,          # Heterodimer Free Energy
                          'Tm_fail': 0,             # Melting Temperature Fail Count
                      'repeat_fail': 0,             # Repeat Fail Count
+                 'background_fail': 0,             # Background Fail Count
                   'homodimer_fail': 0,             # Homodimer Fail Count
                 'heterodimer_fail': 0,             # Heterodimer Fail Count
                  'crossdimer_fail': 0,             # Cross-primer Dimer Fail Count
@@ -1185,6 +1194,7 @@ def primer(
             # Aggregate stats
             stats['vars']['Tm_fail'] += setstats['vars']['Tm_fail']
             stats['vars']['repeat_fail'] += setstats['vars']['repeat_fail']
+            stats['vars']['background_fail'] += setstats['vars']['background_fail']
             stats['vars']['homodimer_fail'] += setstats['vars']['homodimer_fail']
             stats['vars']['heterodimer_fail'] += setstats['vars']['heterodimer_fail']
             stats['vars']['crossdimer_fail'] += setstats['vars']['crossdimer_fail']
@@ -1323,6 +1333,7 @@ def primer(
         maxval = max(stats['vars'][field] for field in (
             'Tm_fail',
             'repeat_fail',
+            'background_fail',
             'homodimer_fail',
             'heterodimer_fail',
             'crossdimer_fail',
@@ -1335,6 +1346,7 @@ def primer(
 
         total_conflicts = stats['vars']['Tm_fail']          + \
                           stats['vars']['repeat_fail']      + \
+                          stats['vars']['background_fail']  + \
                           stats['vars']['homodimer_fail']   + \
                           stats['vars']['heterodimer_fail'] + \
                           stats['vars']['crossdimer_fail']  + \
@@ -1356,6 +1368,14 @@ def primer(
                 sntn,
                 ut.safediv(
                     A=stats['vars']['repeat_fail'] * 100.,
+                    B=total_conflicts)))
+        liner.send(
+            '  Background Conflicts  : {:{},{}} Event(s) ({:6.2f} %)\n'.format(
+                stats['vars']['background_fail'],
+                plen,
+                sntn,
+                ut.safediv(
+                    A=stats['vars']['background_fail'] * 100.,
                     B=total_conflicts)))
         liner.send(
             '   Homodimer Conflicts  : {:{},{}} Event(s) ({:6.2f} %)\n'.format(

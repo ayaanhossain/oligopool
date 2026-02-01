@@ -9,6 +9,7 @@ import pandas as pd
 
 from .base import utils as ut
 from .base import validation_parsing as vp
+from .base import vectordb as db
 from .base import core_lenstat as cl
 
 
@@ -16,6 +17,7 @@ def verify(
     input_data:str|pd.DataFrame,
     oligo_length_limit:int|None=None,
     excluded_motifs:list|str|pd.DataFrame|None=None,
+    background_directory:str|None=None,
     verbose:bool=True) -> dict:
     '''
     Lightweight QC for an oligopool DataFrame (column inspection, length stats, and excluded-motif
@@ -27,7 +29,10 @@ def verify(
     Optional Parameters:
         - `oligo_length_limit` (`int` / `None`): If provided, check for length overflow (default: `None`).
         - `excluded_motifs` (`list` / `str` / `pd.DataFrame` / `None`): Motifs to track; can be a CSV path
-          or DataFrame with an 'Exmotif' column (default: `None`).
+            or DataFrame with an 'Exmotif' column (default: `None`).
+        - `background_directory` (`str` / `None`): Path to background k-mer database created by
+            `background()`. If provided, scans concatenated oligos for any background k-mers and reports
+            violations (default: `None`).
         - `verbose` (`bool`): If `True`, log updates to stdout (default: `True`).
 
     Returns:
@@ -35,22 +40,23 @@ def verify(
 
     Notes:
         - Column inspection classifies columns as sequence vs metadata, and flags mixed/degenerate/non-string
-          columns (degenerate/IUPAC columns are warnings, not hard errors).
+            columns (degenerate/IUPAC columns are warnings, not hard errors).
         - Length stats use the same engine as `lenstat` and can be checked against `oligo_length_limit`.
         - Motif emergence means a motif occurs more often than the minimum occurrence across the library
-          (useful when a motif should appear exactly once, e.g., restriction sites).
+            (useful when a motif should appear exactly once, e.g., restriction sites).
         - Excluded-motif counting is literal substring matching; degenerate/IUPAC bases are not expanded
-          as wildcards during motif checks.
+            as wildcards during motif checks.
         - Motif scans operate on concatenated sequence columns (left-to-right DataFrame order) with `'-'`
-          removed. If `CompleteOligo` exists (from `final`), it is used directly.
+            removed. If `CompleteOligo` exists (from `final`), it is used directly.
         - If emergent motifs are detected and multiple sequence columns are present, `verify` attributes
-          emergence to column junctions ("edge effects"), unless `CompleteOligo` is provided.
+            emergence to column junctions ("edge effects"), unless `CompleteOligo` is provided.
     '''
 
     # Argument Aliasing
     indata     = input_data
     oligolimit = oligo_length_limit
     exmotifs   = excluded_motifs
+    background = background_directory
     verbose    = verbose
 
     # Start Liner
@@ -67,7 +73,7 @@ def verify(
     data_name,
     indata_valid) = vp.get_parsed_data_info(
         data=indata,
-        data_field='    Input Data   ',
+        data_field='     Input Data     ',
         required_fields=None,
         liner=liner)
     input_rows = len(indf.index) if isinstance(indf, pd.DataFrame) else 0
@@ -89,7 +95,7 @@ def verify(
     else:
         oligolimit_valid = vp.get_numeric_validity(
             numeric=oligolimit,
-            numeric_field='    Oligo Limit ',
+            numeric_field='     Oligo Limit    ',
             numeric_pre_desc=' At most ',
             numeric_post_desc=' Base Pair(s)',
             minval=4,
@@ -101,20 +107,37 @@ def verify(
     (exmotifs,
     exmotifs_valid) = vp.get_parsed_exseqs_info(
         exseqs=exmotifs,
-        exseqs_field=' Excluded Motifs',
+        exseqs_field='  Excluded Motifs   ',
         exseqs_desc='Unique Motif(s)',
         df_field='Exmotif',
         required=False,
+        liner=liner)
+
+    # Full background Parsing and Validation
+    (background_valid,
+    background_type) = vp.get_parsed_background(
+        background=background,
+        background_field='Background Database ',
         liner=liner)
 
     # First Pass Validation
     if not all([
         indata_valid,
         oligolimit_valid,
-        exmotifs_valid]):
+        exmotifs_valid,
+        background_valid]):
         liner.send('\n')
         raise RuntimeError(
             'Invalid Argument Input(s).')
+
+    # Open Background
+    if background_type == 'path':
+        background = ut.get_adjusted_path(
+            path=background,
+            suffix='.oligopool.background')
+        background = db.vectorDB(
+            path=background,
+            maximum_repeat_length=None)
 
     # Start Timer
     t0 = tt.time()
@@ -606,6 +629,51 @@ def verify(
 
                     liner.send(' Verdict: Motif Junction Attribution Completed\n')
 
+    # Step 4: Background k-mer scan
+    background_violations = 0
+    background_violation_rows = []
+    background_scan_performed = False
+
+    if background_type is not None and seq_cols:
+        background_scan_performed = True
+        liner.send('\n[Step 4: Checking Background k-mers]\n')
+
+        # Build concatenated oligos
+        if 'CompleteOligo' in seq_cols:
+            oligos = indf['CompleteOligo'].str.replace('-', '').tolist()
+        else:
+            seqdf = indf[seq_cols]
+            oligos = seqdf.apply(
+                lambda row: ''.join(str(v).replace('-', '') for v in row),
+                axis=1).tolist()
+
+        # Scan each oligo for background k-mers
+        liner.send(' Scanning {:,} Oligo(s) for Background k-mers (k={:,})...\n'.format(
+            len(oligos),
+            background.K))
+
+        for ridx, oligo in enumerate(oligos):
+            if len(oligo) < background.K:
+                continue
+            # Check all k-mers in oligo
+            for i in range(len(oligo) - background.K + 1):
+                kmer = oligo[i:i+background.K]
+                if kmer in background:
+                    background_violations += 1
+                    if len(background_violation_rows) < 10:
+                        background_violation_rows.append(str(indf.index[ridx]))
+                    break  # Only count each oligo once
+
+        if background_violations:
+            example_note = ut.format_row_examples(background_violation_rows)
+            liner.send(' Found {:,} Oligo(s) with Background k-mer Violation(s){}\n'.format(
+                background_violations,
+                example_note))
+            liner.send(' Verdict: Background Scan Completed with Violation(s)\n')
+        else:
+            liner.send(' Found 0 Oligo(s) with Background k-mer Violation(s)\n')
+            liner.send(' Verdict: Background Scan Completed\n')
+
     # Determine pass/fail
     length_overflow = False
     if (oligolimit is not None) and (maxoligolen is not None):
@@ -622,10 +690,12 @@ def verify(
         status = False
     if not motif_ok:
         status = False
+    if background_violations:
+        status = False
 
     # Verification Statistics
     liner.send('\n[Verification Statistics]\n')
-    field_width = 20
+    field_width = 21
 
     liner.send(
         ' {:>{}}: {}\n'.format(
@@ -720,11 +790,30 @@ def verify(
                     field_width,
                     emergent_rows))
 
+    if background_scan_performed:
+        liner.send(
+            ' {:>{}}: {:,}\n'.format(
+                'Background k',
+                field_width,
+                background.K))
+        liner.send(
+            ' {:>{}}: {:,} Oligo(s)\n'.format(
+                'Background Violations',
+                field_width,
+                background_violations))
+
+    # Determine step number
+    step_num = 2  # base: length stats
+    if exmotifs is not None:
+        step_num = 3
+    if background_scan_performed:
+        step_num = 4
+
     # Build Stats Dictionary
     stats = {
         'status'  : status,
         'basis'   : ('solved', 'violations')[int(not status)],
-        'step'    : 3 if exmotifs is not None else 2,
+        'step'    : step_num,
         'step_name': 'verifying-input-data',
         'vars'    : {
             'sequence_columns': seq_cols,
@@ -746,6 +835,9 @@ def verify(
             'excluded_motifs': exmotifs,
             'excluded_motif_stats': motif_stats,
             'excluded_motif_junction_stats': junction_stats,
+            'background_k': background.K if background_scan_performed else None,
+            'background_violations': background_violations,
+            'background_violation_examples': background_violation_rows,
         },
         'warns'   : warns,
     }
@@ -760,6 +852,10 @@ def verify(
     liner.send(
         ' Time Elapsed: {:.2f} sec\n'.format(
             tt.time()-t0))
+
+    # Close Background
+    if background_type == 'path':
+        background.close()
 
     # Close Liner
     liner.close()

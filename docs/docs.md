@@ -12,7 +12,7 @@
 
 Welcome to the `Oligopool Calculator` docs! Whether you're designing your first barcode library or optimizing a million-variant MPRA, you're in the right place.
 
-**TL;DR**: Design oligopool libraries with `barcode`, `primer`, `motif`, `spacer`. Analyze sequencing data with `index`, `pack`, `acount`/`xcount`. Most modules take CSV/DataFrames in and return `(out_df, stats)` (a few return stats only). Chain them together. Ship it.
+**TL;DR**: Design oligo pool libraries with `barcode`, `primer`, `motif`, `spacer`. Analyze sequencing data with `index`, `pack`, `acount`/`xcount`. Most modules take CSV/DataFrames in and return `(out_df, stats)` (a few return stats only). Chain them together. Ship it.
 
 **Other resources**:
 - [README](../README.md) - Overview, installation, and quick start
@@ -28,27 +28,27 @@ Welcome to the `Oligopool Calculator` docs! Whether you're designing your first 
 - [Quick Start](#quick-start)
 - [Core Concepts](#core-concepts)
 - [Design Mode](#design-mode)
-  - [barcode](#barcode) - Hamming-distance barcodes
-  - [primer](#primer) - Thermodynamic primers
-  - [motif](#motif) - Sequence motifs & anchors
-  - [spacer](#spacer) - Neutral spacers
-  - [background](#background) - K-mer screening database
-  - [merge](#merge) - Collapse columns
-  - [revcomp](#revcomp) - Reverse complement
-  - [lenstat](#lenstat) - Length statistics
-  - [verify](#verify) - QC check
-  - [final](#final) - Finalize for synthesis
+  - [`barcode`](#barcode) - Hamming-distance barcodes
+  - [`primer`](#primer) - Thermodynamic primers
+  - [`motif`](#motif) - Sequence motifs & anchors
+  - [`spacer`](#spacer) - Neutral spacers
+  - [`background`](#background) - K-mer screening database
+  - [`merge`](#merge) - Collapse columns
+  - [`revcomp`](#revcomp) - Reverse complement
+  - [`lenstat`](#lenstat) - Length statistics
+  - [`verify`](#verify) - QC check
+  - [`final`](#final) - Finalize for synthesis
 - [Assembly Mode](#assembly-mode)
-  - [split](#split) - Fragment long oligos
-  - [pad](#pad) - Assembly-ready padding
+  - [`split`](#split) - Fragment long oligos
+  - [`pad`](#pad) - Assembly-ready padding
 - [Degenerate Mode](#degenerate-mode)
-  - [compress](#compress) - Compress to IUPAC-degenerate
-  - [expand](#expand) - Expand degenerate oligos
+  - [`compress`](#compress) - Compress to IUPAC-degenerate
+  - [`expand`](#expand) - Expand degenerate oligos
 - [Analysis Mode](#analysis-mode)
-  - [index](#index) - Build barcode index
-  - [pack](#pack) - Preprocess FastQ
-  - [acount](#acount) - Association counting
-  - [xcount](#xcount) - Combinatorial counting
+  - [`index`](#index) - Build barcode index
+  - [`pack`](#pack) - Preprocess FastQ
+  - [`acount`](#acount) - Association counting
+  - [`xcount`](#xcount) - Combinatorial counting
 - [Workflows](#workflows)
 - [CLI Reference](#cli-reference)
 - [Config Files](#config-files)
@@ -159,6 +159,8 @@ For the main element-design modules (`barcode`, `primer`, `motif`, `spacer`), at
 
 **Edge effects** occur when an undesired sequence (excluded motif, repeat) emerges at the fusion boundary when inserting an element. For example, inserting barcode `GAATT` next to context ending in `...G` creates `...GGAATT`, which contains `GAATTC` (EcoRI site) spanning the junction. Context columns let the algorithm check and prevent these.
 
+**Background screening** is the same idea, but against a whole reference (genome, transcriptome, plasmid backbone, …). Build a k-mer DB with `background()`, then pass `background_directory` to `barcode`/`primer`/`motif`/`spacer` (or to `verify` for QC). It is junction-aware when context columns are provided.
+
 ### Reproducibility
 
 All stochastic design modules support `random_seed` for reproducible results:
@@ -185,7 +187,7 @@ df, stats = op.barcode(..., verbose=False)  # Silent mode
 
 Design Mode is where you build your library piece by piece. Think of it like molecular LEGO, but with more constraints and fewer stepping-on-brick injuries.
 
-### barcode
+### `barcode`
 
 [↑ Back to TOC](#table-of-contents)
 
@@ -222,10 +224,11 @@ You can also pass a CSV path, a DataFrame with an `Exmotif` column, or a FASTA f
 > **Note**: Excluded motifs are applied globally to all variants (no per-variant exclusion).
 
 **Notes (the stuff that bites people):**
-- Terminus vs spectrum: terminus optimized barcodes enforce distinctive 5'/3' ends; spectrum optimized barcodes saturate k-mers (slower but tighter). Higher `minimum_hamming_distance` buys you error tolerance but shrinks the design space.
+- `terminus` vs `spectrum`: `terminus` optimized barcodes enforce distinctive 5'/3' ends; `spectrum` optimized barcodes saturate k-mers (slower but tighter). Higher `minimum_hamming_distance` buys you error tolerance but shrinks the design space.
 - If you plan to index barcodes from reads, design constant anchors first with `motif(motif_type=1, ...)`.
-- Patch mode preserves existing barcodes; any pre-existing values must be valid ATGC strings of length `barcode_length`.
+- `patch_mode` preserves existing barcodes; any pre-existing values must be valid ATGC strings of length `barcode_length`.
 - Cross-set separation is strict: set `cross_barcode_columns` and `minimum_cross_distance` together; the cross-set barcodes must be strict ATGC strings of length `barcode_length`.
+- `background_directory` screens designed barcodes against a background k-mer DB (junction-aware when context columns are provided).
 
 **Cross-set separation** (for multiplexed designs):
 ```python
@@ -242,7 +245,7 @@ df, stats = op.barcode(
 
 ---
 
-### primer
+### `primer`
 
 [↑ Back to TOC](#table-of-contents)
 
@@ -316,13 +319,13 @@ df, stats = op.primer(
 - `maximum_repeat_length` controls non-repetitiveness against `input_data` only; screening against a background requires `background_directory`.
 - If `paired_primer_column` is provided, the paired primer type is inferred and Tm matching is applied within 1°C.
 - When `oligo_sets` is provided, primers are designed per set and screened for cross-set compatibility; if `paired_primer_column` is also provided, it must be constant within each set.
-- Patch mode preserves existing primers; in `oligo_sets` mode, existing per-set primers are reused and only missing sets trigger new primer design.
+- `patch_mode` preserves existing primers; in `oligo_sets` mode, existing per-set primers are reused and only missing sets trigger new primer design.
 
 > **API Reference**: See [`primer`](api.md#primer) for complete parameter documentation.
 
 ---
 
-### motif
+### `motif`
 
 [↑ Back to TOC](#table-of-contents)
 
@@ -362,13 +365,14 @@ df, stats = op.motif(
 **Notes (the stuff that bites people):**
 - Constant bases in `motif_sequence_constraint` can force an excluded motif (or repeat) and make the design infeasible.
 - For anchors, tune `maximum_repeat_length` to control how distinct the anchor is from surrounding sequence.
-- Patch mode fills only missing values; for `motif_type=1`, an existing compatible constant anchor is reused for new rows.
+- `patch_mode` fills only missing values; for `motif_type=1`, an existing compatible constant anchor is reused for new rows.
+- `background_directory` screens designed motifs/anchors against a background k-mer DB (junction-aware when context columns are provided).
 
 > **API Reference**: See [`motif`](api.md#motif) for complete parameter documentation.
 
 ---
 
-### spacer
+### `spacer`
 
 [↑ Back to TOC](#table-of-contents)
 
@@ -411,17 +415,18 @@ You can also pass a CSV path or a DataFrame with `ID` and `Length` columns. See 
 **Notes (the stuff that bites people):**
 - If a row is already at (or over) `oligo_length_limit`, its spacer is set to `'-'` (a deliberate "no-space" sentinel).
 - If `spacer_length` is a CSV/DataFrame, it must contain `ID` and `Length` columns aligned to your input IDs.
-- Patch mode (`patch_mode=True`) fills only missing values and never overwrites existing spacers (some rows may still end up with `'-'` if no spacer can fit).
+- `patch_mode` fills only missing values and never overwrites existing spacers (some rows may still end up with `'-'` if no spacer can fit).
+- `background_directory` screens designed spacers against a background k-mer DB (useful when spacers must avoid matching a reference).
 
 > **API Reference**: See [`spacer`](api.md#spacer) for complete parameter documentation.
 
 ---
 
-### background
+### `background`
 
 [↑ Back to TOC](#table-of-contents)
 
-**What it does**: Builds a k-mer database for screening primers against off-target sequences.
+**What it does**: Builds a k-mer database for screening designed sequences (primers, barcodes, motifs, spacers) against off-target k-mers.
 
 **When to use it**: You want primers that won't bind to host genome, plasmid backbone, etc.
 
@@ -445,22 +450,22 @@ stats = op.background(
 )
 ```
 
-Then use your background database during primer design:
+Then use your background database during design (or QC):
 
 ```python
 df, stats = op.primer(..., background_directory='ecoli_bg')
 ```
 
 **Notes (the stuff that bites people):**
-- `background(maximum_repeat_length=...)` screens against the background only; `primer(maximum_repeat_length=...)` screens against your input oligos.
 - The background output directory ends with `.oligopool.background` and is what you pass as `background_directory`.
+- `background(maximum_repeat_length=...)` screens against the background only; `maximum_repeat_length` in design modules screens against your input oligos.
 - If you need to inspect or modify the DB, use `vectorDB` (see the Advanced Modules section).
 
 > **API Reference**: See [`background`](api.md#background) for complete parameter documentation.
 
 ---
 
-### merge
+### `merge`
 
 [↑ Back to TOC](#table-of-contents)
 
@@ -486,7 +491,7 @@ df, stats = op.merge(
 
 ---
 
-### revcomp
+### `revcomp`
 
 [↑ Back to TOC](#table-of-contents)
 
@@ -511,7 +516,7 @@ df, stats = op.revcomp(
 
 ---
 
-### lenstat
+### `lenstat`
 
 [↑ Back to TOC](#table-of-contents)
 
@@ -536,7 +541,7 @@ stats = op.lenstat(
 
 ---
 
-### verify
+### `verify`
 
 [↑ Back to TOC](#table-of-contents)
 
@@ -555,6 +560,7 @@ stats = op.verify(
 Checks:
 - Length constraints
 - Excluded motif presence
+- Background k-mer violations (if `background_directory` is provided)
 - Degenerate/IUPAC bases
 - Column architecture
 
@@ -569,13 +575,14 @@ Checks:
 - Metadata columns are tracked and excluded from sequence-only checks; degenerate/IUPAC columns are flagged (not treated as hard errors).
 - Excluded-motif checks report motif "emergence" (occurs more times than the minimum across the library) and, when possible, attribute excess occurrences to column junctions (run `verify` before `final`).
 - Motif matching is literal substring matching; degenerate/IUPAC bases are not treated as wildcards (so degenerate columns can hide potential motifs).
+- If `background_directory` is provided, `verify` scans concatenated oligos for background k-mers (gaps removed). Degenerate/IUPAC bases are treated literally, so degenerate columns can hide potential background hits.
 - Junction attribution follows column order: for `[Primer1, BC1, Variant, Primer2]`, junctions are `Primer1|BC1`, `BC1|Variant`, `Variant|Primer2`.
 
 > **API Reference**: See [`verify`](api.md#verify) for complete parameter documentation.
 
 ---
 
-### final
+### `final`
 
 [↑ Back to TOC](#table-of-contents)
 
@@ -606,7 +613,7 @@ final_df, stats = op.final(
 
 Assembly Mode provides tools for fragmenting long oligos that exceed synthesis length limits into overlapping pieces for assembly workflows.
 
-### split
+### `split`
 
 [↑ Back to TOC](#table-of-contents)
 
@@ -644,7 +651,7 @@ When `split` returns `Split1`, `Split2`, `Split3` columns, you will **order thre
 
 ---
 
-### pad
+### `pad`
 
 [↑ Back to TOC](#table-of-contents)
 
@@ -704,7 +711,7 @@ Degenerate Mode enables cost-efficient synthesis of variant libraries with low m
 
 **When to use Degenerate Mode**: You have a large library of similar sequences and want to reduce synthesis costs by grouping compatible variants. Best for selection assays where you identify winners by sequencing (no barcode counting required). ML-generated libraries and saturation mutagenesis libraries often compress well.
 
-### compress
+### `compress`
 
 [↑ Back to TOC](#table-of-contents)
 
@@ -737,7 +744,7 @@ print(f"Compressed {stats['vars']['input_variants']} variants "
 
 ---
 
-### expand
+### `expand`
 
 [↑ Back to TOC](#table-of-contents)
 
@@ -773,7 +780,7 @@ assert original_seqs == expanded_seqs, "Lossless guarantee violated!"
 
 Analysis Mode is where sequencing data meets your designed library. You've done the experiment, now let's count some barcodes.
 
-### index
+### `index`
 
 [↑ Back to TOC](#table-of-contents)
 
@@ -817,7 +824,7 @@ stats = op.index(
 
 ---
 
-### pack
+### `pack`
 
 [↑ Back to TOC](#table-of-contents)
 
@@ -850,7 +857,7 @@ stats = op.pack(
 
 ---
 
-### acount
+### `acount`
 
 [↑ Back to TOC](#table-of-contents)
 
@@ -877,7 +884,7 @@ df, stats = op.acount(
 
 ---
 
-### xcount
+### `xcount`
 
 [↑ Back to TOC](#table-of-contents)
 
@@ -908,7 +915,7 @@ df, stats = op.xcount(
 
 Output includes all observed combinations. Reads missing a barcode show `'-'` for that position.
 
-**acount vs xcount**: Use `acount` when you need barcode+variant association verification; use `xcount` for barcode-only counting (single or combinatorial).
+**`acount` vs `xcount`**: Use `acount` when you need barcode+variant association verification; use `xcount` for barcode-only counting (single or combinatorial).
 
 **Notes (the stuff that bites people):**
 - Reads are retained if at least one barcode maps; missing barcodes are represented as `'-'` in the output combination.
@@ -1440,13 +1447,23 @@ Useful for building custom counting pipelines or debugging classification issues
 
 ### Analysis Issues
 
+**Debugging failed reads**
+- Use `failed_reads_file` to sample discarded reads by failure category (anchor missing, barcode absent, barcode ambiguous, callback rejected, etc.)
+- Inspect the CSV to understand why reads are being filtered out
+- Common issues: wrong anchors, incorrect read orientation, barcode errors too strict
+
+**Barcode ambiguous failures**
+- Occurs when an anchor appears multiple times and different valid barcodes are found with equal confidence
+- To avoid: design unique anchors using `motif(motif_type=1, ...)` with appropriate `maximum_repeat_length`
+
 **Low barcode mapping rate**
 - Check your anchors are correct and present in reads
 - Try `mapping_type=1` (sensitive)
 - Increase `barcode_errors` tolerance
 - Verify read orientation (`r1_read_type`, `r2_read_type`)
+- Use `failed_reads_file` to see examples of why reads are failing
 
-**Missing combinations in xcount**
+**Missing combinations in `xcount`**
 - Partial reads get `'-'` for missing barcodes (this is expected)
 - Check if anchors for all indexes are present in reads
 - Verify read length covers all barcode positions

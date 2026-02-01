@@ -37,8 +37,6 @@ PACKAGE_DESCRIPTIONS = {
 
 # CLI-facing phrasing (short command help).
 CLI_DESCRIPTIONS = {
-    'manual': 'show module documentation',
-    'cite': 'show citation information',
     # Design Mode
     'barcode': 'orthogonal barcodes with cross-set separation',
     'primer': 'thermodynamic primers with optional Tm matching',
@@ -62,7 +60,9 @@ CLI_DESCRIPTIONS = {
     'acount': 'association counting (single index)',
     'xcount': 'combinatorial counting (multiple indexes)',
     # Other
-    'complete': 'print or install shell completion',
+    'manual': 'show module documentation',
+    'cite': 'show citation information',
     'pipeline': 'execute multi-step pipeline from config',
+    'complete': 'print or install shell completion',
 }
 

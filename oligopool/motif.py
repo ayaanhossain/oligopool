@@ -9,6 +9,7 @@ import pandas  as pd
 from .base import utils as ut
 from .base import validation_parsing as vp
 from .base import core_motif as cm
+from .base import vectordb as db
 
 from typing import Tuple
 
@@ -25,6 +26,7 @@ def motif(
     right_context_column:str|None=None,
     patch_mode:bool=False,
     excluded_motifs:list|str|pd.DataFrame|None=None,
+    background_directory:str|None=None,
     random_seed:int|None=None,
     verbose:bool=True) -> Tuple[pd.DataFrame, dict]:
     '''
@@ -32,7 +34,7 @@ def motif(
     Supports per-variant motifs and constant anchors (`motif_type=1`) for building indexable architectures.
 
     Required Parameters:
-        - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated oligopool variants.
+        - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated oligo pool variants.
         - `oligo_length_limit` (`int`): Maximum allowed oligo length (≥ 4).
         - `motif_sequence_constraint` (`str`): IUPAC degenerate sequence constraint, or a constant.
         - `maximum_repeat_length` (`int`): Max shared repeat length with oligos (≥ 4).
@@ -41,15 +43,16 @@ def motif(
     Optional Parameters:
         - `output_file` (`str`): Filename for output DataFrame; required in CLI usage,
             optional in library usage (default: `None`).
-        - `motif_type` (`int` / `str`): Motif type: 0 or 'per-variant' for per-variant motifs,
-            1 or 'constant' for a single constant motif shared by all variants.
-            Also accepts aliases: 'var', 'non-constant', 'const', 'anchor', 'fixed' (default: 0).
+        - `motif_type` (`int` / `str`): Motif/anchor mode selector (default: 0). See Notes.
         - `left_context_column` (`str`): Column for left DNA context (default: `None`).
         - `right_context_column` (`str`): Column for right DNA context (default: `None`).
         - `patch_mode` (`bool`): If `True`, fill only missing values in an existing motif/anchor
             column (does not overwrite existing motifs). (default: `False`).
-        - `excluded_motifs` (`list` / `str` / `pd.DataFrame`): Motifs to exclude;
-            can be a list, CSV, DataFrame, or FASTA file (default: `None`).
+        - `excluded_motifs` (`list` / `str` / `pd.DataFrame`): Motifs to exclude (default: `None`).
+        - `background_directory` (`str` / `None`): Path to background k-mer database
+            created by `background()`. Designed motifs will avoid all k-mers in the
+            database. Useful for preventing off-target matches against transcriptome,
+            vector backbone, or other reference sequences (default: `None`).
         - `random_seed` (`int` / `None`): Seed for local RNG (default: `None`).
         - `verbose` (`bool`): If `True`, logs updates to stdout (default: `True`).
 
@@ -59,14 +62,20 @@ def motif(
 
     Notes:
         - `input_data` must contain a unique 'ID' column; all other columns must be non-empty DNA strings.
-          Column names must be unique and exclude `motif_column`.
+            Column names must be unique and exclude `motif_column`.
         - At least one of `left_context_column` or `right_context_column` must be specified.
         - If `excluded_motifs` is a CSV or DataFrame, it must have an 'Exmotif' column.
+        - `excluded_motifs` can be a list, CSV, DataFrame, or FASTA file.
+        - `background_directory` screens designed motifs/anchors against k-mers in the background DB (junction-aware
+            when context columns are provided).
         - Constant bases in sequence constraint may lead to `excluded_motifs` and be impossible to solve.
+        - `motif_type`:
+            0 or 'per-variant' for per-variant motifs, 1 or 'constant' for a single constant motif shared by all variants
+            (aliases: 'var', 'non-constant', 'const', 'anchor', 'fixed').
         - For constant anchors, use `motif_type=1` (e.g., barcode prefix/suffix anchors for indexing) and tune
-          `maximum_repeat_length` to control distinctness from context; anchors are typically designed before barcode.
+            `maximum_repeat_length` to control distinctness from context; anchors are typically designed before barcode.
         - Patch mode (`patch_mode=True`) preserves existing values in `motif_column` and fills only missing values
-          (`None`/NaN/empty/`'-'`). With `motif_type=1`, a compatible existing anchor is reused for new rows.
+            (`None`/NaN/empty/`'-'`). With `motif_type=1`, a compatible existing anchor is reused for new rows.
     '''
 
     # Preserve return style when the caller intentionally used ID as index.
@@ -84,6 +93,7 @@ def motif(
     rightcontext = right_context_column
     patch_mode   = patch_mode
     exmotifs     = excluded_motifs
+    background   = background_directory
     random_seed  = random_seed
     verbose      = verbose
 
@@ -245,6 +255,13 @@ def motif(
         required=False,
         liner=liner)
 
+    # Full background Parsing and Validation
+    (background_valid,
+    background_type) = vp.get_parsed_background(
+        background=background,
+        background_field=' Background Database',
+        liner=liner)
+
     # First Pass Validation
     if not all([
         indata_valid,
@@ -257,10 +274,20 @@ def motif(
         patch_mode_valid,
         leftcontext_valid,
         rightcontext_valid,
-        exmotifs_valid]):
+        exmotifs_valid,
+        background_valid]):
         liner.send('\n')
         raise RuntimeError(
             'Invalid Argument Input(s).')
+
+    # Open Background
+    if background_type == 'path':
+        background = ut.get_adjusted_path(
+            path=background,
+            suffix='.oligopool.background')
+        background = db.vectorDB(
+            path=background,
+            maximum_repeat_length=None)
 
     # Start Timer
     t0 = tt.time()
@@ -277,6 +304,8 @@ def motif(
     outdf = None
     stats = None
     warns = {}
+    prefixdict = None
+    suffixdict = None
 
     # Patch mode bookkeeping
     motifcol_exists = False
@@ -388,6 +417,7 @@ def motif(
                 'motif_count': 0,
                'orphan_oligo': [],
                 'repeat_fail': 0,
+            'background_fail': 0,
                'exmotif_fail': 0,
                   'edge_fail': 0,
             'exmotif_counter': cx.Counter()},
@@ -535,6 +565,10 @@ def motif(
             maxreplen=maxreplen,
             exmotifs=exmotifs)
 
+    # Update Edge-Effect Length for Background
+    if background_type is not None:
+        edgeeffectlength = max(edgeeffectlength or 0, background.K)
+
     # Parsing Sequence Constraint Feasibility
     liner.send('\n[Step 3: Parsing Motif Sequence]\n')
 
@@ -615,6 +649,43 @@ def motif(
         if not warns[5]['warn_count']:
             warns.pop(5)
 
+    # Background edge effects need junction context too (even if exmotifs is None).
+    elif background_type is not None and \
+         ((not leftcontext  is None) or \
+          (not rightcontext is None)):
+
+        # Set Context Flag
+        has_context = True
+
+        # Show Update
+        liner.send('\n[Step 4: Extracting Context Sequences]\n')
+
+        # Extract Both Contexts
+        # In patch mode, only extract context for rows being designed.
+        lcontext = leftcontext
+        rcontext = rightcontext
+        if missing_mask is not None:
+            if not lcontext is None:
+                lcontext = lcontext[missing_mask]
+            if not rcontext is None:
+                rcontext = rcontext[missing_mask]
+
+        (leftcontext,
+        rightcontext) = ut.get_extracted_context(
+            leftcontext=lcontext,
+            rightcontext=rcontext,
+            edgeeffectlength=edgeeffectlength,
+            reduce=False,
+            liner=liner)
+
+        # No excluded motifs were parsed, but the core engine still expects
+        # per-context edge-effect dictionaries for motiftype==0.
+        if motiftype == 0:
+            if (not leftcontext is None) and (prefixdict is None):
+                prefixdict = {c: None for c in set(leftcontext)}
+            if (not rightcontext is None) and (suffixdict is None):
+                suffixdict = {c: None for c in set(rightcontext)}
+
     # Finalize Context
     if not has_context:
         (leftcontext,
@@ -678,6 +749,7 @@ def motif(
                 'motif_count': 0,             # Motif Design Count
                'orphan_oligo': None,          # Orphan Oligo Indexes
                 'repeat_fail': 0,             # Repeat Fail Count
+            'background_fail': 0,             # Background Fail Count
                'exmotif_fail': 0,             # Exmotif Elimination Fail Count
                   'edge_fail': 0,             # Edge Effect Fail Count
             'exmotif_counter': cx.Counter()}, # Exmotif Encounter Counter
@@ -706,6 +778,7 @@ def motif(
         edgeeffectlength=edgeeffectlength,
         prefixdict=prefixdict,
         suffixdict=suffixdict,
+        background=background,
         targetcount=targetcount,
         stats=stats,
         liner=liner,
@@ -750,21 +823,21 @@ def motif(
             'motif_count')))
 
     liner.send(
-        '  Design Status   : {}\n'.format(
+        '     Design Status   : {}\n'.format(
             motifstatus))
     liner.send(
-        '  Target Count    : {:{},d} Motif(s)\n'.format(
+        '     Target Count    : {:{},d} Motif(s)\n'.format(
             stats['vars']['target_count'],
             plen))
     liner.send(
-        '   Motif Count    : {:{},d} Motif(s) ({:6.2f} %)\n'.format(
+        '      Motif Count    : {:{},d} Motif(s) ({:6.2f} %)\n'.format(
             stats['vars']['motif_count'],
             plen,
             ut.safediv(
                 A=stats['vars']['motif_count'] * 100.,
                 B=targetcount)))
     liner.send(
-        '  Orphan Oligo    : {:{},d} Entries\n'.format(
+        '     Orphan Oligo    : {:{},d} Entries\n'.format(
             len(stats['vars']['orphan_oligo']),
             plen))
 
@@ -772,6 +845,7 @@ def motif(
     if not stats['status']:
         maxval = max(stats['vars'][field] for field in (
             'repeat_fail',
+            'background_fail',
             'exmotif_fail',
             'edge_fail'))
 
@@ -779,12 +853,13 @@ def motif(
             printlen=ut.get_printlen(
                 value=maxval))
 
-        total_conflicts = stats['vars']['repeat_fail']  + \
-                          stats['vars']['exmotif_fail'] + \
+        total_conflicts = stats['vars']['repeat_fail']     + \
+                          stats['vars']['background_fail'] + \
+                          stats['vars']['exmotif_fail']    + \
                           stats['vars']['edge_fail']
 
         liner.send(
-            '  Repeat Conflicts: {:{},{}} Event(s) ({:6.2f} %)\n'.format(
+            '     Repeat Conflicts: {:{},{}} Event(s) ({:6.2f} %)\n'.format(
                 stats['vars']['repeat_fail'],
                 plen,
                 sntn,
@@ -792,7 +867,15 @@ def motif(
                     A=stats['vars']['repeat_fail'] * 100.,
                     B=total_conflicts)))
         liner.send(
-            ' Exmotif Conflicts: {:{},{}} Event(s) ({:6.2f} %)\n'.format(
+            ' Background Conflicts: {:{},{}} Event(s) ({:6.2f} %)\n'.format(
+                stats['vars']['background_fail'],
+                plen,
+                sntn,
+                ut.safediv(
+                    A=stats['vars']['background_fail'] * 100.,
+                    B=total_conflicts)))
+        liner.send(
+            '    Exmotif Conflicts: {:{},{}} Event(s) ({:6.2f} %)\n'.format(
                 stats['vars']['exmotif_fail'],
                 plen,
                 sntn,
@@ -800,7 +883,7 @@ def motif(
                     A=stats['vars']['exmotif_fail'] * 100.,
                     B=total_conflicts)))
         liner.send(
-            '    Edge Conflicts: {:{},{}} Event(s) ({:6.2f} %)\n'.format(
+            '       Edge Conflicts: {:{},{}} Event(s) ({:6.2f} %)\n'.format(
                 stats['vars']['edge_fail'],
                 plen,
                 sntn,
@@ -819,12 +902,12 @@ def motif(
                     value=max(
                         stats['vars']['exmotif_counter'].values())))
 
-            liner.send('   Exmotif-wise Conflict Distribution\n')
+            liner.send(' Exmotif-wise Conflict Distribution\n')
 
             for exmotif,count in stats['vars']['exmotif_counter'].most_common():
                 exmotif = '\'{}\''.format(exmotif)
                 liner.send(
-                    '     - Motif {:>{}} Triggered {:{},{}} Event(s)\n'.format(
+                    '   - Motif {:>{}} Triggered {:{},{}} Event(s)\n'.format(
                         exmotif, qlen, count, vlen, sntn))
 
     # Show Time Elapsed
@@ -835,6 +918,10 @@ def motif(
     # Unschedule outfile deletion
     if motifstatus == 'Successful':
         ae.unregister(ofdeletion)
+
+    # Close Background
+    if background_type == 'path':
+        background.close()
 
     # Close Liner
     liner.close()

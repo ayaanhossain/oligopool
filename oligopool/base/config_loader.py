@@ -34,7 +34,6 @@ def load_config(path):
         return {}
     return config
 
-
 def get_command_config(config, command):
     '''Extract the config section for a specific command.
 
@@ -49,39 +48,6 @@ def get_command_config(config, command):
     if section is None:
         return {}
     return dict(section)
-
-
-def merge_config_with_args(config, args, command):
-    '''Merge config values with CLI args. CLI args take precedence.
-
-    Parameters:
-        config (dict): Full config dictionary.
-        args: argparse.Namespace with parsed CLI args.
-        command (str): Command name to extract from config.
-
-    Returns:
-        dict: Merged parameters dictionary with CLI args overriding config.
-
-    Notes:
-        - CLI args with non-None values override config values.
-        - Config keys use snake_case (e.g., 'barcode_length').
-        - argparse converts CLI flags to snake_case attributes.
-    '''
-    merged = get_command_config(config, command)
-
-    for key, value in vars(args).items():
-        # Skip internal argparse attributes
-        if key.startswith('_'):
-            continue
-        # Skip command, config path, and verbose which are handled separately
-        if key in ('command', 'config', 'func'):
-            continue
-        # CLI arg was explicitly set (not None) - override config
-        if value is not None:
-            merged[key] = value
-
-    return merged
-
 
 def get_pipeline_steps(config):
     '''Extract ordered step list from pipeline config.
@@ -109,7 +75,6 @@ def get_pipeline_steps(config):
         return []
     return list(steps)
 
-
 def get_pipeline_name(config):
     '''Extract pipeline name from config.
 
@@ -123,7 +88,6 @@ def get_pipeline_name(config):
     if pipeline is None:
         return 'Unnamed Pipeline'
     return pipeline.get('name', 'Unnamed Pipeline')
-
 
 def validate_config_structure(config):
     '''Validate basic config structure and return warnings.
@@ -156,7 +120,6 @@ def validate_config_structure(config):
 
     return warnings
 
-
 def convert_config_keys_to_args(config_section):
     '''Convert config keys to CLI-compatible argument names.
 
@@ -178,7 +141,6 @@ def convert_config_keys_to_args(config_section):
         snake_key = key.replace('-', '_')
         converted[snake_key] = value
     return converted
-
 
 def is_parallel_pipeline(config):
     '''Check if the pipeline uses parallel/DAG-style step definitions.
@@ -212,7 +174,6 @@ def is_parallel_pipeline(config):
         return False
     # If first step is a dict, it's parallel format
     return isinstance(steps[0], dict)
-
 
 def parse_parallel_steps(config):
     '''Parse parallel pipeline steps into normalized step definitions.
@@ -266,7 +227,6 @@ def parse_parallel_steps(config):
             raise ValueError(f"Invalid pipeline step format: {step}")
 
     return parsed
-
 
 def build_execution_levels(steps):
     '''Build execution levels from step dependencies (topological sort).
@@ -344,7 +304,6 @@ def build_execution_levels(steps):
         )
 
     return levels
-
 
 def validate_parallel_pipeline(config):
     '''Validate a parallel pipeline config and return warnings/errors.

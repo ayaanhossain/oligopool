@@ -21,7 +21,7 @@ def revcomp(
     Useful for mid-pipeline maneuvers where a region must be switched between readout and synthesis orientation.
 
     Required Parameters:
-        - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated oligopool variants.
+        - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated oligo pool variants.
 
     Optional Parameters:
         - `output_file` (`str`): Filename for output DataFrame; required in CLI usage,
@@ -37,10 +37,10 @@ def revcomp(
     Notes:
         - `input_data` must contain a unique 'ID' column; all other columns must be non-empty DNA strings.
         - `left_context_column` and `right_context_column` need not be adjacent; if omitted, the first/last
-          columns are used.
+            columns are used.
         - Useful for inspecting or correcting split-fragment orientation (see `split` output ordering).
         - Useful for mid-pipeline maneuvers where a region is designed in one orientation (assay/readout)
-          but must be installed/synthesized in the opposite orientation.
+            but must be installed/synthesized in the opposite orientation.
     '''
 
     # Preserve return style when the caller intentionally used ID as index.

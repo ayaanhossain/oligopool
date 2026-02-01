@@ -16,7 +16,7 @@ def lenstat_engine(
     :: indf
        type - pd.DataFrame
        desc - a pandas DataFrame storing
-              annotated oligopool variants and their parts
+              annotated oligo pool variants and their parts
     :: oligolimit
        type - integer / None
        desc - maximum oligo length allowed in the oligopool,

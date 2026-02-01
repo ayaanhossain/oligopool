@@ -31,18 +31,15 @@ def pack(
 
     Required Parameters:
         - `r1_fastq_file` (`str`): Path to R1 FastQ file (may be gzipped).
-        - `r1_read_type` (`int` / `str`): Orientation of R1 reads: 0 or 'forward' for forward,
-          1 or 'reverse' for reverse. Also accepts aliases: 'fwd', 'f', 'rev', 'r'.
-        - `pack_type` (`int` / `str`): Packing storage type: 0 or 'concatenate'/'concatenated' for concatenated,
-          1 or 'merge'/'merged' for merged. Also accepts aliases: 'concat', 'cat', 'joined', 'join', 'assemble', 'assembled', 'asm'.
+        - `r1_read_type` (`int` / `str`): Orientation of R1 reads (see Notes).
+        - `pack_type` (`int` / `str`): Packing storage type (see Notes).
         - `pack_file` (`str`): Filename for output pack file.
 
     Optional Parameters:
         - `minimum_r1_read_length` (`int`): Minimum R1 read length (≥ 1).
         - `minimum_r1_read_quality` (`int`): Minimum average R1 quality (default: 20).
         - `r2_fastq_file` (`str`): Path to R2 FastQ file (default: `None`).
-        - `r2_read_type` (`int` / `str`): Orientation of R2 reads: 0 or 'forward' for forward,
-          1 or 'reverse' for reverse. Also accepts aliases: 'fwd', 'f', 'rev', 'r' (default: `None`).
+        - `r2_read_type` (`int` / `str`): Orientation of R2 reads (see Notes; default: `None`).
         - `minimum_r2_read_length` (`int`): Minimum R2 read length (default: `None`).
         - `minimum_r2_read_quality` (`int`): Minimum average R2 quality (default: `None`).
         - `pack_size` (`float`): Million unique reads per pack (default: 3.0, range: 0.1 to 5.0).
@@ -55,6 +52,11 @@ def pack(
 
     Notes:
         - For single-end reads, use R1 arguments only; set all R2 arguments to `None`.
+        - `r1_read_type`/`r2_read_type`:
+            0 or 'forward' for forward, 1 or 'reverse' for reverse (aliases: 'fwd', 'f', 'rev', 'r').
+        - `pack_type`:
+            0 or 'concatenate'/'concatenated' for concatenated, 1 or 'merge'/'merged' for merged
+            (aliases: 'concat', 'cat', 'joined', 'join', 'assemble', 'assembled', 'asm').
         - Read quality is average Phred score; for paired-end acceptance, both reads must pass filters.
         - Duplicate reads are consolidated into packs for efficient parallel counting downstream.
         - If reads are merged externally, pass the merged reads as single-end (R1 only).

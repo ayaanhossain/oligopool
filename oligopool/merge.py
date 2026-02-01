@@ -22,7 +22,7 @@ def merge(
     Useful for mid-pipeline maneuvers where a multi-part region should be treated as one unit.
 
     Required Parameters:
-        - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated oligopool variants.
+        - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated oligo pool variants.
         - `merge_column` (`str`): Column name for the merged DNA.
 
     Optional Parameters:
@@ -39,7 +39,7 @@ def merge(
     Notes:
         - `input_data` must contain a unique 'ID' column; all other columns must be non-empty DNA strings.
         - `left_context_column` and `right_context_column` need not be adjacent; if omitted, the first/last
-          columns are used.
+            columns are used.
         - Use `merge` to treat a multi-column region as a single element before `revcomp` or `final`.
         - The merged source columns are removed from the output DataFrame.
     '''

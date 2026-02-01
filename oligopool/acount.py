@@ -35,8 +35,7 @@ def acount(
         - `count_file` (`str`): Output count matrix filename.
 
     Optional Parameters:
-        - `mapping_type` (`int` / `str`): Barcode classification: 0 or 'fast' for fast,
-          1 or 'sensitive' for sensitive. Also accepts aliases: 'quick', 'near-exact', 'sens', 'accurate', 'slow' (default: 0).
+        - `mapping_type` (`int` / `str`): Barcode classification mode (default: 0). See Notes.
         - `barcode_errors` (`int`): Maximum errors in barcodes (-1: auto-infer, default: -1).
         - `associate_errors` (`int`): Maximum errors in associated variants (-1: auto-infer, default: -1).
         - `callback` (`callable`): Custom read processing function (default: `None`).
@@ -53,16 +52,20 @@ def acount(
     Notes:
         - Reads with unresolved associates are excluded from counts.
         - Useful for validating barcode ↔ associate mappings (e.g., synthesis QC, library quantification).
+        - `mapping_type`:
+            0 or 'fast' for fast, 1 or 'sensitive' for sensitive
+            (aliases: 'quick', 'near-exact', 'sens', 'accurate', 'slow').
         - CLI note: callback functions are not currently supported via the `op`/`oligopool` CLI
-          (the CLI always runs with `callback=None`); use the Python API to supply callbacks.
+            (the CLI always runs with `callback=None`); use the Python API to supply callbacks.
         - Callback signature: `callback(r1, r2, ID, count, coreid) -> bool` (return `True` to accept the read);
-          `r2` is `None` for merged/single-end reads.
+            `r2` is `None` for merged/single-end reads.
         - Association counting operates on a single index and pack file pair.
         - Here partial presence of associate variant suffices; however, their `{prefix|suffix}`
-          constants must be adjacent and present completely.
+            constants must be adjacent and present completely.
+        - If an anchor appears multiple times, the best-scoring one is used; ties with multiple barcodes rejected.
         - Failed reads sampling collects representative samples from each failure category for diagnostics.
-          Categories: phix_match, low_complexity, anchor_missing, barcode_absent, associate_prefix_missing,
-          associate_mismatch, callback_false, incalculable.
+            Categories: phix_match, low_complexity, anchor_missing, barcode_absent, barcode_ambiguous,
+            associate_prefix_missing, associate_mismatch, callback_false, incalculable.
     '''
 
     # Alias Arguments

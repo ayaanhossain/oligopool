@@ -80,7 +80,6 @@ def _normalize_field(field):
 
     return field
 
-
 def get_infile_validity(
     infile,
     infile_suffix,
@@ -2972,133 +2971,6 @@ def get_parsed_associatedata_info(
     # Return data validity
     return (assdf, assdf_valid)
 
-def get_categorical_validity(
-    category,
-    category_field,
-    category_pre_desc,
-    category_post_desc,
-    category_dict,
-    liner):
-    '''
-    Determine if category is valid with
-    respect to category_dict.
-    Internal use only.
-
-    :: category
-       type - Real
-       desc - category to validate
-    :: category_field
-       type - string
-       desc - category fieldname used in
-              printing
-    :: category_pre_desc
-       type - string
-       desc - category pre-description
-              used in printing
-    :: category_post_desc
-       type - string
-       desc - category post-description
-              used in printing
-    :: category_dict
-       type - dict
-       desc - category description used
-              in printing
-    :: liner
-       type - coroutine
-       desc - dynamic printing
-    '''
-
-    category_field = _normalize_field(category_field)
-
-    # Is category numeric?
-    cat_is_numeric = get_numeric_validity(
-        numeric=category,
-        numeric_field=category_field,
-        numeric_pre_desc=category_pre_desc,
-        numeric_post_desc=category_post_desc,
-        minval=min(category_dict.keys()),
-        maxval=max(category_dict.keys()),
-        precheck=True,
-        liner=liner)
-
-    # Is category present?
-    cat_is_present = False
-    if cat_is_numeric:
-        if not category in category_dict:
-            liner.send('{}:{}{}{} [INPUT VALUE IS INVALID]\n'.format(
-                category_field,
-                category_pre_desc,
-                category,
-                category_post_desc))
-        else:
-            cat_is_present = True
-
-    # Compute validity
-    cat_valid = cat_is_numeric and cat_is_present
-
-    # Show update
-    if cat_valid:
-        liner.send('{}:{}{}{}\n'.format(
-            category_field,
-            category_pre_desc,
-            category_dict[category],
-            category_post_desc))
-
-    # Return catgory validity
-    return cat_valid
-
-def get_optional_categorical_validity(
-    category,
-    category_field,
-    category_pre_desc,
-    category_post_desc,
-    category_dict,
-    liner):
-    '''
-    Determine if optional category is valid
-    with respect to category_dict.
-    Internal use only.
-
-    :: category
-       type - Real
-       desc - category to validate
-    :: category_field
-       type - string
-       desc - category fieldname used in
-              printing
-    :: category_pre_desc
-       type - string
-       desc - category pre-description
-              used in printing
-    :: category_post_desc
-       type - string
-       desc - category post-description
-              used in printing
-    :: category_dict
-       type - dict
-       desc - category description used
-              in printing
-    :: liner
-       type - coroutine
-       desc - dynamic printing
-    '''
-
-    # category is None
-    if category is None:
-        liner.send(
-            '{}: None Specified\n'.format(
-                category_field))
-        return True
-
-    # Regular numeric Validation
-    return get_categorical_validity(
-        category=category,
-        category_field=category_field,
-        category_pre_desc=category_pre_desc,
-        category_post_desc=category_post_desc,
-        category_dict=category_dict,
-        liner=liner)
-
 def resolve_type_parameter(
     value,
     type_name):
@@ -4030,7 +3902,6 @@ def get_parsed_memory_info(
     # Return adjusted memlimit and validity
     return memlimit, memlimit_valid
 
-
 def get_parsed_compress_data_info(
     data,
     data_field,
@@ -4086,7 +3957,6 @@ def get_parsed_compress_data_info(
 
     # Check that all entries are concrete DNA (A/T/G/C only)
     strict_dna_alpha = set('ATGC')
-    non_concrete_found = False
 
     for column in dna_columns:
         for idx, value in enumerate(df[column]):
@@ -4138,7 +4008,6 @@ def get_parsed_compress_data_info(
             len(df.index)))
 
     return (df, dna_columns, True)
-
 
 def get_parsed_expand_data_info(
     data,

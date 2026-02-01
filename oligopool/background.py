@@ -15,13 +15,11 @@ def background(
     output_directory:str,
     verbose=True) -> dict:
     '''
-    Build a background k-mer database for screening primer designs against off-target repeat matches.
-    Use the resulting directory with `primer(..., background_directory=...)`.
+    Build a background k-mer database for screening designed elements against off-target repeat matches.
+    Use the resulting directory with `primer`, `barcode`, `motif`, `spacer`, or `verify` modules.
 
     Required Parameters:
-        - `input_data` (`list` / `str` / `pd.DataFrame`): Background sequences for primers;
-            can be a list of DNA strings, a CSV/DataFrame (with 'Sequence' column),
-            or a FASTA file (.fa/.fasta/.fna, optionally gzipped).
+        - `input_data` (`list` / `str` / `pd.DataFrame`): Background sequences to screen against.
         - `maximum_repeat_length` (`int`): Max repeat length between primers and background (between 6 and 20).
         - `output_directory` (`str`): Directory to store the generated background k-mer database.
 
@@ -32,8 +30,10 @@ def background(
         - A dictionary of stats from the last step in pipeline.
 
     Notes:
+        - `input_data` can be a list of DNA strings, a CSV/DataFrame with a 'Sequence' column,
+            or a FASTA file (.fa/.fasta/.fna, optionally gzipped).
         - If `input_data` is a CSV or DataFrame, it must have a 'Sequence' column with DNA strings.
-        - `maximum_repeat_length` here controls non-repetitiveness of primers to `background` only.
+        - `maximum_repeat_length` here controls non-repetitiveness against `background` only.
         - For advanced manipulation, use `vectorDB` (see `help(oligopool.vectorDB)`).
     '''
 
@@ -56,7 +56,7 @@ def background(
     (background,
     background_valid) = vp.get_parsed_exseqs_info(
         exseqs=indata,
-        exseqs_field=' Background      Data',
+        exseqs_field=' Background Data     ',
         exseqs_desc='Unique Sequence(s)',
         df_field='Sequence',
         required=True,
@@ -66,7 +66,7 @@ def background(
     # Full maxreplen Validation
     maxreplen_valid = vp.get_numeric_validity(
         numeric=maxreplen,
-        numeric_field='    Maximum    Repeat',
+        numeric_field='    Maximum Repeat   ',
         numeric_pre_desc=' Up to ',
         numeric_post_desc=' Base Pair(s) Background Repeats',
         minval=6,
@@ -150,13 +150,13 @@ def background(
         ' Background Status: {}\n'.format(
             backgroundstatus))
     liner.send(
-        '      k-mer  Space: {:{},{}} Unique {:,}-mers\n'.format(
+        '      k-mer Space : {:{},{}} Unique {:,}-mers\n'.format(
             stats['vars']['kmer_space'],
             plen,
             sntn,
             maxreplen+1))
     liner.send(
-        '       Fill  Count: {:{},{}} Unique {:,}-mers ({:6.2f} %)\n'.format(
+        '       Fill Count : {:{},{}} Unique {:,}-mers ({:6.2f} %)\n'.format(
             stats['vars']['fill_count'],
             plen,
             sntn,
@@ -165,7 +165,7 @@ def background(
                 A=stats['vars']['fill_count'] * 100.,
                 B=stats['vars']['kmer_space'])))
     liner.send(
-        '       Left  Count: {:{},{}} Unique {:,}-mers ({:6.2f} %)\n'.format(
+        '       Left Count : {:{},{}} Unique {:,}-mers ({:6.2f} %)\n'.format(
             stats['vars']['left_count'],
             plen,
             sntn,

@@ -20,7 +20,7 @@ def final(
     Also computes `OligoLength` and optionally writes the resulting library CSV.
 
     Required Parameters:
-        - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated oligopool variants.
+        - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated oligo pool variants.
 
     Optional Parameters:
         - `output_file` (`str`): Filename for output DataFrame; required in CLI usage,
@@ -35,7 +35,7 @@ def final(
         - `input_data` must contain a unique 'ID' column; all other columns must be non-empty DNA strings.
         - Output contains only `CompleteOligo` and `OligoLength` (sequence annotations are not preserved).
         - `final` is typically the last design step before synthesis; downstream design-mode element modules
-          are not intended to add more markups after finalization.
+            are not intended to add more markups after finalization.
     '''
 
     # Preserve return style when the caller intentionally used ID as index.

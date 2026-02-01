@@ -73,7 +73,7 @@ def verify(
     data_name,
     indata_valid) = vp.get_parsed_data_info(
         data=indata,
-        data_field='     Input Data     ',
+        data_field='      Input Data    ',
         required_fields=None,
         liner=liner)
     input_rows = len(indf.index) if isinstance(indf, pd.DataFrame) else 0
@@ -81,7 +81,7 @@ def verify(
     # Show update on successful parse
     if indata_valid:
         liner.send(
-            '    Input Data  : {} w/ {:,} Record(s)\n'.format(
+            '      Input Data    : {} w/ {:,} Record(s)\n'.format(
                 data_name,
                 len(indf.index)))
 
@@ -91,11 +91,11 @@ def verify(
     # Full oligolimit Validation (optional)
     oligolimit_valid = True
     if oligolimit is None:
-        liner.send('    Oligo Limit : None Specified\n')
+        liner.send('      Oligo Limit   : None Specified\n')
     else:
         oligolimit_valid = vp.get_numeric_validity(
             numeric=oligolimit,
-            numeric_field='     Oligo Limit    ',
+            numeric_field='      Oligo Limit   ',
             numeric_pre_desc=' At most ',
             numeric_post_desc=' Base Pair(s)',
             minval=4,
@@ -107,7 +107,7 @@ def verify(
     (exmotifs,
     exmotifs_valid) = vp.get_parsed_exseqs_info(
         exseqs=exmotifs,
-        exseqs_field='  Excluded Motifs   ',
+        exseqs_field='   Excluded Motifs  ',
         exseqs_desc='Unique Motif(s)',
         df_field='Exmotif',
         required=False,
@@ -117,7 +117,7 @@ def verify(
     (background_valid,
     background_type) = vp.get_parsed_background(
         background=background,
-        background_field='Background Database ',
+        background_field=' Background Database',
         liner=liner)
 
     # First Pass Validation

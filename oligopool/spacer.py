@@ -107,7 +107,7 @@ def spacer(
     (patch_mode_on,
     patch_mode_valid) = vp.get_parsed_flag_info(
         flag=patch_mode,
-        flag_field='     Patch Mode     ',
+        flag_field='      Patch Mode    ',
         flag_desc_off='Disabled (Design All Spacers)',
         flag_desc_on='Enabled (Fill Missing Spacers)',
         liner=liner,
@@ -120,7 +120,7 @@ def spacer(
     (indf,
     indata_valid) = vp.get_parsed_indata_info(
         indata=indata,
-        indata_field='      Input Data   ',
+        indata_field='      Input Data    ',
         required_fields=('ID',),
         precheck=False,
         liner=liner,
@@ -130,7 +130,7 @@ def spacer(
     # Full oligolimit Validation
     oligolimit_valid = vp.get_numeric_validity(
         numeric=oligolimit,
-        numeric_field='      Oligo Limit  ',
+        numeric_field='      Oligo Limit   ',
         numeric_pre_desc=' At most ',
         numeric_post_desc=' Base Pair(s)',
         minval=4,
@@ -141,7 +141,7 @@ def spacer(
     # Full maxreplen Validation
     maxreplen_valid = vp.get_numeric_validity(
         numeric=maxreplen,
-        numeric_field='     Repeat Length ',
+        numeric_field='     Repeat Length  ',
         numeric_pre_desc=' Up to ',
         numeric_post_desc=' Base Pair(s) Oligopool Repeats',
         minval=4,
@@ -153,7 +153,7 @@ def spacer(
     spacercol_valid = vp.get_parsed_column_info(
         col=spacercol,
         df=indf,
-        col_field='     Spacer Column ',
+        col_field='     Spacer Column  ',
         col_desc='Output in Column',
         col_type=1,
         adjcol=None,
@@ -167,7 +167,7 @@ def spacer(
     outfile_valid = vp.get_outdf_validity(
         outdf=outfile,
         outdf_suffix='.oligopool.spacer.csv',
-        outdf_field='     Output File   ',
+        outdf_field='     Output File    ',
         liner=liner)
 
     # Adjust outfile Suffix
@@ -183,7 +183,7 @@ def spacer(
     (spacerlen,
     spacerlen_valid) = vp.get_parsed_spacerlen_info(
         spacerlen=spacerlen,
-        spacerlen_field='     Spacer Length ',
+        spacerlen_field='     Spacer Length  ',
         df_field='Length',
         oligolimit=oligolimit,
         oligolimit_valid=oligolimit_valid,
@@ -200,7 +200,7 @@ def spacer(
     leftcontext_valid) = vp.get_parsed_column_info(
         col=leftcontext,
         df=indf,
-        col_field='      Left Context  ',
+        col_field='       Left Context ',
         col_desc='Input from Column',
         col_type=0,
         adjcol=rightcontextname,
@@ -214,7 +214,7 @@ def spacer(
     rightcontext_valid) = vp.get_parsed_column_info(
         col=rightcontext,
         df=indf,
-        col_field='     Right Context  ',
+        col_field='      Right Context ',
         col_desc='Input from Column',
         col_type=0,
         adjcol=leftcontextname,
@@ -226,7 +226,7 @@ def spacer(
     # Patch mode parsing (printed after context args; evaluated earlier for indata handling)
     vp.get_parsed_flag_info(
         flag=patch_mode,
-        flag_field='     Patch Mode     ',
+        flag_field='      Patch Mode    ',
         flag_desc_off='Disabled (Design All Spacers)',
         flag_desc_on='Enabled (Fill Missing Spacers)',
         liner=liner,
@@ -237,7 +237,7 @@ def spacer(
     (exmotifs,
     exmotifs_valid) = vp.get_parsed_exseqs_info(
         exseqs=exmotifs,
-        exseqs_field='  Excluded Motifs   ',
+        exseqs_field='   Excluded Motifs  ',
         exseqs_desc='Unique Motif(s)',
         df_field='Exmotif',
         required=False,
@@ -247,7 +247,7 @@ def spacer(
     (background_valid,
     background_type) = vp.get_parsed_background(
         background=background,
-        background_field='Background Database ',
+        background_field=' Background Database',
         liner=liner)
 
     # First Pass Validation
@@ -377,13 +377,13 @@ def spacer(
 
         liner.send('\n[Spacer Design Statistics]\n')
         liner.send(
-            '  Design Status   : Successful\n')
+            '     Design Status   : Successful\n')
         liner.send(
-            '  Target Count    : 0 Spacer(s)\n')
+            '     Target Count    : 0 Spacer(s)\n')
         liner.send(
-            '  Spacer Count    : 0 Spacer(s) (  0.00 %)\n')
+            '     Spacer Count    : 0 Spacer(s) (  0.00 %)\n')
         liner.send(
-            '  Orphan Oligo    : 0 Entries\n')
+            '     Orphan Oligo    : 0 Entries\n')
         liner.send(
             ' Time Elapsed: {:.2f} sec\n'.format(
                 tt.time()-t0))
@@ -763,21 +763,21 @@ def spacer(
             'spacer_count')))
 
     liner.send(
-        '  Design Status   : {}\n'.format(
+        '     Design Status   : {}\n'.format(
             spacerstatus))
     liner.send(
-        '  Target Count    : {:{},d} Spacer(s)\n'.format(
+        '     Target Count    : {:{},d} Spacer(s)\n'.format(
             stats['vars']['target_count'],
             plen))
     liner.send(
-        '  Spacer Count    : {:{},d} Spacer(s) ({:6.2f} %)\n'.format(
+        '     Spacer Count    : {:{},d} Spacer(s) ({:6.2f} %)\n'.format(
             stats['vars']['spacer_count'],
             plen,
             ut.safediv(
                 A=stats['vars']['spacer_count'] * 100.,
                 B=targetcount)))
     liner.send(
-        '  Orphan Oligo    : {:{},d} Entries\n'.format(
+        '     Orphan Oligo    : {:{},d} Entries\n'.format(
             len(stats['vars']['orphan_oligo']),
             plen))
 
@@ -799,7 +799,7 @@ def spacer(
                           stats['vars']['edge_fail']
 
         liner.send(
-            '    Repeat Conflicts: {:{},{}} Event(s) ({:6.2f} %)\n'.format(
+            '     Repeat Conflicts: {:{},{}} Event(s) ({:6.2f} %)\n'.format(
                 stats['vars']['repeat_fail'],
                 plen,
                 sntn,
@@ -807,7 +807,7 @@ def spacer(
                     A=stats['vars']['repeat_fail'] * 100.,
                     B=total_conflicts)))
         liner.send(
-            'Background Conflicts: {:{},{}} Event(s) ({:6.2f} %)\n'.format(
+            ' Background Conflicts: {:{},{}} Event(s) ({:6.2f} %)\n'.format(
                 stats['vars']['background_fail'],
                 plen,
                 sntn,
@@ -815,7 +815,7 @@ def spacer(
                     A=stats['vars']['background_fail'] * 100.,
                     B=total_conflicts)))
         liner.send(
-            '   Exmotif Conflicts: {:{},{}} Event(s) ({:6.2f} %)\n'.format(
+            '    Exmotif Conflicts: {:{},{}} Event(s) ({:6.2f} %)\n'.format(
                 stats['vars']['exmotif_fail'],
                 plen,
                 sntn,
@@ -823,7 +823,7 @@ def spacer(
                     A=stats['vars']['exmotif_fail'] * 100.,
                     B=total_conflicts)))
         liner.send(
-            '      Edge Conflicts: {:{},{}} Event(s) ({:6.2f} %)\n'.format(
+            '       Edge Conflicts: {:{},{}} Event(s) ({:6.2f} %)\n'.format(
                 stats['vars']['edge_fail'],
                 plen,
                 sntn,

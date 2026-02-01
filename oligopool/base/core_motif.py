@@ -6,6 +6,7 @@ import numpy   as np
 import nrpcalc as nr
 
 from . import utils as ut
+from . import core_background as cbg
 
 
 # Parser and Setup Functions
@@ -483,6 +484,7 @@ def motif_objectives(
     edgeeffectlength,
     prefixforbidden,
     suffixforbidden,
+    background,
     inittime,
     stats,
     idx,
@@ -575,6 +577,34 @@ def motif_objectives(
 
         # Return Traceback
         return False, traceloc
+
+    # Objective 1b: Background Non-Repetitiveness
+    if background is not None:
+        obj1b = cbg.is_background_feasible(
+            seq=motif,
+            bg=background,
+            leftcontext=lcseq or '',
+            rightcontext=rcseq or '')
+
+        if not obj1b:
+
+            # Show Update
+            show_update(
+                idx=idx,
+                plen=plen,
+                element=element,
+                motif=motif,
+                optstatus=0,
+                optstate=1,  # Same as repeat (background k-mer repeat)
+                inittime=inittime,
+                terminal=False,
+                liner=liner)
+
+            # Update Stats
+            stats['vars']['background_fail'] += 1
+
+            # Return Traceback
+            return False, max(0, len(motif) - 1)
 
     # Objective 2: Motif Embedding
     obj2, exmotif = is_exmotif_feasible(
@@ -828,6 +858,7 @@ def motif_engine(
     edgeeffectlength,
     prefixdict,
     suffixdict,
+    background,
     targetcount,
     stats,
     liner,
@@ -976,6 +1007,7 @@ def motif_engine(
                 edgeeffectlength=edgeeffectlength,
                 prefixforbidden=prefixforbidden,
                 suffixforbidden=suffixforbidden,
+                background=background,
                 inittime=t0,
                 stats=stats,
                 idx=idx+1,
@@ -1112,6 +1144,7 @@ def spacer_engine(
     edgeeffectlength,
     prefixdict,
     suffixdict,
+    background,
     targetcount,
     stats,
     liner,
@@ -1272,6 +1305,7 @@ def spacer_engine(
                     edgeeffectlength=edgeeffectlength,
                     prefixforbidden=prefixforbidden,
                     suffixforbidden=suffixforbidden,
+                    background=background,
                     inittime=t0,
                     stats=stats,
                     idx=idx+1,

@@ -602,66 +602,6 @@ def write_split_df_csv(df, outfile, separate_outputs=False, sep=','):
             outfile=outfile,
             sep=sep)
 
-def is_varcont_feasible(
-    varcont,
-    seqlen,
-    splitlen,
-    spanlen,
-    liner):
-    '''
-    Determine if the variable contigs are
-    within splitlen range, otherwise there
-    is no solution to problem instance.
-    Internal use only.
-
-    :: varcont
-       type - cx.deque
-       desc - all variable region span indices
-    :: seqlen
-       type - integer
-       desc - length of sequences to split
-    :: splitlen
-       type - integer
-       desc - maximum split length
-    :: spanlen
-       type - integer
-       desc - minimum required split span length
-    :: liner
-       type - coroutine
-       desc - dynamic printing
-    '''
-
-    # Book-keeping
-    ci     = iter(varcont)
-    pp, qq = next(ci)
-
-    # Check for the first fragment
-    if pp + spanlen > splitlen:
-        liner.send(
-            ' Verdict: Infeasible (First Contig (Start={}, End={}) too Far from Beginning)\n'.format(
-                pp, qq))
-        return False
-
-    # Check between contigs
-    for p,q in varcont:
-        if p - qq + 2*spanlen > splitlen:
-            liner.send(
-                ' Verdict: Infeasible (Adjacent Contigs (Start={}, End={}) and (Start={}, End={}) Far Apart)\n'.format(
-                    pp, qq, p, q))
-            return False
-        qq = q
-        pp = p
-
-    # Check for the last fragment
-    if qq - spanlen + splitlen < seqlen:
-        liner.send(
-            ' Verdict: Infeasible (Last Contig (Start={}, End={}) too far from Ending)\n'.format(
-                pp, qq))
-        return False
-
-    # No problems found
-    return True
-
 def get_splitend(
     fstart,
     splitlimit,
@@ -1047,7 +987,7 @@ def aggregate_stats(
             splitstore[idx].append(splitseq)
 
         # Loop through Overlaps
-        for idx,ol in enumerate(overlap):
+        for idx,_ in enumerate(overlap):
 
             # Compute and Store Tm
             tmelt = ut.get_tmelt(

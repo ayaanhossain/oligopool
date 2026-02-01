@@ -1,12 +1,12 @@
-# Oligopool Calculator - AI Agent Guide (token-efficient)
+# Oligopool Calculator - AI Agent Guide
 
 This is the machine-optimized guide for helping users design, assemble, compress,
-and analyze oligopool libraries with `oligopool` (Python + CLI).
+and analyze oligo pool libraries with `oligopool` (Python + CLI).
 
 It intentionally does **not** reprint the full API. Use `docs/api.md` for
 parameter-by-parameter reference and `docs/docs.md` for tutorials/examples.
 
-## Agent Links (raw)
+## Agent Links
 
 - README [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/README.md)]
 - User guide (`docs/docs.md`) [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/docs.md)]
@@ -19,7 +19,7 @@ Agent policy: don't fetch everything by default. Fetch the minimum needed:
 `docs/api.md` for exact signatures/allowed values, `docs/docs.md` for workflows,
 and then module docstrings (`help(op.<module>)`) for runtime truth.
 
-## Surface Area (what users can do)
+## Surface Area
 
 Four modes (library + CLI):
 - Design Mode: `background`, `primer`, `motif`, `barcode`, `spacer`, plus `lenstat`,
@@ -28,7 +28,7 @@ Four modes (library + CLI):
 - Degenerate Mode: `compress`, `expand` (cost optimization via IUPAC-degenerate synthesis).
 - Analysis Mode: `index`, `pack`, `acount`, `xcount` (counting from sequencing reads).
 
-## Interface Map (Python + CLI)
+## Interface Map
 
 - Python entry point: `import oligopool as op`
 - CLI entry points: `op` and `oligopool` are equivalent.
@@ -52,12 +52,14 @@ Four modes (library + CLI):
 - Library/CLI CSV outputs include an explicit `ID` column (not a pandas index
   column).
 
-## Cross-Cutting Parameters (know these once)
+## Cross-Cutting Parameters
 
 - Context columns: `left_context_column` / `right_context_column` prevent *edge
   effects* (undesired motifs/repeats spanning an insertion boundary).
 - `excluded_motifs`: global "do not create these" list (restriction sites, Type
   IIS sites, primers, etc.; many modules accept it).
+- `background_directory`: screen designed elements against a background k-mer DB
+  created by `background()` (supported by multiple Design/QC modules).
 - `*_type` parameters usually accept either ints or descriptive strings
   (case-insensitive; often fuzzy-matched). See `docs/api.md` for each module's
   accepted values.
@@ -65,7 +67,7 @@ Four modes (library + CLI):
   which modules accept it).
 - `verbose`: enables the step-by-step console report. CLI also supports `--quiet`.
 
-## Return Shapes (high-signal)
+## Return Shapes
 
 - Most design/transform modules: `(out_df, stats_dict)`
 - Stats-only modules: `background`, `lenstat`, `verify`, `index`, `pack`
@@ -74,7 +76,7 @@ Four modes (library + CLI):
 - `split`: returns either `(df, stats)` or `([df_Split1, df_Split2, ...], stats)`
   depending on `separate_outputs` (CLI defaults to separate outputs enabled).
 
-## Special Contracts (the gotchas)
+## Special Contracts
 
 ### Patch Mode (`patch_mode`)
 
@@ -87,7 +89,7 @@ Goal: extend an existing library without overwriting already-designed elements.
 
 ### Cross-set barcodes (`barcode`)
 
-Goal: design BC2/BC3 so they stay far from previously designed barcode columns.
+Goal: design BC2/BC3 so they stay far from previously designed `barcode` columns.
 
 - `cross_barcode_columns` and `minimum_cross_distance` must be provided together.
 - Cross-set separation is global (not per-row): each new barcode must be at
@@ -122,7 +124,9 @@ separate pools per fragment.
 `pad` adds Type IIS sites for downstream assembly. It also checks that the
 chosen Type IIS system is compatible with the pool (i.e., you didn't accidentally
 embed the recognition site where it breaks the workflow). Upstream design can
-also exclude the recognition site via `excluded_motifs`.
+also exclude the recognition site via `excluded_motifs`. The sites are meant to
+facilitate scarless removal of the installed amplification pads for overlap-based
+assembly strategies identified via `split`.
 
 ### Counting callbacks (Python only)
 
@@ -134,6 +138,11 @@ CLI does not run callbacks.
 `index` relies on constant prefix/suffix anchors (typically >=6 bp). If anchors
 are not adjacent in the read, use the gap parameters; mismatched anchors/gaps
 silently reduce usable reads downstream.
+
+Counting detail: if an anchor appears multiple times in a read, the engine keeps
+the best-scoring placement(s); if multiple placements tie and yield different
+barcodes, the read is rejected as ambiguous. Design anchors to be unique (e.g.,
+`motif(motif_type=1, maximum_repeat_length=...)`) to avoid this.
 
 ### Failed reads sampling (`acount` / `xcount`)
 
@@ -163,10 +172,10 @@ Key rules:
   `docs/docs.md` examples for the supported schema.
 - See `docs/docs.md` Config Files for the exact schema + examples.
 
-## Module Cheat Sheet (one-liners)
+## Module Cheat Sheet
 
 Design Mode:
-- `background`: build a background k-mer DB for primer screening.
+- `background`: build a background k-mer DB for screening designed elements.
 - `primer`: design primers (supports paired primers + `oligo_sets` multiplexing).
 - `motif`: insert motifs or design constant anchors (`motif_type='constant'`).
 - `barcode`: design Hamming-separated barcodes (supports cross-set constraints).
@@ -190,7 +199,7 @@ Analysis Mode:
 - `acount`: association counting (barcode <-> associate); supports `failed_reads_file` sampling.
 - `xcount`: barcode-only counting (single or combinatorial); supports `failed_reads_file` sampling.
 
-## Workflow Templates (minimal)
+## Workflow Templates
 
 Design:
 `background -> primer -> motif -> barcode -> spacer -> verify -> final`
@@ -207,14 +216,15 @@ Analysis:
 Extension (add new rows later):
 use `patch_mode=True` on the element you need to fill (e.g., barcodes/primers).
 
-## Troubleshooting (fast heuristics)
+## Troubleshooting
 
 - Design fails: read `stats['basis']`; relax constraints (shorter repeats, wider
   Tm), increase design space (longer barcode/primer), or change algorithm type.
-- Too long: use `lenstat`, then reduce element lengths or use `split`+`pad`.
-- Counting fails: verify anchors/gaps/orientation, then increase mapping sensitivity.
+- Too long: use `lenstat`, then reduce element lengths or use `split` + `pad`.
+- Counting fails: verify anchors/gaps/orientation, then increase mapping sensitivity;
+  use `failed_reads_file` to inspect why reads are being discarded.
 
-## CLI Exit Codes (useful for automation)
+## CLI Exit Codes
 
 - `0`: success
 - `1`: runtime error / design failure / invalid args

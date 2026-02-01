@@ -14,34 +14,34 @@ Complete parameter reference for all `oligopool` modules.
 ## Table of Contents
 
 **Design Mode**
-- [barcode](#barcode) - Hamming-distance barcodes
-- [primer](#primer) - Thermodynamic primers
-- [motif](#motif) - Sequence motifs & anchors
-- [spacer](#spacer) - Neutral spacers
-- [background](#background) - K-mer screening database
-- [merge](#merge) - Collapse columns
-- [revcomp](#revcomp) - Reverse complement
-- [lenstat](#lenstat) - Length statistics
-- [verify](#verify) - QC check
-- [final](#final) - Finalize for synthesis
+- [`barcode`](#barcode) - Hamming-distance barcodes
+- [`primer`](#primer) - Thermodynamic primers
+- [`motif`](#motif) - Sequence motifs & anchors
+- [`spacer`](#spacer) - Neutral spacers
+- [`background`](#background) - K-mer screening database
+- [`merge`](#merge) - Collapse columns
+- [`revcomp`](#revcomp) - Reverse complement
+- [`lenstat`](#lenstat) - Length statistics
+- [`verify`](#verify) - QC check
+- [`final`](#final) - Finalize for synthesis
 
 **Assembly Mode**
-- [split](#split) - Fragment long oligos
-- [pad](#pad) - Assembly-ready padding
+- [`split`](#split) - Fragment long oligos
+- [`pad`](#pad) - Assembly-ready padding
 
 **Degenerate Mode**
-- [compress](#compress) - Compress to IUPAC-degenerate oligos
-- [expand](#expand) - Expand degenerate oligos
+- [`compress`](#compress) - Compress to IUPAC-degenerate oligos
+- [`expand`](#expand) - Expand degenerate oligos
 
 **Analysis Mode**
-- [index](#index) - Build barcode index
-- [pack](#pack) - Preprocess FastQ
-- [acount](#acount) - Association counting
-- [xcount](#xcount) - Combinatorial counting
+- [`index`](#index) - Build barcode index
+- [`pack`](#pack) - Preprocess FastQ
+- [`acount`](#acount) - Association counting
+- [`xcount`](#xcount) - Combinatorial counting
 
 **Advanced**
-- [vectorDB](#vectordb) - K-mer database
-- [Scry](#scry) - Barcode classifier
+- [`vectorDB`](#vectordb) - K-mer database
+- [`Scry`](#scry) - Barcode classifier
 
 **Appendix**
 - [IUPAC Codes](#iupac-codes)
@@ -54,7 +54,7 @@ Complete parameter reference for all `oligopool` modules.
 
 ## Design Mode
 
-### barcode
+### `barcode`
 
 **Purpose**: Generate Hamming-distance separated barcodes for unique variant identification.
 
@@ -78,6 +78,7 @@ df, stats = op.barcode(
     cross_barcode_columns=None,    # str | list[str] | None
     minimum_cross_distance=None,   # int | None
     excluded_motifs=None,          # list | str | pd.DataFrame | None
+    background_directory=None,     # str | None
     random_seed=None,              # int | None
     verbose=True,                  # bool
 )
@@ -102,6 +103,7 @@ df, stats = op.barcode(
 - `cross_barcode_columns` (str | list[str] | None, default=None): Existing barcode column(s) for cross-set separation
 - `minimum_cross_distance` (int | None, default=None): Min Hamming distance to cross set (requires `cross_barcode_columns`)
 - `excluded_motifs` (list | str | DataFrame | None, default=None): Motifs to exclude (list, CSV, DataFrame with `Exmotif` column, or FASTA)
+- `background_directory` (str | None, default=None): Path to `.oligopool.background` output directory from `background()`. Screens designed barcodes against background k-mers (junction-aware when context columns are provided)
 - `random_seed` (int | None, default=None): RNG seed for reproducibility
 - `verbose` (bool, default=True): Print progress output
 
@@ -131,7 +133,7 @@ op barcode \
 
 ---
 
-### primer
+### `primer`
 
 **Purpose**: Design thermodynamically optimal primers for amplification with Tm constraints and optional background screening.
 
@@ -215,7 +217,7 @@ op primer \
 
 ---
 
-### motif
+### `motif`
 
 **Purpose**: Insert sequence motifs (per-variant or constant anchors) with constraint satisfaction.
 
@@ -236,6 +238,7 @@ df, stats = op.motif(
     right_context_column=None,     # str | None
     patch_mode=False,              # bool
     excluded_motifs=None,          # list | str | pd.DataFrame | None
+    background_directory=None,     # str | None
     random_seed=None,              # int | None
     verbose=True,                  # bool
 )
@@ -257,6 +260,7 @@ df, stats = op.motif(
 - `right_context_column` (str | None, default=None): Column for right DNA context
 - `patch_mode` (bool, default=False): Fill only missing values; for `motif_type=1`, existing anchor (must be unique across all rows) is reused
 - `excluded_motifs` (list | str | DataFrame | None, default=None): Motifs to exclude (list, CSV, DataFrame with `Exmotif`, or FASTA)
+- `background_directory` (str | None, default=None): Path to `.oligopool.background` output directory from `background()`. Screens designed motifs/anchors against background k-mers (junction-aware when context columns are provided)
 - `random_seed` (int | None, default=None): RNG seed for reproducibility
 - `verbose` (bool, default=True): Print progress output
 
@@ -287,7 +291,7 @@ op motif \
 
 ---
 
-### spacer
+### `spacer`
 
 **Purpose**: Insert neutral DNA spacers to meet length requirements.
 
@@ -307,6 +311,7 @@ df, stats = op.spacer(
     right_context_column=None,     # str | None
     patch_mode=False,              # bool
     excluded_motifs=None,          # list | str | pd.DataFrame | None
+    background_directory=None,     # str | None
     random_seed=None,              # int | None
     verbose=True,                  # bool
 )
@@ -327,6 +332,7 @@ df, stats = op.spacer(
 - `right_context_column` (str | None, default=None): Column for right DNA context
 - `patch_mode` (bool, default=False): Fill only missing values (`None`/`NaN`/empty/`'-'`)
 - `excluded_motifs` (list | str | DataFrame | None, default=None): Motifs to exclude (list, CSV, DataFrame with `Exmotif`, or FASTA)
+- `background_directory` (str | None, default=None): Path to `.oligopool.background` output directory from `background()`. Screens designed spacers against background k-mers (junction-aware when context columns are provided)
 - `random_seed` (int | None, default=None): RNG seed for reproducibility
 - `verbose` (bool, default=True): Print progress output
 
@@ -352,9 +358,9 @@ op spacer \
 
 ---
 
-### background
+### `background`
 
-**Purpose**: Build a k-mer database for screening primers against off-target sequences.
+**Purpose**: Build a k-mer database for screening designed sequences against off-target repeats.
 
 **Signature**:
 ```python
@@ -382,8 +388,9 @@ stats = op.background(
 **Returns**: `stats_dict` (stats-only, no DataFrame)
 
 **Notes**:
-- Use for genome-wide off-target screening in `primer` via `background_directory`
-- The k-mer DB stores all (k+1)-mers from input sequences where k = `maximum_repeat_length`
+- Use via `background_directory` in `primer`/`barcode`/`motif`/`spacer` (and as a QC scan in `verify`)
+- `background()` writes a directory ending in `.oligopool.background`; pass that directory as `background_directory` (junction-aware when context columns are provided)
+- The DB stores all (k+1)-mers from input sequences where k = `maximum_repeat_length`
 
 **CLI Equivalent**:
 ```bash
@@ -397,7 +404,7 @@ op background \
 
 ---
 
-### merge
+### `merge`
 
 **Purpose**: Concatenate contiguous columns into a single column.
 
@@ -448,7 +455,7 @@ op merge \
 
 ---
 
-### revcomp
+### `revcomp`
 
 **Purpose**: Reverse complement a range of columns and reverse their order.
 
@@ -496,7 +503,7 @@ op revcomp \
 
 ---
 
-### lenstat
+### `lenstat`
 
 **Purpose**: Report length statistics and free space remaining (non-destructive).
 
@@ -538,7 +545,7 @@ op lenstat \
 
 ---
 
-### verify
+### `verify`
 
 **Purpose**: QC check for constraints, architecture, motifs, degeneracy.
 
@@ -551,6 +558,7 @@ stats = op.verify(
     # Optional
     oligo_length_limit=None,       # int | None
     excluded_motifs=None,          # list | str | pd.DataFrame | None
+    background_directory=None,     # str | None
     verbose=True,                  # bool
 )
 ```
@@ -563,6 +571,7 @@ stats = op.verify(
 
 - `oligo_length_limit` (int | None, default=None): If provided, checks for length overflow
 - `excluded_motifs` (list | str | DataFrame | None, default=None): Motifs to scan/report (emergence; junction attribution requires separate sequence columns)
+- `background_directory` (str | None, default=None): Path to background k-mer database from `background()`. Scans concatenated oligos for background k-mers and reports violations
 - `verbose` (bool, default=True): Print progress output
 
 **Returns**: `stats_dict` (stats-only, no DataFrame, no `output_file`)
@@ -587,7 +596,7 @@ op verify \
 
 ---
 
-### final
+### `final`
 
 **Purpose**: Concatenate all columns into synthesis-ready oligos.
 
@@ -633,7 +642,7 @@ op final \
 
 Assembly Mode provides tools for fragmenting long oligos that exceed synthesis length limits into overlapping pieces for assembly workflows.
 
-### split
+### `split`
 
 **Purpose**: Break long oligos into overlapping fragments for overlap-based assembly (Gibson, overlap-extension PCR, etc.).
 
@@ -699,7 +708,7 @@ Tip: CLI defaults to separate files. Use `--no-separate-outputs` to write a sing
 
 ---
 
-### pad
+### `pad`
 
 **Purpose**: Add primers and Type IIS restriction sites to split fragments for scarless assembly.
 
@@ -769,7 +778,7 @@ op pad \
 
 Degenerate Mode compresses variant libraries with low mutational diversity into IUPAC-degenerate oligos for cost-efficient synthesis.
 
-### compress
+### `compress`
 
 **Purpose**: Compress concrete DNA sequences into IUPAC-degenerate representation for cheaper synthesis.
 
@@ -826,7 +835,7 @@ op compress \
 
 ---
 
-### expand
+### `expand`
 
 **Purpose**: Expand IUPAC-degenerate sequences into all concrete A/T/G/C sequences.
 
@@ -880,7 +889,7 @@ op expand \
 
 ## Analysis Mode
 
-### index
+### `index`
 
 **Purpose**: Build a searchable index of barcodes (and optional associates) for counting.
 
@@ -942,6 +951,7 @@ stats = op.index(
 **Notes**:
 - At least one of `barcode_prefix_column` or `barcode_suffix_column` is required
 - Anchors must be constant (single-unique) sequences, ideally ≥6 bp and adjacent to indexed column
+- If an anchor appears multiple times in a read, counting keeps the best-scoring placement; ties that yield different barcodes are rejected as `barcode_ambiguous`
 - When using associates, at least one of `associate_prefix_column` or `associate_suffix_column` is required
 
 **CLI Equivalent**:
@@ -957,7 +967,7 @@ op index \
 
 ---
 
-### pack
+### `pack`
 
 **Purpose**: Preprocess FastQ files - filter, optionally merge paired-ends, deduplicate.
 
@@ -1044,7 +1054,7 @@ op pack \
 
 ---
 
-### acount
+### `acount`
 
 **Purpose**: Association counting - verify barcode-variant coupling in reads.
 
@@ -1092,11 +1102,13 @@ counts_df, stats = op.acount(
 **Notes**:
 - Use `acount` when you need to verify barcode-variant coupling (requires associates in index)
 - `mapping_type='sensitive'` is slower but catches more errors
+- Multi-anchor reads: if an anchor appears multiple times, the best-scoring one is used; ties with multiple barcodes are rejected as `barcode_ambiguous`
 - Failed reads sampling collects representative samples from each failure category for diagnostics:
   - `phix_match`: PhiX contamination detected
   - `low_complexity`: Low-complexity sequence (mono/di/trinucleotide)
   - `anchor_missing`: No anchor found in read
   - `barcode_absent`: Barcode not identified
+  - `barcode_ambiguous`: Multiple anchors yield different barcodes with equal best confidence
   - `associate_prefix_missing`: Associate prefix/suffix constants not found
   - `associate_mismatch`: Associate does not match expected variant
   - `callback_false`: Callback function returned False
@@ -1133,7 +1145,7 @@ op acount \
 
 ---
 
-### xcount
+### `xcount`
 
 **Purpose**: Barcode-only counting (single or combinatorial) without associate verification.
 
@@ -1180,11 +1192,13 @@ counts_df, stats = op.xcount(
 - Use `xcount` for barcode-only counting without associate verification
 - For combinatorial counting (BC1 × BC2), pass multiple indexes as a list
 - Single index: counts each barcode; multiple indexes: counts barcode combinations
+- Multi-anchor reads: if an anchor appears multiple times, the best-scoring one is used; ties with multiple barcodes are rejected as `barcode_ambiguous`
 - Failed reads sampling collects representative samples from each failure category for diagnostics:
   - `phix_match`: PhiX contamination detected
   - `low_complexity`: Low-complexity sequence (mono/di/trinucleotide)
   - `anchor_missing`: No anchor found in read
   - `barcode_absent`: Barcode not identified
+  - `barcode_ambiguous`: Multiple anchors yield different barcodes with equal best confidence
   - `callback_false`: Callback function returned False
   - `incalculable`: Other uncategorized failures
 
@@ -1377,20 +1391,20 @@ v3,TTAACCGGTTAACCGG
 
 | Extension | Module | Description |
 |-----------|--------|-------------|
-| `.oligopool.background` | background | K-mer database directory |
-| `.oligopool.barcode.csv` | barcode | Barcode-annotated library |
-| `.oligopool.primer.csv` | primer | Primer-annotated library |
-| `.oligopool.motif.csv` | motif | Motif/anchor-annotated library |
-| `.oligopool.spacer.csv` | spacer | Spacer-annotated library |
-| `.oligopool.split.csv` | split | Split-fragment library |
-| `.oligopool.pad.csv` | pad | Padded fragment library |
-| `.oligopool.merge.csv` | merge | Merged element library |
-| `.oligopool.revcomp.csv` | revcomp | Reverse-complemented library |
-| `.oligopool.final.csv` | final | Synthesis-ready library |
-| `.oligopool.index` | index | Barcode index file |
-| `.oligopool.pack` | pack | Packed reads file |
-| `.oligopool.acount.csv` | acount | Association counts |
-| `.oligopool.xcount.csv` | xcount | Combinatorial counts |
+| `.oligopool.background` | `background` | K-mer database directory |
+| `.oligopool.barcode.csv` | `barcode` | Barcode-annotated library |
+| `.oligopool.primer.csv` | `primer` | Primer-annotated library |
+| `.oligopool.motif.csv` | `motif` | Motif/anchor-annotated library |
+| `.oligopool.spacer.csv` | `spacer` | Spacer-annotated library |
+| `.oligopool.split.csv` | `split` | Split-fragment library |
+| `.oligopool.pad.csv` | `pad` | Padded fragment library |
+| `.oligopool.merge.csv` | `merge` | Merged element library |
+| `.oligopool.revcomp.csv` | `revcomp` | Reverse-complemented library |
+| `.oligopool.final.csv` | `final` | Synthesis-ready library |
+| `.oligopool.index` | `index` | Barcode index file |
+| `.oligopool.pack` | `pack` | Packed reads file |
+| `.oligopool.acount.csv` | `acount` | Association counts |
+| `.oligopool.xcount.csv` | `xcount` | Combinatorial counts |
 
 [↑ Back to TOC](#table-of-contents)
 

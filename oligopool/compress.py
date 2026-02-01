@@ -24,7 +24,7 @@ def compress(
     Compress concrete DNA sequences into IUPAC-degenerate oligos.
 
     Required Parameters:
-        - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated oligopool variants.
+        - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated oligo pool variants.
 
     Optional Parameters:
         - `mapping_file` (`str`): Filename for output mapping DataFrame (default: `None`).
@@ -44,12 +44,12 @@ def compress(
         - `input_data` must contain a unique 'ID' column; all other columns must be non-empty strict-ATGC DNA strings.
         - All non-'ID' columns are concatenated (left-to-right) to form the sequence per variant.
         - Compression is lossless: expanding the degenerate oligos recovers exactly the
-          set of unique input sequences (no extras, no missing).
+            set of unique input sequences (no extras, no missing).
         - Sequences of different lengths are compressed independently by length group.
         - `rollout_simulations` and `rollout_horizon` trade off runtime vs compression ratio;
-          higher values give better compression but take longer.
+            higher values give better compression but take longer.
         - `mapping_df` links each original variant `ID` to its `DegenerateID` for traceability;
-          `synthesis_df` contains the degenerate oligos ready for ordering.
+            `synthesis_df` contains the degenerate oligos ready for ordering.
         - Use `expand` to verify that compression output covers exactly the original sequences.
     '''
 

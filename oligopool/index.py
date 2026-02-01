@@ -51,17 +51,17 @@ def index(
 
     Notes:
         - `barcode_data` (and `associate_data`, if provided) must contain a unique 'ID' column; all other
-          columns used for indexing must be non-empty DNA strings.
+            columns used for indexing must be non-empty DNA strings.
         - Provide at least one of `barcode_prefix_column` or `barcode_suffix_column` (and likewise for the
-          associate, if used).
+            associate, if used).
         - For error-free indexing, anchor columns should be adjacent to the corresponding barcode/associate column.
         - In reads, anchors must be exactly `barcode_{prefix|suffix}_gap` bases away from the barcode (same for
-          associate anchors).
+            associate anchors).
         - For association counting, partial presence of the associate variant can be sufficient; however, its
-          prefix/suffix anchors must be adjacent and fully present.
+            prefix/suffix anchors must be adjacent and fully present.
         - Multiple indices may be used simultaneously for combinatorial counting (associate info is ignored).
         - Anchor sequences can be designed with `motif(motif_type=1, ...)` and then referenced via
-          `{barcode|associate}_{prefix|suffix}_column`.
+            `{barcode|associate}_{prefix|suffix}_column`.
     '''
 
     # Alias Arguments

@@ -1,7 +1,5 @@
 import time as tt
 
-import collections as cx
-
 import pandas as pd
 
 from .base import utils as ut
@@ -18,7 +16,7 @@ def lenstat(
     Useful as a "ruler" during design; returns only a stats dictionary.
 
     Required Parameters:
-        - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated oligopool variants.
+        - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated oligo pool variants.
         - `oligo_length_limit` (`int`): Maximum allowed oligo length (≥ 4).
 
     Optional Parameters:
@@ -32,7 +30,7 @@ def lenstat(
         - `lenstat` does not modify `input_data` and does not require an `output_file`.
         - Use `lenstat` to track free space under `oligo_length_limit` (e.g., before using `spacer`).
         - `lenstat` assumes all non-ID columns are DNA strings; if your DataFrame contains annotation columns
-          or degenerate/IUPAC bases, use `verify` for a more general QC summary.
+            or degenerate/IUPAC bases, use `verify` for a more general QC summary.
     '''
 
     # Argument Aliasing

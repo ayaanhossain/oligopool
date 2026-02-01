@@ -29,7 +29,7 @@ def split(
     list of separate DataFrames when `separate_outputs` is enabled).
 
     Required Parameters:
-        - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated oligopool variants.
+        - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated oligo pool variants.
         - `split_length_limit` (`int`): Maximum allowed length for split oligos (≥ 4).
         - `minimum_melting_temperature` (`float`): Minimum overlap region Tm (≥ 4°C).
         - `minimum_hamming_distance` (`int`): Minimum overlap region pairwise Hamming distance (≥ 1).
@@ -39,9 +39,8 @@ def split(
     Optional Parameters:
         - `output_file` (`str`): Filename for output DataFrame; required in CLI usage,
             optional in library usage (default: `None`).
-        - `separate_outputs` (`bool`): When enabled, returns a list of DataFrames (one per split column)
-            instead of a single combined DataFrame. When `output_file` is also provided, writes separate
-            files named `{base}.SplitN.oligopool.split.csv` (default: `False`).
+        - `separate_outputs` (`bool`): If enabled, return per-split outputs (and optionally write per-split files)
+            instead of a single combined DataFrame (default: `False`). See Notes.
         - `random_seed` (`int` / `None`): Seed for local RNG (default: `None`).
         - `verbose` (`bool`): If `True`, logs updates to stdout (default: `True`).
 
@@ -57,9 +56,9 @@ def split(
         - `minimum_overlap_length` should always be larger than `minimum_hamming_distance`.
         - Fragment count is auto-determined and can vary per oligo.
         - Each `SplitN` column is a separate oligo pool to synthesize; fragments are later assembled
-          (e.g., overlap-extension PCR or Gibson) to reconstruct the full-length oligo.
+            (e.g., overlap-extension PCR or Gibson) to reconstruct the full-length oligo.
         - Split fragments are returned in PCR assembly order; even-numbered split columns (`Split2`, `Split4`, ...)
-          are reverse-complemented by design. Use `revcomp` to visualize overlaps and orientation.
+            are reverse-complemented by design. Use `revcomp` to visualize overlaps and orientation.
         - Returned DataFrame contains split fragments only (sequence annotations from `input_data` are not preserved).
         - Typical workflow: run `pad` once per split column (e.g., `Split1`, `Split2`, ...) then `final` on each.
         - Use `separate_outputs` for custom per-fragment workflows (e.g., manual padding via `primer`/`motif`/`spacer`).

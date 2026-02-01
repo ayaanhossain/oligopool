@@ -9,6 +9,7 @@ import pandas as pd
 from .base import utils as ut
 from .base import validation_parsing as vp
 from .base import core_motif as cm
+from .base import vectordb as db
 
 from typing import Tuple
 
@@ -24,6 +25,7 @@ def spacer(
     right_context_column:str|None=None,
     patch_mode:bool=False,
     excluded_motifs:list|str|pd.DataFrame|None=None,
+    background_directory:str|None=None,
     random_seed:int|None=None,
     verbose:bool=True) -> Tuple[pd.DataFrame, dict]:
     '''
@@ -31,7 +33,7 @@ def spacer(
     Spacer length can be fixed, per-row, or auto-sized to match `oligo_length_limit`.
 
     Required Parameters:
-        - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated oligopool variants.
+        - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated oligo pool variants.
         - `oligo_length_limit` (`int`): Maximum allowed oligo length (≥ 4).
         - `maximum_repeat_length` (`int`): Max shared repeat length with oligos (≥ 4).
         - `spacer_column` (`str`): Column name for inserting the designed spacers.
@@ -39,15 +41,13 @@ def spacer(
     Optional Parameters:
         - `output_file` (`str`): Filename for output DataFrame; required in CLI usage,
             optional in library usage (default: `None`).
-        - `spacer_length` (`int` / `list` / `str` / `pd.DataFrame` / `None`): Spacer length. If `None`,
-          it is computed per row as remaining free space under `oligo_length_limit` after concatenating
-          existing sequence columns (ignoring `'-'` gaps); a computed length of 0 yields `'-'` (default: `None`).
+        - `spacer_length` (`int` / `list` / `str` / `pd.DataFrame` / `None`): Spacer length (default: `None`). See Notes.
         - `left_context_column` (`str`): Column for left DNA context (default: `None`).
         - `right_context_column` (`str`): Column for right DNA context (default: `None`).
         - `patch_mode` (`bool`): If `True`, fill only missing values in an existing spacer column
             (does not overwrite existing spacers). (default: `False`).
-        - `excluded_motifs` (`list` / `str` / `pd.DataFrame`): Motifs to exclude;
-            can be a list, CSV, DataFrame, or FASTA file (default: `None`).
+        - `excluded_motifs` (`list` / `str` / `pd.DataFrame`): Motifs to exclude (default: `None`).
+        - `background_directory` (`str` / `None`): Background k-mer DB directory from `background()` (default: `None`).
         - `random_seed` (`int` / `None`): Seed for local RNG (default: `None`).
         - `verbose` (`bool`): If `True`, logs updates to stdout (default: `True`).
 
@@ -57,14 +57,20 @@ def spacer(
 
     Notes:
         - `input_data` must contain a unique 'ID' column; all other columns must be non-empty DNA strings.
-          Column names must be unique and exclude `spacer_column`.
+            Column names must be unique and exclude `spacer_column`.
         - At least one of `left_context_column` or `right_context_column` must be specified.
+        - `spacer_length`:
+            if `None`, it is computed per row as remaining free space under `oligo_length_limit` after concatenating
+            existing sequence columns (ignoring `'-'` gaps); a computed length of 0 yields `'-'`.
         - When `spacer_length` is a CSV or DataFrame, it must have 'ID' and 'Length' columns.
         - If `excluded_motifs` is a CSV or DataFrame, it must have an 'Exmotif' column.
+        - `excluded_motifs` can be a list, CSV, DataFrame, or FASTA file.
+        - `background_directory` screens designed spacers against k-mers in the background DB (e.g., transcriptome,
+            vector backbone, or other reference sequences).
         - Auto-sized spacers (`spacer_length=None`): rows at the limit get `'-'`; rows exceeding the limit are
-          infeasible.
+            infeasible.
         - Patch mode (`patch_mode=True`) preserves existing values in `spacer_column` and fills only missing values
-          (`None`/NaN/empty/`'-'`); some rows may still get `'-'` if no spacer can fit under `oligo_length_limit`.
+            (`None`/NaN/empty/`'-'`); some rows may still get `'-'` if no spacer can fit under `oligo_length_limit`.
     '''
 
     # Preserve return style when the caller intentionally used ID as index.
@@ -81,6 +87,7 @@ def spacer(
     rightcontext = right_context_column
     patch_mode   = patch_mode
     exmotifs     = excluded_motifs
+    background   = background_directory
     random_seed  = random_seed
     verbose      = verbose
 
@@ -100,7 +107,7 @@ def spacer(
     (patch_mode_on,
     patch_mode_valid) = vp.get_parsed_flag_info(
         flag=patch_mode,
-        flag_field='      Patch Mode   ',
+        flag_field='     Patch Mode     ',
         flag_desc_off='Disabled (Design All Spacers)',
         flag_desc_on='Enabled (Fill Missing Spacers)',
         liner=liner,
@@ -193,7 +200,7 @@ def spacer(
     leftcontext_valid) = vp.get_parsed_column_info(
         col=leftcontext,
         df=indf,
-        col_field='       Left Context',
+        col_field='      Left Context  ',
         col_desc='Input from Column',
         col_type=0,
         adjcol=rightcontextname,
@@ -207,7 +214,7 @@ def spacer(
     rightcontext_valid) = vp.get_parsed_column_info(
         col=rightcontext,
         df=indf,
-        col_field='      Right Context',
+        col_field='     Right Context  ',
         col_desc='Input from Column',
         col_type=0,
         adjcol=leftcontextname,
@@ -219,7 +226,7 @@ def spacer(
     # Patch mode parsing (printed after context args; evaluated earlier for indata handling)
     vp.get_parsed_flag_info(
         flag=patch_mode,
-        flag_field='      Patch Mode   ',
+        flag_field='     Patch Mode     ',
         flag_desc_off='Disabled (Design All Spacers)',
         flag_desc_on='Enabled (Fill Missing Spacers)',
         liner=liner,
@@ -230,10 +237,17 @@ def spacer(
     (exmotifs,
     exmotifs_valid) = vp.get_parsed_exseqs_info(
         exseqs=exmotifs,
-        exseqs_field='   Excluded Motifs ',
+        exseqs_field='  Excluded Motifs   ',
         exseqs_desc='Unique Motif(s)',
         df_field='Exmotif',
         required=False,
+        liner=liner)
+
+    # Full background Parsing and Validation
+    (background_valid,
+    background_type) = vp.get_parsed_background(
+        background=background,
+        background_field='Background Database ',
         liner=liner)
 
     # First Pass Validation
@@ -247,10 +261,20 @@ def spacer(
         patch_mode_valid,
         leftcontext_valid,
         rightcontext_valid,
-        exmotifs_valid]):
+        exmotifs_valid,
+        background_valid]):
         liner.send('\n')
         raise RuntimeError(
             'Invalid Argument Input(s).')
+
+    # Open Background
+    if background_type == 'path':
+        background = ut.get_adjusted_path(
+            path=background,
+            suffix='.oligopool.background')
+        background = db.vectorDB(
+            path=background,
+            maximum_repeat_length=None)
 
     # Start Timer
     t0 = tt.time()
@@ -268,6 +292,8 @@ def spacer(
     outdf = None
     stats = None
     warns = {}
+    prefixdict = None
+    suffixdict = None
 
     # Patch mode bookkeeping
     spacercol_exists = False
@@ -335,6 +361,7 @@ def spacer(
                 'spacer_count': 0,
                'orphan_oligo': [],
                 'repeat_fail': 0,
+            'background_fail': 0,
                'exmotif_fail': 0,
                   'edge_fail': 0,
             'exmotif_counter': cx.Counter()},
@@ -506,6 +533,10 @@ def spacer(
             maxreplen=maxreplen,
             exmotifs=exmotifs)
 
+        # Update Edge-Effect Length for Background
+        if background_type is not None:
+            edgeeffectlength = max(edgeeffectlength or 0, background.K)
+
         # Parse Edge Effects
         if ((not leftcontext  is None) or \
             (not rightcontext is None)):
@@ -560,6 +591,45 @@ def spacer(
             # Remove Step 6 Warning
             if not warns[6]['warn_count']:
                 warns.pop(6)
+
+    # Update Edge-Effect Length for Background (when exmotifs is None)
+    elif background_type is not None:
+        edgeeffectlength = max(edgeeffectlength or 0, background.K)
+
+        # Background edge effects need junction context too (even if exmotifs is None).
+        if ((not leftcontext  is None) or \
+            (not rightcontext is None)):
+
+            # Set Context Flag
+            has_context = True
+
+            # Show Update
+            liner.send('\n[Step 5: Extracting Context Sequences]\n')
+
+            # Extract Both Contexts
+            # In patch mode, only extract context for rows being designed.
+            lcontext = leftcontext
+            rcontext = rightcontext
+            if missing_mask is not None:
+                if not lcontext is None:
+                    lcontext = lcontext[missing_mask]
+                if not rcontext is None:
+                    rcontext = rcontext[missing_mask]
+
+            (leftcontext,
+            rightcontext) = ut.get_extracted_context(
+                leftcontext=lcontext,
+                rightcontext=rcontext,
+                edgeeffectlength=edgeeffectlength,
+                reduce=False,
+                liner=liner)
+
+            # No excluded motifs were parsed, but the core engine still expects
+            # per-context edge-effect dictionaries for motiftype==0.
+            if (not leftcontext is None) and (prefixdict is None):
+                prefixdict = {c: None for c in set(leftcontext)}
+            if (not rightcontext is None) and (suffixdict is None):
+                suffixdict = {c: None for c in set(rightcontext)}
 
     # Finalize Context
     if not has_context:
@@ -624,6 +694,7 @@ def spacer(
                 'spacer_count': 0,             # Spacer Design Count
                'orphan_oligo': None,          # Orphan Oligo Indexes
                 'repeat_fail': 0,             # Repeat Fail Count
+            'background_fail': 0,             # Background Fail Count
                'exmotif_fail': 0,             # Exmotif Elimination Fail Count
                   'edge_fail': 0,             # Edge Effect Fail Count
             'exmotif_counter': cx.Counter()}, # Exmotif Encounter Counter
@@ -647,6 +718,7 @@ def spacer(
         edgeeffectlength=edgeeffectlength,
         prefixdict=prefixdict,
         suffixdict=suffixdict,
+        background=background,
         targetcount=targetcount,
         stats=stats,
         liner=liner,
@@ -713,6 +785,7 @@ def spacer(
     if not stats['status']:
         maxval = max(stats['vars'][field] for field in (
             'repeat_fail',
+            'background_fail',
             'exmotif_fail',
             'edge_fail'))
 
@@ -720,12 +793,13 @@ def spacer(
             printlen=ut.get_printlen(
                 value=maxval))
 
-        total_conflicts = stats['vars']['repeat_fail']  + \
-                          stats['vars']['exmotif_fail'] + \
+        total_conflicts = stats['vars']['repeat_fail']     + \
+                          stats['vars']['background_fail'] + \
+                          stats['vars']['exmotif_fail']    + \
                           stats['vars']['edge_fail']
 
         liner.send(
-            '  Repeat Conflicts: {:{},{}} Event(s) ({:6.2f} %)\n'.format(
+            '    Repeat Conflicts: {:{},{}} Event(s) ({:6.2f} %)\n'.format(
                 stats['vars']['repeat_fail'],
                 plen,
                 sntn,
@@ -733,7 +807,15 @@ def spacer(
                     A=stats['vars']['repeat_fail'] * 100.,
                     B=total_conflicts)))
         liner.send(
-            ' Exmotif Conflicts: {:{},{}} Event(s) ({:6.2f} %)\n'.format(
+            'Background Conflicts: {:{},{}} Event(s) ({:6.2f} %)\n'.format(
+                stats['vars']['background_fail'],
+                plen,
+                sntn,
+                ut.safediv(
+                    A=stats['vars']['background_fail'] * 100.,
+                    B=total_conflicts)))
+        liner.send(
+            '   Exmotif Conflicts: {:{},{}} Event(s) ({:6.2f} %)\n'.format(
                 stats['vars']['exmotif_fail'],
                 plen,
                 sntn,
@@ -741,7 +823,7 @@ def spacer(
                     A=stats['vars']['exmotif_fail'] * 100.,
                     B=total_conflicts)))
         liner.send(
-            '    Edge Conflicts: {:{},{}} Event(s) ({:6.2f} %)\n'.format(
+            '      Edge Conflicts: {:{},{}} Event(s) ({:6.2f} %)\n'.format(
                 stats['vars']['edge_fail'],
                 plen,
                 sntn,
@@ -776,6 +858,10 @@ def spacer(
     # Unschedule outfile deletion
     if spacerstatus == 'Successful':
         ae.unregister(ofdeletion)
+
+    # Close Background
+    if background_type == 'path':
+        background.close()
 
     # Close Liner
     liner.close()

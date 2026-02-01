@@ -1,3 +1,22 @@
+2026.02.01
+1. Background integration: added `background_directory` parameter to `barcode`, `motif`, `spacer`, and `verify` modules for off-target k-mer screening.
+2. Background integration: added `is_background_feasible()` to `core_background.py` with context-aware junction checking (checks k-mers spanning element boundaries).
+3. Background integration: added `background_fail` stat counter to barcode, motif, spacer, and primer modules (separated from `repeat_fail`).
+4. Background integration: added `--background-directory` CLI flag to barcode, motif, spacer, and verify commands.
+5. Background integration: `verify` module now scans assembled oligos for background k-mer violations and reports failing IDs.
+6. Multi-anchor handling: added `get_anchored_read_candidates()` and `get_best_barcode_from_candidates()` to `core_count.py` for reads with multiple anchor occurrences.
+7. Multi-anchor handling: added `barcode_ambiguous` failure category to `acount` and `xcount` for reads where different barcodes tie on Scry confidence.
+8. Multi-anchor handling: added per-anchor segment splitting via `_segments_from_spans()` to evaluate each anchor occurrence independently.
+9. Multi-anchor handling: added fast-path optimization using `read.count()` for exact anchor matches before edlib alignment.
+10. Bugfix: barcode background screening now checks each candidate junction against background DB (was only checking first context).
+11. Bugfix: motif/spacer modules now initialize `prefixdict`/`suffixdict` when using background-only paths (fixes crash when no excluded_motifs specified).
+12. Docs: added background integration documentation to `api.md`, `docs.md`, and `agent-skills.md`.
+13. Docs: added multi-anchor handling and `barcode_ambiguous` documentation to `api.md` and `agent-skills.md`.
+14. Tests: added `smoketest/smoke_background_integration.py` for background k-mer screening across all design modules.
+15. Tests: added `smoketest/smoke_multi_anchor.py` for multi-anchor read handling in acount/xcount.
+16. Docs: standardized terminology—"oligo pool" (two words) for the concept, "oligopool" for the tool/package name—across README, docstrings, docs, and notebook.
+17. Cleanup: removed unused functions (`get_hdist`, `get_edist`, `get_categorical_validity`, `merge_config_with_args`, `_nb_popcount4`, `get_validated_concrete_sequence`).
+
 2026.01.31
 1. CLI: added `--config` flag for YAML config file support on all commands.
 2. CLI: added `op pipeline` subcommand for multi-step workflow execution from YAML configs.

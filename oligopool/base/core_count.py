@@ -23,6 +23,7 @@ ACOUNT_FAILURE_CATEGORIES = (
     'low_complexity',
     'anchor_missing',
     'barcode_absent',
+    'barcode_ambiguous',
     'associate_prefix_missing',
     'associate_mismatch',
     'callback_false',
@@ -34,6 +35,7 @@ XCOUNT_FAILURE_CATEGORIES = (
     'low_complexity',
     'anchor_missing',
     'barcode_absent',
+    'barcode_ambiguous',
     'callback_false',
     'incalculable',
 )
@@ -528,12 +530,12 @@ def exoneration_procedure(
                 freq=exofreq,
                 diagnostic='')
 
-def get_anchored_read(
+def get_anchored_read_candidates(
     read,
     metamap):
     '''
-    Return orientation corrected reads,
-    in case the reads are flipped.
+    Return anchored read segment candidates
+    sorted by edit distance (best first).
     Internal use only.
 
     :: read
@@ -541,84 +543,209 @@ def get_anchored_read(
        desc - read to be anchored
     :: metamap
        type - dict
-       desc - ditionary containing index
+       desc - dictionary containing index
               meta information
     '''
 
+    cands = []
+
     # Too Short of a Read!
     if len(read) < (len(metamap['anchor']) - metamap['anchortval']):
-        return read, False
+        return cands
 
-    # Quick Anchor!
-    qcount = 0
-    qtype  = None
-    if metamap['anchor'] in read:
-        qcount += 1
-        qtype   = 0
-    if metamap['revanchor'] in read:
-        qcount += 1
-        qtype   = 1
+    # Helper: split a read into per-anchor segments so each candidate is evaluated
+    # against exactly one anchor occurrence (avoids rfind/find always picking the
+    # same copy when reads contain multiple concatenated molecules).
+    def _segments_from_spans(oriented_read, spans, policy):
+        if not spans:
+            return []
 
-    # Anchor Ambiguous?
-    if qcount > 1:
-        return read, False
+        spans = sorted(spans, key=lambda x: x[0])
 
-    # Resolve Anchor
-    if qcount == 1:
-        if qtype:
-            return ut.get_revcomp(
-                seq=read), True
-        else:
-            return read, True
+        # Anchor is suffix-only (barcodeprefix is None): barcode is upstream of anchor.
+        if policy == 2:
+            segments = []
+            prev_end = 0
+            for _, end in spans:
+                segments.append(oriented_read[prev_end:])
+                prev_end = end + 1
+            return segments
 
-    # Define Anchor Score
-    alnfscore = float('inf')
+        # Anchor is prefix (policy 1 or 1.5): barcode is downstream of anchor.
+        segments = []
+        starts = [s for s, _ in spans]
+        for idx, start in enumerate(starts):
+            stop = starts[idx + 1] if idx + 1 < len(starts) else len(oriented_read)
+            segments.append(oriented_read[start:stop])
+        return segments
 
-    # Compute Anchor Alignment
+    # Quick Anchor Check!
+    fcount = read.count(metamap['anchor'])
+    rcount = read.count(metamap['revanchor'])
+    trimpolicy = metamap.get('trimpolicy')
+
+    # Fast Path: Single Exact Match
+    if fcount == 1 and rcount == 0:
+        spans = [(read.find(metamap['anchor']),
+                  read.find(metamap['anchor']) + len(metamap['anchor']) - 1)]
+        segs = _segments_from_spans(read, spans, trimpolicy)
+        return [(segs[0], 0, 0)] if segs else []
+    if rcount == 1 and fcount == 0:
+        rcread = ut.get_revcomp(seq=read)
+        pos = rcread.find(metamap['anchor'])
+        spans = [(pos, pos + len(metamap['anchor']) - 1)] if pos >= 0 else []
+        segs = _segments_from_spans(rcread, spans, trimpolicy)
+        return [(segs[0], 0, 1)] if segs else []
+
+    # Ambiguous Exact Match (Both Orientations)
+    if fcount > 0 and rcount > 0:
+        return []
+
+    # Fast Path: Multiple Exact Matches (Same Orientation)
+    if fcount > 1:
+        spans = []
+        start = 0
+        while True:
+            idx = read.find(metamap['anchor'], start)
+            if idx < 0:
+                break
+            spans.append((idx, idx + len(metamap['anchor']) - 1))
+            start = idx + 1
+        segs = _segments_from_spans(read, spans, trimpolicy)
+        return [(seg, 0, 0) for seg in segs]
+    if rcount > 1:
+        rcread = ut.get_revcomp(seq=read)
+        spans = []
+        start = 0
+        while True:
+            idx = rcread.find(metamap['anchor'], start)
+            if idx < 0:
+                break
+            spans.append((idx, idx + len(metamap['anchor']) - 1))
+            start = idx + 1
+        segs = _segments_from_spans(rcread, spans, trimpolicy)
+        return [(seg, 0, 1) for seg in segs]
+
+    # Fuzzy Matching via edlib (No Exact Matches)
+    # Compute Forward Anchor Alignment
     alnf = ed.align(
         query=metamap['anchor'],
         target=read,
         mode='HW',
-        task='distance',
+        task='locations',
         k=metamap['anchortval'])
 
-    # Update Anchor Score
-    alnfd = alnf['editDistance']
-    if alnfd > -1:
-        alnfscore = alnfd
+    # Store Forward Candidates
+    if alnf['editDistance'] >= 0 and alnf['locations']:
+        segs = _segments_from_spans(read, alnf['locations'], trimpolicy)
+        for seg in segs:
+            cands.append((seg, alnf['editDistance'], 0))
 
-    # Anchor Perfect Fit
-    if alnfscore == 0:
-        return read, True
-
-    # Define Reverse Score
-    alnrscore = float('inf')
-
-    # Compute Reverse Alignment
+    # Compute Reverse Anchor Alignment
+    rcread = ut.get_revcomp(seq=read)
     alnr = ed.align(
-        query=metamap['revanchor'],
-        target=read,
+        query=metamap['anchor'],
+        target=rcread,
         mode='HW',
-        task='distance',
+        task='locations',
         k=metamap['anchortval'])
 
-    # Update Reverse Score
-    alnrd = alnr['editDistance']
-    if alnrd > -1:
-        alnrscore = alnrd
+    # Store Reverse Candidates
+    if alnr['editDistance'] >= 0 and alnr['locations']:
+        segs = _segments_from_spans(rcread, alnr['locations'], trimpolicy)
+        for seg in segs:
+            cands.append((seg, alnr['editDistance'], 1))
 
-    # Reverse Perfect Fit
-    if alnrscore == 0:
-        return ut.get_revcomp(
-            seq=read), True
+    # Check for Orientation Ambiguity
+    if cands:
+        fwd_scores = [c[1] for c in cands if c[2] == 0]
+        rev_scores = [c[1] for c in cands if c[2] == 1]
+        if fwd_scores and rev_scores:
+            # Both orientations found - ambiguous if equal best scores
+            if min(fwd_scores) == min(rev_scores):
+                return []
+            # Keep only better orientation
+            if min(fwd_scores) < min(rev_scores):
+                cands = [c for c in cands if c[2] == 0]
+            else:
+                cands = [c for c in cands if c[2] == 1]
 
-    # Return Results
-    if alnfscore == alnrscore:
-        return read, False
-    elif alnfscore < alnrscore:
-        return read, True
-    return ut.get_revcomp(
-        seq=read), True
+    # Sort by Edit Distance
+    cands.sort(key=lambda x: x[1])
+
+    return cands
+
+def get_best_barcode_from_candidates(
+    read,
+    metamap,
+    model):
+    '''
+    Return best barcode from multiple
+    anchor positions in given read.
+    Internal use only.
+
+    :: read
+       type - string
+       desc - read to process
+    :: metamap
+       type - dict
+       desc - dictionary containing index
+              meta information
+    :: model
+       type - Scry
+       desc - Scry model for classifying
+              barcode
+    '''
+
+    # Get All Anchor Candidates
+    cands = get_anchored_read_candidates(read, metamap)
+
+    # No Anchors Found!
+    if not cands:
+        return None, 'anchor_absent'
+
+    # Filter to Best Anchor Score
+    bestscore = min(c[1] for c in cands)
+    bestcands = [c for c in cands if c[1] == bestscore]
+
+    # Classify Barcode at Each Position
+    bcresults = []
+    for ancread, _, __ in bestcands:
+        result = get_barcode_index(
+            barcoderead=ancread,
+            metamap=metamap,
+            model=model)
+
+        # Valid Result?
+        if result is not None:
+            # Extract Index and Confidence
+            if isinstance(result, tuple):
+                bcidx, conf = result
+            else:
+                bcidx = result
+                conf  = 1.0
+
+            # Store Valid Barcode
+            if bcidx is not None:
+                if conf is None:
+                    conf = 1.0
+                bcresults.append((bcidx, conf))
+
+    # No Barcodes Found!
+    if not bcresults:
+        return None, 'barcode_absent'
+
+    # Find Best Scry Score
+    bestconf = max(r[1] for r in bcresults)
+    bestbcs  = [r for r in bcresults if r[1] == bestconf]
+
+    # Check for Ambiguity
+    uniqueids = set(r[0] for r in bestbcs)
+    if len(uniqueids) > 1:
+        return None, 'barcode_ambiguous'
+
+    # Unique Best Barcode Found!
+    return bestbcs[0][0], 'success'
 
 def get_trimmed_read(
     read,
@@ -1520,45 +1647,43 @@ def acount_engine(
             verbiagereach += 1
             readcount     += 1
 
-            # Try anchor on R1 first
-            (anchoredread,
-            anchorstatus) = get_anchored_read(
+            # Try multi-anchor barcode detection on R1 first
+            (index, barcode_status) = get_best_barcode_from_candidates(
                 read=r1,
-                metamap=metamap)
-
-            # If R1 failed and R2 exists, try R2
-            if not anchorstatus and r2 is not None:
-                (anchoredread,
-                anchorstatus) = get_anchored_read(
-                    read=r2,
-                    metamap=metamap)
-
-            # Anchor Absent in both reads
-            if not anchorstatus:
-                exoread = r1  # Use r1 for exoneration
-                exofreq = freq
-                exo_r1  = r1  # Track for failure sampling
-                exo_r2  = r2
-                continue
-
-            # Barcode detection on anchored read
-            barcoderead = anchoredread
-
-            # Compute Barcode Index
-            index = get_barcode_index(
-                barcoderead=barcoderead,
                 metamap=metamap,
                 model=model)
 
-            # Barcode Absent
+            # If R1 failed and R2 exists, try R2
+            if index is None and r2 is not None:
+                (index, barcode_status) = get_best_barcode_from_candidates(
+                    read=r2,
+                    metamap=metamap,
+                    model=model)
+
+            # Handle failure cases
             if index is None:
-                cctrs['incalcreads'] += freq
-                if sampler is not None:
-                    sampler.add_sample(
-                        category='barcode_absent',
-                        r1=r1, r2=r2, freq=freq,
-                        diagnostic='trimmed_read={}'.format(
-                            barcoderead[:50] if len(barcoderead) > 50 else barcoderead))
+                if barcode_status == 'anchor_absent':
+                    # Anchor missing - set up exoneration
+                    exoread = r1
+                    exofreq = freq
+                    exo_r1  = r1
+                    exo_r2  = r2
+                elif barcode_status == 'barcode_absent':
+                    # Barcode not found at any anchor position
+                    cctrs['incalcreads'] += freq
+                    if sampler is not None:
+                        sampler.add_sample(
+                            category='barcode_absent',
+                            r1=r1, r2=r2, freq=freq,
+                            diagnostic='no_valid_barcode_at_any_anchor')
+                elif barcode_status == 'barcode_ambiguous':
+                    # Multiple anchors yielded different barcodes with same confidence
+                    cctrs['incalcreads'] += freq
+                    if sampler is not None:
+                        sampler.add_sample(
+                            category='barcode_ambiguous',
+                            r1=r1, r2=r2, freq=freq,
+                            diagnostic='multiple_barcodes_same_confidence')
                 continue
 
             # Compute Associate Match - try both reads
@@ -2075,46 +2200,39 @@ def xcount_engine(
             indextuple = []
             partialanc = False
             partialmap = False
+            has_ambiguous = False
             for idx in range(numindex):
 
-                # Try anchor on R1 first
-                (anchoredread,
-                anchorstatus) = get_anchored_read(
+                # Try multi-anchor barcode detection on R1 first
+                (index, barcode_status) = get_best_barcode_from_candidates(
                     read=r1,
-                    metamap=metamaps[idx])
-
-                # If R1 failed and R2 exists, try R2
-                if not anchorstatus and r2 is not None:
-                    (anchoredread,
-                    anchorstatus) = get_anchored_read(
-                        read=r2,
-                        metamap=metamaps[idx])
-
-                # Anchor Absent in both reads
-                if not anchorstatus:
-                    indextuple.append('-')
-                    continue
-
-                # Anchoring Successful
-                partialanc = True
-
-                # Compute Barcode Index
-                index = get_barcode_index(
-                    barcoderead=anchoredread,
                     metamap=metamaps[idx],
                     model=models[idx])
 
-                # Barcode Absent
+                # If R1 failed and R2 exists, try R2
+                if index is None and r2 is not None:
+                    (index, barcode_status) = get_best_barcode_from_candidates(
+                        read=r2,
+                        metamap=metamaps[idx],
+                        model=models[idx])
+
+                # Handle result
                 if index is None:
-                    indextuple.append('-')
+                    if barcode_status == 'anchor_absent':
+                        indextuple.append('-')
+                    elif barcode_status == 'barcode_absent':
+                        partialanc = True  # Anchor was found, just no valid barcode
+                        indextuple.append('-')
+                    elif barcode_status == 'barcode_ambiguous':
+                        partialanc = True  # Anchor was found
+                        has_ambiguous = True
+                        indextuple.append('-')
                     continue
 
                 # Found a Barcode!
-                indextuple.append(
-                    index)
-
-                # Mapping Successful
+                partialanc = True
                 partialmap = True
+                indextuple.append(index)
 
             # All Anchors Absent
             if not partialanc:
@@ -2124,14 +2242,21 @@ def xcount_engine(
                 exo_r2  = r2
                 continue
 
-            # All Barcodes Absent
+            # All Barcodes Absent (but anchors were found)
             if not partialmap:
                 cctrs['incalcreads'] += freq
                 if sampler is not None:
-                    sampler.add_sample(
-                        category='barcode_absent',
-                        r1=r1, r2=r2, freq=freq,
-                        diagnostic='')
+                    # Use barcode_ambiguous category if any index had ambiguity
+                    if has_ambiguous:
+                        sampler.add_sample(
+                            category='barcode_ambiguous',
+                            r1=r1, r2=r2, freq=freq,
+                            diagnostic='at_least_one_index_ambiguous')
+                    else:
+                        sampler.add_sample(
+                            category='barcode_absent',
+                            r1=r1, r2=r2, freq=freq,
+                            diagnostic='')
                 continue
 
             # Convert Tuples to Indexes
@@ -2435,8 +2560,9 @@ def write_failed_reads(samples, seen_counts, filepath, liner):
     total_rows = sum(len(cat_samples) for cat_samples in samples.values())
 
     # Write CSV
-    # Note: use csv.writer to correctly quote fields that may contain commas,
-    # newlines, quotes, etc. (e.g., diagnostic strings like "A=10,T=5,...").
+    # Note: use csv.writer to correctly quote fields that may contain delimiter
+    # characters/newlines/quotes (diagnostics use semicolons, but quoting keeps
+    # the file robust for downstream parsing).
     import csv
     with open(filepath, 'w', newline='') as outfile:
         writer = csv.writer(outfile)

@@ -4,6 +4,67 @@ from . import vectordb as db
 from . import utils as ut
 
 
+# Background Feasibility Check
+
+def is_background_feasible(
+    seq,
+    bg,
+    leftcontext,
+    rightcontext):
+    '''
+    Check if sequence avoids background
+    k-mers including junction regions.
+    Internal use only.
+
+    :: seq
+       type - string
+       desc - designed element sequence
+    :: bg
+       type - vectorDB or None
+       desc - background k-mer database
+    :: leftcontext
+       type - string
+       desc - left flanking sequence
+    :: rightcontext
+       type - string
+       desc - right flanking sequence
+    '''
+
+    # No Background?
+    if bg is None:
+        return True
+
+    # Empty Element?
+    if len(seq) == 0:
+        return True
+
+    # Trim Context to Relevant Region
+    # Only need k-1 bases from each side for junction k-mers
+    leftctx  = leftcontext[-(bg.K-1):]  if leftcontext  and len(leftcontext)  >= bg.K-1 else (leftcontext  or '')
+    rightctx = rightcontext[:bg.K-1]    if rightcontext and len(rightcontext) >= bg.K-1 else (rightcontext or '')
+    fullseq  = leftctx + seq + rightctx
+
+    # Compute Check Region
+    # First k-mer: starts where it first touches element
+    # Last k-mer: starts at last element base
+    elemstart = len(leftctx)
+    elemend   = len(leftctx) + len(seq) - 1
+
+    # First k-mer touching element starts at max(0, elemstart - K + 1)
+    # Last k-mer touching element starts at elemend
+    start = max(0, elemstart - bg.K + 1)
+    end   = elemend + 1  # exclusive
+
+    # Check All k-mers in Region
+    for i in range(start, end):
+        kmer = fullseq[i:i+bg.K]
+        if len(kmer) == bg.K and kmer in bg:
+            return False
+
+    # No Conflicts
+    return True
+
+
 # Engine Objective and Helper Functions
 
 def background_engine(

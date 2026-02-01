@@ -34,8 +34,7 @@ def xcount(
         - `count_file` (`str`): Output count matrix filename.
 
     Optional Parameters:
-        - `mapping_type` (`int` / `str`): Barcode classification: 0 or 'fast' for fast,
-          1 or 'sensitive' for sensitive. Also accepts aliases: 'quick', 'near-exact', 'sens', 'accurate', 'slow' (default: 0).
+        - `mapping_type` (`int` / `str`): Barcode classification mode (default: 0). See Notes.
         - `barcode_errors` (`int`): Maximum errors in barcodes (-1: auto-infer, default: -1).
         - `callback` (`callable`): Custom read processing function (default: `None`).
         - `core_count` (`int`): CPU cores to use (0: auto-infer, default: 0).
@@ -51,15 +50,20 @@ def xcount(
     Notes:
         - Partial and missing combinations are included in counts.
         - Reads are retained if at least one barcode maps; missing barcodes are represented as
-          `'-'` (gaps) in the output combination.
+            `'-'` (gaps) in the output combination.
+        - `mapping_type`:
+            0 or 'fast' for fast, 1 or 'sensitive' for sensitive
+            (aliases: 'quick', 'near-exact', 'sens', 'accurate', 'slow').
         - CLI note: callback functions are not currently supported via the `op`/`oligopool` CLI
-          (the CLI always runs with `callback=None`); use the Python API to supply callbacks.
+            (the CLI always runs with `callback=None`); use the Python API to supply callbacks.
         - Callback signature: `callback(r1, r2, ID, count, coreid) -> bool` (return `True` to accept the read);
-          `r2` is `None` for merged/single-end reads.
+            `r2` is `None` for merged/single-end reads.
         - Associate information in indexes is ignored.
         - Barcodes can be isolated or be sub-barcodes of a larger combinatorial assembly.
+        - If an anchor appears multiple times, the best-scoring one is used; ties with multiple barcodes rejected.
         - Failed reads sampling collects representative samples from each failure category for diagnostics.
-          Categories: phix_match, low_complexity, anchor_missing, barcode_absent, callback_false, incalculable.
+            Categories: phix_match, low_complexity, anchor_missing, barcode_absent, barcode_ambiguous,
+            callback_false, incalculable.
     '''
 
     # Alias Arguments

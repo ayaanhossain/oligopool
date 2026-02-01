@@ -17,7 +17,7 @@
   <a href="#license" style="text-decoration: none !important;">⚖️ License</a>
 </p>
 
-`Oligopool Calculator` is a Swiss-army knife for [oligopool libraries](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9300125/): a unified toolkit for high-throughput design, assembly, compression, and analysis of massively parallel assays, designed to integrate seamlessly with Python, the CLI, Jupyter, containers, and AI-assisted workflows.
+`Oligopool Calculator` is a Swiss-army knife for [oligo pool libraries](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9300125/): a unified toolkit for high-throughput design, assembly, compression, and analysis of massively parallel assays, designed to integrate seamlessly with Python, the CLI, Jupyter, containers, and AI-assisted workflows.
 
 Design modules generate primers, barcodes, motifs/anchors, and spacers; assembly modules split/pad long constructs; Degenerate Mode compresses similar sequences into IUPAC‑degenerate oligos; and Analysis Mode packs and counts barcoded reads for activity quantification.
 
@@ -40,7 +40,7 @@ To learn more, please check out [our paper in ACS Synthetic Biology](https://pub
 - 🔧 **Assembly mode:** fragment long oligos into overlapping pieces and add Type IIS primer pads for scarless assembly (`split`, `pad`).
 - 🧪 **Degenerate mode:** compress variant libraries with low mutational diversity into IUPAC-degenerate oligos for cost-efficient synthesis (`compress`, `expand`).
 - 📈 **Analysis mode:** fast NGS-based activity quantification with read indexing, packing, and barcode/associate counting (`index`, `pack`, `acount`, `xcount`) extensible with callback methods (via Python library).
-- 🔁 **Iterative & multiplexed workflows:** patch mode for extending existing pools, cross-set barcode separation, and per-group primer design with cross-compatibility screening.
+- 🔁 **Iterative & multiplexed workflows:** `patch_mode` for extending existing pools, cross-set barcode separation, and per-group primer design with cross-compatibility screening.
 - ⚡ **Performance:** scalable to very large libraries and high-throughput sequencing datasets, with published benchmarks demonstrating efficient design and analysis on commodity hardware (see paper).
 - 🔒 **Rich constraints:** IUPAC sequence constraints, motif exclusion, repeat screening, Hamming-distance barcodes, and primer thermodynamic constraints (including optional paired-primer Tm matching).
 - 📊 **DataFrame-centric:** modules operate on CSV/DataFrames and return updated tables plus `stats`; the CLI can emit JSON and supports reproducible stochastic runs (`random_seed`).
@@ -110,7 +110,7 @@ $ python
 >>> import oligopool as op
 >>> help(op)
 ...
-    Automated design and analysis of oligopool libraries for
+    Automated design and analysis of oligo pool libraries for
     high-throughput genomics and synthetic biology applications.
 
     Design Mode - build synthesis-ready oligo architectures
@@ -176,7 +176,7 @@ oligopool v2026.01.31
 by ah
 
 Oligopool Calculator is a suite of algorithms for
-automated design and analysis of oligopool libraries.
+automated design and analysis of oligo pool libraries.
 
 usage: oligopool COMMAND --argument=<value> ...
 

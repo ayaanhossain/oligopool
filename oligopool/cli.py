@@ -52,7 +52,7 @@ BANNER_TEXT = f'oligopool v{__version__}\nby ah'
 
 MAIN_MENU_DESCRIPTION = (
     'Oligopool Calculator is a suite of algorithms for\n'
-    'automated design and analysis of oligopool libraries.'
+    'automated design and analysis of oligo pool libraries.'
 )
 
 _DOC_SECTION_HEADERS = {
@@ -99,7 +99,6 @@ def _load_api_func(command: str):
     module = importlib.import_module(f'.{module_name}', package=__package__)
     return getattr(module, func_name)
 
-
 def _get_cached_module_ast(module_name: str) -> ast.AST:
     tree = _MODULE_AST_CACHE.get(module_name)
     if tree is not None:
@@ -109,7 +108,6 @@ def _get_cached_module_ast(module_name: str) -> ast.AST:
     tree = ast.parse(source)
     _MODULE_AST_CACHE[module_name] = tree
     return tree
-
 
 def _get_func_docstring(module_name: str, func_name: str) -> str:
     cached = _FUNC_DOC_CACHE.get((module_name, func_name))
@@ -124,7 +122,6 @@ def _get_func_docstring(module_name: str, func_name: str) -> str:
             break
     _FUNC_DOC_CACHE[(module_name, func_name)] = doc
     return doc
-
 
 def _extract_doc_notes(doc: str):
     if not doc:
@@ -197,7 +194,6 @@ def _extract_doc_notes(doc: str):
         normalized.append(f'- {bullet}')
     return normalized
 
-
 def _notes_epilog(command: str):
     if _ARGCOMPLETE_MODE:
         return None
@@ -205,9 +201,20 @@ def _notes_epilog(command: str):
     notes = _extract_doc_notes(_get_func_docstring(module_name, func_name))
     if not notes:
         return None
-    parts = ['Notes:']
-    parts.extend(notes)
-    return '\n\n'.join(parts)
+    formatted = ['Command Notes:']
+    for bullet in notes:
+        text = bullet.strip()
+        if text.startswith('- '):
+            text = text[2:].strip()
+        wrapped = textwrap.fill(
+            text,
+            width=120,
+            initial_indent='  * ',
+            subsequent_indent='      ',
+        )
+        formatted.append(wrapped)
+    # Prefix with ">>" so OligopoolFormatter preserves explicit newlines.
+    return '>>' + '\n'.join(formatted)
 
 
 CLI_MANUAL = '''
@@ -487,7 +494,6 @@ class OligopoolParser(argparse.ArgumentParser):
         out.extend(lines[cmd_idx:])
         return ''.join(out)
 
-
 class OligopoolFormatter(argparse.RawTextHelpFormatter):
     '''
     Custom HelpFormatter for OligopoolParser.
@@ -519,6 +525,9 @@ class OligopoolFormatter(argparse.RawTextHelpFormatter):
         return text
 
     def _fill_text(self, text, width, indent):
+        # Allow explicit line breaks in epilog/description using a ">>" sentinel.
+        if text.startswith('>>'):
+            return '\n'.join(line.rstrip() for line in text[2:].splitlines())
         # Wrap paragraphs while keeping output free of control characters
         # (important for piping help text and for machine parsing).
         paragraphs = text.split('\n\n')
@@ -547,7 +556,6 @@ def _print_header():
         print()
         _HEADER_PRINTED = True
 
-
 def _print_footer():
     '''Print the CLI footer banner once per process.'''
     global _FOOTER_PRINTED
@@ -562,7 +570,6 @@ def _print_footer():
 # === Common parsing helpers ===
 
 _SEQ_CONSTRAINT_MAX_LEN = 100000
-
 
 def _eval_py_string_expr(expr, *, max_len=_SEQ_CONSTRAINT_MAX_LEN):
     '''Safely evaluate a small subset of Python string expressions.
@@ -645,7 +652,6 @@ def _eval_py_string_expr(expr, *, max_len=_SEQ_CONSTRAINT_MAX_LEN):
         )
     return out
 
-
 def _parse_sequence_constraint(value):
     '''Parse an IUPAC constraint, expanding simple repeat/py-string forms.
 
@@ -713,7 +719,6 @@ def _parse_sequence_constraint(value):
 
     return value
 
-
 def _parse_list_str(value):
     '''Parse a comma-delimited string into a list of strings.'''
     if value is None:
@@ -737,7 +742,6 @@ def _parse_list_str(value):
         return items if items else None
     return value.strip()
 
-
 def _parse_list_int(value):
     '''Parse comma-delimited ints or a scalar int; pass through non-numeric strings.'''
     if value is None:
@@ -756,7 +760,6 @@ def _parse_list_int(value):
         return int(value)
     return value
 
-
 def _parse_type_param(value):
     '''Parse type parameter accepting int or string.'''
     if value is None:
@@ -765,7 +768,6 @@ def _parse_type_param(value):
     if value.lstrip('-').isdigit():
         return int(value)
     return value
-
 
 def _looks_like_path(value):
     '''Return True if a CLI argument looks like a filesystem path.'''
@@ -783,7 +785,6 @@ def _looks_like_path(value):
         return True
     return os.path.exists(value)
 
-
 def _dump_stats(stats, args):
     '''Emit stats as JSON to stdout or to a file if requested.'''
     if stats is None:
@@ -794,7 +795,6 @@ def _dump_stats(stats, args):
         with open(args.stats_file, 'w', encoding='utf-8') as handle:
             json.dump(stats, handle, indent=2, sort_keys=True, default=str)
 
-
 def _handle_result(result, args):
     '''Extract stats from a module result and return a process exit code.'''
     # Most module calls return (dataframe, stats); stats-only calls return a dict.
@@ -803,7 +803,6 @@ def _handle_result(result, args):
     if isinstance(stats, dict) and 'status' in stats:
         return 0 if stats['status'] else 1
     return 0
-
 
 def _inject_config_args(arg_list, command, parser=None):
     '''Pre-parse config file and inject values into arg list.
@@ -886,7 +885,6 @@ def _inject_config_args(arg_list, command, parser=None):
         return [arg_list[0]] + injected + arg_list[1:]
     return injected + arg_list
 
-
 def _apply_step_type_conversions(step_config):
     '''Apply type conversions to step config values.'''
     if 'excluded_motifs' in step_config:
@@ -904,7 +902,6 @@ def _apply_step_type_conversions(step_config):
     if 'index_files' in step_config:
         step_config['index_files'] = _parse_list_str(step_config['index_files'])
     return step_config
-
 
 def _execute_step(step_name, command, config_key, config):
     '''Execute a single pipeline step.
@@ -938,7 +935,6 @@ def _execute_step(step_name, command, config_key, config):
 
     except Exception as exc:
         return (step_name, False, f'Step "{step_name}" raised exception: {exc}', None)
-
 
 def _run_pipeline_sequential(config, steps, dry_run, verbose):
     '''Execute a sequential (non-parallel) pipeline.'''
@@ -987,7 +983,6 @@ def _run_pipeline_sequential(config, steps, dry_run, verbose):
         print(f'Pipeline completed successfully.')
 
     return 0
-
 
 def _run_pipeline_parallel(config, dry_run, verbose):
     '''Execute a parallel/DAG pipeline.'''
@@ -1115,7 +1110,6 @@ def _run_pipeline_parallel(config, dry_run, verbose):
 
     return 0
 
-
 def _run_pipeline(config, dry_run, verbose):
     '''Execute a multi-step pipeline from config.
 
@@ -1203,7 +1197,6 @@ Write the stats dictionary as JSON to this file path.''')
 Suppress verbose module output (sets verbose=False).''')
     parser.set_defaults(verbose=True)
 
-
 def _add_manual(cmdpar):
     '''Register the manual subcommand parser.'''
     parser = cmdpar.add_parser(
@@ -1223,7 +1216,6 @@ Module name for docs (e.g., barcode, primer). Use "topics" to list.''')
     topic.completer = argcomplete.completers.ChoicesCompleter(MANUAL_TOPIC_CHOICES)
     return parser
 
-
 def _add_cite(cmdpar):
     '''Register the cite subcommand parser.'''
     parser = cmdpar.add_parser(
@@ -1234,7 +1226,6 @@ def _add_cite(cmdpar):
         formatter_class=OligopoolFormatter,
         add_help=False)
     return parser
-
 
 def _add_complete(cmdpar):
     '''Register the complete subcommand parser.'''
@@ -1269,14 +1260,12 @@ If omitted, auto-detect shell.''')
 Print short instructions instead of shell code.''')
     return parser
 
-
 def _detect_shell():
     shell = os.environ.get('SHELL') or ''
     shell = os.path.basename(shell)
     if shell in ('bash', 'zsh', 'fish'):
         return shell
     return 'bash'
-
 
 def _completion_snippet(shell, include_hint=False, lazy=False):
     hint_lines = []
@@ -1357,7 +1346,6 @@ def _completion_snippet(shell, include_hint=False, lazy=False):
         ])
     raise ValueError(f'unsupported shell: {shell}')
 
-
 def _upsert_rc_block(rc_path, shell):
     begin = '# >>> oligopool argcomplete >>>'
     end = '# <<< oligopool argcomplete <<<'
@@ -1373,7 +1361,6 @@ def _upsert_rc_block(rc_path, shell):
     else:
         updated = existing.rstrip('\n') + '\n\n' + block
     rc_path.write_text(updated, encoding='utf-8')
-
 
 def _install_completion(shell):
     home = Path.home()
@@ -1392,7 +1379,6 @@ def _install_completion(shell):
         return 0
     raise ValueError(f'unsupported shell: {shell}')
 
-
 def _run_complete(shell, install, print_instructions):
     include_hint = shell is None
     shell = shell or _detect_shell()
@@ -1406,7 +1392,6 @@ def _run_complete(shell, install, print_instructions):
         return 0
     print(_completion_snippet(shell, include_hint=include_hint))
     return 0
-
 
 def _print_manual(topic):
     '''Print module or package documentation for manual command.'''
@@ -1470,7 +1455,6 @@ def _print_manual(topic):
     print(f'No documentation available for "{topic}".')
     return 1
 
-
 def _print_cite():
     '''Print citation information for the project.'''
     print(CITATION_TEXT.strip())
@@ -1527,7 +1511,7 @@ def _add_background(cmdpar):
         metavar='\b',
         help='''>>[required string]
 Path to input CSV with background sequences.
-Required columns: ID, Sequence.''')
+Required column: Sequence (ID is allowed but not required).''')
     req.add_argument(
         '--maximum-repeat-length',
         required=True,
@@ -1546,7 +1530,6 @@ Output directory for the background k-mer database.
 A ".oligopool.background" suffix is added if missing.''')
     _add_common_options(parser, opt)
     return parser
-
 
 def _add_barcode(cmdpar):
     '''Register the barcode subcommand parser.'''
@@ -1668,7 +1651,15 @@ Must be used with --cross-barcode-columns.''')
         default=None,
         metavar='\b',
         help='''>>[optional string]
-Comma-separated motifs or a CSV path with an Exmotif column (ID column is allowed but not required).''')
+Comma-separated motifs or a CSV path with an Exmotif column.''')
+    opt.add_argument(
+        '--background-directory',
+        type=str,
+        default=None,
+        metavar='\b',
+        help='''>>[optional string]
+Path to background k-mer database created by the background command.
+Designed barcodes will avoid all k-mers in the database.''')
     opt.add_argument(
         '--random-seed',
         type=int,
@@ -1678,7 +1669,6 @@ Comma-separated motifs or a CSV path with an Exmotif column (ID column is allowe
 Random seed for reproducible barcode design.''')
     _add_common_options(parser, opt)
     return parser
-
 
 def _add_primer(cmdpar):
     '''Register the primer subcommand parser.'''
@@ -1808,7 +1798,7 @@ Column containing the paired primer to match Tm against.''')
         default=None,
         metavar='\b',
         help='''>>[optional string]
-Comma-separated motifs or a CSV path with an Exmotif column (ID column is allowed but not required).''')
+Comma-separated motifs or a CSV path with an Exmotif column.''')
     opt.add_argument(
         '--background-directory',
         type=str,
@@ -1825,7 +1815,6 @@ Path to background k-mer database generated by background().''')
 Random seed for reproducible primer design.''')
     _add_common_options(parser, opt)
     return parser
-
 
 def _add_motif(cmdpar):
     '''Register the motif subcommand parser.'''
@@ -1924,7 +1913,15 @@ Fill missing values in an existing motif column instead of creating a new column
         default=None,
         metavar='\b',
         help='''>>[optional string]
-Comma-separated motifs or a CSV path with an Exmotif column (ID column is allowed but not required).''')
+Comma-separated motifs or a CSV path with an Exmotif column.''')
+    opt.add_argument(
+        '--background-directory',
+        type=str,
+        default=None,
+        metavar='\b',
+        help='''>>[optional string]
+Path to background k-mer database created by the background command.
+Designed motifs will avoid all k-mers in the database.''')
     opt.add_argument(
         '--random-seed',
         type=int,
@@ -1934,7 +1931,6 @@ Comma-separated motifs or a CSV path with an Exmotif column (ID column is allowe
 Random seed for reproducible motif design.''')
     _add_common_options(parser, opt)
     return parser
-
 
 def _add_spacer(cmdpar):
     '''Register the spacer subcommand parser.'''
@@ -2025,7 +2021,15 @@ Fill missing values in an existing spacer column instead of creating a new colum
         default=None,
         metavar='\b',
         help='''>>[optional string]
-Comma-separated motifs or a CSV path with an Exmotif column (ID column is allowed but not required).''')
+Comma-separated motifs or a CSV path with an Exmotif column.''')
+    opt.add_argument(
+        '--background-directory',
+        type=str,
+        default=None,
+        metavar='\b',
+        help='''>>[optional string]
+Path to background k-mer database created by the background command.
+Designed spacers will avoid all k-mers in the database.''')
     opt.add_argument(
         '--random-seed',
         type=int,
@@ -2035,7 +2039,6 @@ Comma-separated motifs or a CSV path with an Exmotif column (ID column is allowe
 Random seed for reproducible spacer design.''')
     _add_common_options(parser, opt)
     return parser
-
 
 def _add_split(cmdpar):
     '''Register the split subcommand parser.'''
@@ -2121,7 +2124,6 @@ Random seed for reproducible split decisions.''')
     _add_common_options(parser, opt)
     return parser
 
-
 def _add_pad(cmdpar):
     '''Register the pad subcommand parser.'''
     parser = cmdpar.add_parser(
@@ -2200,7 +2202,6 @@ Random seed for reproducible padding.''')
     _add_common_options(parser, opt)
     return parser
 
-
 def _add_merge(cmdpar):
     '''Register the merge subcommand parser.'''
     parser = cmdpar.add_parser(
@@ -2251,7 +2252,6 @@ Right boundary column for merging; defaults to last column if omitted.''')
     _add_common_options(parser, opt)
     return parser
 
-
 def _add_revcomp(cmdpar):
     '''Register the revcomp subcommand parser.'''
     parser = cmdpar.add_parser(
@@ -2295,7 +2295,6 @@ Right boundary column to reverse-complement; defaults to last column.''')
     _add_common_options(parser, opt)
     return parser
 
-
 def _add_verify(cmdpar):
     '''Register the verify subcommand parser.'''
     parser = cmdpar.add_parser(
@@ -2328,10 +2327,17 @@ Maximum allowed oligo length for reporting (>= 4).''')
         default=None,
         metavar='\b',
         help='''>>[optional string]
-Comma-separated motifs or a CSV path with an Exmotif column (ID column is allowed but not required).''')
+Comma-separated motifs or a CSV path with an Exmotif column.''')
+    opt.add_argument(
+        '--background-directory',
+        type=str,
+        default=None,
+        metavar='\b',
+        help='''>>[optional string]
+Path to background k-mer database created by the background command.
+Scans concatenated oligos for background k-mers and reports violations.''')
     _add_common_options(parser, opt)
     return parser
-
 
 def _add_lenstat(cmdpar):
     '''Register the lenstat subcommand parser.'''
@@ -2362,7 +2368,6 @@ Maximum allowed oligo length for reporting (>= 4).''')
     _add_common_options(parser, opt)
     return parser
 
-
 def _add_final(cmdpar):
     '''Register the final subcommand parser.'''
     parser = cmdpar.add_parser(
@@ -2392,7 +2397,6 @@ Output CSV filename for the finalized library.
 A ".oligopool.final.csv" suffix is added if missing.''')
     _add_common_options(parser, opt)
     return parser
-
 
 def _add_compress(cmdpar):
     '''Register the compress subcommand parser.'''
@@ -2454,7 +2458,6 @@ Random seed for reproducible compression.''')
     _add_common_options(parser, opt)
     return parser
 
-
 def _add_expand(cmdpar):
     '''Register the expand subcommand parser.'''
     parser = cmdpar.add_parser(
@@ -2507,7 +2510,6 @@ A ".oligopool.expand.csv" suffix is added if missing.''')
 Maximum total expanded sequences (safety cap) (default: unlimited).''')
     _add_common_options(parser, opt)
     return parser
-
 
 def _add_index(cmdpar):
     '''Register the index subcommand parser.'''
@@ -2623,7 +2625,6 @@ Distance in bp between suffix anchor and associate in reads.
     _add_common_options(parser, opt)
     return parser
 
-
 def _add_pack(cmdpar):
     '''Register the pack subcommand parser.'''
     parser = cmdpar.add_parser(
@@ -2734,7 +2735,6 @@ GB of memory per core (0 = auto).''')
     _add_common_options(parser, opt)
     return parser
 
-
 def _add_acount(cmdpar):
     '''Register the acount subcommand parser.'''
     parser = cmdpar.add_parser(
@@ -2825,7 +2825,6 @@ Maximum samples per failure category.
     _add_common_options(parser, opt)
     return parser
 
-
 def _add_xcount(cmdpar):
     '''Register the xcount subcommand parser.'''
     parser = cmdpar.add_parser(
@@ -2909,7 +2908,6 @@ Maximum samples per failure category.
 (default: 1000).''')
     _add_common_options(parser, opt)
     return parser
-
 
 def _get_parsers():
     '''Create and return the top-level CLI parser.'''
@@ -3051,6 +3049,7 @@ def main(argv=None):
                     cross_barcode_columns=cross_columns,
                     minimum_cross_distance=args.minimum_cross_distance,
                     excluded_motifs=_parse_list_str(args.excluded_motifs),
+                    background_directory=args.background_directory,
                     random_seed=args.random_seed,
                     verbose=args.verbose)
             case 'primer':
@@ -3093,6 +3092,7 @@ def main(argv=None):
                     right_context_column=args.right_context_column,
                     patch_mode=args.patch_mode,
                     excluded_motifs=_parse_list_str(args.excluded_motifs),
+                    background_directory=args.background_directory,
                     random_seed=args.random_seed,
                     verbose=args.verbose)
             case 'spacer':
@@ -3108,6 +3108,7 @@ def main(argv=None):
                     right_context_column=args.right_context_column,
                     patch_mode=args.patch_mode,
                     excluded_motifs=_parse_list_str(args.excluded_motifs),
+                    background_directory=args.background_directory,
                     random_seed=args.random_seed,
                     verbose=args.verbose)
             case 'split':
@@ -3159,6 +3160,7 @@ def main(argv=None):
                     input_data=args.input_data,
                     oligo_length_limit=args.oligo_length_limit,
                     excluded_motifs=_parse_list_str(args.excluded_motifs),
+                    background_directory=args.background_directory,
                     verbose=args.verbose)
             case 'lenstat':
                 lenstat = _load_api_func('lenstat')

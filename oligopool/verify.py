@@ -20,7 +20,7 @@ def verify(
     background_directory:str|None=None,
     verbose:bool=True) -> dict:
     '''
-    Lightweight QC for an oligopool DataFrame (column inspection, length stats, and excluded-motif
+    Lightweight QC for an oligo pool DataFrame (column inspection, length stats, and excluded-motif
     emergence), without modifying data or writing outputs.
 
     Required Parameters:

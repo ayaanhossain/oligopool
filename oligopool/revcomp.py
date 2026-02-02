@@ -166,7 +166,7 @@ def revcomp(
         outdf[col] = outdf[col].transform(lambda x: ut.get_revcomp(seq=x))
 
     # Show Update
-    liner.send(' Merging Completed\n')
+    liner.send(' Revcomping Completed\n')
     liner.send(
         ' Time Elapsed: {:.2f} sec\n'.format(
             tt.time()-t0))

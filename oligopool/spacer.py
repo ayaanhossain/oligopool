@@ -143,7 +143,7 @@ def spacer(
         numeric=maxreplen,
         numeric_field='     Repeat Length  ',
         numeric_pre_desc=' Up to ',
-        numeric_post_desc=' Base Pair(s) Oligopool Repeats',
+        numeric_post_desc=' Base Pair(s) Oligo Pool Repeats',
         minval=4,
         maxval=float('inf'),
         precheck=False,
@@ -638,8 +638,8 @@ def spacer(
         prefixdict,
         suffixdict) = (None, None, None, None)
 
-    # Parse Oligopool Repeats
-    liner.send('\n[Step 7: Parsing Oligopool Repeats]\n')
+    # Parse Oligo Pool Repeats
+    liner.send('\n[Step 7: Parsing Oligo Pool Repeats]\n')
 
     # Parse Repeats from indf
     (parsestatus,

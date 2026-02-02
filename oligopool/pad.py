@@ -155,7 +155,7 @@ def pad(
         numeric=maxreplen,
         numeric_field='  Repeat Length     ',
         numeric_pre_desc=' Up to ',
-        numeric_post_desc=' Base Pair(s) Oligopool Repeats',
+        numeric_post_desc=' Base Pair(s) Oligo Pool Repeats',
         minval=6,
         maxval=20,
         precheck=False,
@@ -488,8 +488,8 @@ def pad(
     if not warns[8]['warn_count']:
         warns.pop(8)
 
-    # Parse Oligopool Repeats
-    liner.send('\n[Step 9: Parsing Oligopool Repeats]\n')
+    # Parse Oligo Pool Repeats
+    liner.send('\n[Step 9: Parsing Oligo Pool Repeats]\n')
 
     # Parse Repeats from indf
     (parsestatus,

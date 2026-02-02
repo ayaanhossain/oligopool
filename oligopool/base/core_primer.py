@@ -1103,7 +1103,7 @@ def show_update(
         ['Rejected', 'Provisionally Accepted', 'Accepted'][optstatus],
         ['',
         ' due to Background Repeat',
-        ' due to Oligopool Repeat',
+        ' due to Oligo Pool Repeat',
         ' due to Paired Repeat',
         ' due to Excluded Motif',
         ' due to Edge Effect',

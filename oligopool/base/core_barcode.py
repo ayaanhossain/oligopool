@@ -256,7 +256,7 @@ def show_update(
         ' due to Hamming Distance',
         ' due to Excluded Motif',
         ' due to Edge Effect',
-        ' due to Oligopool Repeat',
+        ' due to Oligo Pool Repeat',
         ' due to Composition',
         ' due to Background'][optstate]))
 

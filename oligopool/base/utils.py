@@ -1412,7 +1412,7 @@ def is_oligopool_feasible(
        (len(seqpath) in fixedbaseindex):
         return True, None # No Conflict
 
-    # Oligopool Repeat Found?
+    # Oligo Pool Repeat Found?
     fwd_repeat = seqpath[-(maxreplen+1):]
     rev_repeat = get_revcomp(fwd_repeat)
     canonkmer = min(fwd_repeat, rev_repeat)

@@ -197,7 +197,7 @@ def primer(
         numeric=maxreplen,
         numeric_field='     Repeat Length     ',
         numeric_pre_desc=' Up to ',
-        numeric_post_desc=' Base Pair(s) Oligopool Repeats',
+        numeric_post_desc=' Base Pair(s) Oligo Pool Repeats',
         minval=6,
         maxval=len(primerseq) if primerseq_valid else float('inf'),
         precheck=False,
@@ -990,8 +990,8 @@ def primer(
             if not warns[6]['warn_count']:
                 warns.pop(6)
 
-    # Parse Oligopool Repeats
-    liner.send('\n[Step 7: Parsing Oligopool Repeats]\n')
+    # Parse Oligo Pool Repeats
+    liner.send('\n[Step 7: Parsing Oligo Pool Repeats]\n')
 
     # Parse Repeats from indf
     (parsestatus,

@@ -356,7 +356,7 @@ def show_update(
         design,
         ['Rejected', 'Provisionally Accepted', 'Accepted'][optstatus],
         ['',
-         ' due to Oligopool Repeat',
+         ' due to Oligo Pool Repeat',
          ' due to Excluded Motif',
          ' due to Edge Effect'][optstate]))
 

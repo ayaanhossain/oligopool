@@ -65,4 +65,3 @@ CLI_DESCRIPTIONS = {
     'pipeline': 'execute multi-step pipeline from config',
     'complete': 'print or install shell completion',
 }
-

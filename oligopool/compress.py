@@ -87,9 +87,6 @@ def compress(
 
     input_rows = len(indf.index) if isinstance(indf, pd.DataFrame) else 0
 
-    # Optional Argument Parsing
-    liner.send('\n Optional Arguments\n')
-
     _MAPPING_SUFFIX = '.oligopool.compress.mapping.csv'
     _SYNTHESIS_SUFFIX = '.oligopool.compress.synthesis.csv'
 
@@ -106,6 +103,9 @@ def compress(
         outdf_suffix=_SYNTHESIS_SUFFIX,
         outdf_field='  Synthesis File       ',
         liner=liner)
+
+    # Optional Argument Parsing
+    liner.send('\n Optional Arguments\n')
 
     # Validate rollout_simulations
     nsims_valid = vp.get_numeric_validity(

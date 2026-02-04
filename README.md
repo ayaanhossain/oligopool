@@ -122,7 +122,7 @@ $ python
         merge       collapse columns into single element
         revcomp     reverse complement a column range
         lenstat     length statistics and free-space check
-        verify      QC checks before synthesis
+        verify      detect length, motif emergence, and background conflicts
         final       concatenate into synthesis-ready oligos
 
     Assembly Mode - fragment long oligos for assembly
@@ -201,7 +201,7 @@ COMMANDS Available:
     revcomp     reverse-complement a column range
 
     lenstat     compute length stats and free space
-    verify      verify constraints before synthesis
+    verify      detect length, motif emergence, and background conflicts
     final       finalize into synthesis-ready oligos
 
     compress    compress sequences into IUPAC-degenerate oligos

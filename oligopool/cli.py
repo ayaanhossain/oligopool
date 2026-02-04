@@ -2327,7 +2327,7 @@ def _add_verify(cmdpar):
     parser = cmdpar.add_parser(
         'verify',
         help=_CLI_DESC['verify'],
-        description='Verify oligo pool for length, motif emergence, and background k-mer conflicts.',
+        description='Detect length, motif, and background k-mer conflicts in an oligo pool.',
         epilog=_notes_epilog('verify'),
         usage=argparse.SUPPRESS,
         formatter_class=OligopoolFormatter,

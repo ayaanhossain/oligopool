@@ -3,6 +3,12 @@
 2. CLI: `--background-directory` now accepts multiple values (space- or comma-separated) for barcode/primer/motif/spacer/verify.
 3. Validation/Core: added `validation_parsing.get_parsed_backgrounds()` and updated background feasibility logic in `core_background.py` and `core_primer.py` to accept lists.
 4. Tests: `smoketest/smoke_multiple_backgrounds.py` covers single + multi-background workflows.
+5. Breaking: redesigned `verify` — now requires `oligo_length_limit`, returns `(DataFrame, stats)`, and can write `.oligopool.verify.csv` with per-row conflict flags (`HasLengthConflict`, `HasExmotifConflict`, `HasBackgroundConflict`, `HasAnyConflicts`) plus `*ConflictDetails` dict columns (serialized as JSON strings in CSV).
+6. Validation: added `validation_parsing.get_parsed_verify_indata_info()` for verify-specific input validation (requires ID column + at least one DNA column); error shown in Required Arguments section if no DNA columns detected.
+7. CLI: stats JSON output now works for tuple-return modules like `compress` (stats are extracted from the dict element rather than assuming `(df, stats)`), including in pipeline mode.
+8. Style: `verify` now follows design module conventions — type hints without spaces (`str|pd.DataFrame`), `id_from_index` handling for caller intent preservation.
+9. Docs: clarified that `json.loads` applies to all `*ConflictDetails` columns in `verify` CSV output.
+10. CLI: `op verify` now requires `--output-file` (Python API still allows `output_file=None`).
 
 2026.02.01
 1. Background integration: added `background_directory` parameter to `barcode`, `motif`, `spacer`, and `verify` modules for off-target k-mer screening.

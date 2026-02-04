@@ -201,7 +201,7 @@ COMMANDS Available:
     revcomp     reverse-complement a column range
 
     lenstat     compute length stats and free space
-    verify      detect length, motif emergence, and background conflicts
+    verify      detect length, motif, and background conflicts
     final       finalize into synthesis-ready oligos
 
     compress    compress sequences into IUPAC-degenerate oligos

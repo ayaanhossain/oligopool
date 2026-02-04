@@ -571,7 +571,7 @@ df, stats = op.verify(
 
 **Optional Parameters**
 
-- `output_file` (str | None, default=None): Output CSV path (auto-suffixed `.oligopool.verify.csv`)
+- `output_file` (str | None, default=None): Output CSV path (required for CLI; auto-suffixed `.oligopool.verify.csv`)
 - `excluded_motifs` (list | str | DataFrame | None, default=None): Motifs to check for emergence; list, comma-separated string, or DataFrame with `Exmotif` column
 - `background_directory` (str | list | None, default=None): Background k-mer DB path(s) from `background()` (checked against all specified DBs)
 - `verbose` (bool, default=True): Print progress output
@@ -593,7 +593,7 @@ df, stats = op.verify(
 - IUPAC/degenerate columns are skipped silently during DNA column detection
 - **Emergence**: A motif has emergence when its count exceeds the library-wide minimum (baseline)
 - Conflict details are Python dicts in the returned DataFrame; serialized as JSON strings in CSV output
-- **Reading CSV back**: Parse JSON for all `*ConflictDetails` columns (e.g., loop over columns ending in `ConflictDetails` and apply `json.loads`).
+- **Reading CSV back**: Parse JSON for all `*Details` columns (currently the `*ConflictDetails` columns; e.g., loop over columns ending in `Details` and apply `json.loads`).
 
 **CLI Equivalent**:
 ```bash

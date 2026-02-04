@@ -20,8 +20,8 @@ def is_background_feasible(
        type - string
        desc - designed element sequence
     :: bg
-       type - vectorDB or None
-       desc - background k-mer database
+       type - vectorDB / list[vectorDB] / None
+       desc - background k-mer database(s)
     :: leftcontext
        type - string
        desc - left flanking sequence
@@ -38,28 +38,38 @@ def is_background_feasible(
     if len(seq) == 0:
         return True
 
-    # Trim Context to Relevant Region
-    # Only need k-1 bases from each side for junction k-mers
-    leftctx  = leftcontext[-(bg.K-1):]  if leftcontext  and len(leftcontext)  >= bg.K-1 else (leftcontext  or '')
-    rightctx = rightcontext[:bg.K-1]    if rightcontext and len(rightcontext) >= bg.K-1 else (rightcontext or '')
-    fullseq  = leftctx + seq + rightctx
+    # Normalize to list
+    backgrounds = bg if isinstance(bg, list) else [bg]
 
-    # Compute Check Region
-    # First k-mer: starts where it first touches element
-    # Last k-mer: starts at last element base
-    elemstart = len(leftctx)
-    elemend   = len(leftctx) + len(seq) - 1
+    # Must pass ALL backgrounds
+    for background in backgrounds:
 
-    # First k-mer touching element starts at max(0, elemstart - K + 1)
-    # Last k-mer touching element starts at elemend
-    start = max(0, elemstart - bg.K + 1)
-    end   = elemend + 1  # exclusive
+        # Skip None entries
+        if background is None:
+            continue
 
-    # Check All k-mers in Region
-    for i in range(start, end):
-        kmer = fullseq[i:i+bg.K]
-        if len(kmer) == bg.K and kmer in bg:
-            return False
+        # Trim Context to Relevant Region
+        # Only need k-1 bases from each side for junction k-mers
+        leftctx  = leftcontext[-(background.K-1):]  if leftcontext  and len(leftcontext)  >= background.K-1 else (leftcontext  or '')
+        rightctx = rightcontext[:background.K-1]    if rightcontext and len(rightcontext) >= background.K-1 else (rightcontext or '')
+        fullseq  = leftctx + seq + rightctx
+
+        # Compute Check Region
+        # First k-mer: starts where it first touches element
+        # Last k-mer: starts at last element base
+        elemstart = len(leftctx)
+        elemend   = len(leftctx) + len(seq) - 1
+
+        # First k-mer touching element starts at max(0, elemstart - K + 1)
+        # Last k-mer touching element starts at elemend
+        start = max(0, elemstart - background.K + 1)
+        end   = elemend + 1  # exclusive
+
+        # Check All k-mers in Region
+        for i in range(start, end):
+            kmer = fullseq[i:i+background.K]
+            if len(kmer) == background.K and kmer in background:
+                return False
 
     # No Conflicts
     return True

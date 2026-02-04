@@ -587,8 +587,8 @@ import json
 import pandas as pd
 
 df = pd.read_csv('verify_results.oligopool.verify.csv')
-# Parse JSON-serialized dicts
-detail_cols = [c for c in df.columns if c.endswith('ConflictDetails')]
+# Parse JSON-serialized dicts in all `*Details` columns
+detail_cols = [c for c in df.columns if c.endswith('Details')]
 for col in detail_cols:
     df[col] = df[col].apply(lambda x: json.loads(x) if pd.notna(x) else None)
 ```

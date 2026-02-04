@@ -107,7 +107,7 @@ out_df, stats = op.barcode(input_data=df, ...)
 A few modules only return stats (no DataFrame to speak of):
 
 ```python
-stats = op.lenstat(input_data=df, oligo_length_limit=200)
+stats = op.background(input_data=[...], output_directory='ref_bg')
 ```
 
 - **Input**: CSV path or pandas DataFrame with an `ID` column

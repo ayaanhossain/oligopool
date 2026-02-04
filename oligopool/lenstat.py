@@ -108,7 +108,6 @@ def lenstat(
     if verbose and statsprint:
         print('\n{}'.format(statsprint))
 
-
     # Restructure Length Stats Dictionary
     stats = {
         'status'  : True,

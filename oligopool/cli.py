@@ -2354,7 +2354,7 @@ Maximum allowed oligo length (>= 4).''')
         required=True,
         metavar='\b',
         help='''>>[required string]
-Output CSV filename (auto-suffixed .oligopool.verify.csv).''')
+Output CSV filename. A ".oligopool.verify.csv" suffix is added if missing.''')
     opt.add_argument(
         '--excluded-motifs',
         type=str,

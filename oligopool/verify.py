@@ -24,7 +24,7 @@ def verify(
     Required Parameters:
         - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with an 'ID' column
             and at least one DNA column (ATGC only).
-        - `oligo_length_limit` (`int`): Maximum allowed oligo length (>= 4).
+        - `oligo_length_limit` (`int`): Maximum allowed oligo length (≥ 4).
 
     Optional Parameters:
         - `output_file` (`str` / `None`): Output CSV filename; required in CLI usage, optional in

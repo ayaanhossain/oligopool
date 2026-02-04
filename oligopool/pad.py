@@ -38,10 +38,10 @@ def pad(
         - `maximum_repeat_length` (`int`): Max shared repeat length b/w padding primers & oligos (between 6 and 20).
 
     Optional Parameters:
-        - `output_file` (`str`): Filename for output DataFrame; required in CLI usage,
+        - `output_file` (`str` / `None`): Filename for output DataFrame; required in CLI usage,
             optional in library usage (default: `None`).
         - `random_seed` (`int` / `None`): Seed for local RNG (default: `None`).
-        - `verbose` (`bool`): If `True`, logs updates to stdout (default: `True`).
+        - `verbose` (`bool`): If `True`, logs progress to stdout (default: `True`).
 
     Returns:
         - A pandas DataFrame with padded oligos; saves to `output_file` if specified.
@@ -79,9 +79,6 @@ def pad(
     outfile     = output_file
     random_seed = random_seed
     verbose     = verbose
-
-    # Local RNG
-    rng = np.random.default_rng(random_seed)
 
     # Start Liner
     liner = ut.liner_engine(verbose)
@@ -174,6 +171,13 @@ def pad(
             path=outfile,
             suffix='.oligopool.pad.csv')
 
+    # Validate random_seed (do not auto-generate)
+    (random_seed,
+    seed_valid) = vp.get_parsed_random_seed_info(
+        random_seed=random_seed,
+        random_seed_field='  Random Seed      ',
+        liner=liner)
+
     # First Pass Validation
     if not all([
         indata_valid,
@@ -182,10 +186,14 @@ def pad(
         oligolimit_valid,
         tmelt_valid,
         maxreplen_valid,
-        outfile_valid]):
+        outfile_valid,
+        seed_valid]):
         liner.send('\n')
         raise RuntimeError(
             'Invalid Argument Input(s).')
+
+    # Local RNG
+    rng = np.random.default_rng(random_seed)
 
     # Start Timer
     t0 = tt.time()

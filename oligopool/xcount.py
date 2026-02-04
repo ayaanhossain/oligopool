@@ -13,7 +13,7 @@ from typing import Callable, Tuple
 
 
 def xcount(
-    index_files:str,
+    index_files:str|list[str],
     pack_file:str,
     count_file:str,
     mapping_type:int|str=0,
@@ -29,19 +29,19 @@ def xcount(
     Writes a count matrix to disk and returns it as a DataFrame (callbacks available via Python API).
 
     Required Parameters:
-        - `index_files` (`str` / `list`): A single (or a list of) index filename(s).
+        - `index_files` (`str` / `list[str]`): A single (or a list of) index filename(s).
         - `pack_file` (`str`): Pack file path.
         - `count_file` (`str`): Output count matrix filename.
 
     Optional Parameters:
         - `mapping_type` (`int` / `str`): Barcode classification mode (default: 0). See Notes.
         - `barcode_errors` (`int`): Maximum errors in barcodes (-1: auto-infer, default: -1).
-        - `callback` (`callable`): Custom read processing function (default: `None`).
+        - `callback` (`callable` / `None`): Custom read processing function (default: `None`).
         - `core_count` (`int`): CPU cores to use (0: auto-infer, default: 0).
         - `memory_limit` (`float`): GB of memory per core (0: auto-infer, default: 0)
         - `failed_reads_file` (`str` / `None`): Output CSV path for failed read samples (None: disabled, default: `None`).
         - `failed_reads_sample_size` (`int`): Maximum samples per failure category (default: 1000).
-        - `verbose` (`bool`): If `True`, logs updates to stdout (default: `True`).
+        - `verbose` (`bool`): If `True`, logs progress to stdout (default: `True`).
 
     Returns:
         - A pandas DataFrame of barcode combination counts.

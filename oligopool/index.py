@@ -17,7 +17,7 @@ def index(
     barcode_suffix_column:str|None=None,
     barcode_prefix_gap:int=0,
     barcode_suffix_gap:int=0,
-    associate_data:str|None=None,
+    associate_data:str|pd.DataFrame|None=None,
     associate_column:str|None=None,
     associate_prefix_column:str|None=None,
     associate_suffix_column:str|None=None,
@@ -34,17 +34,18 @@ def index(
         - `index_file` (`str`): Filename for output index object.
 
     Optional Parameters:
-        - `barcode_prefix_column` (`str`): Column for the constant barcode prefix anchor (default: `None`).
-        - `barcode_suffix_column` (`str`): Column for the constant barcode suffix anchor (default: `None`).
+        - `barcode_prefix_column` (`str` / `None`): Column for the constant barcode prefix anchor (default: `None`).
+        - `barcode_suffix_column` (`str` / `None`): Column for the constant barcode suffix anchor (default: `None`).
         - `barcode_prefix_gap` (`int`): Distance between the prefix and barcode (default: 0).
         - `barcode_suffix_gap` (`int`): Distance between the suffix and barcode (default: 0).
-        - `associate_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated variants.
-        - `associate_column` (`str`): Column name for the associate elements to index (default: `None`).
-        - `associate_prefix_column` (`str`): Column for the constant associate prefix (default: `None`).
-        - `associate_suffix_column` (`str`): Column for the constant associate suffix (default: `None`).
+        - `associate_data` (`str` / `pd.DataFrame` / `None`): Path to a CSV file or DataFrame with annotated variants
+            (default: `None`).
+        - `associate_column` (`str` / `None`): Column name for the associate elements to index (default: `None`).
+        - `associate_prefix_column` (`str` / `None`): Column for the constant associate prefix (default: `None`).
+        - `associate_suffix_column` (`str` / `None`): Column for the constant associate suffix (default: `None`).
         - `associate_prefix_gap` (`int`): Distance between the prefix and associate (default: 0).
         - `associate_suffix_gap` (`int`): Distance between the suffix and associate (default: 0).
-        - `verbose` (`bool`): If `True`, logs updates to stdout (default: `True`).
+        - `verbose` (`bool`): If `True`, logs progress to stdout (default: `True`).
 
     Returns:
         - A dictionary of stats from the last step in pipeline.

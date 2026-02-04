@@ -38,12 +38,12 @@ def acount(
         - `mapping_type` (`int` / `str`): Barcode classification mode (default: 0). See Notes.
         - `barcode_errors` (`int`): Maximum errors in barcodes (-1: auto-infer, default: -1).
         - `associate_errors` (`int`): Maximum errors in associated variants (-1: auto-infer, default: -1).
-        - `callback` (`callable`): Custom read processing function (default: `None`).
+        - `callback` (`callable` / `None`): Custom read processing function (default: `None`).
         - `core_count` (`int`): CPU cores to use (0: auto-infer, default: 0).
         - `memory_limit` (`float`): GB of memory per core (0: auto-infer, default: 0)
         - `failed_reads_file` (`str` / `None`): Output CSV path for failed read samples (None: disabled, default: `None`).
         - `failed_reads_sample_size` (`int`): Maximum samples per failure category (default: 1000).
-        - `verbose` (`bool`): If `True`, logs updates to stdout (default: `True`).
+        - `verbose` (`bool`): If `True`, logs progress to stdout (default: `True`).
 
     Returns:
         - A pandas DataFrame of barcode and variant association counts.

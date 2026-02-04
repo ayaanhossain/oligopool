@@ -27,17 +27,20 @@ def compress(
         - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated oligo pool variants.
 
     Optional Parameters:
-        - `mapping_file` (`str`): Filename for output mapping DataFrame (default: `None`).
-            A `.oligopool.compress.csv` suffix is added if missing.
-        - `synthesis_file` (`str`): Filename for output synthesis DataFrame (default: `None`).
-            A `.oligopool.compress.csv` suffix is added if missing.
+        - `mapping_file` (`str` / `None`): Filename for output mapping DataFrame (default: `None`).
+            A `.oligopool.compress.mapping.csv` suffix is added if missing.
+        - `synthesis_file` (`str` / `None`): Filename for output synthesis DataFrame (default: `None`).
+            A `.oligopool.compress.synthesis.csv` suffix is added if missing.
         - `rollout_simulations` (`int`): Number of Monte Carlo simulations per decision (default: `100`).
         - `rollout_horizon` (`int`): Number of positions to look ahead during rollouts (default: `4`).
         - `random_seed` (`int` / `None`): Seed for local RNG (default: `None`).
-        - `verbose` (`bool`): If `True`, logs progress updates to stdout (default: `True`).
+        - `verbose` (`bool`): If `True`, logs progress to stdout (default: `True`).
 
     Returns:
-        - A tuple of (mapping_df, synthesis_df) DataFrames; saves to files if specified.
+        - A pandas DataFrame `mapping_df` mapping each concrete input to a degenerate oligo:
+            `ID`, `Sequence`, `DegenerateID`. Saved to `mapping_file` if specified.
+        - A pandas DataFrame `synthesis_df` containing degenerate oligos ready for ordering:
+            `DegenerateID`, `DegenerateSeq`, `Degeneracy`, `OligoLength`. Saved to `synthesis_file` if specified.
         - A dictionary of stats from the last step in pipeline.
 
     Notes:
@@ -48,9 +51,9 @@ def compress(
         - Sequences of different lengths are compressed independently by length group.
         - `rollout_simulations` and `rollout_horizon` trade off runtime vs compression ratio;
             higher values give better compression but take longer.
-        - `mapping_df` links each original variant `ID` to its `DegenerateID` for traceability;
-            `synthesis_df` contains the degenerate oligos ready for ordering.
         - Use `expand` to verify that compression output covers exactly the original sequences.
+        - Best suited for selection assays where variants are identified by sequencing enrichment
+            (rather than barcode-based per-variant quantification).
     '''
 
     # Preserve return style when the caller intentionally used ID as index.
@@ -87,17 +90,20 @@ def compress(
     # Optional Argument Parsing
     liner.send('\n Optional Arguments\n')
 
+    _MAPPING_SUFFIX = '.oligopool.compress.mapping.csv'
+    _SYNTHESIS_SUFFIX = '.oligopool.compress.synthesis.csv'
+
     # Validate mapping file
     mapfile_valid = vp.get_outdf_validity(
         outdf=mapfile,
-        outdf_suffix='.oligopool.compress.csv',
+        outdf_suffix=_MAPPING_SUFFIX,
         outdf_field='    Mapping File       ',
         liner=liner)
 
     # Validate synthesis file
     synfile_valid = vp.get_outdf_validity(
         outdf=synfile,
-        outdf_suffix='.oligopool.compress.csv',
+        outdf_suffix=_SYNTHESIS_SUFFIX,
         outdf_field='  Synthesis File       ',
         liner=liner)
 
@@ -124,19 +130,11 @@ def compress(
         liner=liner)
 
     # Validate random_seed (do not auto-generate)
-    seed_valid = True
-    if random_seed is None:
-        liner.send('     Random Seed       : None Specified\n')
-    elif isinstance(random_seed, (int, np.integer)):
-        random_seed = int(random_seed)
-        liner.send(
-            '     Random Seed       : {:,} ... Assigned\n'.format(
-                random_seed))
-    else:
-        liner.send(
-            '     Random Seed       : {} [MUST BE INTEGER OR NONE]\n'.format(
-                random_seed))
-        seed_valid = False
+    (random_seed,
+    seed_valid) = vp.get_parsed_random_seed_info(
+        random_seed=random_seed,
+        random_seed_field='     Random Seed       ',
+        liner=liner)
 
     # First Pass Validation
     if not all([
@@ -148,6 +146,16 @@ def compress(
         seed_valid]):
         liner.send('\n')
         raise RuntimeError('Invalid Argument Input(s).')
+
+    if mapfile is not None:
+        mapfile = ut.get_adjusted_path(path=mapfile, suffix=_MAPPING_SUFFIX)
+    if synfile is not None:
+        synfile = ut.get_adjusted_path(path=synfile, suffix=_SYNTHESIS_SUFFIX)
+
+    if (mapfile is not None) and (synfile is not None) and (mapfile == synfile):
+        liner.send('\n')
+        raise RuntimeError(
+            'Invalid Argument Input(s): mapping_file and synthesis_file resolve to the same output path.')
 
     # Start Timer
     t0 = tt.time()
@@ -171,17 +179,11 @@ def compress(
 
     # Schedule file cleanup on error
     if mapfile is not None:
-        mapfile = ut.get_adjusted_path(
-            path=mapfile,
-            suffix='.oligopool.compress.csv')
         ae.register(
             ut.remove_file,
             mapfile)
 
     if synfile is not None:
-        synfile = ut.get_adjusted_path(
-            path=synfile,
-            suffix='.oligopool.compress.csv')
         ae.register(
             ut.remove_file,
             synfile)

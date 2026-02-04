@@ -25,7 +25,7 @@ Four modes (library + CLI):
 - Design Mode: `background`, `primer`, `motif`, `barcode`, `spacer`, plus `lenstat`,
   `verify`, `final`, `merge`, `revcomp`.
 - Assembly Mode: `split`, `pad` (for synthesis limits / post-synthesis assembly).
-- Degenerate Mode: `compress`, `expand` (cost optimization via IUPAC-degenerate synthesis).
+- Degenerate Mode: `compress`, `expand` (cost optimization via IUPAC-degenerate oligos, selection-based discovery workflows).
 - Analysis Mode: `index`, `pack`, `acount`, `xcount` (counting from sequencing reads).
 
 ## Interface Map

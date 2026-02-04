@@ -46,7 +46,7 @@ CLI_DESCRIPTIONS = {
     'merge': 'collapse contiguous columns',
     'revcomp': 'reverse-complement a column range',
     'lenstat': 'compute length stats and free space',
-    'verify': 'detect length, motif emergence, and background conflicts',
+    'verify': 'detect length, motif, and background conflicts',
     'final': 'finalize into synthesis-ready oligos',
     # Assembly Mode
     'split': 'break long oligos into overlapping fragments',

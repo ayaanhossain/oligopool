@@ -22,7 +22,7 @@ Complete parameter reference for all `oligopool` modules.
 - [`merge`](#merge) - Collapse columns
 - [`revcomp`](#revcomp) - Reverse complement
 - [`lenstat`](#lenstat) - Length statistics
-- [`verify`](#verify) - QC check
+- [`verify`](#verify) - Conflict detection
 - [`final`](#final) - Finalize for synthesis
 
 **Assembly Mode**
@@ -547,16 +547,17 @@ op lenstat \
 
 ### `verify`
 
-**Purpose**: QC check for constraints, architecture, motifs, degeneracy.
+**Purpose**: Verify oligo pool for length, motif emergence, and background k-mer conflicts.
 
 **Signature**:
 ```python
-stats = op.verify(
+df, stats = op.verify(
     # Required
     input_data,                    # str | pd.DataFrame
+    oligo_length_limit,            # int
 
     # Optional
-    oligo_length_limit=None,       # int | None
+    output_file=None,              # str | None
     excluded_motifs=None,          # list | str | pd.DataFrame | None
     background_directory=None,     # str | list | None
     verbose=True,                  # bool
@@ -565,31 +566,42 @@ stats = op.verify(
 
 **Required Parameters**
 
-- `input_data` (str | DataFrame): CSV path or DataFrame with `ID` column (can include metadata/IUPAC columns)
+- `input_data` (str | DataFrame): CSV path or DataFrame with `ID` column and at least one DNA column (ATGC only)
+- `oligo_length_limit` (int): Maximum allowed oligo length (>= 4)
 
 **Optional Parameters**
 
-- `oligo_length_limit` (int | None, default=None): If provided, checks for length overflow
-- `excluded_motifs` (list | str | DataFrame | None, default=None): Motifs to scan/report (emergence; junction attribution requires separate sequence columns)
-- `background_directory` (str | list | None, default=None): Background k-mer DB(s) from `background()` (scanned against ALL specified DBs)
+- `output_file` (str | None, default=None): Output CSV path (auto-suffixed `.oligopool.verify.csv`)
+- `excluded_motifs` (list | str | DataFrame | None, default=None): Motifs to check for emergence; list, comma-separated string, or DataFrame with `Exmotif` column
+- `background_directory` (str | list | None, default=None): Background k-mer DB path(s) from `background()` (checked against all specified DBs)
 - `verbose` (bool, default=True): Print progress output
 
-**Returns**: `stats_dict` (stats-only, no DataFrame, no `output_file`)
+**Returns**: `(DataFrame, stats_dict)` — DataFrame contains per-row conflict flags and details
+
+**Output DataFrame Columns**:
+- `ID`: Original row identifier
+- `CompleteOligo`: Concatenated oligo sequence
+- `OligoLength`: Length of CompleteOligo
+- `HasLengthConflict`: True if length exceeds `oligo_length_limit`
+- `HasExmotifConflict`: True if motif emergence detected (False if `excluded_motifs=None`)
+- `HasBackgroundConflict`: True if k-mer matches background DB (False if `background_directory=None`)
+- `HasAnyConflicts`: OR of above three flags
+- `LengthConflictDetails`, `ExmotifConflictDetails`, `BackgroundConflictDetails`: Dict or None with violation details
 
 **Notes**:
-- Run `verify` **before** `final()` to preserve separate columns for junction attribution
-- More permissive than design modules; handles metadata and degenerate/IUPAC columns
-- Reports emergent motifs (occurrences beyond baseline minimum) and attributes them to column junctions
-- Excluded-motif matching is literal substring matching; IUPAC bases are not expanded as wildcards
-- Column concatenation: only sequence columns (DNA/IUPAC) are concatenated left-to-right; gap characters (`'-'`) are stripped
-- If a `CompleteOligo` column exists (from `final()`), it is used directly instead of concatenating
+- Uses `CompleteOligo` column if present; otherwise concatenates all pure ATGC columns left-to-right
+- IUPAC/degenerate columns are skipped silently during DNA column detection
+- **Emergence**: A motif has emergence when its count exceeds the library-wide minimum (baseline)
+- Conflict details are Python dicts in the returned DataFrame; serialized as JSON strings in CSV output
+- **Reading CSV back**: Parse JSON for all `*ConflictDetails` columns (e.g., loop over columns ending in `ConflictDetails` and apply `json.loads`).
 
 **CLI Equivalent**:
 ```bash
 op verify \
     --input-data library.csv \
     --oligo-length-limit 200 \
-    --excluded-motifs GAATTC,GGATCC
+    --excluded-motifs GAATTC,GGATCC \
+    --output-file results
 ```
 
 [↑ Back to TOC](#table-of-contents)
@@ -625,7 +637,7 @@ df, stats = op.final(
 
 **Notes**:
 - Concatenates all sequence columns left-to-right; gap characters (`'-'`) are stripped
-- Run `verify` before `final` if you want junction-level motif attribution
+- Run `verify` after design to check for length, motif emergence, and background conflicts
 
 **CLI Equivalent**:
 ```bash

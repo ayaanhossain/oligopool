@@ -961,6 +961,87 @@ def get_parsed_data_info(
     data_name = data
     return (df, data_name, df_valid)
 
+def get_parsed_verify_indata_info(
+    data,
+    data_field,
+    liner):
+    '''
+    Parse and validate input data for verify module.
+    Checks for ID column and at least one DNA column (ATGC only).
+    Internal use only.
+
+    :: data
+       type - string / pd.DataFrame
+       desc - path to CSV file or a pandas
+              DataFrame storing information
+    :: data_field
+       type - string
+       desc - data fieldname used in printing
+    :: liner
+       type - coroutine
+       desc - dynamic printing
+
+    Returns:
+        (df, data_name, dna_columns, valid)
+        - df: parsed DataFrame (ID as index) or None
+        - data_name: 'DataFrame' or filename
+        - dna_columns: list of DNA column names found
+        - valid: True if validation passed
+    '''
+
+    # First pass: basic validation via get_parsed_data_info
+    (df,
+    data_name,
+    base_valid) = get_parsed_data_info(
+        data=data,
+        data_field=data_field,
+        required_fields=('ID',),
+        liner=liner)
+
+    # If base validation failed, return early
+    if not base_valid:
+        return (df, data_name, [], False)
+
+    # Detect DNA columns
+    dna_columns = []
+    used_complete_oligo = False
+
+    # Check for CompleteOligo first
+    if 'CompleteOligo' in df.columns:
+        # Validate CompleteOligo contains DNA
+        series = df['CompleteOligo']
+        if series.map(lambda x: isinstance(x, str)).all():
+            upper = series.str.upper()
+            is_dna = upper.map(lambda x: ut.is_DNA(seq=x, dna_alpha=ut.dna_alpha))
+            if is_dna.all():
+                dna_columns = ['CompleteOligo']
+                used_complete_oligo = True
+
+    # If no CompleteOligo, scan all columns
+    if not used_complete_oligo:
+        for col in df.columns:
+            series = df[col]
+            # Skip non-string columns
+            if not series.map(lambda x: isinstance(x, str)).all():
+                continue
+            # Check if all values are pure ATGC (plus gaps)
+            upper = series.str.upper()
+            is_dna = upper.map(lambda x: ut.is_DNA(seq=x, dna_alpha=ut.dna_alpha))
+            if is_dna.all():
+                dna_columns.append(col)
+
+    # Validate at least one DNA column found
+    if not dna_columns:
+        liner.send(
+            '{}: {} w/ {:,} Record(s) [NO DNA COLUMNS DETECTED]\n'.format(
+                data_field,
+                data_name,
+                len(df.index)))
+        return (df, data_name, [], False)
+
+    # All validation passed
+    return (df, data_name, dna_columns, True)
+
 def get_parsed_indata_info(
     indata,
     indata_field,

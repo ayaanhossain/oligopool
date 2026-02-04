@@ -71,7 +71,7 @@ Four modes (library + CLI):
 ## Return Shapes
 
 - Most design/transform modules: `(out_df, stats_dict)`
-- Stats-only modules: `background`, `lenstat`, `verify`, `index`, `pack`
+- Stats-only modules: `background`, `lenstat`, `index`, `pack`
 - Counting modules: `(counts_df, stats_dict)` for `acount` and `xcount`
 - `compress`: `(mapping_df, synthesis_df, stats_dict)` (two DataFrames)
 - `split`: returns either `(df, stats)` or `([df_Split1, df_Split2, ...], stats)`
@@ -182,7 +182,7 @@ Design Mode:
 - `barcode`: design Hamming-separated barcodes (supports cross-set constraints).
 - `spacer`: fill length (supports per-ID lengths; can auto-fill).
 - `lenstat`: ruler/telemetry for oligo lengths mid-pipeline.
-- `verify`: QC: columns, lengths, excluded motifs, and edge effects.
+- `verify`: QC: detect length, exmotif emergence, and background conflicts (returns DataFrame + stats).
 - `final`: concatenate into synthesis-ready `CompleteOligo` (+ length).
 - `merge`/`revcomp`: mid-pipeline architecture maneuvers.
 

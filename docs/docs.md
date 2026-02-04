@@ -159,7 +159,7 @@ For the main element-design modules (`barcode`, `primer`, `motif`, `spacer`), at
 
 **Edge effects** occur when an undesired sequence (excluded motif, repeat) emerges at the fusion boundary when inserting an element. For example, inserting barcode `GAATT` next to context ending in `...G` creates `...GGAATT`, which contains `GAATTC` (EcoRI site) spanning the junction. Context columns let the algorithm check and prevent these.
 
-**Background screening** is the same idea, but against a whole reference (genome, transcriptome, plasmid backbone, …). Build a k-mer DB with `background()`, then pass `background_directory` to `barcode`/`primer`/`motif`/`spacer` (or to `verify` for QC). It is junction-aware when context columns are provided.
+**Background screening** is the same idea, but against a whole reference (genome, transcriptome, plasmid backbone, …). Build one or more k-mer DBs with `background()`, then pass `background_directory` (single path or list of paths) to `barcode`/`primer`/`motif`/`spacer` (or to `verify` for QC). It is junction-aware when context columns are provided.
 
 ### Reproducibility
 
@@ -236,7 +236,7 @@ You can also pass a CSV path, a DataFrame with an `Exmotif` column, or a FASTA f
 - If you plan to index barcodes from reads, design constant anchors first with `motif(motif_type=1, ...)`.
 - `patch_mode` preserves existing barcodes; any pre-existing values must be valid ATGC strings of length `barcode_length`.
 - Cross-set separation is strict: set `cross_barcode_columns` and `minimum_cross_distance` together; the cross-set barcodes must be strict ATGC strings of length `barcode_length`.
-- `background_directory` screens designed barcodes against a background k-mer DB (junction-aware when context columns are provided).
+- `background_directory` screens designed barcodes against one or more background k-mer DBs (junction-aware when context columns are provided).
 
 **Cross-set separation** (for multiplexed designs):
 ```python
@@ -319,7 +319,7 @@ Then point to it during primer design:
 ```python
 df, stats = op.primer(
     ...,
-    background_directory='my_background',
+    background_directory=['my_background', 'my_other_background'],
 )
 ```
 
@@ -374,7 +374,7 @@ df, stats = op.motif(
 - Constant bases in `motif_sequence_constraint` can force an excluded motif (or repeat) and make the design infeasible.
 - For anchors, tune `maximum_repeat_length` to control how distinct the anchor is from surrounding sequence.
 - `patch_mode` fills only missing values; for `motif_type=1`, an existing compatible constant anchor is reused for new rows.
-- `background_directory` screens designed motifs/anchors against a background k-mer DB (junction-aware when context columns are provided).
+- `background_directory` screens designed motifs/anchors against one or more background k-mer DBs (junction-aware when context columns are provided).
 
 > **API Reference**: See [`motif`](api.md#motif) for complete parameter documentation.
 
@@ -424,7 +424,7 @@ You can also pass a CSV path or a DataFrame with `ID` and `Length` columns. See 
 - If a row is already at (or over) `oligo_length_limit`, its spacer is set to `'-'` (a deliberate "no-space" sentinel).
 - If `spacer_length` is a CSV/DataFrame, it must contain `ID` and `Length` columns aligned to your input IDs.
 - `patch_mode` fills only missing values and never overwrites existing spacers (some rows may still end up with `'-'` if no spacer can fit).
-- `background_directory` screens designed spacers against a background k-mer DB (useful when spacers must avoid matching a reference).
+- `background_directory` screens designed spacers against one or more background k-mer DBs (useful when spacers must avoid matching a reference).
 
 > **API Reference**: See [`spacer`](api.md#spacer) for complete parameter documentation.
 
@@ -461,11 +461,11 @@ stats = op.background(
 Then use your background database during design (or QC):
 
 ```python
-df, stats = op.primer(..., background_directory='ecoli_bg')
+df, stats = op.primer(..., background_directory=['ecoli_bg', 'plasmid_bg'])
 ```
 
 **Notes (the stuff that bites people):**
-- The background output directory ends with `.oligopool.background` and is what you pass as `background_directory`.
+- The background output directory ends with `.oligopool.background` and is what you pass as `background_directory` (single path or list of paths).
 - `background(maximum_repeat_length=...)` screens against the background only; `maximum_repeat_length` in design modules screens against your input oligos.
 - If you need to inspect or modify the DB, use `vectorDB` (see the Advanced Modules section).
 
@@ -568,7 +568,7 @@ stats = op.verify(
 Checks:
 - Length constraints
 - Excluded motif presence
-- Background k-mer violations (if `background_directory` is provided)
+- Background k-mer violations (if `background_directory` is provided; supports multiple backgrounds)
 - Degenerate/IUPAC bases
 - Column architecture
 
@@ -583,7 +583,7 @@ Checks:
 - Metadata columns are tracked and excluded from sequence-only checks; degenerate/IUPAC columns are flagged (not treated as hard errors).
 - Excluded-motif checks report motif "emergence" (occurs more times than the minimum across the library) and, when possible, attribute excess occurrences to column junctions (run `verify` before `final`).
 - Motif matching is literal substring matching; degenerate/IUPAC bases are not treated as wildcards (so degenerate columns can hide potential motifs).
-- If `background_directory` is provided, `verify` scans concatenated oligos for background k-mers (gaps removed). Degenerate/IUPAC bases are treated literally, so degenerate columns can hide potential background hits.
+- If `background_directory` is provided, `verify` scans concatenated oligos for background k-mers across ALL specified DBs (gaps removed). Degenerate/IUPAC bases are treated literally, so degenerate columns can hide potential background hits.
 - Junction attribution follows column order: for `[Primer1, BC1, Variant, Primer2]`, junctions are `Primer1|BC1`, `BC1|Variant`, `Variant|Primer2`.
 
 > **API Reference**: See [`verify`](api.md#verify) for complete parameter documentation.

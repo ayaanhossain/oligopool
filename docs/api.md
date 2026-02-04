@@ -78,7 +78,7 @@ df, stats = op.barcode(
     cross_barcode_columns=None,    # str | list[str] | None
     minimum_cross_distance=None,   # int | None
     excluded_motifs=None,          # list | str | pd.DataFrame | None
-    background_directory=None,     # str | None
+    background_directory=None,     # str | list[str] | None
     random_seed=None,              # int | None
     verbose=True,                  # bool
 )
@@ -103,7 +103,7 @@ df, stats = op.barcode(
 - `cross_barcode_columns` (str | list[str] | None, default=None): Existing barcode column(s) for cross-set separation
 - `minimum_cross_distance` (int | None, default=None): Min Hamming distance to cross set (requires `cross_barcode_columns`)
 - `excluded_motifs` (list | str | DataFrame | None, default=None): Motifs to exclude (list, CSV, DataFrame with `Exmotif` column, or FASTA)
-- `background_directory` (str | None, default=None): Path to `.oligopool.background` output directory from `background()`. Screens designed barcodes against background k-mers (junction-aware when context columns are provided)
+- `background_directory` (str | list[str] | None, default=None): Path(s) to `.oligopool.background` output directory/directories from `background()`. Screens designed barcodes against background k-mers across ALL specified DBs (junction-aware when context columns are provided)
 - `random_seed` (int | None, default=None): RNG seed for reproducibility
 - `verbose` (bool, default=True): Print progress output
 
@@ -158,7 +158,7 @@ df, stats = op.primer(
     oligo_sets=None,               # list | str | pd.DataFrame | None
     paired_primer_column=None,     # str | None
     excluded_motifs=None,          # list | str | pd.DataFrame | None
-    background_directory=None,     # str | None
+    background_directory=None,     # str | list[str] | None
     random_seed=None,              # int | None
     verbose=True,                  # bool
 )
@@ -184,7 +184,7 @@ df, stats = op.primer(
 - `oligo_sets` (list | str | DataFrame | None, default=None): Per-row grouping labels for set-specific primers (list, CSV, or DataFrame with `ID` + `OligoSet`)
 - `paired_primer_column` (str | None, default=None): Column of paired primer for Tm matching (within 1°C)
 - `excluded_motifs` (list | str | DataFrame | None, default=None): Motifs to exclude (list, CSV, DataFrame with `Exmotif`, or FASTA)
-- `background_directory` (str | None, default=None): Background k-mer DB from `background()` for off-target screening
+- `background_directory` (str | list[str] | None, default=None): Background k-mer DB(s) from `background()` for off-target screening (screened against ALL specified DBs)
 - `random_seed` (int | None, default=None): RNG seed for reproducibility
 - `verbose` (bool, default=True): Print progress output
 
@@ -238,7 +238,7 @@ df, stats = op.motif(
     right_context_column=None,     # str | None
     patch_mode=False,              # bool
     excluded_motifs=None,          # list | str | pd.DataFrame | None
-    background_directory=None,     # str | None
+    background_directory=None,     # str | list[str] | None
     random_seed=None,              # int | None
     verbose=True,                  # bool
 )
@@ -260,7 +260,7 @@ df, stats = op.motif(
 - `right_context_column` (str | None, default=None): Column for right DNA context
 - `patch_mode` (bool, default=False): Fill only missing values; for `motif_type=1`, existing anchor (must be unique across all rows) is reused
 - `excluded_motifs` (list | str | DataFrame | None, default=None): Motifs to exclude (list, CSV, DataFrame with `Exmotif`, or FASTA)
-- `background_directory` (str | None, default=None): Path to `.oligopool.background` output directory from `background()`. Screens designed motifs/anchors against background k-mers (junction-aware when context columns are provided)
+- `background_directory` (str | list[str] | None, default=None): Path(s) to `.oligopool.background` output directory/directories from `background()`. Screens designed motifs/anchors against background k-mers across ALL specified DBs (junction-aware when context columns are provided)
 - `random_seed` (int | None, default=None): RNG seed for reproducibility
 - `verbose` (bool, default=True): Print progress output
 
@@ -311,7 +311,7 @@ df, stats = op.spacer(
     right_context_column=None,     # str | None
     patch_mode=False,              # bool
     excluded_motifs=None,          # list | str | pd.DataFrame | None
-    background_directory=None,     # str | None
+    background_directory=None,     # str | list[str] | None
     random_seed=None,              # int | None
     verbose=True,                  # bool
 )
@@ -332,7 +332,7 @@ df, stats = op.spacer(
 - `right_context_column` (str | None, default=None): Column for right DNA context
 - `patch_mode` (bool, default=False): Fill only missing values (`None`/`NaN`/empty/`'-'`)
 - `excluded_motifs` (list | str | DataFrame | None, default=None): Motifs to exclude (list, CSV, DataFrame with `Exmotif`, or FASTA)
-- `background_directory` (str | None, default=None): Path to `.oligopool.background` output directory from `background()`. Screens designed spacers against background k-mers (junction-aware when context columns are provided)
+- `background_directory` (str | list[str] | None, default=None): Path(s) to `.oligopool.background` output directory/directories from `background()`. Screens designed spacers against background k-mers across ALL specified DBs (junction-aware when context columns are provided)
 - `random_seed` (int | None, default=None): RNG seed for reproducibility
 - `verbose` (bool, default=True): Print progress output
 
@@ -388,8 +388,8 @@ stats = op.background(
 **Returns**: `stats_dict` (stats-only, no DataFrame)
 
 **Notes**:
-- Use via `background_directory` in `primer`/`barcode`/`motif`/`spacer` (and as a QC scan in `verify`)
-- `background()` writes a directory ending in `.oligopool.background`; pass that directory as `background_directory` (junction-aware when context columns are provided)
+- Use via `background_directory` in `primer`/`barcode`/`motif`/`spacer` (and as a QC scan in `verify`); supports a single path or a list of paths
+- `background()` writes a directory ending in `.oligopool.background`; pass that directory as `background_directory` (single path or list; junction-aware when context columns are provided)
 - The DB stores all (k+1)-mers from input sequences where k = `maximum_repeat_length`
 
 **CLI Equivalent**:
@@ -558,7 +558,7 @@ stats = op.verify(
     # Optional
     oligo_length_limit=None,       # int | None
     excluded_motifs=None,          # list | str | pd.DataFrame | None
-    background_directory=None,     # str | None
+    background_directory=None,     # str | list[str] | None
     verbose=True,                  # bool
 )
 ```
@@ -571,7 +571,7 @@ stats = op.verify(
 
 - `oligo_length_limit` (int | None, default=None): If provided, checks for length overflow
 - `excluded_motifs` (list | str | DataFrame | None, default=None): Motifs to scan/report (emergence; junction attribution requires separate sequence columns)
-- `background_directory` (str | None, default=None): Path to background k-mer database from `background()`. Scans concatenated oligos for background k-mers and reports violations
+- `background_directory` (str | list[str] | None, default=None): Path(s) to background k-mer database(s) from `background()`. Scans concatenated oligos for background k-mers across ALL specified DBs and reports violations
 - `verbose` (bool, default=True): Print progress output
 
 **Returns**: `stats_dict` (stats-only, no DataFrame, no `output_file`)

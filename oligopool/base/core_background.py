@@ -20,7 +20,7 @@ def is_background_feasible(
        type - string
        desc - designed element sequence
     :: bg
-       type - vectorDB / list[vectorDB] / None
+       type - vectorDB / list / None
        desc - background k-mer database(s)
     :: leftcontext
        type - string

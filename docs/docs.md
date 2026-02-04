@@ -36,7 +36,7 @@ Welcome to the `Oligopool Calculator` docs! Whether you're designing your first 
   - [`merge`](#merge) - Collapse columns
   - [`revcomp`](#revcomp) - Reverse complement
   - [`lenstat`](#lenstat) - Length statistics
-  - [`verify`](#verify) - QC check
+  - [`verify`](#verify) - Conflict detection
   - [`final`](#final) - Finalize for synthesis
 - [Assembly Mode](#assembly-mode)
   - [`split`](#split) - Fragment long oligos
@@ -113,7 +113,7 @@ stats = op.verify(input_data=df, ...)
 - **Input**: CSV path or pandas DataFrame with an `ID` column
 - **Output**:
   - **Design/transform modules** return `(out_df, stats)`
-  - **Stats-only modules** return `stats` (`background`, `lenstat`, `verify`, `index`, `pack`)
+  - **Stats-only modules** return `stats` (`background`, `lenstat`, `index`, `pack`)
   - **Counting modules** return `(counts_df, stats)` (`acount`, `xcount`)
 - **Chainable**: Output of one module feeds into the next
 
@@ -553,38 +553,51 @@ stats = op.lenstat(
 
 [↑ Back to TOC](#table-of-contents)
 
-**What it does**: QC check for constraints, architecture, motifs, degeneracy.
+**What it does**: Detects length, motif emergence, and background k-mer conflicts in your oligo pool.
 
-**When to use it**: Final sanity check before ordering synthesis.
+**When to use it**: QC check after design, before ordering synthesis.
 
 ```python
-stats = op.verify(
+df, stats = op.verify(
     input_data=df,
     oligo_length_limit=200,
     excluded_motifs=['GAATTC', 'GGATCC'],  # Restriction sites to flag
+    output_file='verify_results',
 )
 ```
 
-Checks:
-- Length constraints
-- Excluded motif presence
-- Background k-mer violations (if `background_directory` is provided; supports multiple backgrounds)
-- Degenerate/IUPAC bases
-- Column architecture
+**Checks:**
+- **Length conflicts**: Oligos exceeding `oligo_length_limit`
+- **Exmotif conflicts**: Motif emergence (count exceeds library-wide baseline)
+- **Background conflicts**: K-mer matches in background DB(s)
+
+**Output DataFrame columns:**
+- `HasLengthConflict`, `HasExmotifConflict`, `HasBackgroundConflict`: Boolean flags
+- `HasAnyConflicts`: Combined OR of above
+- `*ConflictDetails`: Dict with violation details (or None)
 
 **How columns are concatenated:**
-- Only **sequence columns** (DNA/IUPAC; may include `'-'`) are concatenated; metadata columns are skipped
-- Sequence columns are joined **left-to-right in DataFrame column order**
-- Gap characters (`'-'`) are stripped (so `ABC-DEF` becomes `ABCDEF`)
-- If `CompleteOligo` exists (from `final()`), it's used directly instead of concatenating
+- Uses `CompleteOligo` if present; otherwise concatenates all **pure ATGC columns** left-to-right
+- IUPAC/degenerate columns are skipped silently
+- Gap characters (`'-'`) are stripped
+
+**Reading conflict details from CSV:**
+```python
+import json
+import pandas as pd
+
+df = pd.read_csv('verify_results.oligopool.verify.csv')
+# Parse JSON-serialized dicts
+detail_cols = [c for c in df.columns if c.endswith('ConflictDetails')]
+for col in detail_cols:
+    df[col] = df[col].apply(lambda x: json.loads(x) if pd.notna(x) else None)
+```
 
 **Notes (the stuff that bites people):**
-- `verify` is stats-only and never modifies or writes your DataFrame.
-- Metadata columns are tracked and excluded from sequence-only checks; degenerate/IUPAC columns are flagged (not treated as hard errors).
-- Excluded-motif checks report motif "emergence" (occurs more times than the minimum across the library) and, when possible, attribute excess occurrences to column junctions (run `verify` before `final`).
-- Motif matching is literal substring matching; degenerate/IUPAC bases are not treated as wildcards (so degenerate columns can hide potential motifs).
-- If `background_directory` is provided, `verify` scans concatenated oligos for background k-mers across ALL specified DBs (gaps removed). Degenerate/IUPAC bases are treated literally, so degenerate columns can hide potential background hits.
-- Junction attribution follows column order: for `[Primer1, BC1, Variant, Primer2]`, junctions are `Primer1|BC1`, `BC1|Variant`, `Variant|Primer2`.
+- `verify` now returns `(DataFrame, stats)` like other design modules (breaking change from previous stats-only return).
+- `oligo_length_limit` is now **required** (no longer optional).
+- Motif **emergence** = count exceeds library-wide minimum; flagged even if baseline >= 1.
+- Motif matching is literal substring matching; IUPAC bases are not expanded as wildcards.
 
 > **API Reference**: See [`verify`](api.md#verify) for complete parameter documentation.
 
@@ -1040,7 +1053,8 @@ op.lenstat(input_data=df, oligo_length_limit=200)
 Run QC, save your annotated design, and finalize for synthesis:
 
 ```python
-op.verify(input_data=df, oligo_length_limit=200)
+verify_df, verify_stats = op.verify(input_data=df, oligo_length_limit=200)
+print(f"Conflicts: {verify_stats['vars']['any_conflict']}")
 
 df.to_csv('library_design.csv', index=False)  # Keep this for indexing later!
 final_df, _ = op.final(input_data=df, output_file='library_for_synthesis')

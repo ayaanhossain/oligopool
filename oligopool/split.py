@@ -22,7 +22,7 @@ def split(
     output_file:str|None=None,
     separate_outputs:bool=False,
     random_seed:int|None=None,
-    verbose:bool=True) -> Tuple[Union[pd.DataFrame, list[pd.DataFrame]], dict]:
+    verbose:bool=True) -> Tuple[Union[pd.DataFrame, list], dict]:
     '''
     Split long oligos into overlapping fragments for downstream assembly, choosing overlaps that meet
     Tm and distance constraints. Returns a DataFrame containing `Split1`, `Split2`, ... columns (or a

@@ -1,60 +1,64 @@
+import json
 import time as tt
 
-import collections as cx
-
-import textwrap as tw
-
-import numpy as np
 import pandas as pd
 
 from .base import utils as ut
 from .base import validation_parsing as vp
 from .base import vectordb as db
-from .base import core_lenstat as cl
+
+from typing import Tuple
 
 
 def verify(
     input_data:str|pd.DataFrame,
-    oligo_length_limit:int|None=None,
+    oligo_length_limit:int,
+    output_file:str|None=None,
     excluded_motifs:list|str|pd.DataFrame|None=None,
     background_directory:str|list|None=None,
-    verbose:bool=True) -> dict:
+    verbose:bool=True) -> Tuple[pd.DataFrame, dict]:
     '''
-    Lightweight QC for an oligo pool DataFrame (column inspection, length stats, and excluded-motif
-    emergence), without modifying data or writing outputs.
+    Verify an oligo pool for length, excluded motif emergence, and background k-mer conflicts.
+    Returns a DataFrame with per-row conflict flags and details.
 
     Required Parameters:
-        - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with an 'ID' column.
+        - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with an 'ID' column
+            and at least one DNA column (ATGC only).
+        - `oligo_length_limit` (`int`): Maximum allowed oligo length (>= 4).
 
     Optional Parameters:
-        - `oligo_length_limit` (`int` / `None`): If provided, check for length overflow (default: `None`).
-        - `excluded_motifs` (`list` / `str` / `pd.DataFrame` / `None`): Motifs to track; can be a CSV path
-            or DataFrame with an 'Exmotif' column (default: `None`).
-        - `background_directory` (`str` / `list` / `None`): Background k-mer DB(s) from `background()` (default: `None`).
+        - `output_file` (`str` / `None`): Output CSV filename; required in CLI usage, optional in
+            library usage (default: `None`). A `.oligopool.verify.csv` suffix is added if missing.
+        - `excluded_motifs` (`list` / `str` / `pd.DataFrame` / `None`): Motifs to check for emergence;
+            can be a list, comma-separated string, or DataFrame with 'Exmotif' column (default: `None`).
+        - `background_directory` (`str` / `list` / `None`): Background k-mer DB path(s) from `background()`
+            (default: `None`).
         - `verbose` (`bool`): If `True`, logs progress to stdout (default: `True`).
 
     Returns:
-        - A dictionary of verification results (stats only; no DataFrame is returned).
+        - A pandas DataFrame with conflict flags and details for each oligo.
+        - A dictionary of stats from the verification.
 
     Notes:
-        - Column inspection classifies columns as sequence vs metadata, and flags mixed/degenerate/non-string
-            columns (degenerate/IUPAC columns are warnings, not hard errors).
-        - Length stats use the same engine as `lenstat` and can be checked against `oligo_length_limit`.
-        - Motif emergence means a motif occurs more often than the minimum occurrence across the library
-            (useful when a motif should appear exactly once, e.g., restriction sites).
-        - Excluded-motif counting is literal substring matching; degenerate/IUPAC bases are not expanded
-            as wildcards during motif checks.
-        - Motif scans operate on concatenated sequence columns (left-to-right DataFrame order) with `'-'`
-            removed. If `CompleteOligo` exists (from `final`), it is used directly.
-        - If emergent motifs are detected and multiple sequence columns are present, `verify` attributes
-            emergence to column junctions ("edge effects"), unless `CompleteOligo` is provided.
-        - `background_directory` supports one or more DBs (paths and/or vectorDB instances). If provided, `verify`
-            scans concatenated oligos for any k-mers in ALL specified DBs and reports violations.
+        - If `CompleteOligo` column exists, it is used directly; otherwise, all concrete DNA columns
+            (ATGC only) are concatenated left-to-right.
+        - IUPAC/degenerate columns are skipped silently during DNA column detection.
+        - Length conflict: oligo length exceeds `oligo_length_limit`.
+        - Exmotif conflict: motif count exceeds library-wide minimum (baseline).
+        - Background conflict: any k-mer in oligo matches a background database.
+            If multiple background DBs are provided, conflicts are flagged if a k-mer matches
+            any of the specified DBs.
+        - Conflict details are stored as dicts in the DataFrame; when written to CSV, they are
+            serialized as JSON strings (parse back with `json.loads()` for any `*ConflictDetails` column).
     '''
+
+    # Preserve return style when the caller intentionally used ID as index.
+    id_from_index = ut.get_id_index_intent(input_data)
 
     # Argument Aliasing
     indata     = input_data
     oligolimit = oligo_length_limit
+    outfile    = output_file
     exmotifs   = excluded_motifs
     background = background_directory
     verbose    = verbose
@@ -68,13 +72,13 @@ def verify(
     # Required Argument Parsing
     liner.send('\n Required Arguments\n')
 
-    # First Pass input_data Parsing and Validation (no DNA-only constraint)
+    # Full indata Parsing and Validation (requires ID + at least one DNA column)
     (indf,
     data_name,
-    indata_valid) = vp.get_parsed_data_info(
+    dna_columns,
+    indata_valid) = vp.get_parsed_verify_indata_info(
         data=indata,
         data_field='      Input Data    ',
-        required_fields=None,
         liner=liner)
     input_rows = len(indf.index) if isinstance(indf, pd.DataFrame) else 0
 
@@ -85,23 +89,32 @@ def verify(
                 data_name,
                 len(indf.index)))
 
+    # Full oligolimit Validation
+    oligolimit_valid = vp.get_numeric_validity(
+        numeric=oligolimit,
+        numeric_field='      Oligo Limit   ',
+        numeric_pre_desc=' At most ',
+        numeric_post_desc=' Base Pair(s)',
+        minval=4,
+        maxval=float('inf'),
+        precheck=False,
+        liner=liner)
+
+    # Full outfile Validation
+    outfile_valid = vp.get_outdf_validity(
+        outdf=outfile,
+        outdf_suffix='.oligopool.verify.csv',
+        outdf_field='     Output File    ',
+        liner=liner)
+
+    # Adjust outfile Suffix
+    if outfile is not None:
+        outfile = ut.get_adjusted_path(
+            path=outfile,
+            suffix='.oligopool.verify.csv')
+
     # Optional Argument Parsing
     liner.send('\n Optional Arguments\n')
-
-    # Full oligolimit Validation (optional)
-    oligolimit_valid = True
-    if oligolimit is None:
-        liner.send('      Oligo Limit   : None Specified\n')
-    else:
-        oligolimit_valid = vp.get_numeric_validity(
-            numeric=oligolimit,
-            numeric_field='      Oligo Limit   ',
-            numeric_pre_desc=' At most ',
-            numeric_post_desc=' Base Pair(s)',
-            minval=4,
-            maxval=float('inf'),
-            precheck=False,
-            liner=liner)
 
     # Full exmotifs Parsing and Validation (optional)
     (exmotifs,
@@ -125,6 +138,7 @@ def verify(
     if not all([
         indata_valid,
         oligolimit_valid,
+        outfile_valid,
         exmotifs_valid,
         background_valid]):
         liner.send('\n')
@@ -133,7 +147,7 @@ def verify(
 
     # Open Backgrounds
     backgrounds = []
-    opened_backgrounds = []  # Track for cleanup
+    opened_backgrounds = []
     if backgrounds_info:
         for bg_ref, bg_type, _ in backgrounds_info:
             if bg_type == 'path':
@@ -144,739 +158,256 @@ def verify(
                     path=bg_path,
                     maximum_repeat_length=None)
                 opened_backgrounds.append(bg)
-            else:  # 'instance'
+            else:
                 bg = bg_ref
             backgrounds.append(bg)
 
     # Start Timer
     t0 = tt.time()
 
-    # Adjust Numeric Paramters
-    if not oligolimit is None:
-        oligolimit = round(oligolimit)
+    # Adjust Numeric Parameters
+    oligolimit = round(oligolimit)
 
     # Book-keeping
+    outdf = None
     stats = None
     warns = {}
 
-    # Step 1: Column Inspection
-    liner.send('\n[Step 1: Inspecting Columns]\n')
+    # Step 1: Scan Oligo Pool
+    liner.send('\n[Step 1: Scanning Oligo Pool]\n')
 
-    def send_wrapped(prefix, text, width=79):
-        for line in tw.wrap(
-            text,
-            width=width,
-            initial_indent=prefix,
-            subsequent_indent=' ' * len(prefix)):
-            liner.send(line + '\n')
+    # Check if CompleteOligo was detected
+    used_complete_oligo = (dna_columns == ['CompleteOligo'])
 
-    columns = list(indf.columns)
-    duplicates = [c for c, n in cx.Counter(columns).items() if n > 1]
+    # Report DNA columns
+    liner.send(' DNA Column(s): {} Column(s)\n'.format(len(dna_columns)))
+    for col in dna_columns:
+        liner.send('    - {}\n'.format(col))
 
-    dna_cols = []
-    ddna_cols = []
-    seq_cols = []
-    seq_positions = []
-
-    metadata_cols = []
-    metadata_col_types = {}
-    non_string_cols = []
-
-    mixed_cols = []
-    mixed_col_examples = {}
-
-    non_string_examples = {}
-    empty_seq_cols = []
-    empty_seq_examples = {}
-
-    for col_idx, col in enumerate(columns):
-        series = indf.iloc[:, col_idx]
-
-        # Non-string columns are treated as metadata (annotations).
-        is_str = series.map(lambda x: isinstance(x, str))
-        if not bool(is_str.all()):
-            metadata_cols.append(col)
-            non_string_cols.append(col)
-            metadata_col_types[f'{col}[{col_idx}]'] = str(series.dtype)
-            invalid_mask = ~is_str
-            examples = ut.get_row_examples(
-                df=indf,
-                invalid_mask=invalid_mask,
-                id_col='ID',
-                limit=5)
-            try:
-                sample = series[invalid_mask].iloc[0]
-                sample_type = type(sample).__name__
-                sample_value = repr(sample)
-            except Exception:
-                sample_type = 'unknown'
-                sample_value = '<unavailable>'
-            non_string_examples[f'{col}[{col_idx}]'] = {
-                'example_type': sample_type,
-                'example_value': sample_value,
-                'examples': examples,
-            }
-            continue
-
-        upper = series.str.upper()
-
-        # Determine if the column behaves like a sequence column (DNA/IUPAC) or metadata.
-        ddna_mask = upper.map(lambda x: ut.is_DNA(seq=x, dna_alpha=ut.ddna_alpha))
-        ddna_fraction = float(ddna_mask.mean()) if len(ddna_mask) else 0.0
-
-        # No DNA-like values: treat as metadata string column.
-        if ddna_fraction == 0.0:
-            metadata_cols.append(col)
-            metadata_col_types[f'{col}[{col_idx}]'] = str(series.dtype)
-            continue
-
-        # Mixed DNA-like and non-DNA values: flag (likely a broken sequence column).
-        if ddna_fraction < 1.0:
-            mixed_cols.append(col)
-            invalid_mask = ~ddna_mask
-            examples = ut.get_row_examples(
-                df=indf,
-                invalid_mask=invalid_mask,
-                id_col='ID',
-                limit=5)
-            try:
-                sample = upper[invalid_mask].iloc[0]
-            except Exception:
-                sample = '<unavailable>'
-            mixed_col_examples[f'{col}[{col_idx}]'] = {
-                'ddna_fraction': ddna_fraction,
-                'example_value': str(sample),
-                'examples': examples,
-            }
-            continue
-
-        # Sequence column: all values are DNA/IUPAC (including '-').
-        empty_mask = upper.str.len().eq(0)
-        if bool(empty_mask.any()):
-            empty_seq_cols.append(col)
-            empty_seq_examples[f'{col}[{col_idx}]'] = ut.get_row_examples(
-                df=indf,
-                invalid_mask=empty_mask,
-                id_col='ID',
-                limit=5)
-
-        seq_cols.append(col)
-        seq_positions.append(col_idx)
-        indf.iloc[:, col_idx] = upper
-
-        is_dna = upper.map(lambda x: ut.is_DNA(seq=x))
-        if bool(is_dna.all()):
-            dna_cols.append(col)
-        else:
-            ddna_cols.append(col)
-
-    # De-duplicate metadata columns (keep order) while preserving duplicates list separately.
-    metadata_cols = list(cx.OrderedDict.fromkeys(metadata_cols))
-
-    field_width = 20
-
-    liner.send(
-        ' {:>{}}: {:,} Column(s)\n'.format(
-            'Sequence Columns',
-            field_width,
-            len(seq_cols)))
-    liner.send(
-        ' {:>{}}: {:,} Column(s)\n'.format(
-            'DNA Columns',
-            field_width,
-            len(dna_cols)))
-    liner.send(
-        ' {:>{}}: {:,} Column(s)\n'.format(
-            'Degenerate Columns',
-            field_width,
-            len(ddna_cols)))
-    liner.send(
-        ' {:>{}}: {:,} Column(s)\n'.format(
-            'Metadata Columns',
-            field_width,
-            len(metadata_cols)))
-    liner.send(
-        ' {:>{}}: {:,} Column(s)\n'.format(
-            'Mixed Columns',
-            field_width,
-            len(mixed_cols)))
-    liner.send(
-        ' {:>{}}: {:,} Column(s)\n'.format(
-            'Non-string Columns',
-            field_width,
-            len(non_string_cols)))
-    liner.send(
-        ' {:>{}}: {:,} Duplicate(s)\n'.format(
-            'Duplicate Names',
-            field_width,
-            len(duplicates)))
-    liner.send(
-        ' {:>{}}: {:,} Column(s)\n'.format(
-            'Empty Seq. Values',
-            field_width,
-            len(empty_seq_cols)))
-
-    if not seq_cols:
-        liner.send(
-            '   - No sequence columns detected [WARNING] (Length/motif checks skipped)\n')
-
-    if seq_cols:
-        prefix = '   - Sequence Column(s): '
-        send_wrapped(
-            prefix=prefix,
-            text=', '.join(f"'{c}'" for c in seq_cols))
-
-    if ddna_cols:
-        prefix = '   - Degenerate Column(s): '
-        send_wrapped(
-            prefix=prefix,
-            text=', '.join(f"'{c}'" for c in ddna_cols))
-        liner.send(
-            "   - Degenerate columns contain IUPAC bases [WARNING] (confirm this is intentional)\n")
-
-    if metadata_cols:
-        prefix = '   - Metadata Column(s): '
-        send_wrapped(
-            prefix=prefix,
-            text=', '.join(f"'{c}'" for c in metadata_cols))
-
-    if non_string_cols:
-        prefix = '   - Non-string Column(s): '
-        send_wrapped(
-            prefix=prefix,
-            text=', '.join(f"'{c}'" for c in non_string_cols))
-        for colkey, info in non_string_examples.items():
-            example_note = ut.format_row_examples(info.get('examples', []))
-            liner.send(
-                '   - Column {} is non-string [INFO] (dtype={} example_type={} example_value={}){}\n'.format(
-                    colkey,
-                    metadata_col_types.get(colkey, '<unknown>'),
-                    info.get('example_type', '<unknown>'),
-                    info.get('example_value', '<unavailable>'),
-                    example_note))
-
-    if mixed_cols:
-        prefix = '   - Mixed Column(s): '
-        send_wrapped(
-            prefix=prefix,
-            text=', '.join(f"'{c}'" for c in mixed_cols))
-        for colkey, info in mixed_col_examples.items():
-            example_note = ut.format_row_examples(info.get('examples', []))
-            liner.send(
-                '   - Column {} is mixed [WARNING] ({:5.1f} % DNA-like; example_value={!r}){}\n'.format(
-                    colkey,
-                    info.get('ddna_fraction', 0.0) * 100.,
-                    info.get('example_value', '<unavailable>'),
-                    example_note))
-
-    if duplicates:
-        prefix = '   - Duplicate Name(s): '
-        send_wrapped(
-            prefix=prefix,
-            text=', '.join(f"'{c}'" for c in duplicates))
-
-    if empty_seq_cols:
-        prefix = '   - Empty Seq. Column(s): '
-        send_wrapped(
-            prefix=prefix,
-            text=', '.join(f"'{c}'" for c in empty_seq_cols))
-        for colkey, examples in empty_seq_examples.items():
-            example_note = ut.format_row_examples(examples)
-            liner.send(
-                '   - Column {} has empty sequence value(s) [WARNING]{}\n'.format(
-                    colkey,
-                    example_note))
-
-    if duplicates or mixed_cols or empty_seq_cols:
-        liner.send(' Verdict: Column Inspection Completed with Violation(s)\n')
+    if used_complete_oligo:
+        liner.send(' Complete Oligo : Present (using directly)\n')
     else:
-        liner.send(' Verdict: Column Inspection Completed\n')
+        liner.send(' Complete Oligo : Not Present (concatenating above)\n')
 
-    # Step 2: Length Stats
-    intstats = cx.OrderedDict()
-    minspaceavail = None
-    maxspaceavail = None
-    minoligolen = None
-    maxoligolen = None
+    # Step 2: Build concatenated oligos
+    oligo_sequences = []
+    oligo_lengths = []
 
-    if seq_cols:
-        liner.send('\n[Step 2: Computing Length Statistics]\n')
-
-        seqdf = indf.iloc[:, seq_positions].copy()
-
-        (intstats,
-        minspaceavail,
-        maxspaceavail) = cl.lenstat_engine(
-            indf=seqdf,
-            oligolimit=oligolimit,
-            liner=liner)
-
-        if intstats:
-            last_key = next(reversed(intstats))
-            minoligolen = int(intstats[last_key][3])
-            maxoligolen = int(intstats[last_key][4])
-
-        liner.send('\n[Length Statistics]\n')
-
-        statsprint = ut.get_lenstat_statsprint(
-            intstats=intstats)
-
-        if verbose and statsprint:
-            print('\n{}'.format(statsprint))
-
-        if oligolimit is None:
-            liner.send(
-                '\n Oligo Length Range: {:,} to {:,} Base Pair(s)\n'.format(
-                    minoligolen,
-                    maxoligolen))
-            liner.send(
-                ' Verdict: Oligo Length Range Computed\n')
+    for idx in range(len(indf)):
+        if used_complete_oligo:
+            oligo = str(indf['CompleteOligo'].iloc[idx]).replace('-', '').upper()
         else:
-            if minspaceavail == maxspaceavail:
-                liner.send(
-                    '\n Free Space Available: {:,} Base Pair(s)\n'.format(
-                        int(minspaceavail)))
-            else:
-                liner.send(
-                    '\n Free Space Available: {:,} to {:,} Base Pair(s)\n'.format(
-                        int(minspaceavail),
-                        int(maxspaceavail)))
-            liner.send(
-                ' Verdict: Oligo Length {} Limit\n'.format(
-                    ('Within', 'Exceeds')[int(maxoligolen > oligolimit)]))
+            parts = [str(indf[col].iloc[idx]).replace('-', '').upper() for col in dna_columns]
+            oligo = ''.join(parts)
+        oligo_sequences.append(oligo)
+        oligo_lengths.append(len(oligo))
 
-    # Step 3: Excluded motif emergence check
-    motif_stats = None
-    motif_ok = True
-    motif_viol_masks = None
-    junction_stats = None
+    min_oligo_len = min(oligo_lengths)
+    max_oligo_len = max(oligo_lengths)
 
-    if (exmotifs is not None) and seq_cols:
-        liner.send('\n[Step 3: Checking Excluded Motifs]\n')
+    if min_oligo_len == max_oligo_len:
+        liner.send('    Oligo Length: {:,} Base Pair(s)\n'.format(min_oligo_len))
+    else:
+        liner.send('    Oligo Length: {:,} to {:,} Base Pair(s)\n'.format(
+            min_oligo_len, max_oligo_len))
 
-        seqdf = indf.iloc[:, seq_positions]
-        if 'CompleteOligo' in seqdf.columns:
-            complete = seqdf['CompleteOligo']
-            if isinstance(complete, pd.DataFrame):
-                complete = complete.iloc[:, 0]
-            fullseqs = complete.str.replace('-', '').tolist()
+    # Step 3: Conflict Detection
+    # 3a. Length Conflict Detection
+    length_conflicts = []
+    length_details = []
+
+    for length in oligo_lengths:
+        if length > oligolimit:
+            length_conflicts.append(True)
+            length_details.append({
+                'length': length,
+                'limit': oligolimit,
+                'overflow': length - oligolimit
+            })
         else:
-            fullseqs = list(ut.get_df_concat(df=seqdf))
+            length_conflicts.append(False)
+            length_details.append(None)
 
-        motif_stats = {}
-        motif_viol_masks = {}
+    # 3b. Exmotif Emergence Detection
+    exmotif_conflicts = []
+    exmotif_details = []
+    baselines = {}
+    emergence_summary = {}
+
+    if exmotifs:
+        # Pre-compute baselines
         for motif in exmotifs:
-            counts = [seq.count(motif) for seq in fullseqs]
-            baseline = int(min(counts)) if counts else 0
-            maxcount = int(max(counts)) if counts else 0
-            viol_mask = np.array([c > baseline for c in counts], dtype=bool)
-            viol_rows = int(np.sum(viol_mask))
-            examples = ut.get_row_examples(
-                df=indf,
-                invalid_mask=viol_mask,
-                id_col='ID',
-                limit=5)
-            motif_stats[motif] = {
-                'baseline_count': baseline,
-                'max_count': maxcount,
-                'emergent_rows': viol_rows,
-                'examples': examples,
-            }
-            motif_viol_masks[motif] = viol_mask
+            counts = [oligo.count(motif) for oligo in oligo_sequences]
+            baselines[motif] = min(counts) if counts else 0
 
-            if viol_rows:
-                motif_ok = False
-
-        liner.send(
-            ' Motifs Checked: {:,} Unique Motif(s)\n'.format(
-                len(exmotifs)))
-
-        prefix = ' Motif Set: '
-        send_wrapped(
-            prefix=prefix,
-            text=', '.join(f"'{m}'" for m in exmotifs))
-
-        liner.send(' Excluded Motif Emergence Summary\n')
-
-        for motif in exmotifs:
-            info = motif_stats[motif]
-            example_note = ''
-            tag = ''
-            if info['emergent_rows']:
-                tag = ' [WARNING]'
-                example_note = ut.format_row_examples(info.get('examples', []))
-
-            liner.send(
-                "   - Motif '{}': {} to {} Occurrence(s); Emergent in {:,} Oligo(s){}{}\n".format(
-                    motif,
-                    info['baseline_count'],
-                    info['max_count'],
-                    info['emergent_rows'],
-                    tag,
-                    example_note))
-
-        if motif_ok:
-            liner.send(' Verdict: No Emergent Excluded Motif(s) Detected\n')
-        else:
-            liner.send(' Verdict: Emergent Excluded Motif(s) Detected\n')
-
-        # Step 4: Localize emergent motifs to column junctions (edge effects).
-        emergent_motifs = [m for m, info in motif_stats.items() if info.get('emergent_rows', 0)]
-        if emergent_motifs:
-            liner.send('\n[Step 4: Localizing Emergent Motifs]\n')
-
-            if 'CompleteOligo' in seqdf.columns:
-                liner.send(
-                    ' Verdict: Junction Attribution Skipped [INFO] (Run verify before `final` to keep separate columns)\n')
-            else:
-                # Junctions are defined by the order of sequence columns in the DataFrame.
-                junction_cols = list(seqdf.columns)
-
-                if len(junction_cols) < 2:
-                    liner.send(
-                        ' Verdict: Junction Attribution Skipped [INFO] (Need ≥ 2 Sequence Columns)\n')
-                else:
-                    junction_keys = [
-                        '{}|{}'.format(junction_cols[i], junction_cols[i + 1])
-                        for i in range(len(junction_cols) - 1)
-                    ]
-
-                    junction_stats = {
-                        'junction_columns': junction_cols,
-                        'motifs': {},
+        # Per-row detection
+        for oligo in oligo_sequences:
+            row_details = {}
+            for motif in exmotifs:
+                count = oligo.count(motif)
+                if count > baselines[motif]:
+                    # Find all positions
+                    positions = []
+                    start = 0
+                    while True:
+                        pos = oligo.find(motif, start)
+                        if pos < 0:
+                            break
+                        positions.append(pos)
+                        start = pos + 1
+                    row_details[motif] = {
+                        'count': count,
+                        'baseline': baselines[motif],
+                        'emergence': count - baselines[motif],
+                        'positions': positions
                     }
+            if row_details:
+                exmotif_conflicts.append(True)
+                exmotif_details.append(row_details)
+            else:
+                exmotif_conflicts.append(False)
+                exmotif_details.append(None)
 
-                    for motif in emergent_motifs:
-                        viol_mask = motif_viol_masks.get(motif)
-                        viol_idxs = np.where(viol_mask)[0] if viol_mask is not None else np.array([], dtype=int)
+        # Build emergence summary for stats
+        for motif in exmotifs:
+            emergent_rows = sum(1 for d in exmotif_details if d and motif in d)
+            max_emergence = max(
+                (d[motif]['emergence'] for d in exmotif_details if d and motif in d),
+                default=0)
+            emergence_summary[motif] = {
+                'rows': emergent_rows,
+                'max': max_emergence
+            }
+    else:
+        exmotif_conflicts = [False] * len(oligo_sequences)
+        exmotif_details = [None] * len(oligo_sequences)
 
-                        # Row-level counts: for each junction, number of violating rows with ≥1 junction-spanning hit.
-                        counts_by_junction = {k: 0 for k in junction_keys}
-                        examples_by_junction = {k: [] for k in junction_keys}
-                        any_junction_rows = 0
-                        internal_only_rows = 0
+    # 3c. Background K-mer Conflict Detection
+    background_conflicts = []
+    background_details = []
 
-                        mot_len = len(motif)
-                        baseline = int(motif_stats.get(motif, {}).get('baseline_count', 0))
+    if backgrounds:
+        for oligo in oligo_sequences:
+            row_details = {
+                'matching_kmers': [],
+                'kmer_count': 0,
+                'first_match_position': None
+            }
+            has_conflict = False
 
-                        for ridx in viol_idxs:
-                            row_vals = seqdf.iloc[ridx, :].tolist()
-                            parts = [v.replace('-', '') for v in row_vals]
-
-                            # Boundary positions in the assembled (gap-stripped) oligo.
-                            boundaries = []
-                            pos = 0
-                            for part in parts:
-                                pos += len(part)
-                                boundaries.append(pos)
-                            boundaries = boundaries[:-1]  # N cols -> N-1 junctions
-
-                            full = ''.join(parts)
-
-                            # Find non-overlapping motif occurrences (matches `str.count` semantics used above).
-                            occ = []
-                            start = 0
-                            while True:
-                                p = full.find(motif, start)
-                                if p < 0:
-                                    break
-                                occ.append(p)
-                                start = p + mot_len
-
-                            crossed = set()
-                            # Attribute only emergent occurrences beyond the baseline minimum.
-                            for p in occ[baseline:]:
-                                end = p + mot_len
-                                for j, bpos in enumerate(boundaries):
-                                    if p < bpos < end:
-                                        crossed.add(j)
-
-                            if crossed:
-                                any_junction_rows += 1
-                                for j in crossed:
-                                    jkey = junction_keys[j]
-                                    counts_by_junction[jkey] += 1
-                                    if len(examples_by_junction[jkey]) < 5:
-                                        examples_by_junction[jkey].append(str(indf.index[ridx]))
-                            else:
-                                internal_only_rows += 1
-
-                        # Print motif-localization summary
-                        liner.send(" Motif '{}': Junction Attribution (Beyond Baseline={})\n".format(
-                            motif,
-                            baseline))
-
-                        # Only show junctions that contribute at least once (sorted descending).
-                        nonzero = [(k, v) for k, v in counts_by_junction.items() if v]
-                        if nonzero:
-                            nonzero.sort(key=lambda kv: kv[1], reverse=True)
-                            for jkey, count in nonzero:
-                                left, right = jkey.split('|', 1)
-                                example_note = ut.format_row_examples(examples_by_junction.get(jkey, []))
-                                liner.send(
-                                    "   - Junction '{}' + '{}': {:,} Oligo(s){}\n".format(
-                                        left,
-                                        right,
-                                        count,
-                                        example_note))
-                        if internal_only_rows:
-                            liner.send(
-                                '   - Internal (Within One Column): {:,} Oligo(s)\n'.format(
-                                    internal_only_rows))
-
-                        liner.send(
-                            '   - Junction-Spanning Rows: {:,} Oligo(s)\n'.format(
-                                any_junction_rows))
-
-                        junction_stats['motifs'][motif] = {
-                            'baseline_count': int(baseline),
-                            'any_junction_rows': int(any_junction_rows),
-                            'internal_only_rows': int(internal_only_rows),
-                            'junction_rows': {k: int(v) for k, v in counts_by_junction.items() if v},
-                            'junction_examples': {k: v for k, v in examples_by_junction.items() if v},
-                        }
-
-                    liner.send(' Verdict: Motif Junction Attribution Completed\n')
-
-    # Step 4: Background k-mer scan
-    background_violations = 0
-    background_violation_rows = []
-    background_scan_performed = False
-
-    if backgrounds and seq_cols:
-        background_scan_performed = True
-        liner.send('\n[Step 4: Checking Background k-mers]\n')
-
-        # Build concatenated oligos
-        if 'CompleteOligo' in seq_cols:
-            oligos = indf['CompleteOligo'].str.replace('-', '').tolist()
-        else:
-            seqdf = indf[seq_cols]
-            oligos = seqdf.apply(
-                lambda row: ''.join(str(v).replace('-', '') for v in row),
-                axis=1).tolist()
-
-        # Scan each oligo for background k-mers in ALL backgrounds
-        k_values = [bg.K for bg in backgrounds]
-        if len(backgrounds) == 1:
-            liner.send(' Scanning {:,} Oligo(s) for Background k-mers (k={:,})...\n'.format(
-                len(oligos),
-                backgrounds[0].K))
-        else:
-            liner.send(' Scanning {:,} Oligo(s) for Background k-mers (k={})...\n'.format(
-                len(oligos),
-                ', '.join(str(k) for k in k_values)))
-
-        for ridx, oligo in enumerate(oligos):
-            violation_found = False
-            # Check against all backgrounds
             for bg in backgrounds:
-                if len(oligo) < bg.K:
+                K = bg.K
+                if len(oligo) < K:
                     continue
-                # Check all k-mers in oligo
-                for i in range(len(oligo) - bg.K + 1):
-                    kmer = oligo[i:i+bg.K]
+                for i in range(len(oligo) - K + 1):
+                    kmer = oligo[i:i+K]
                     if kmer in bg:
-                        violation_found = True
-                        break
-                if violation_found:
-                    break
-            if violation_found:
-                background_violations += 1
-                if len(background_violation_rows) < 10:
-                    background_violation_rows.append(str(indf.index[ridx]))
+                        has_conflict = True
+                        row_details['matching_kmers'].append(kmer)
+                        if row_details['first_match_position'] is None:
+                            row_details['first_match_position'] = i
+                        row_details['kmer_count'] += 1
 
-        if background_violations:
-            example_note = ut.format_row_examples(background_violation_rows)
-            liner.send(' Found {:,} Oligo(s) with Background k-mer Violation(s){}\n'.format(
-                background_violations,
-                example_note))
-            liner.send(' Verdict: Background Scan Completed with Violation(s)\n')
-        else:
-            liner.send(' Found 0 Oligo(s) with Background k-mer Violation(s)\n')
-            liner.send(' Verdict: Background Scan Completed\n')
+            if has_conflict:
+                background_conflicts.append(True)
+                background_details.append(row_details)
+            else:
+                background_conflicts.append(False)
+                background_details.append(None)
+    else:
+        background_conflicts = [False] * len(oligo_sequences)
+        background_details = [None] * len(oligo_sequences)
 
-    # Determine pass/fail
-    length_overflow = False
-    if (oligolimit is not None) and (maxoligolen is not None):
-        length_overflow = bool(maxoligolen > oligolimit)
+    # Build HasAnyConflicts
+    has_any_conflicts = [
+        l or e or b
+        for l, e, b in zip(length_conflicts, exmotif_conflicts, background_conflicts)
+    ]
 
-    status = True
-    if duplicates:
-        status = False
-    if mixed_cols:
-        status = False
-    if empty_seq_cols:
-        status = False
-    if length_overflow:
-        status = False
-    if not motif_ok:
-        status = False
-    if background_violations:
-        status = False
+    # Step 4: Build Output DataFrame (index from indf, ID column added at return)
+    outdf = pd.DataFrame(index=indf.index)
+    outdf['CompleteOligo'] = oligo_sequences
+    outdf['OligoLength'] = oligo_lengths
+    outdf['HasLengthConflict'] = length_conflicts
+    outdf['HasExmotifConflict'] = exmotif_conflicts
+    outdf['HasBackgroundConflict'] = background_conflicts
+    outdf['HasAnyConflicts'] = has_any_conflicts
+    outdf['LengthConflictDetails'] = length_details
+    outdf['ExmotifConflictDetails'] = exmotif_details
+    outdf['BackgroundConflictDetails'] = background_details
+
+    liner.send(' Scanning Completed\n')
+    liner.send(' Time Elapsed: {:.2f} sec\n'.format(tt.time() - t0))
+
+    # Step 5: Build Stats & Write Output
+    length_conflict_count = sum(length_conflicts)
+    exmotif_conflict_count = sum(exmotif_conflicts)
+    background_conflict_count = sum(background_conflicts)
+    any_conflict_count = sum(has_any_conflicts)
+    clean_count = len(outdf) - any_conflict_count
+
+    stats = {
+        'status': any_conflict_count == 0,
+        'basis': 'verified' if any_conflict_count == 0 else 'conflicts',
+        'step': 1,
+        'step_name': 'scanning-oligo-pool',
+        'vars': {
+            'total_count': len(outdf),
+            'dna_columns': dna_columns,
+            'complete_oligo': used_complete_oligo,
+            'oligo_limit': oligolimit,
+            'min_oligo_len': min_oligo_len,
+            'max_oligo_len': max_oligo_len,
+            'length_conflict': length_conflict_count,
+            'exmotif_conflict': exmotif_conflict_count,
+            'background_conflict': background_conflict_count,
+            'any_conflict': any_conflict_count,
+            'clean_count': clean_count,
+            'excluded_motifs': list(exmotifs) if exmotifs else None,
+            'motif_baselines': baselines if baselines else None,
+            'motif_emergence': emergence_summary if emergence_summary else None,
+            'background_k': [bg.K for bg in backgrounds] if backgrounds else None,
+        },
+        'warns': warns
+    }
+
+    # Write output CSV if specified
+    if outfile is not None:
+        # Serialize dict columns as JSON strings for CSV
+        csv_df = outdf.copy()
+        for col in ['LengthConflictDetails', 'ExmotifConflictDetails', 'BackgroundConflictDetails']:
+            csv_df[col] = csv_df[col].apply(lambda x: json.dumps(x) if x is not None else None)
+        # Add ID column for CSV output
+        csv_df = ut.get_df_with_id_column(csv_df)
+        ut.write_df_csv(df=csv_df, outfile=outfile, sep=',')
 
     # Verification Statistics
     liner.send('\n[Verification Statistics]\n')
-    field_width = 21
 
-    liner.send(
-        ' {:>{}}: {}\n'.format(
-            'Verify Status',
-            field_width,
-            ('Successful', 'Failed')[int(not status)]))
-    liner.send(
-        ' {:>{}}: {:,} Record(s)\n'.format(
-            'Input Records',
-            field_width,
-            input_rows))
-    liner.send(
-        ' {:>{}}: {:,} Column(s)\n'.format(
-            'Sequence Columns',
-            field_width,
-            len(seq_cols)))
-    liner.send(
-        ' {:>{}}: {:,} Column(s)\n'.format(
-            'Metadata Columns',
-            field_width,
-            len(metadata_cols)))
-    liner.send(
-        ' {:>{}}: {:,} Column(s)\n'.format(
-            'Degenerate Columns',
-            field_width,
-            len(ddna_cols)))
-    liner.send(
-        ' {:>{}}: {:,} Column(s)\n'.format(
-            'Mixed Columns',
-            field_width,
-            len(mixed_cols)))
-    liner.send(
-        ' {:>{}}: {:,} Duplicate(s)\n'.format(
-            'Duplicate Names',
-            field_width,
-            len(duplicates)))
-    liner.send(
-        ' {:>{}}: {:,} Column(s)\n'.format(
-            'Empty Seq. Values',
-            field_width,
-            len(empty_seq_cols)))
+    total_count = len(outdf)
+    plen = ut.get_printlen(value=total_count)
 
-    if seq_cols and (minoligolen is not None) and (maxoligolen is not None):
-        if minoligolen == maxoligolen:
-            liner.send(
-                ' {:>{}}: {:,} Base Pair(s)\n'.format(
-                    'Oligo Length',
-                    field_width,
-                    minoligolen))
-        else:
-            liner.send(
-                ' {:>{}}: {:,} to {:,} Base Pair(s)\n'.format(
-                    'Oligo Length',
-                    field_width,
-                    minoligolen,
-                    maxoligolen))
-        if oligolimit is not None:
-            liner.send(
-                ' {:>{}}: {:,} Base Pair(s)\n'.format(
-                    'Oligo Limit',
-                    field_width,
-                    oligolimit))
-            liner.send(
-                ' {:>{}}: {}\n'.format(
-                    'Limit Overflow',
-                    field_width,
-                    ('No', 'Yes')[int(length_overflow)]))
-
-    if exmotifs is not None:
-        emergent_motifs = 0
-        emergent_rows = 0
-        if motif_stats:
-            for info in motif_stats.values():
-                if info.get('emergent_rows', 0):
-                    emergent_motifs += 1
-                    emergent_rows += int(info.get('emergent_rows', 0))
-
-        liner.send(
-            ' {:>{}}: {:,} Motif(s)\n'.format(
-                'Excluded Motifs',
-                field_width,
-                len(exmotifs)))
-        liner.send(
-            ' {:>{}}: {:,} Motif(s)\n'.format(
-                'Emergent Motifs',
-                field_width,
-                emergent_motifs))
-        if emergent_motifs:
-            liner.send(
-                ' {:>{}}: {:,} Oligo(s)\n'.format(
-                    'Emergent Rows',
-                    field_width,
-                    emergent_rows))
-
-    if background_scan_performed:
-        k_display = ', '.join(str(bg.K) for bg in backgrounds) if len(backgrounds) > 1 else str(backgrounds[0].K)
-        liner.send(
-            ' {:>{}}: {}\n'.format(
-                'Background k',
-                field_width,
-                k_display))
-        liner.send(
-            ' {:>{}}: {:,} Oligo(s)\n'.format(
-                'Background Violations',
-                field_width,
-                background_violations))
-
-    # Determine step number
-    step_num = 2  # base: length stats
-    if exmotifs is not None:
-        step_num = 3
-    if background_scan_performed:
-        step_num = 4
-
-    # Build Stats Dictionary
-    stats = {
-        'status'  : status,
-        'basis'   : ('solved', 'violations')[int(not status)],
-        'step'    : step_num,
-        'step_name': 'verifying-input-data',
-        'vars'    : {
-            'sequence_columns': seq_cols,
-            'dna_columns': dna_cols,
-            'degenerate_columns': ddna_cols,
-            'metadata_columns': metadata_cols,
-            'mixed_columns': mixed_cols,
-            'non_string_columns': non_string_cols,
-            'duplicate_columns': duplicates,
-            'empty_sequence_columns': empty_seq_cols,
-            'oligo_limit': oligolimit,
-            'min_oligo_len': minoligolen,
-            'max_oligo_len': maxoligolen,
-            'min_space_avail': minspaceavail,
-            'max_space_avail': maxspaceavail,
-            'length_overflow': length_overflow,
-            'len_stat': ut.get_lenstat_dict(
-                intstats=intstats),
-            'excluded_motifs': exmotifs,
-            'excluded_motif_stats': motif_stats,
-            'excluded_motif_junction_stats': junction_stats,
-            'background_k': (
-                backgrounds[0].K if len(backgrounds) == 1 else [bg.K for bg in backgrounds]
-            ) if background_scan_performed else None,
-            'background_violations': background_violations,
-            'background_violation_examples': background_violation_rows,
-        },
-        'warns'   : warns,
-    }
-
-    # Attach examples for debugging (kept in vars for JSON friendliness)
-    stats['vars']['metadata_column_types'] = metadata_col_types
-    stats['vars']['mixed_column_examples'] = mixed_col_examples
-    stats['vars']['non_string_examples'] = non_string_examples
-    stats['vars']['empty_sequence_examples'] = empty_seq_examples
+    verify_status = 'Successful' if any_conflict_count == 0 else 'Conflicts Detected'
+    liner.send('     Verify Status   : {}\n'.format(verify_status))
+    liner.send('      Total Count    : {:{},d} Row(s)\n'.format(total_count, plen))
+    liner.send('     Length Conflicts: {:{},d} Row(s) ({:6.2f} %)\n'.format(
+        length_conflict_count, plen,
+        ut.safediv(A=length_conflict_count * 100., B=total_count)))
+    liner.send('    Exmotif Conflicts: {:{},d} Row(s) ({:6.2f} %)\n'.format(
+        exmotif_conflict_count, plen,
+        ut.safediv(A=exmotif_conflict_count * 100., B=total_count)))
+    liner.send(' Background Conflicts: {:{},d} Row(s) ({:6.2f} %)\n'.format(
+        background_conflict_count, plen,
+        ut.safediv(A=background_conflict_count * 100., B=total_count)))
+    liner.send('        Any Conflicts: {:{},d} Row(s) ({:6.2f} %)\n'.format(
+        any_conflict_count, plen,
+        ut.safediv(A=any_conflict_count * 100., B=total_count)))
+    liner.send('      Clean Count    : {:{},d} Row(s) ({:6.2f} %)\n'.format(
+        clean_count, plen,
+        ut.safediv(A=clean_count * 100., B=total_count)))
 
     # Show Time Elapsed
-    liner.send(
-        ' Time Elapsed: {:.2f} sec\n'.format(
-            tt.time()-t0))
+    liner.send(' Time Elapsed: {:.2f} sec\n'.format(tt.time() - t0))
 
     # Close Backgrounds
     for bg in opened_backgrounds:
@@ -890,5 +421,8 @@ def verify(
         stats=stats,
         module='verify',
         input_rows=input_rows,
-        output_rows=0)
-    return stats
+        output_rows=len(outdf))
+    outdf_return = outdf
+    if not id_from_index:
+        outdf_return = ut.get_df_with_id_column(outdf)
+    return (outdf_return, stats)

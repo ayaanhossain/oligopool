@@ -797,8 +797,18 @@ def _dump_stats(stats, args):
 
 def _handle_result(result, args):
     '''Extract stats from a module result and return a process exit code.'''
-    # Most module calls return (dataframe, stats); stats-only calls return a dict.
-    stats = result[1] if isinstance(result, tuple) else result
+    # Most module calls return (df, stats); some return (..., stats) (e.g., compress).
+    stats = None
+    if isinstance(result, dict):
+        stats = result
+    elif isinstance(result, tuple):
+        if result and isinstance(result[-1], dict):
+            stats = result[-1]
+        else:
+            for item in reversed(result):
+                if isinstance(item, dict):
+                    stats = item
+                    break
     _dump_stats(stats, args)
     if isinstance(stats, dict) and 'status' in stats:
         return 0 if stats['status'] else 1
@@ -889,6 +899,8 @@ def _apply_step_type_conversions(step_config):
     '''Apply type conversions to step config values.'''
     if 'excluded_motifs' in step_config:
         step_config['excluded_motifs'] = _parse_list_str(step_config['excluded_motifs'])
+    if 'background_directory' in step_config:
+        step_config['background_directory'] = _parse_list_str(step_config['background_directory'])
     if 'spacer_length' in step_config:
         step_config['spacer_length'] = _parse_list_int(step_config['spacer_length'])
     if 'barcode_type' in step_config:
@@ -919,7 +931,17 @@ def _execute_step(step_name, command, config_key, config):
         result = func(**step_config)
 
         # Check result status and extract summary info
-        stats = result[1] if isinstance(result, tuple) else result
+        stats = None
+        if isinstance(result, dict):
+            stats = result
+        elif isinstance(result, tuple):
+            if result and isinstance(result[-1], dict):
+                stats = result[-1]
+            else:
+                for item in reversed(result):
+                    if isinstance(item, dict):
+                        stats = item
+                        break
         summary = None
         if isinstance(stats, dict):
             if 'status' in stats and not stats['status']:
@@ -2305,7 +2327,7 @@ def _add_verify(cmdpar):
     parser = cmdpar.add_parser(
         'verify',
         help=_CLI_DESC['verify'],
-        description='Verify a library DataFrame (length/motif/degeneracy checks; no output file).',
+        description='Verify oligo pool for length, motif emergence, and background k-mer conflicts.',
         epilog=_notes_epilog('verify'),
         usage=argparse.SUPPRESS,
         formatter_class=OligopoolFormatter,
@@ -2318,14 +2340,21 @@ def _add_verify(cmdpar):
         type=str,
         metavar='\b',
         help='''>>[required string]
-Path to input CSV with an ID column.''')
-    opt.add_argument(
+Path to input CSV with an ID column and DNA columns.''')
+    req.add_argument(
         '--oligo-length-limit',
+        required=True,
         type=int,
-        default=None,
         metavar='\b',
-        help='''>>[optional integer]
-Maximum allowed oligo length for reporting (>= 4).''')
+        help='''>>[required integer]
+Maximum allowed oligo length (>= 4).''')
+    req.add_argument(
+        '--output-file',
+        type=str,
+        required=True,
+        metavar='\b',
+        help='''>>[required string]
+Output CSV filename (auto-suffixed .oligopool.verify.csv).''')
     opt.add_argument(
         '--excluded-motifs',
         type=str,
@@ -2341,7 +2370,7 @@ Comma-separated motifs or a CSV path with an Exmotif column.''')
         metavar='\b',
         help='''>>[optional string(s)]
 Path(s) to background k-mer database(s) created by the background command.
-Space or comma-separated. Scans concatenated oligos for k-mers in ALL databases.''')
+Space or comma-separated. Checks concatenated oligos against all specified databases.''')
     _add_common_options(parser, opt)
     return parser
 
@@ -3165,6 +3194,7 @@ def main(argv=None):
                 result = verify(
                     input_data=args.input_data,
                     oligo_length_limit=args.oligo_length_limit,
+                    output_file=args.output_file,
                     excluded_motifs=_parse_list_str(args.excluded_motifs),
                     background_directory=_parse_list_str(args.background_directory),
                     verbose=args.verbose)

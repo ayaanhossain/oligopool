@@ -19,7 +19,7 @@ PACKAGE_DESCRIPTIONS = {
     'merge': 'collapse columns into single element',
     'revcomp': 'reverse complement a column range',
     'lenstat': 'length statistics and free-space check',
-    'verify': 'QC checks before synthesis',
+    'verify': 'verify length, motif, and background conflicts',
     'final': 'concatenate into synthesis-ready oligos',
     # Assembly Mode
     'split': 'fragment oligos into overlapping pieces',
@@ -46,7 +46,7 @@ CLI_DESCRIPTIONS = {
     'merge': 'collapse contiguous columns',
     'revcomp': 'reverse-complement a column range',
     'lenstat': 'compute length stats and free space',
-    'verify': 'verify constraints before synthesis',
+    'verify': 'detect length, motif emergence, and background conflicts',
     'final': 'finalize into synthesis-ready oligos',
     # Assembly Mode
     'split': 'break long oligos into overlapping fragments',

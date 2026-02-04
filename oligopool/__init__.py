@@ -77,7 +77,7 @@ def __getattr__(name: str) -> Any:
     return value
 
 
-def __dir__() -> list[str]:
+def __dir__() -> list:
     # Keep `dir(oligopool)` and `help(oligopool)` fast and dependency-light by
     # not advertising lazily-imported attributes (which `pydoc` would then try
     # to resolve via `getattr`, importing heavier scientific dependencies).

@@ -23,9 +23,9 @@ def final(
         - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated oligo pool variants.
 
     Optional Parameters:
-        - `output_file` (`str`): Filename for output DataFrame; required in CLI usage,
+        - `output_file` (`str` / `None`): Filename for output DataFrame; required in CLI usage,
             optional in library usage (default: `None`).
-        - `verbose` (`bool`): If `True`, logs updates to stdout (default: `True`).
+        - `verbose` (`bool`): If `True`, logs progress to stdout (default: `True`).
 
     Returns:
         - A pandas DataFrame of final library; saves to `output_file` if specified.

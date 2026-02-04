@@ -33,7 +33,7 @@ def verify(
         - `background_directory` (`str` / `None`): Path to background k-mer database created by
             `background()`. If provided, scans concatenated oligos for any background k-mers and reports
             violations (default: `None`).
-        - `verbose` (`bool`): If `True`, log updates to stdout (default: `True`).
+        - `verbose` (`bool`): If `True`, logs progress to stdout (default: `True`).
 
     Returns:
         - A dictionary of verification results (stats only; no DataFrame is returned).

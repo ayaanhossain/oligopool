@@ -30,7 +30,7 @@ def primer(
     oligo_sets:list|str|pd.DataFrame|None=None,
     paired_primer_column:str|None=None,
     excluded_motifs:list|str|pd.DataFrame|None=None,
-    background_directory:str|None=None,
+    background_directory:str|list|None=None,
     random_seed:int|None=None,
     verbose:bool=True) -> Tuple[pd.DataFrame, dict]:
     '''
@@ -61,7 +61,8 @@ def primer(
         - `paired_primer_column` (`str` / `None`): Column for paired primer sequence (default: `None`).
         - `excluded_motifs` (`list` / `str` / `pd.DataFrame`): Motifs to exclude;
             can be a list, CSV, DataFrame, or FASTA file (default: `None`).
-        - `background_directory` (`str` / `None`): Directory for background k-mer sequences (default: `None`).
+        - `background_directory` (`str` / `list` / `None`): Background k-mer DB directory/directories (default: `None`).
+            Accepts a single path, a list of paths, vectorDB instance(s), or a mix. Designed primers avoid k-mers in ALL specified databases.
         - `random_seed` (`int` / `None`): Seed for local RNG (default: `None`).
         - `verbose` (`bool`): If `True`, logs progress to stdout (default: `True`).
 
@@ -304,9 +305,10 @@ def primer(
 
     # Full background Parsing and Validation
     (background_valid,
-    background_type) = vp.get_parsed_background(
-        background=background,
-        background_field=' Background Database   ',
+    backgrounds_info,
+    max_bg_K) = vp.get_parsed_backgrounds(
+        backgrounds=background,
+        backgrounds_field=' Background Database   ',
         liner=liner)
 
     # Validate random_seed (do not auto-generate)
@@ -341,14 +343,22 @@ def primer(
     # Local RNG
     rng = np.random.default_rng(random_seed)
 
-    # Open Background
-    if background_type == 'path':
-        background = ut.get_adjusted_path(
-            path=background,
-            suffix='.oligopool.background')
-        background = db.vectorDB(
-            path=background,
-            maximum_repeat_length=None)
+    # Open Backgrounds
+    backgrounds = []
+    opened_backgrounds = []  # Track for cleanup
+    if backgrounds_info:
+        for bg_ref, bg_type, _ in backgrounds_info:
+            if bg_type == 'path':
+                bg_path = ut.get_adjusted_path(
+                    path=bg_ref,
+                    suffix='.oligopool.background')
+                bg = db.vectorDB(
+                    path=bg_path,
+                    maximum_repeat_length=None)
+                opened_backgrounds.append(bg)
+            else:  # 'instance'
+                bg = bg_ref
+            backgrounds.append(bg)
 
     # Start Timer
     t0 = tt.time()
@@ -687,8 +697,8 @@ def primer(
             exmotifs=exmotifs)
 
     # Update Edge-Effect Length for Background
-    if background_type is not None:
-        edgeeffectlength = max(edgeeffectlength or 0, background.K)
+    if backgrounds:
+        edgeeffectlength = max(edgeeffectlength or 0, max_bg_K)
 
     # Parsing Sequence Constraint Feasibility
     liner.send('\n[Step 3: Parsing Primer Sequence]\n')
@@ -1103,7 +1113,7 @@ def primer(
             edgeeffectlength=edgeeffectlength,
             prefixdict=prefixdict,
             suffixdict=suffixdict,
-            background=background,
+            background=backgrounds if backgrounds else None,
             stats=stats,
             liner=liner,
             rng=rng)
@@ -1194,7 +1204,7 @@ def primer(
                 edgeeffectlength=edgeeffectlength,
                 prefixdict=set_prefixdict,
                 suffixdict=set_suffixdict,
-                background=background,
+                background=backgrounds if backgrounds else None,
                 stats=setstats,
                 liner=liner,
                 rng=rng)
@@ -1455,9 +1465,9 @@ def primer(
     if primerstatus == 'Successful':
         ae.unregister(ofdeletion)
 
-    # Close Background
-    if background_type == 'path':
-        background.close()
+    # Close Backgrounds
+    for bg in opened_backgrounds:
+        bg.close()
 
     # Close Liner
     liner.close()

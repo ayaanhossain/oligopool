@@ -1129,24 +1129,30 @@ def is_background_feasible(
        desc - a partially explored primer
               sequence path
     :: background
-       type - db.vectorDB / None
-       desc - vectorDB instance storing
+       type - db.vectorDB / list[db.vectorDB] / None
+       desc - vectorDB instance(s) storing
               background repeats
     :: fixedbaseindex
        type - set
        desc - set of all fixed base indices
     '''
 
-    # No Background or Too Short
-    # a Primer Candidate
+    # No Background or fixed index
     if (background is None) or \
-       (len(primer) < background.K) or \
        (len(primer) in fixedbaseindex):
-        return True, None # No Conflict
+        return True, None  # No Conflict
+
+    # Normalize to list
+    backgrounds = background if isinstance(background, list) else [background]
 
     # Background Repeat Found?
-    if primer[-background.K:] in background:
-        return False, len(primer)-1 # Conflict
+    for bg in backgrounds:
+        if bg is None:
+            continue
+        if len(primer) < bg.K:
+            continue
+        if primer[-bg.K:] in bg:
+            return False, len(primer)-1  # Conflict
 
     # No Conflict
     return True, None
@@ -1643,8 +1649,8 @@ def primer_objectives(
        desc - dictionary of forbidden primer
               suffix sequences
     :: background
-       type - db.vectorDB / None
-       desc - vectorDB instance storing
+       type - db.vectorDB / list[db.vectorDB] / None
+       desc - vectorDB instance(s) storing
               background repeats
     :: inittime
        type - tt.time
@@ -2031,8 +2037,8 @@ def primer_engine(
        desc - dictionary of forbidden primer
               suffix sequences
     :: background
-       type - db.vectorDB / None
-       desc - vectorDB instance storing
+       type - db.vectorDB / list[db.vectorDB] / None
+       desc - vectorDB instance(s) storing
               background repeats
     :: stats
        type - dict

@@ -17,7 +17,7 @@ def verify(
     input_data:str|pd.DataFrame,
     oligo_length_limit:int|None=None,
     excluded_motifs:list|str|pd.DataFrame|None=None,
-    background_directory:str|None=None,
+    background_directory:str|list|None=None,
     verbose:bool=True) -> dict:
     '''
     Lightweight QC for an oligo pool DataFrame (column inspection, length stats, and excluded-motif
@@ -30,9 +30,9 @@ def verify(
         - `oligo_length_limit` (`int` / `None`): If provided, check for length overflow (default: `None`).
         - `excluded_motifs` (`list` / `str` / `pd.DataFrame` / `None`): Motifs to track; can be a CSV path
             or DataFrame with an 'Exmotif' column (default: `None`).
-        - `background_directory` (`str` / `None`): Path to background k-mer database created by
-            `background()`. If provided, scans concatenated oligos for any background k-mers and reports
-            violations (default: `None`).
+        - `background_directory` (`str` / `list` / `None`): Background k-mer DB directory/directories
+            from `background()` (default: `None`). Accepts a single path, a list of paths, vectorDB instance(s),
+            or a mix. If provided, scans concatenated oligos for any k-mers in ALL specified databases and reports violations.
         - `verbose` (`bool`): If `True`, logs progress to stdout (default: `True`).
 
     Returns:
@@ -115,9 +115,10 @@ def verify(
 
     # Full background Parsing and Validation
     (background_valid,
-    background_type) = vp.get_parsed_background(
-        background=background,
-        background_field=' Background Database',
+    backgrounds_info,
+    _) = vp.get_parsed_backgrounds(
+        backgrounds=background,
+        backgrounds_field=' Background Database',
         liner=liner)
 
     # First Pass Validation
@@ -130,14 +131,22 @@ def verify(
         raise RuntimeError(
             'Invalid Argument Input(s).')
 
-    # Open Background
-    if background_type == 'path':
-        background = ut.get_adjusted_path(
-            path=background,
-            suffix='.oligopool.background')
-        background = db.vectorDB(
-            path=background,
-            maximum_repeat_length=None)
+    # Open Backgrounds
+    backgrounds = []
+    opened_backgrounds = []  # Track for cleanup
+    if backgrounds_info:
+        for bg_ref, bg_type, _ in backgrounds_info:
+            if bg_type == 'path':
+                bg_path = ut.get_adjusted_path(
+                    path=bg_ref,
+                    suffix='.oligopool.background')
+                bg = db.vectorDB(
+                    path=bg_path,
+                    maximum_repeat_length=None)
+                opened_backgrounds.append(bg)
+            else:  # 'instance'
+                bg = bg_ref
+            backgrounds.append(bg)
 
     # Start Timer
     t0 = tt.time()
@@ -634,7 +643,7 @@ def verify(
     background_violation_rows = []
     background_scan_performed = False
 
-    if background_type is not None and seq_cols:
+    if backgrounds and seq_cols:
         background_scan_performed = True
         liner.send('\n[Step 4: Checking Background k-mers]\n')
 
@@ -647,22 +656,35 @@ def verify(
                 lambda row: ''.join(str(v).replace('-', '') for v in row),
                 axis=1).tolist()
 
-        # Scan each oligo for background k-mers
-        liner.send(' Scanning {:,} Oligo(s) for Background k-mers (k={:,})...\n'.format(
-            len(oligos),
-            background.K))
+        # Scan each oligo for background k-mers in ALL backgrounds
+        k_values = [bg.K for bg in backgrounds]
+        if len(backgrounds) == 1:
+            liner.send(' Scanning {:,} Oligo(s) for Background k-mers (k={:,})...\n'.format(
+                len(oligos),
+                backgrounds[0].K))
+        else:
+            liner.send(' Scanning {:,} Oligo(s) for Background k-mers (k={})...\n'.format(
+                len(oligos),
+                ', '.join(str(k) for k in k_values)))
 
         for ridx, oligo in enumerate(oligos):
-            if len(oligo) < background.K:
-                continue
-            # Check all k-mers in oligo
-            for i in range(len(oligo) - background.K + 1):
-                kmer = oligo[i:i+background.K]
-                if kmer in background:
-                    background_violations += 1
-                    if len(background_violation_rows) < 10:
-                        background_violation_rows.append(str(indf.index[ridx]))
-                    break  # Only count each oligo once
+            violation_found = False
+            # Check against all backgrounds
+            for bg in backgrounds:
+                if len(oligo) < bg.K:
+                    continue
+                # Check all k-mers in oligo
+                for i in range(len(oligo) - bg.K + 1):
+                    kmer = oligo[i:i+bg.K]
+                    if kmer in bg:
+                        violation_found = True
+                        break
+                if violation_found:
+                    break
+            if violation_found:
+                background_violations += 1
+                if len(background_violation_rows) < 10:
+                    background_violation_rows.append(str(indf.index[ridx]))
 
         if background_violations:
             example_note = ut.format_row_examples(background_violation_rows)
@@ -791,11 +813,12 @@ def verify(
                     emergent_rows))
 
     if background_scan_performed:
+        k_display = ', '.join(str(bg.K) for bg in backgrounds) if len(backgrounds) > 1 else str(backgrounds[0].K)
         liner.send(
-            ' {:>{}}: {:,}\n'.format(
+            ' {:>{}}: {}\n'.format(
                 'Background k',
                 field_width,
-                background.K))
+                k_display))
         liner.send(
             ' {:>{}}: {:,} Oligo(s)\n'.format(
                 'Background Violations',
@@ -835,7 +858,9 @@ def verify(
             'excluded_motifs': exmotifs,
             'excluded_motif_stats': motif_stats,
             'excluded_motif_junction_stats': junction_stats,
-            'background_k': background.K if background_scan_performed else None,
+            'background_k': (
+                backgrounds[0].K if len(backgrounds) == 1 else [bg.K for bg in backgrounds]
+            ) if background_scan_performed else None,
             'background_violations': background_violations,
             'background_violation_examples': background_violation_rows,
         },
@@ -853,9 +878,9 @@ def verify(
         ' Time Elapsed: {:.2f} sec\n'.format(
             tt.time()-t0))
 
-    # Close Background
-    if background_type == 'path':
-        background.close()
+    # Close Backgrounds
+    for bg in opened_backgrounds:
+        bg.close()
 
     # Close Liner
     liner.close()

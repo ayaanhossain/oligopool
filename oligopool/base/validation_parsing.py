@@ -3966,6 +3966,181 @@ def get_parsed_background(
                 background))
         return False, None
 
+def get_parsed_backgrounds(
+    backgrounds,
+    backgrounds_field,
+    liner):
+    '''
+    Validate single or multiple backgrounds.
+    Returns (valid, info_list, max_K).
+    Internal use only.
+
+    :: backgrounds
+       type - string / db.vectorDB / list / None
+       desc - path(s) to background storage,
+              or vectorDB instance(s), or list
+              of paths/instances
+    :: backgrounds_field
+       type - string
+       desc - backgrounds fieldname used in
+              printing
+    :: liner
+       type - coroutine
+       desc - dynamic printing
+    '''
+
+    backgrounds_field = _normalize_field(backgrounds_field)
+
+    # Is backgrounds None?
+    if backgrounds is None:
+        liner.send(
+            '{}: None Specified\n'.format(
+                backgrounds_field))
+        return True, None, None
+
+    # Is backgrounds a single string or vectorDB?
+    if isinstance(backgrounds, (str, db.vectorDB)):
+        (valid, bg_type) = get_parsed_background(
+            background=backgrounds,
+            background_field=backgrounds_field,
+            liner=liner)
+        if not valid:
+            return False, None, None
+        # Get K value for single background
+        if bg_type == 'instance':
+            K = backgrounds.K
+        elif bg_type == 'path':
+            indir = ut.get_adjusted_path(
+                path=backgrounds,
+                suffix='.oligopool.background')
+            vDB = db.vectorDB(path=indir, maximum_repeat_length=None)
+            K = vDB.K
+            vDB.close()
+        else:
+            K = None
+        return True, [(backgrounds, bg_type, K)], K
+
+    background_store = cx.deque()
+    try:
+        for bg in backgrounds:
+            background_store.append(bg)
+    except:
+        liner.send(
+            '{}: {} [INPUT TYPE IS INVALID]\n'.format(
+                backgrounds_field, backgrounds))
+        return False, None, None
+
+    # Empty list?
+    if len(background_store) == 0:
+        liner.send(
+            '{}: None Specified\n'.format(
+                backgrounds_field))
+        return True, None, None
+
+    # Single item in list? Delegate to single validation
+    if len(background_store) == 1:
+        return get_parsed_backgrounds(
+            backgrounds=background_store[0],
+            backgrounds_field=backgrounds_field,
+            liner=liner)
+
+    # Validate multiple backgrounds
+    backgrounds_ok = True
+    seen_paths = set()
+    info_list = []
+    max_K = 0
+
+    # Prepare Spacing
+    altspacing = ' '*len(backgrounds_field)
+
+    # Show Header Update
+    liner.send(
+        '{}: {:,} Background Input(s)\n'.format(
+            backgrounds_field, len(background_store)))
+
+    # Core Validation Loop
+    idx = 0
+    while background_store:
+
+        # Fetch background
+        bg = background_store.popleft()
+        idx += 1
+
+        # Get path for duplicate detection
+        if isinstance(bg, str):
+            bg_path = ut.get_adjusted_path(
+                path=bg,
+                suffix='.oligopool.background')
+        elif isinstance(bg, db.vectorDB):
+            bg_path = bg.PATH.removesuffix(
+                'vectorDB.ShareDB')
+            bg_path = ut.removestarfix(
+                string=bg_path,
+                fix='/',
+                loc=1)
+        else:
+            liner.send(
+                '{}:  [{}] {} [INPUT TYPE IS INVALID]\n'.format(
+                    altspacing, idx, bg))
+            backgrounds_ok = False
+            continue
+
+        # Duplicate background?
+        if bg_path in seen_paths:
+            liner.send(
+                '{}:  [{}] {} [DUPLICATE BACKGROUND]\n'.format(
+                    altspacing, idx, bg_path))
+            backgrounds_ok = False
+            continue
+
+        # Record path
+        seen_paths.add(bg_path)
+
+        # Validate this background
+        if isinstance(bg, db.vectorDB):
+            liner.send(
+                '{}:  [{}] Contains {:,} Unique {}-mers\n'.format(
+                    altspacing, idx, len(bg), bg.K))
+            info_list.append((bg, 'instance', bg.K))
+            max_K = max(max_K, bg.K)
+
+        elif isinstance(bg, str):
+            # Does background exist?
+            background_exists = get_indir_validity(
+                indir=bg_path,
+                indir_suffix=None,
+                indir_field='{}:  [{}]'.format(altspacing, idx),
+                liner=liner)
+
+            if not background_exists:
+                backgrounds_ok = False
+                continue
+
+            # Is background a valid vectorDB storage?
+            try:
+                vDB = db.vectorDB(
+                    path=bg_path,
+                    maximum_repeat_length=None)
+            except Exception as E:
+                liner.send(
+                    '{}:  [{}] {} [INVALID OR PRE-OPENED BACKGROUND OBJECT]\n'.format(
+                        altspacing, idx, bg_path))
+                backgrounds_ok = False
+                continue
+            else:
+                liner.send(
+                    '{}:  [{}] Contains {:,} Unique {}-mers\n'.format(
+                        altspacing, idx, len(vDB), vDB.K))
+                K = vDB.K
+                vDB.close()
+                info_list.append((bg, 'path', K))
+                max_K = max(max_K, K)
+
+    # Return Results
+    if not backgrounds_ok:
+        return False, None, None
+    return True, info_list, max_K if max_K > 0 else None
+
 def get_callback_validity(
     callback,
     callback_field,

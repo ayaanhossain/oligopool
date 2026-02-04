@@ -58,8 +58,9 @@ Four modes (library + CLI):
   effects* (undesired motifs/repeats spanning an insertion boundary).
 - `excluded_motifs`: global "do not create these" list (restriction sites, Type
   IIS sites, primers, etc.; many modules accept it).
-- `background_directory`: screen designed elements against a background k-mer DB
-  created by `background()` (supported by multiple Design/QC modules).
+- `background_directory`: screen designed elements against one or more background
+  k-mer DB(s) created by `background()` (single path or list of paths; supported
+  by multiple Design/QC modules).
 - `*_type` parameters usually accept either ints or descriptive strings
   (case-insensitive; often fuzzy-matched). See `docs/api.md` for each module's
   accepted values.

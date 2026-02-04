@@ -1,3 +1,9 @@
+2026.02.04
+1. Feature: `background_directory` now accepts multiple background DBs (list of `.oligopool.background` paths or `vectorDB` instances) in `barcode`, `primer`, `motif`, `spacer`, and `verify`; screening is applied across ALL specified DBs.
+2. CLI: `--background-directory` now accepts multiple values (space- or comma-separated) for barcode/primer/motif/spacer/verify.
+3. Validation/Core: added `validation_parsing.get_parsed_backgrounds()` and updated background feasibility logic in `core_background.py` and `core_primer.py` to accept lists.
+4. Tests: `smoketest/smoke_multiple_backgrounds.py` covers single + multi-background workflows.
+
 2026.02.01
 1. Background integration: added `background_directory` parameter to `barcode`, `motif`, `spacer`, and `verify` modules for off-target k-mer screening.
 2. Background integration: added `is_background_feasible()` to `core_background.py` with context-aware junction checking (checks k-mers spanning element boundaries).

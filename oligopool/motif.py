@@ -26,7 +26,7 @@ def motif(
     right_context_column:str|None=None,
     patch_mode:bool=False,
     excluded_motifs:list|str|pd.DataFrame|None=None,
-    background_directory:str|None=None,
+    background_directory:str|list|None=None,
     random_seed:int|None=None,
     verbose:bool=True) -> Tuple[pd.DataFrame, dict]:
     '''
@@ -49,10 +49,9 @@ def motif(
         - `patch_mode` (`bool`): If `True`, fill only missing values in an existing motif/anchor
             column (does not overwrite existing motifs). (default: `False`).
         - `excluded_motifs` (`list` / `str` / `pd.DataFrame` / `None`): Motifs to exclude (default: `None`).
-        - `background_directory` (`str` / `None`): Path to background k-mer database
-            created by `background()`. Designed motifs will avoid all k-mers in the
-            database. Useful for preventing off-target matches against transcriptome,
-            vector backbone, or other reference sequences (default: `None`).
+        - `background_directory` (`str` / `list` / `None`): Background k-mer DB directory/directories
+            from `background()` (default: `None`). Accepts a single path, a list of paths, vectorDB instance(s),
+            or a mix. Designed motifs avoid k-mers in ALL specified databases.
         - `random_seed` (`int` / `None`): Seed for local RNG (default: `None`).
         - `verbose` (`bool`): If `True`, logs progress to stdout (default: `True`).
 
@@ -254,9 +253,10 @@ def motif(
 
     # Full background Parsing and Validation
     (background_valid,
-    background_type) = vp.get_parsed_background(
-        background=background,
-        background_field=' Background Database',
+    backgrounds_info,
+    max_bg_K) = vp.get_parsed_backgrounds(
+        backgrounds=background,
+        backgrounds_field=' Background Database',
         liner=liner)
 
     # Validate random_seed (do not auto-generate)
@@ -288,14 +288,22 @@ def motif(
     # Local RNG
     rng = np.random.default_rng(random_seed)
 
-    # Open Background
-    if background_type == 'path':
-        background = ut.get_adjusted_path(
-            path=background,
-            suffix='.oligopool.background')
-        background = db.vectorDB(
-            path=background,
-            maximum_repeat_length=None)
+    # Open Backgrounds
+    backgrounds = []
+    opened_backgrounds = []  # Track for cleanup
+    if backgrounds_info:
+        for bg_ref, bg_type, _ in backgrounds_info:
+            if bg_type == 'path':
+                bg_path = ut.get_adjusted_path(
+                    path=bg_ref,
+                    suffix='.oligopool.background')
+                bg = db.vectorDB(
+                    path=bg_path,
+                    maximum_repeat_length=None)
+                opened_backgrounds.append(bg)
+            else:  # 'instance'
+                bg = bg_ref
+            backgrounds.append(bg)
 
     # Start Timer
     t0 = tt.time()
@@ -574,8 +582,8 @@ def motif(
             exmotifs=exmotifs)
 
     # Update Edge-Effect Length for Background
-    if background_type is not None:
-        edgeeffectlength = max(edgeeffectlength or 0, background.K)
+    if backgrounds:
+        edgeeffectlength = max(edgeeffectlength or 0, max_bg_K)
 
     # Parsing Sequence Constraint Feasibility
     liner.send('\n[Step 3: Parsing Motif Sequence]\n')
@@ -658,7 +666,7 @@ def motif(
             warns.pop(5)
 
     # Background edge effects need junction context too (even if exmotifs is None).
-    elif background_type is not None and \
+    elif backgrounds and \
          ((not leftcontext  is None) or \
           (not rightcontext is None)):
 
@@ -786,7 +794,7 @@ def motif(
         edgeeffectlength=edgeeffectlength,
         prefixdict=prefixdict,
         suffixdict=suffixdict,
-        background=background,
+        background=backgrounds if backgrounds else None,
         targetcount=targetcount,
         stats=stats,
         liner=liner,
@@ -927,9 +935,9 @@ def motif(
     if motifstatus == 'Successful':
         ae.unregister(ofdeletion)
 
-    # Close Background
-    if background_type == 'path':
-        background.close()
+    # Close Backgrounds
+    for bg in opened_backgrounds:
+        bg.close()
 
     # Close Liner
     liner.close()

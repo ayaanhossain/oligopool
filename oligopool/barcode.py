@@ -26,7 +26,7 @@ def barcode(
     left_context_column:str|None=None,
     right_context_column:str|None=None,
     patch_mode:bool=False,
-    cross_barcode_columns:list[str]|None=None,
+    cross_barcode_columns:list|None=None,
     minimum_cross_distance:int|None=None,
     excluded_motifs:list|str|pd.DataFrame|None=None,
     background_directory:str|list|None=None,
@@ -52,11 +52,10 @@ def barcode(
         - `right_context_column` (`str` / `None`): Column for right DNA context (default: `None`).
         - `patch_mode` (`bool`): If `True`, fill only missing values in an existing barcode column
             (does not overwrite existing barcodes). (default: `False`).
-        - `cross_barcode_columns` (`list[str]` / `None`): Existing barcode column(s) used as a cross-set constraint (default: `None`).
+        - `cross_barcode_columns` (`list` / `None`): Existing barcode column(s) used as a cross-set constraint (default: `None`).
         - `minimum_cross_distance` (`int` / `None`): Minimum cross-set Hamming distance (default: `None`).
         - `excluded_motifs` (`list` / `str` / `pd.DataFrame` / `None`): Motifs to exclude (default: `None`).
-        - `background_directory` (`str` / `list` / `None`): Background k-mer DB directory/directories from `background()` (default: `None`).
-            Accepts a single path, a list of paths, vectorDB instance(s), or a mix. Designed barcodes avoid k-mers in ALL specified databases.
+        - `background_directory` (`str` / `list` / `None`): Background k-mer DB(s) from `background()` (default: `None`).
         - `random_seed` (`int` / `None`): Seed for local RNG (default: `None`).
         - `verbose` (`bool`): If `True`, logs progress to stdout (default: `True`).
 
@@ -74,8 +73,9 @@ def barcode(
         - At least one of `left_context_column` or `right_context_column` must be specified.
         - If `excluded_motifs` is a CSV or DataFrame, it must have an 'Exmotif' column.
         - `excluded_motifs` can be a list, CSV, DataFrame, or FASTA file.
-        - `background_directory` screens designed barcodes against k-mers in the background DB (e.g., transcriptome,
-            vector backbone, or other reference sequences).
+        - `background_directory` screens designed barcodes against background k-mers (e.g., transcriptome, vector
+            backbone, or other reference sequences). Supports one or more DBs (paths and/or vectorDB instances);
+            designs avoid k-mers in ALL specified DBs.
         - If design is challenging, adjust `barcode_length`, `minimum_hamming_distance`, `maximum_repeat_length`,
             and/or `excluded_motifs`, or switch `barcode_type`.
         - Constant anchors (e.g., index prefix/suffix) are typically designed first (see `motif`, `motif_type=1`).

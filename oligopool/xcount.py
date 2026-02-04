@@ -13,7 +13,7 @@ from typing import Callable, Tuple
 
 
 def xcount(
-    index_files:str|list[str],
+    index_files:str|list,
     pack_file:str,
     count_file:str,
     mapping_type:int|str=0,
@@ -29,7 +29,7 @@ def xcount(
     Writes a count matrix to disk and returns it as a DataFrame (callbacks available via Python API).
 
     Required Parameters:
-        - `index_files` (`str` / `list[str]`): A single (or a list of) index filename(s).
+        - `index_files` (`str` / `list`): A single (or a list of) index filename(s).
         - `pack_file` (`str`): Pack file path.
         - `count_file` (`str`): Output count matrix filename.
 

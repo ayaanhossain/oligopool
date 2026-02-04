@@ -49,9 +49,7 @@ def motif(
         - `patch_mode` (`bool`): If `True`, fill only missing values in an existing motif/anchor
             column (does not overwrite existing motifs). (default: `False`).
         - `excluded_motifs` (`list` / `str` / `pd.DataFrame` / `None`): Motifs to exclude (default: `None`).
-        - `background_directory` (`str` / `list` / `None`): Background k-mer DB directory/directories
-            from `background()` (default: `None`). Accepts a single path, a list of paths, vectorDB instance(s),
-            or a mix. Designed motifs avoid k-mers in ALL specified databases.
+        - `background_directory` (`str` / `list` / `None`): Background k-mer DB(s) from `background()` (default: `None`).
         - `random_seed` (`int` / `None`): Seed for local RNG (default: `None`).
         - `verbose` (`bool`): If `True`, logs progress to stdout (default: `True`).
 
@@ -65,8 +63,9 @@ def motif(
         - At least one of `left_context_column` or `right_context_column` must be specified.
         - If `excluded_motifs` is a CSV or DataFrame, it must have an 'Exmotif' column.
         - `excluded_motifs` can be a list, CSV, DataFrame, or FASTA file.
-        - `background_directory` screens designed motifs/anchors against k-mers in the background DB (junction-aware
-            when context columns are provided).
+        - `background_directory` screens designed motifs/anchors against background k-mers (junction-aware when
+            context columns are provided). Supports one or more DBs (paths and/or vectorDB instances); designs avoid
+            k-mers in ALL specified DBs.
         - Constant bases in `motif_sequence_constraint` can force excluded motifs, making the design infeasible.
         - `motif_type`:
             0 or 'per-variant' for per-variant motifs, 1 or 'constant' for a single constant motif shared by all variants

@@ -47,8 +47,7 @@ def spacer(
         - `patch_mode` (`bool`): If `True`, fill only missing values in an existing spacer column
             (does not overwrite existing spacers). (default: `False`).
         - `excluded_motifs` (`list` / `str` / `pd.DataFrame` / `None`): Motifs to exclude (default: `None`).
-        - `background_directory` (`str` / `list` / `None`): Background k-mer DB directory/directories from `background()` (default: `None`).
-            Accepts a single path, a list of paths, vectorDB instance(s), or a mix. Designed spacers avoid k-mers in ALL specified databases.
+        - `background_directory` (`str` / `list` / `None`): Background k-mer DB(s) from `background()` (default: `None`).
         - `random_seed` (`int` / `None`): Seed for local RNG (default: `None`).
         - `verbose` (`bool`): If `True`, logs progress to stdout (default: `True`).
 
@@ -66,8 +65,9 @@ def spacer(
         - When `spacer_length` is a CSV or DataFrame, it must have 'ID' and 'Length' columns.
         - If `excluded_motifs` is a CSV or DataFrame, it must have an 'Exmotif' column.
         - `excluded_motifs` can be a list, CSV, DataFrame, or FASTA file.
-        - `background_directory` screens designed spacers against k-mers in the background DB (e.g., transcriptome,
-            vector backbone, or other reference sequences).
+        - `background_directory` screens designed spacers against background k-mers (e.g., transcriptome, vector
+            backbone, or other reference sequences). Supports one or more DBs (paths and/or vectorDB instances);
+            designs avoid k-mers in ALL specified DBs.
         - Auto-sized spacers (`spacer_length=None`): rows at the limit get `'-'`; rows exceeding the limit are
             infeasible.
         - Patch mode (`patch_mode=True`) preserves existing values in `spacer_column` and fills only missing values

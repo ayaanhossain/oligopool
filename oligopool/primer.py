@@ -61,8 +61,7 @@ def primer(
         - `paired_primer_column` (`str` / `None`): Column for paired primer sequence (default: `None`).
         - `excluded_motifs` (`list` / `str` / `pd.DataFrame`): Motifs to exclude;
             can be a list, CSV, DataFrame, or FASTA file (default: `None`).
-        - `background_directory` (`str` / `list` / `None`): Background k-mer DB directory/directories (default: `None`).
-            Accepts a single path, a list of paths, vectorDB instance(s), or a mix. Designed primers avoid k-mers in ALL specified databases.
+        - `background_directory` (`str` / `list` / `None`): Background k-mer DB(s) from `background()` (default: `None`).
         - `random_seed` (`int` / `None`): Seed for local RNG (default: `None`).
         - `verbose` (`bool`): If `True`, logs progress to stdout (default: `True`).
 
@@ -80,6 +79,8 @@ def primer(
         - If `paired_primer_column` is specified, Tm of the designed primer is optimized within 1°C of it.
         - `maximum_repeat_length` controls non-repetitiveness against `input_data` only; to screen against a
             background, build a background DB with `background(...)` and pass it via `background_directory`.
+        - `background_directory` supports one or more DBs (paths and/or vectorDB instances); designs avoid k-mers in
+            ALL specified DBs.
         - If `excluded_motifs` is a CSV or DataFrame, it must have an 'Exmotif' column.
         - `excluded_motifs` can be a list, CSV, DataFrame, or FASTA file.
         - Constant motifs in sequence constraint may lead to sub-optimal primers.

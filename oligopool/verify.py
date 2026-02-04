@@ -30,9 +30,7 @@ def verify(
         - `oligo_length_limit` (`int` / `None`): If provided, check for length overflow (default: `None`).
         - `excluded_motifs` (`list` / `str` / `pd.DataFrame` / `None`): Motifs to track; can be a CSV path
             or DataFrame with an 'Exmotif' column (default: `None`).
-        - `background_directory` (`str` / `list` / `None`): Background k-mer DB directory/directories
-            from `background()` (default: `None`). Accepts a single path, a list of paths, vectorDB instance(s),
-            or a mix. If provided, scans concatenated oligos for any k-mers in ALL specified databases and reports violations.
+        - `background_directory` (`str` / `list` / `None`): Background k-mer DB(s) from `background()` (default: `None`).
         - `verbose` (`bool`): If `True`, logs progress to stdout (default: `True`).
 
     Returns:
@@ -50,6 +48,8 @@ def verify(
             removed. If `CompleteOligo` exists (from `final`), it is used directly.
         - If emergent motifs are detected and multiple sequence columns are present, `verify` attributes
             emergence to column junctions ("edge effects"), unless `CompleteOligo` is provided.
+        - `background_directory` supports one or more DBs (paths and/or vectorDB instances). If provided, `verify`
+            scans concatenated oligos for any k-mers in ALL specified DBs and reports violations.
     '''
 
     # Argument Aliasing

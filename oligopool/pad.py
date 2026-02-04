@@ -801,7 +801,7 @@ def pad(
     liner.send('\n[Pad Design Statistics]\n')
 
     liner.send(
-        '       Design Status    : {}\n'.format(
+        '      Design Status     : {}\n'.format(
             padstatus))
 
     # Success Relevant Stats

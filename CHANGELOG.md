@@ -16,6 +16,13 @@
 15. Tests: added `smoketest/smoke_multi_anchor.py` for multi-anchor read handling in acount/xcount.
 16. Docs: standardized terminology—"oligo pool" (two words) for the concept, "oligopool" for the tool/package name—across README, docstrings, docs, and notebook.
 17. Cleanup: removed unused functions (`get_hdist`, `get_edist`, `get_categorical_validity`, `merge_config_with_args`, `_nb_popcount4`, `get_validated_concrete_sequence`).
+18. Docs: expanded mode introductions in `docs.md`—added "When to use" guidance and workflow steps for Design Mode, Assembly Mode, and Analysis Mode (matching Degenerate Mode style).
+19. Breaking: `compress` output suffixes are now distinct—`mapping_file` writes `.oligopool.compress.mapping.csv`, and `synthesis_file` writes `.oligopool.compress.synthesis.csv` (previously both used `.oligopool.compress.csv`).
+20. Docs: updated `compress` CLI help text and API docs to reflect the new mapping/synthesis output suffixes.
+21. Docs: tightened module docstrings and mode workflow text for accuracy (e.g., `pack` does not perform adapter trimming; `index` builds one index per barcode column).
+22. Notebook: updated `OligopoolCalculatorInAction.ipynb` to reflect Analysis Mode terminology (replaced “Counting Mode”), documented new `compress` output suffixes, and standardized string quoting in code cells.
+23. Expand: `mapping_file` now auto-suffixes to `.oligopool.compress.mapping.csv` (matching index/pack input behavior); mapping parsing moved into `validation_parsing.py`.
+24. Consistency: standardized `random_seed` validation + display across all RNG-using design modules via `validation_parsing.get_parsed_random_seed_info()`.
 
 2026.01.31
 1. CLI: added `--config` flag for YAML config file support on all commands.

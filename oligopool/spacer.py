@@ -39,17 +39,17 @@ def spacer(
         - `spacer_column` (`str`): Column name for inserting the designed spacers.
 
     Optional Parameters:
-        - `output_file` (`str`): Filename for output DataFrame; required in CLI usage,
+        - `output_file` (`str` / `None`): Filename for output DataFrame; required in CLI usage,
             optional in library usage (default: `None`).
         - `spacer_length` (`int` / `list` / `str` / `pd.DataFrame` / `None`): Spacer length (default: `None`). See Notes.
-        - `left_context_column` (`str`): Column for left DNA context (default: `None`).
-        - `right_context_column` (`str`): Column for right DNA context (default: `None`).
+        - `left_context_column` (`str` / `None`): Column for left DNA context (default: `None`).
+        - `right_context_column` (`str` / `None`): Column for right DNA context (default: `None`).
         - `patch_mode` (`bool`): If `True`, fill only missing values in an existing spacer column
             (does not overwrite existing spacers). (default: `False`).
-        - `excluded_motifs` (`list` / `str` / `pd.DataFrame`): Motifs to exclude (default: `None`).
+        - `excluded_motifs` (`list` / `str` / `pd.DataFrame` / `None`): Motifs to exclude (default: `None`).
         - `background_directory` (`str` / `None`): Background k-mer DB directory from `background()` (default: `None`).
         - `random_seed` (`int` / `None`): Seed for local RNG (default: `None`).
-        - `verbose` (`bool`): If `True`, logs updates to stdout (default: `True`).
+        - `verbose` (`bool`): If `True`, logs progress to stdout (default: `True`).
 
     Returns:
         - A pandas DataFrame of inserted spacers; saves to `output_file` if specified.
@@ -90,9 +90,6 @@ def spacer(
     background   = background_directory
     random_seed  = random_seed
     verbose      = verbose
-
-    # Local RNG
-    rng = np.random.default_rng(random_seed)
 
     # Start Liner
     liner = ut.liner_engine(verbose)
@@ -250,6 +247,13 @@ def spacer(
         background_field=' Background Database',
         liner=liner)
 
+    # Validate random_seed (do not auto-generate)
+    (random_seed,
+    seed_valid) = vp.get_parsed_random_seed_info(
+        random_seed=random_seed,
+        random_seed_field='     Random Seed    ',
+        liner=liner)
+
     # First Pass Validation
     if not all([
         indata_valid,
@@ -262,10 +266,14 @@ def spacer(
         leftcontext_valid,
         rightcontext_valid,
         exmotifs_valid,
-        background_valid]):
+        background_valid,
+        seed_valid]):
         liner.send('\n')
         raise RuntimeError(
             'Invalid Argument Input(s).')
+
+    # Local RNG
+    rng = np.random.default_rng(random_seed)
 
     # Open Background
     if background_type == 'path':

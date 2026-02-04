@@ -187,6 +187,14 @@ df, stats = op.barcode(..., verbose=False)  # Silent mode
 
 Design Mode is where you build your library piece by piece. Think of it like molecular LEGO, but with more constraints and fewer stepping-on-brick injuries.
 
+**When to use Design Mode**: You're building a new oligo pool library from scratch or extending an existing one. Design Mode handles the molecular constraints—Hamming distance for barcodes, thermodynamic parameters for primers, excluded-motif screening, and `oligo_length_limit` constraints—so you can focus on the biology.
+
+The typical workflow:
+1. Start with your core sequences (variants, promoters, genes, etc.)
+2. Add functional elements: `primer` → `motif` → `barcode` → `spacer`
+3. Validate with `lenstat` and `verify`
+4. Finalize with `final` to get synthesis-ready oligos
+
 ### `barcode`
 
 [↑ Back to TOC](#table-of-contents)
@@ -613,6 +621,14 @@ final_df, stats = op.final(
 
 Assembly Mode provides tools for fragmenting long oligos that exceed synthesis length limits into overlapping pieces for assembly workflows.
 
+**When to use Assembly Mode**: Your designed oligos exceed synthesis length limits (typically ~200–300 bp depending on vendor). Assembly Mode splits them into overlapping fragments that can be synthesized separately and reassembled post-synthesis via Gibson assembly, overlap-extension PCR, or similar methods.
+
+The typical workflow:
+1. Design your full-length library with Design Mode
+2. Use `split` to fragment oligos into overlapping pieces
+3. Use `pad` to add Type IIS primer sites for each fragment
+4. Synthesize fragments separately, then assemble via overlaps
+
 ### `split`
 
 [↑ Back to TOC](#table-of-contents)
@@ -709,7 +725,14 @@ For other enzymes, design primers manually with the appropriate recognition/cut 
 
 Degenerate Mode enables cost-efficient synthesis of variant libraries with low mutational diversity. Instead of synthesizing each variant individually, similar sequences are compressed into IUPAC-degenerate oligos that expand to cover multiple variants.
 
-**When to use Degenerate Mode**: You have a large library of similar sequences and want to reduce synthesis costs by grouping compatible variants. Best for selection assays where you identify winners by sequencing (no barcode counting required). ML-generated libraries and saturation mutagenesis libraries often compress well.
+**When to use Degenerate Mode**: You have a large library of similar sequences and want to reduce synthesis costs by grouping compatible variants. Best for selection assays where you identify enriched variants by sequencing (no barcode-based readout required). ML-generated libraries and saturation mutagenesis libraries often compress well.
+
+This enables **selection-based discovery workflows**:
+1. Design variants computationally (e.g., promoters, UTRs)
+2. Compress similar variants into IUPAC-degenerate oligos (`compress`)
+3. Synthesize, clone, and run selection (growth, FACS, survival screens)
+4. Sequence survivors to identify enriched variants
+5. Map sequences back to original variant IDs using `mapping_df`
 
 ### `compress`
 
@@ -721,9 +744,10 @@ Degenerate Mode enables cost-efficient synthesis of variant libraries with low m
 
 ```python
 mapping_df, synthesis_df, stats = op.compress(
-    input_data=df,                    # DataFrame with ID + DNA columns
-    mapping_file='mapping',           # Links variants to degenerate oligos
-    synthesis_file='synthesis',       # Degenerate oligos for ordering
+    input_data=df,                        # DataFrame with ID + DNA columns
+    # Any basename/path is fine; `compress` appends distinct suffixes for each output.
+    mapping_file='degenerate_library',    # Variant-to-degenerate map
+    synthesis_file='degenerate_library',  # Degenerate oligos for ordering
     random_seed=42,
 )
 
@@ -779,6 +803,14 @@ assert original_seqs == expanded_seqs, "Lossless guarantee violated!"
 [↑ Back to TOC](#table-of-contents)
 
 Analysis Mode is where sequencing data meets your designed library. You've done the experiment, now let's count some barcodes.
+
+**When to use Analysis Mode**: You've run your experiment (MPRA, CRISPR screen, etc.) and have FastQ files ready for barcode quantification. Analysis Mode handles the pipeline from raw reads to count matrices.
+
+The typical workflow:
+1. Build one index per barcode column with `index` (multi-barcode designs use multiple index files)
+2. Preprocess FastQ files with `pack` (length/quality filtering, optional paired-end merging, deduplication)
+3. Count associations with `acount` (barcode ↔ associate) or `xcount` (combinatorial)
+4. Export count matrices for downstream analysis
 
 ### `index`
 
@@ -1107,7 +1139,7 @@ op complete --install
 
 **CLI outputs require an output basename**: Unlike the Python API (where many modules can return results in-memory), CLI commands that write files require an output basename (e.g., `--output-file`, `--index-file`, `--pack-file`, `--count-file`, `--mapping-file`, `--synthesis-file`).
 
-**Output filenames are auto-suffixed**: Commands append a suffix if missing (e.g., `.oligopool.barcode.csv`), so prefer basenames like `--output-file my_library` to avoid doubled extensions.
+**Output filenames are auto-suffixed**: Commands append a suffix if missing (e.g., `.oligopool.barcode.csv`), so prefer basenames like `--output-file output_basename` to avoid doubled extensions.
 
 **Stats output**: Use `--stats-json` to print the stats dict as JSON to stdout, or `--stats-file path.json` to write it to disk.
 

@@ -26,11 +26,11 @@ def merge(
         - `merge_column` (`str`): Column name for the merged DNA.
 
     Optional Parameters:
-        - `output_file` (`str`): Filename for output DataFrame; required in CLI usage,
+        - `output_file` (`str` / `None`): Filename for output DataFrame; required in CLI usage,
             optional in library usage (default: `None`).
-        - `left_context_column` (`str`): Column for left DNA context (default: `None`).
-        - `right_context_column` (`str`): Column for right DNA context (default: `None`).
-        - `verbose` (`bool`): If `True`, logs updates to stdout (default: `True`).
+        - `left_context_column` (`str` / `None`): Column for left DNA context (default: `None`).
+        - `right_context_column` (`str` / `None`): Column for right DNA context (default: `None`).
+        - `verbose` (`bool`): If `True`, logs progress to stdout (default: `True`).
 
     Returns:
         - A pandas DataFrame of merged elements; saves to `output_file` if specified.

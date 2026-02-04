@@ -41,20 +41,20 @@ def motif(
         - `motif_column` (`str`): Column name for inserting the designed motifs.
 
     Optional Parameters:
-        - `output_file` (`str`): Filename for output DataFrame; required in CLI usage,
+        - `output_file` (`str` / `None`): Filename for output DataFrame; required in CLI usage,
             optional in library usage (default: `None`).
         - `motif_type` (`int` / `str`): Motif/anchor mode selector (default: 0). See Notes.
-        - `left_context_column` (`str`): Column for left DNA context (default: `None`).
-        - `right_context_column` (`str`): Column for right DNA context (default: `None`).
+        - `left_context_column` (`str` / `None`): Column for left DNA context (default: `None`).
+        - `right_context_column` (`str` / `None`): Column for right DNA context (default: `None`).
         - `patch_mode` (`bool`): If `True`, fill only missing values in an existing motif/anchor
             column (does not overwrite existing motifs). (default: `False`).
-        - `excluded_motifs` (`list` / `str` / `pd.DataFrame`): Motifs to exclude (default: `None`).
+        - `excluded_motifs` (`list` / `str` / `pd.DataFrame` / `None`): Motifs to exclude (default: `None`).
         - `background_directory` (`str` / `None`): Path to background k-mer database
             created by `background()`. Designed motifs will avoid all k-mers in the
             database. Useful for preventing off-target matches against transcriptome,
             vector backbone, or other reference sequences (default: `None`).
         - `random_seed` (`int` / `None`): Seed for local RNG (default: `None`).
-        - `verbose` (`bool`): If `True`, logs updates to stdout (default: `True`).
+        - `verbose` (`bool`): If `True`, logs progress to stdout (default: `True`).
 
     Returns:
         - A pandas DataFrame of added motifs; saves to `output_file` if specified.
@@ -68,7 +68,7 @@ def motif(
         - `excluded_motifs` can be a list, CSV, DataFrame, or FASTA file.
         - `background_directory` screens designed motifs/anchors against k-mers in the background DB (junction-aware
             when context columns are provided).
-        - Constant bases in sequence constraint may lead to `excluded_motifs` and be impossible to solve.
+        - Constant bases in `motif_sequence_constraint` can force excluded motifs, making the design infeasible.
         - `motif_type`:
             0 or 'per-variant' for per-variant motifs, 1 or 'constant' for a single constant motif shared by all variants
             (aliases: 'var', 'non-constant', 'const', 'anchor', 'fixed').
@@ -96,9 +96,6 @@ def motif(
     background   = background_directory
     random_seed  = random_seed
     verbose      = verbose
-
-    # Local RNG
-    rng = np.random.default_rng(random_seed)
 
     # Start Liner
     liner = ut.liner_engine(verbose)
@@ -262,6 +259,13 @@ def motif(
         background_field=' Background Database',
         liner=liner)
 
+    # Validate random_seed (do not auto-generate)
+    (random_seed,
+    seed_valid) = vp.get_parsed_random_seed_info(
+        random_seed=random_seed,
+        random_seed_field='     Random Seed    ',
+        liner=liner)
+
     # First Pass Validation
     if not all([
         indata_valid,
@@ -275,10 +279,14 @@ def motif(
         leftcontext_valid,
         rightcontext_valid,
         exmotifs_valid,
-        background_valid]):
+        background_valid,
+        seed_valid]):
         liner.send('\n')
         raise RuntimeError(
             'Invalid Argument Input(s).')
+
+    # Local RNG
+    rng = np.random.default_rng(random_seed)
 
     # Open Background
     if background_type == 'path':

@@ -37,12 +37,12 @@ def split(
         - `maximum_overlap_length` (`int`): Maximum overlap region length (≥ 15).
 
     Optional Parameters:
-        - `output_file` (`str`): Filename for output DataFrame; required in CLI usage,
+        - `output_file` (`str` / `None`): Filename for output DataFrame; required in CLI usage,
             optional in library usage (default: `None`).
         - `separate_outputs` (`bool`): If enabled, return per-split outputs (and optionally write per-split files)
             instead of a single combined DataFrame (default: `False`). See Notes.
         - `random_seed` (`int` / `None`): Seed for local RNG (default: `None`).
-        - `verbose` (`bool`): If `True`, logs updates to stdout (default: `True`).
+        - `verbose` (`bool`): If `True`, logs progress to stdout (default: `True`).
 
     Returns:
         - When `separate_outputs` is disabled: A single pandas DataFrame with `Split1`, `Split2`, ... columns.
@@ -78,9 +78,6 @@ def split(
     separate    = separate_outputs
     random_seed = random_seed
     verbose     = verbose
-
-    # Local RNG
-    rng = np.random.default_rng(random_seed)
 
     # Start Liner
     liner = ut.liner_engine(verbose)
@@ -172,6 +169,13 @@ def split(
         liner=liner)
     separate = separate_on
 
+    # Validate random_seed (do not auto-generate)
+    (random_seed,
+    seed_valid) = vp.get_parsed_random_seed_info(
+        random_seed=random_seed,
+        random_seed_field='   Random Seed       ',
+        liner=liner)
+
     # First Pass Validation
     if not all([
         indata_valid,
@@ -180,10 +184,14 @@ def split(
         minhdist_valid,
         overlap_valid,
         outfile_valid,
-        separate_valid]):
+        separate_valid,
+        seed_valid]):
         liner.send('\n')
         raise RuntimeError(
             'Invalid Argument Input(s).')
+
+    # Local RNG
+    rng = np.random.default_rng(random_seed)
 
     # Start Timer
     t0 = tt.time()

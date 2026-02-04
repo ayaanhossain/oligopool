@@ -776,11 +776,11 @@ op pad \
 
 ## Degenerate Mode
 
-Degenerate Mode compresses variant libraries with low mutational diversity into IUPAC-degenerate oligos for cost-efficient synthesis.
+Degenerate Mode compresses variant libraries with low mutational diversity into IUPAC-degenerate oligos for cost-efficient synthesis. Best for selection assays where enriched variants are identified by sequencing (no barcode-based readout required). Ideal for selection-based discovery: design → compress → synthesize → select → sequence → map back.
 
 ### `compress`
 
-**Purpose**: Compress concrete DNA sequences into IUPAC-degenerate representation for cheaper synthesis.
+**Purpose**: Compress concrete DNA sequences into IUPAC-degenerate oligos for cost-efficient synthesis.
 
 **Signature**:
 ```python
@@ -806,6 +806,7 @@ mapping_df, synthesis_df, stats = op.compress(
 
 - `mapping_file` (str | None, default=None): Output CSV for variant-to-degenerate mapping
 - `synthesis_file` (str | None, default=None): Output CSV for degenerate oligos ready for synthesis
+- Output suffixes (if missing): `mapping_file` → `.oligopool.compress.mapping.csv`, `synthesis_file` → `.oligopool.compress.synthesis.csv`
 - `rollout_simulations` (int, default=100): Monte Carlo simulations per decision (higher = better compression, slower)
 - `rollout_horizon` (int, default=4): Lookahead positions for rollouts
 - `random_seed` (int | None, default=None): RNG seed for reproducibility
@@ -826,8 +827,8 @@ mapping_df, synthesis_df, stats = op.compress(
 ```bash
 op compress \
     --input-data variants.csv \
-    --mapping-file mapping \
-    --synthesis-file synthesis \
+    --mapping-file degenerate_library \
+    --synthesis-file degenerate_library \
     --random-seed 42
 ```
 
@@ -862,6 +863,7 @@ df, stats = op.expand(
 **Optional Parameters**
 
 - `mapping_file` (str | DataFrame | None, default=None): CSV path or DataFrame with `ID` and `DegenerateID` columns (the `mapping_df` from `compress`); restores original variant IDs in output
+- `mapping_file` is auto-suffixed to `.oligopool.compress.mapping.csv` if missing (so a basename like `degenerate_library` works)
 - `output_file` (str | None, default=None): Output CSV path
 - `expansion_limit` (int | None, default=None): Safety cap for maximum total expanded sequences
 - `verbose` (bool, default=True): Print progress output
@@ -879,7 +881,7 @@ df, stats = op.expand(
 op expand \
     --input-data synthesis.csv \
     --sequence-column DegenerateSeq \
-    --mapping-file mapping.csv \
+    --mapping-file degenerate_library \
     --output-file expanded
 ```
 

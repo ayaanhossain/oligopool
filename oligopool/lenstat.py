@@ -20,7 +20,7 @@ def lenstat(
         - `oligo_length_limit` (`int`): Maximum allowed oligo length (≥ 4).
 
     Optional Parameters:
-        - `verbose` (`bool`): If `True`, logs updates to stdout (default: `True`).
+        - `verbose` (`bool`): If `True`, logs progress to stdout (default: `True`).
 
     Returns:
         - A dictionary of stats from the last step in pipeline.

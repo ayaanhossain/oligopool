@@ -19,9 +19,9 @@
 
 `Oligopool Calculator` is a Swiss-army knife for [oligo pool libraries](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9300125/): a unified toolkit for high-throughput design, assembly, compression, and analysis of massively parallel assays, designed to integrate seamlessly with Python, the CLI, Jupyter, containers, and AI-assisted workflows.
 
-Design modules generate primers, barcodes, motifs/anchors, and spacers; assembly modules split/pad long constructs; Degenerate Mode compresses similar sequences into IUPAC‑degenerate oligos; and Analysis Mode packs and counts barcoded reads for activity quantification.
+Design modules generate primers, barcodes, motifs/anchors, and spacers; assembly modules split/pad long constructs; Degenerate Mode compresses similar sequences into IUPAC-degenerate oligos for cost-efficient synthesis (often useful for selection assays); and Analysis Mode packs and counts barcoded reads for activity quantification.
 
-`Oligopool Calculator` has been used to build libraries of tens of thousands of promoters (see [here](https://www.nature.com/articles/s41467-022-32829-5), and [here](https://www.nature.com/articles/s41587-020-0584-2)), ribozymes, and mRNA stability elements (see [here](https://www.nature.com/articles/s41467-024-54059-7)). It has been benchmarked to design pools containing millions of oligos and to process hundreds of millions of sequencing reads per hour on low‑cost desktop‑grade hardware.
+`Oligopool Calculator` has been used to build libraries of tens of thousands of promoters (see [here](https://www.nature.com/articles/s41467-022-32829-5), and [here](https://www.nature.com/articles/s41587-020-0584-2)), ribozymes, and mRNA stability elements (see [here](https://www.nature.com/articles/s41467-024-54059-7)). It has been benchmarked to design pools containing millions of oligos and to process hundreds of millions of sequencing reads per hour on low-cost desktop-grade hardware.
 
 To learn more, please check out [our paper in ACS Synthetic Biology](https://pubs.acs.org/doi/10.1021/acssynbio.4c00661).
 
@@ -31,7 +31,7 @@ To learn more, please check out [our paper in ACS Synthetic Biology](https://pub
     </a>
 </h1>
 
-**Design and analysis of oligo pool variants using `Oligopool Calculator`.** **(a)** In `Design Mode`, `Oligopool Calculator` generates optimized `barcode`s, `primer`s, `spacer`s, and `motif`s. `Assembly Mode` can `split` longer oligos into shorter `pad`ded fragments for synthesis and assembly. `Degenerate Mode` can `compress` similar variants into IUPAC-degenerate oligos for cost-efficient synthesis. **(b)** Once the library is assembled and cloned, barcoded amplicon sequencing data can be processed via `Analysis Mode` for characterization. `Analysis Mode` proceeds by first `index`ing one or more sets of barcodes, `pack`ing the reads, and then producing count matrices either using `acount` (association counting) or `xcount` (combinatorial counting).
+**Design and analysis of oligo pool variants using `Oligopool Calculator`.** **(a)** In `Design Mode`, `Oligopool Calculator` generates optimized `barcode`s, `primer`s, `spacer`s, and `motif`s. `Assembly Mode` can `split` longer oligos into shorter `pad`ded fragments for synthesis and assembly. `Degenerate Mode` can `compress` similar variants into IUPAC-degenerate oligos for cost-efficient synthesis (useful for selection-based discovery workflows). **(b)** Once the library is assembled and cloned, barcoded amplicon sequencing data can be processed via `Analysis Mode` for characterization. `Analysis Mode` proceeds by first `index`ing one or more sets of barcodes, `pack`ing the reads, and then producing count matrices either using `acount` (association counting) or `xcount` (combinatorial counting).
 
 <a id="features"></a>
 ## ✨ Features
@@ -231,7 +231,7 @@ $ op pipeline --config mpra_design.yaml
 $ op pipeline --config mpra_design.yaml --dry-run  # validate first
 ```
 
-Pipelines support **sequential** or **parallel DAG** execution—independent steps run concurrently:
+Pipelines support **sequential** or **parallel DAG** execution-independent steps run concurrently:
 ```yaml
 # mpra_design.yaml
 pipeline:

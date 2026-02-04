@@ -2425,7 +2425,7 @@ All columns except ID are concatenated as the sequence.''')
         metavar='\b',
         help='''>>[optional string]
 Output filename for variant-to-degenerate mapping.
-A ".oligopool.compress.csv" suffix is added if missing.''')
+A ".oligopool.compress.mapping.csv" suffix is added if missing.''')
     opt.add_argument(
         '--synthesis-file',
         type=str,
@@ -2433,7 +2433,7 @@ A ".oligopool.compress.csv" suffix is added if missing.''')
         metavar='\b',
         help='''>>[optional string]
 Output filename for degenerate oligos ready for synthesis.
-A ".oligopool.compress.csv" suffix is added if missing.''')
+A ".oligopool.compress.synthesis.csv" suffix is added if missing.''')
     opt.add_argument(
         '--rollout-simulations',
         type=int,

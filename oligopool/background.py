@@ -13,18 +13,20 @@ def background(
     input_data:list|str|pd.DataFrame,
     maximum_repeat_length:int,
     output_directory:str,
-    verbose=True) -> dict:
+    verbose:bool=True) -> dict:
     '''
     Build a background k-mer database for screening designed elements against off-target repeat matches.
     Use the resulting directory with `primer`, `barcode`, `motif`, `spacer`, or `verify` modules.
 
     Required Parameters:
         - `input_data` (`list` / `str` / `pd.DataFrame`): Background sequences to screen against.
-        - `maximum_repeat_length` (`int`): Max repeat length between primers and background (between 6 and 20).
+        - `maximum_repeat_length` (`int`): Max shared repeat length between designed elements and the background
+            reference (between 6 and 20).
         - `output_directory` (`str`): Directory to store the generated background k-mer database.
+            A `.oligopool.background` suffix is added if missing.
 
     Optional Parameters:
-        - `verbose` (`bool`): If `True`, logs updates to stdout (default: `True`).
+        - `verbose` (`bool`): If `True`, logs progress to stdout (default: `True`).
 
     Returns:
         - A dictionary of stats from the last step in pipeline.

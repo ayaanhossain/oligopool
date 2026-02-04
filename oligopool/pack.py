@@ -38,14 +38,14 @@ def pack(
     Optional Parameters:
         - `minimum_r1_read_length` (`int`): Minimum R1 read length (≥ 1).
         - `minimum_r1_read_quality` (`int`): Minimum average R1 quality (default: 20).
-        - `r2_fastq_file` (`str`): Path to R2 FastQ file (default: `None`).
-        - `r2_read_type` (`int` / `str`): Orientation of R2 reads (see Notes; default: `None`).
-        - `minimum_r2_read_length` (`int`): Minimum R2 read length (default: `None`).
-        - `minimum_r2_read_quality` (`int`): Minimum average R2 quality (default: `None`).
+        - `r2_fastq_file` (`str` / `None`): Path to R2 FastQ file (default: `None`).
+        - `r2_read_type` (`int` / `str` / `None`): Orientation of R2 reads (see Notes; default: `None`).
+        - `minimum_r2_read_length` (`int` / `None`): Minimum R2 read length (default: `None`).
+        - `minimum_r2_read_quality` (`int` / `None`): Minimum average R2 quality (default: `None`).
         - `pack_size` (`float`): Million unique reads per pack (default: 3.0, range: 0.1 to 5.0).
         - `core_count` (`int`): CPU cores to use (0: auto-infer, default: 0).
         - `memory_limit` (`float`): GB of memory per core (0: auto-infer, default: 0)
-        - `verbose` (`bool`): If `True`, logs updates to stdout (default: `True`).
+        - `verbose` (`bool`): If `True`, logs progress to stdout (default: `True`).
 
     Returns:
         - A dictionary of stats from the last step in pipeline.

@@ -49,21 +49,21 @@ def primer(
         - `primer_column` (`str`): Column name for the designed primer.
 
     Optional Parameters:
-        - `output_file` (`str`): Filename for output DataFrame; required in CLI usage,
+        - `output_file` (`str` / `None`): Filename for output DataFrame; required in CLI usage,
             optional in library usage (default: `None`).
-        - `left_context_column` (`str`): Column for left DNA context (default: `None`).
-        - `right_context_column` (`str`): Column for right DNA context (default: `None`).
+        - `left_context_column` (`str` / `None`): Column for left DNA context (default: `None`).
+        - `right_context_column` (`str` / `None`): Column for right DNA context (default: `None`).
         - `patch_mode` (`bool`): If `True`, fill only missing values in an existing primer column
             (does not overwrite existing primers). (default: `False`).
         - `oligo_sets` (`list` / `str` / `pd.DataFrame`): Per-oligo grouping labels to design
             set-specific primers; can be a list aligned to `input_data` or a CSV/DataFrame
             with 'ID' and 'OligoSet' columns (default: `None`).
-        - `paired_primer_column` (`str`): Column for paired primer sequence (default: `None`).
+        - `paired_primer_column` (`str` / `None`): Column for paired primer sequence (default: `None`).
         - `excluded_motifs` (`list` / `str` / `pd.DataFrame`): Motifs to exclude;
             can be a list, CSV, DataFrame, or FASTA file (default: `None`).
-        - `background_directory` (`str`): Directory for background k-mer sequences (default: `None`).
+        - `background_directory` (`str` / `None`): Directory for background k-mer sequences (default: `None`).
         - `random_seed` (`int` / `None`): Seed for local RNG (default: `None`).
-        - `verbose` (`bool`): If `True`, logs updates to stdout (default: `True`).
+        - `verbose` (`bool`): If `True`, logs progress to stdout (default: `True`).
 
     Returns:
         - A pandas DataFrame of designed primers; saves to `output_file` if specified.
@@ -114,9 +114,6 @@ def primer(
     background   = background_directory
     random_seed  = random_seed
     verbose      = verbose
-
-    # Local RNG
-    rng = np.random.default_rng(random_seed)
 
     # Start Liner
     liner = ut.liner_engine(verbose)
@@ -312,6 +309,13 @@ def primer(
         background_field=' Background Database   ',
         liner=liner)
 
+    # Validate random_seed (do not auto-generate)
+    (random_seed,
+    seed_valid) = vp.get_parsed_random_seed_info(
+        random_seed=random_seed,
+        random_seed_field='     Random Seed       ',
+        liner=liner)
+
     # First Pass Validation
     if not all([
         indata_valid,
@@ -328,10 +332,14 @@ def primer(
         leftcontext_valid,
         rightcontext_valid,
         exmotifs_valid,
-        background_valid]):
+        background_valid,
+        seed_valid]):
         liner.send('\n')
         raise RuntimeError(
             'Invalid Argument Input(s).')
+
+    # Local RNG
+    rng = np.random.default_rng(random_seed)
 
     # Open Background
     if background_type == 'path':

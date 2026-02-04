@@ -26,8 +26,8 @@ def expand(
         - `sequence_column` (`str`): Column name containing IUPAC-degenerate sequences to expand.
 
     Optional Parameters:
-        - `mapping_file` (`str` / `pd.DataFrame`): Mapping output from `compress` (default: `None`). See Notes.
-        - `output_file` (`str`): Filename for output DataFrame (default: `None`).
+        - `mapping_file` (`str` / `pd.DataFrame` / `None`): Mapping output from `compress` (default: `None`). See Notes.
+        - `output_file` (`str` / `None`): Filename for output DataFrame (default: `None`).
             A `.oligopool.expand.csv` suffix is added if missing.
         - `expansion_limit` (`int` / `None`): Safety cap for maximum total expanded sequences;
             if estimated expansion exceeds this limit, expansion fails (default: `None` for no limit).
@@ -42,6 +42,7 @@ def expand(
         - Useful as a sanity-check that `compress` output covers exactly (and only) the original sequences.
         - `mapping_file` must contain `ID` and `DegenerateID` columns (the `mapping_df` output from `compress`).
             When provided, output includes both `DegenerateID` and original `ID` columns.
+        - If `mapping_file` is a string path/basename, `.oligopool.compress.mapping.csv` is appended if missing.
         - Expansion can be exponential (e.g., 10 N's = 4^10 sequences); use `expansion_limit`
             as a safety cap when working with highly degenerate sequences.
     '''
@@ -77,32 +78,13 @@ def expand(
     # Optional Argument Parsing
     liner.send('\n Optional Arguments\n')
 
-    # Validate mapping file (optional)
-    mapdf = None
-    mapfile_valid = True
-    if mapfile is not None:
-        # Load mapping file if path
-        if isinstance(mapfile, str):
-            try:
-                mapdf = pd.read_csv(mapfile)
-                liner.send('   Mapping File  : Loaded from {}\n'.format(mapfile))
-            except Exception:
-                liner.send('   Mapping File  : [INVALID] Cannot read file\n')
-                mapfile_valid = False
-        elif isinstance(mapfile, pd.DataFrame):
-            mapdf = mapfile.copy()
-            liner.send('   Mapping File  : DataFrame w/ {:,} Row(s)\n'.format(len(mapdf)))
-        else:
-            liner.send('   Mapping File  : [INVALID] Must be path or DataFrame\n')
-            mapfile_valid = False
-
-        # Validate required columns
-        if mapdf is not None:
-            if 'ID' not in mapdf.columns or 'DegenerateID' not in mapdf.columns:
-                liner.send('   Mapping File  : [INVALID] Missing ID or DegenerateID column\n')
-                mapfile_valid = False
-    else:
-        liner.send('   Mapping File  : None Specified\n')
+    # Validate mapping file (optional; auto-suffixed to `.oligopool.compress.mapping.csv` when provided as a basename)
+    (mapdf,
+     mapfile_valid) = vp.get_parsed_compress_mapping_info(
+        mapping_data=mapfile,
+        mapping_field='   Mapping File  ',
+        liner=liner,
+        required=False)
 
     # Validate output file
     outfile_valid = vp.get_outdf_validity(

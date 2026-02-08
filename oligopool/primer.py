@@ -29,7 +29,7 @@ def primer(
     patch_mode:bool=False,
     oligo_sets:list|str|pd.DataFrame|None=None,
     paired_primer_column:str|None=None,
-    excluded_motifs:list|str|pd.DataFrame|None=None,
+    excluded_motifs:list|str|dict|pd.DataFrame|None=None,
     background_directory:str|list|None=None,
     random_seed:int|None=None,
     verbose:bool=True) -> Tuple[pd.DataFrame, dict]:
@@ -59,8 +59,7 @@ def primer(
             set-specific primers; can be a list aligned to `input_data` or a CSV/DataFrame
             with 'ID' and 'OligoSet' columns (default: `None`).
         - `paired_primer_column` (`str` / `None`): Column for paired primer sequence (default: `None`).
-        - `excluded_motifs` (`list` / `str` / `pd.DataFrame`): Motifs to exclude;
-            can be a list, CSV, DataFrame, or FASTA file (default: `None`).
+        - `excluded_motifs` (`list` / `str` / `dict` / `pd.DataFrame` / `None`): Excluded motif source(s) (default: `None`).
         - `background_directory` (`str` / `list` / `None`): Background k-mer DB(s) from `background()` (default: `None`).
         - `random_seed` (`int` / `None`): Seed for local RNG (default: `None`).
         - `verbose` (`bool`): If `True`, logs progress to stdout (default: `True`).
@@ -81,8 +80,8 @@ def primer(
             background, build a background DB with `background(...)` and pass it via `background_directory`.
         - `background_directory` supports one or more DBs (paths and/or vectorDB instances); designs avoid k-mers in
             ALL specified DBs.
-        - If `excluded_motifs` is a CSV or DataFrame, it must have an 'Exmotif' column.
-        - `excluded_motifs` can be a list, CSV, DataFrame, or FASTA file.
+        - `excluded_motifs`: one or more sources (list/dict), merged; strict ATGC only; CSV/DataFrame requires 'Exmotif';
+            FASTA sources are supported.
         - Constant motifs in sequence constraint may lead to sub-optimal primers.
         - Chained primer design: design one primer, then its partner via `paired_primer_column`
             (pairing is inferred from `primer_type`).
@@ -296,12 +295,10 @@ def primer(
 
     # Full exmotifs Parsing and Validation
     (exmotifs,
-    exmotifs_valid) = vp.get_parsed_exseqs_info(
-        exseqs=exmotifs,
-        exseqs_field='   Excluded Motifs     ',
-        exseqs_desc='Unique Motif(s)',
-        df_field='Exmotif',
-        required=False,
+    exmotifs_valid,
+    exmotif_inputs) = vp.get_parsed_exmotifs(
+        exmotifs=exmotifs,
+        exmotifs_field='   Excluded Motifs     ',
         liner=liner)
 
     # Full background Parsing and Validation
@@ -1469,6 +1466,11 @@ def primer(
     # Close Backgrounds
     for bg in opened_backgrounds:
         bg.close()
+
+    # Excluded-motif attribution for stats
+    ut.stamp_exmotif_stats(
+        stats=stats,
+        exmotif_inputs=exmotif_inputs)
 
     # Close Liner
     liner.close()

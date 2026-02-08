@@ -25,7 +25,7 @@ def motif(
     left_context_column:str|None=None,
     right_context_column:str|None=None,
     patch_mode:bool=False,
-    excluded_motifs:list|str|pd.DataFrame|None=None,
+    excluded_motifs:list|str|dict|pd.DataFrame|None=None,
     background_directory:str|list|None=None,
     random_seed:int|None=None,
     verbose:bool=True) -> Tuple[pd.DataFrame, dict]:
@@ -48,7 +48,7 @@ def motif(
         - `right_context_column` (`str` / `None`): Column for right DNA context (default: `None`).
         - `patch_mode` (`bool`): If `True`, fill only missing values in an existing motif/anchor
             column (does not overwrite existing motifs). (default: `False`).
-        - `excluded_motifs` (`list` / `str` / `pd.DataFrame` / `None`): Motifs to exclude (default: `None`).
+        - `excluded_motifs` (`list` / `str` / `dict` / `pd.DataFrame` / `None`): Excluded motif source(s) (default: `None`).
         - `background_directory` (`str` / `list` / `None`): Background k-mer DB(s) from `background()` (default: `None`).
         - `random_seed` (`int` / `None`): Seed for local RNG (default: `None`).
         - `verbose` (`bool`): If `True`, logs progress to stdout (default: `True`).
@@ -61,11 +61,10 @@ def motif(
         - `input_data` must contain a unique 'ID' column; all other columns must be non-empty DNA strings.
             Column names must be unique and exclude `motif_column`.
         - At least one of `left_context_column` or `right_context_column` must be specified.
-        - If `excluded_motifs` is a CSV or DataFrame, it must have an 'Exmotif' column.
-        - `excluded_motifs` can be a list, CSV, DataFrame, or FASTA file.
-        - `background_directory` screens designed motifs/anchors against background k-mers (junction-aware when
-            context columns are provided). Supports one or more DBs (paths and/or vectorDB instances); designs avoid
-            k-mers in ALL specified DBs.
+        - `excluded_motifs`: one or more sources (list/dict), merged; strict ATGC only; CSV/DataFrame requires 'Exmotif';
+            FASTA sources are supported.
+        - `background_directory` screens against one or more background k-mer DB(s) (junction-aware with context columns);
+            designs avoid k-mers in ALL specified DBs.
         - Constant bases in `motif_sequence_constraint` can force excluded motifs, making the design infeasible.
         - `motif_type`:
             0 or 'per-variant' for per-variant motifs, 1 or 'constant' for a single constant motif shared by all variants
@@ -242,12 +241,10 @@ def motif(
 
     # Full exmotifs Parsing and Validation
     (exmotifs,
-    exmotifs_valid) = vp.get_parsed_exseqs_info(
-        exseqs=exmotifs,
-        exseqs_field='   Excluded Motifs  ',
-        exseqs_desc='Unique Motif(s)',
-        df_field='Exmotif',
-        required=False,
+    exmotifs_valid,
+    exmotif_inputs) = vp.get_parsed_exmotifs(
+        exmotifs=exmotifs,
+        exmotifs_field='   Excluded Motifs  ',
         liner=liner)
 
     # Full background Parsing and Validation
@@ -937,6 +934,11 @@ def motif(
     # Close Backgrounds
     for bg in opened_backgrounds:
         bg.close()
+
+    # Excluded-motif attribution for stats
+    ut.stamp_exmotif_stats(
+        stats=stats,
+        exmotif_inputs=exmotif_inputs)
 
     # Close Liner
     liner.close()

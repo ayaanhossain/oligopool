@@ -525,7 +525,11 @@ def liner_engine(online=True):
             if online:
                 sys.stdout.write('\r' + ' '*clrlen)
                 sys.stdout.write('\r' + printstr)
-                clrlen = len(printstr)
+                # Only track length after last newline for proper clearing
+                if '\n' in printstr:
+                    clrlen = len(printstr.rsplit('\n', 1)[-1])
+                else:
+                    clrlen = len(printstr)
                 sys.stdout.flush()
 
     # Closure
@@ -2936,6 +2940,83 @@ def is_DNA(seq, dna_alpha=dna_alpha):
        set(seq.upper()) <= dna_alpha:
         return True
     return False
+
+def is_strict_DNA(seq):
+    '''
+    Determine if seq is a non-empty string
+    of strict ATGC characters only.
+    No IUPAC codes, no dashes.
+    Internal use only.
+
+    :: seq
+       type - string
+       desc - a candidate sequence
+    '''
+
+    if isinstance(seq, str) and \
+       len(seq) > 0 and \
+       set(seq.upper()) <= set('ATGC'):
+        return True
+    return False
+
+def get_exmotif_counter_by_input(exmotif_counter, exmotif_inputs):
+    '''
+    Derive per-input attribution from a motif counter.
+    Maps each encountered motif back to its originating
+    input(s). If a motif appears in multiple inputs, it
+    contributes to all of them (multi-membership).
+    Internal use only.
+
+    :: exmotif_counter
+       type - collections.Counter
+       desc - motif encounter counter from engine
+    :: exmotif_inputs
+       type - list of dicts
+       desc - per-input breakdown from
+              get_parsed_exmotifs, each with
+              'name', 'label', 'motifs' keys
+    '''
+
+    # Build reverse mapping: motif → list of input keys
+    motif_to_inputs = {}
+    for inp in exmotif_inputs:
+        key = inp['name'] or inp['label']
+        for m in inp.get('motifs', []):
+            motif_to_inputs.setdefault(m, []).append(key)
+
+    # Sum counter entries per input
+    counter_by_input = {}
+    for motif, count in exmotif_counter.items():
+        for key in motif_to_inputs.get(motif, []):
+            counter_by_input[key] = \
+                counter_by_input.get(key, 0) + count
+
+    return counter_by_input
+
+def stamp_exmotif_stats(stats, exmotif_inputs):
+    '''
+    Add excluded-motif attribution fields to a
+    stats dict. Sets excluded_motif_inputs and,
+    if exmotif_counter is present, derives
+    exmotif_counter_by_input.
+    Internal use only.
+
+    :: stats
+       type - dict
+       desc - module stats dict (mutated in place)
+    :: exmotif_inputs
+       type - list of dicts / None
+       desc - per-input breakdown from
+              get_parsed_exmotifs
+    '''
+
+    stats['vars']['excluded_motif_inputs'] = exmotif_inputs
+    if exmotif_inputs and \
+       stats['vars'].get('exmotif_counter'):
+        stats['vars']['exmotif_counter_by_input'] = \
+            get_exmotif_counter_by_input(
+                exmotif_counter=stats['vars']['exmotif_counter'],
+                exmotif_inputs=exmotif_inputs)
 
 def get_comp(seq):
     '''

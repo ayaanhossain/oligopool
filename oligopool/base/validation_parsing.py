@@ -107,6 +107,9 @@ def get_infile_validity(
 
     infile_field = _normalize_field(infile_field)
 
+    # Use space separator for numbered list items (field ends with ])
+    sep = '' if infile_field.rstrip().endswith(']') else ':'
+
     # infile exists and non-empty?
     infile_status = ut.get_path_status(
         path=infile,
@@ -118,8 +121,8 @@ def get_infile_validity(
     # infile is invalid
     if   infile_status == 0:
         liner.send(
-            '{}: {} [INPUT TYPE IS INVALID]\n'.format(
-                infile_field, infile))
+            '{}{} {} [INPUT TYPE IS INVALID]\n'.format(
+                infile_field, sep, infile))
 
     else:
 
@@ -129,28 +132,28 @@ def get_infile_validity(
 
         if   infile_status == 1:
             liner.send(
-                '{}: {} [READ PERMISSION DENIED]\n'.format(
-                    infile_field, infile))
+                '{}{} {} [READ PERMISSION DENIED]\n'.format(
+                    infile_field, sep, infile))
 
         elif infile_status == 3:
             liner.send(
-                '{}: {} [FILE IS EMPTY]\n'.format(
-                    infile_field, infile))
+                '{}{} {} [FILE IS EMPTY]\n'.format(
+                    infile_field, sep, infile))
 
         elif infile_status == 'X':
             liner.send(
-                '{}: {} [FILE IS SPECIAL]\n'.format(
-                    infile_field, infile))
+                '{}{} {} [FILE IS SPECIAL]\n'.format(
+                    infile_field, sep, infile))
 
         elif 5 <= infile_status <= 8:
             liner.send(
-                '{}: {} [FILE IS DIRECTORY]\n'.format(
-                    infile_field, infile))
+                '{}{} {} [FILE IS DIRECTORY]\n'.format(
+                    infile_field, sep, infile))
 
         elif infile_status == 9:
             liner.send(
-                '{}: {} [FILE DOES NOT EXIST]\n'.format(
-                    infile_field, infile))
+                '{}{} {} [FILE DOES NOT EXIST]\n'.format(
+                    infile_field, sep, infile))
 
     # infile valid
     return infile_status == 4
@@ -381,9 +384,11 @@ def get_inzip_validity(
     '''
 
     fname = inzip.split('/')[-1]
+    # Use space separator for numbered list items (field ends with ])
+    sep = '' if inzip_field.rstrip().endswith(']') else ':'
     liner.send(
-        '{}: Loading {} ...'.format(
-            inzip_field, fname))
+        '{}{} Loading {} ...'.format(
+            inzip_field, sep, fname))
 
     # zipfile exists and non-empty?
     inzip_exists = get_infile_validity(
@@ -402,8 +407,8 @@ def get_inzip_validity(
             filename=inzip)
         if not inzip_is_zipfile:
             liner.send(
-                '{}: {} [INVALID {} FILE]\n'.format(
-                    inzip_field, inzip, inzip_type))
+                '{}{} {} [INVALID {} FILE]\n'.format(
+                    inzip_field, sep, inzip, inzip_type))
 
     # inzip is good?
     inzip_is_good = False
@@ -467,6 +472,8 @@ def get_indexfile_validity(
 
     # indexfile content ok?
     indexfile_ok_content = False
+    # Use space separator for numbered list items (field ends with ])
+    sep = '' if indexfile_field.rstrip().endswith(']') else ':'
     if indexfile_ok_format:
         try:
             indexed = set([
@@ -482,12 +489,12 @@ def get_indexfile_validity(
                 dfile='meta.map')['variantcount']
         except:
             liner.send(
-                '{}: {} [INVALID INDEX FILE]\n'.format(
-                    indexfile_field, indexfile))
+                '{}{} {} [INVALID INDEX FILE]\n'.format(
+                    indexfile_field, sep, indexfile))
         else:
             liner.send(
-                '{}: {} w/ {:,} Variant(s)\n'.format(
-                    indexfile_field, indexfile, variantcount))
+                '{}{} {} w/ {:,} Variant(s)\n'.format(
+                    indexfile_field, sep, indexfile, variantcount))
             indexfile_ok_content = True
         finally:
             archive.close()
@@ -560,19 +567,21 @@ def get_indexfiles_validity(
                 indexfiles_field, len(indexfile_store)))
 
         # Core Validation Loop
+        idx = 0
         while indexfile_store:
 
             # Fetch indexfile
             indexfile = indexfile_store.popleft()
+            idx += 1
 
             # Duplicate indexfile?
             if indexfile in seen_indexfiles:
                 # Show Update
                 liner.send(
-                    '{}: {} [DUPLICATE INDEX FILE]\n'.format(
-                        altspacing, ut.get_adjusted_path(
+                    '{}:  [{}] {} [DUPLICATE INDEX FILE]\n'.format(
+                        altspacing, idx, ut.get_adjusted_path(
                             path=indexfile,
-                            suffix='oligopool.index')))
+                            suffix='.oligopool.index')))
                 # Update Global Validity
                 indexfiles_ok = indexfiles_ok and False
                 # Next!
@@ -585,7 +594,7 @@ def get_indexfiles_validity(
             # Get Current Validity
             idxfile_valid = get_indexfile_validity(
                 indexfile=indexfile,
-                indexfile_field=altspacing,
+                indexfile_field='{}:  [{}]'.format(altspacing, idx),
                 associated=associated,
                 liner=liner)
 
@@ -2231,6 +2240,323 @@ def get_parsed_exseqs_info(
 
     # Return Results
     return (exseqs, df_valid)
+
+def _get_exmotif_source_label(source, idx):
+    '''
+    Generate a display label for an exmotif source.
+    Internal use only.
+
+    :: source
+       type - string / list / pd.DataFrame / etc.
+       desc - the raw source value
+    :: idx
+       type - int
+       desc - 1-based index for synthetic labels
+    '''
+
+    if isinstance(source, str):
+        if ',' in source:
+            return 'comma[{}]'.format(idx)
+        if os.sep in source or '.' in source:
+            return os.path.basename(source)
+        return 'inline[{}]'.format(idx)
+    elif isinstance(source, pd.DataFrame):
+        return 'DataFrame[{}]'.format(idx)
+    elif isinstance(source, (list, tuple, set)):
+        return 'inline[{}]'.format(idx)
+    else:
+        return 'input[{}]'.format(idx)
+
+def get_parsed_exmotifs(
+    exmotifs,
+    exmotifs_field,
+    liner):
+    '''
+    Validate single or multiple excluded-motif inputs.
+    Returns (exmotifs, exmotifs_valid, exmotif_inputs).
+    Internal use only.
+
+    Polymorphic wrapper around get_parsed_exseqs_info.
+    Accepts:
+      - None                  → no screening
+      - single set            → list of motifs, comma-string,
+                                CSV/FASTA path, DataFrame
+      - multiple sets (list)  → list of set sources
+      - named sets  (dict)    → {name: set_source, ...}
+
+    Disambiguation for flat list[str]:
+      - All elements pass strict ATGC → single motif set
+      - Otherwise → each element is a separate set source
+
+    Returns:
+      - exmotifs       : merged union list (or None)
+      - exmotifs_valid : boolean
+      - exmotif_inputs : list of dicts with per-input
+                         breakdown (or None)
+
+    :: exmotifs
+       type - list / str / dict / pd.DataFrame / None
+       desc - excluded motif input(s)
+    :: exmotifs_field
+       type - string
+       desc - fieldname used in printing
+    :: liner
+       type - coroutine
+       desc - dynamic printing
+    '''
+
+    exmotifs_field = _normalize_field(exmotifs_field)
+
+    # None → no screening
+    if exmotifs is None:
+        liner.send(
+            '{}: 0 Unique Motif(s)\n'.format(
+                exmotifs_field))
+        return (None, True, None)
+
+    # Pre-process: comma-string splitting (Python API)
+    if isinstance(exmotifs, str) and ',' in exmotifs:
+        exmotifs = [s.strip()
+            for s in exmotifs.split(',') if s.strip()]
+
+    # Classify input shape
+
+    is_multi = False
+    sources = []  # list of (name, raw_source)
+
+    if isinstance(exmotifs, dict):
+        # Named multi-set
+        is_multi = True
+        sources = [(k, v) for k, v in exmotifs.items()]
+
+    elif isinstance(exmotifs, (str, pd.DataFrame)):
+        # Single set: string (path/DNA) or DataFrame
+        is_multi = False
+
+    elif hasattr(exmotifs, '__iter__'):
+        # List/iterable — disambiguate
+        items = list(exmotifs)
+
+        if not items:
+            liner.send(
+                '{}: 0 Unique Motif(s)\n'.format(
+                    exmotifs_field))
+            return (None, True, None)
+
+        # All strict ATGC strings → single motif set
+        if all(ut.is_strict_DNA(s) for s in items):
+            is_multi = False
+        else:
+            is_multi = True
+            sources = [(None, item) for item in items]
+    else:
+        liner.send(
+            '{}: {} [INPUT TYPE IS INVALID]\n'.format(
+                exmotifs_field, exmotifs))
+        return (None, False, None)
+
+    # Single-set path
+
+    if not is_multi:
+        (motifs, valid) = get_parsed_exseqs_info(
+            exseqs=exmotifs,
+            exseqs_field=exmotifs_field,
+            exseqs_desc='Unique Motif(s)',
+            df_field='Exmotif',
+            required=False,
+            liner=liner)
+
+        if not valid:
+            return (None, False, None)
+        if motifs is None:
+            return (None, True, None)
+
+        # Strict ATGC enforcement (post-validation)
+        for m in motifs:
+            if not ut.is_strict_DNA(m):
+                liner.send(
+                    '{}: [NON-ATGC MOTIF=\'{}\']\n'.format(
+                        exmotifs_field, m))
+                return (None, False, None)
+
+        # Build single exmotif_inputs entry
+        if isinstance(exmotifs, str):
+            label = _get_exmotif_source_label(
+                source=exmotifs, idx=1)
+        elif isinstance(exmotifs, pd.DataFrame):
+            label = 'DataFrame'
+        else:
+            label = 'inline'
+
+        exmotif_inputs = [{
+            'name':        None,
+            'label':       label,
+            'motif_count': len(motifs),
+            'motifs':      list(motifs),
+        }]
+
+        return (motifs, True, exmotif_inputs)
+
+    # Multi-set path
+
+    # Single-item list → delegate to single-set display
+    if len(sources) == 1:
+        name, source = sources[0]
+
+        # Pre-process comma-strings
+        if isinstance(source, str) and ',' in source:
+            source = [s.strip()
+                for s in source.split(',') if s.strip()]
+
+        (motifs, valid) = get_parsed_exseqs_info(
+            exseqs=source,
+            exseqs_field=exmotifs_field,
+            exseqs_desc='Unique Motif(s)',
+            df_field='Exmotif',
+            required=False,
+            liner=liner)
+
+        if not valid:
+            return (None, False, None)
+        if motifs is None:
+            return (None, True, None)
+
+        # Strict ATGC enforcement
+        for m in motifs:
+            if not ut.is_strict_DNA(m):
+                liner.send(
+                    '{}: [NON-ATGC MOTIF=\'{}\']\n'.format(
+                        exmotifs_field, m))
+                return (None, False, None)
+
+        label = name if name else _get_exmotif_source_label(
+            source=sources[0][1], idx=1)
+        exmotif_inputs = [{
+            'name':        name,
+            'label':       label,
+            'motif_count': len(motifs),
+            'motifs':      list(motifs),
+        }]
+
+        return (motifs, True, exmotif_inputs)
+
+    # Multiple sources — custom display
+    altspacing = ' ' * len(exmotifs_field)
+
+    liner.send(
+        '{}: {:,} Exmotif Input(s)\n'.format(
+            exmotifs_field, len(sources)))
+
+    all_valid      = True
+    all_motifs     = []
+    exmotif_inputs = []
+    seen           = set()
+
+    # Silent liner for per-source validation
+    silent = ut.liner_engine(online=False)
+
+    for idx, (name, source) in enumerate(sources, 1):
+
+        # Determine label BEFORE pre-processing
+        label = name if name else _get_exmotif_source_label(
+            source=source, idx=idx)
+
+        # Pre-process comma-strings within each source
+        if isinstance(source, str) and ',' in source:
+            source = [s.strip()
+                for s in source.split(',') if s.strip()]
+
+        # Duplicate detection (file paths / DataFrame refs)
+        dup_key = None
+        if isinstance(source, str) and \
+           not ut.is_strict_DNA(source):
+            dup_key = os.path.abspath(source)
+        elif isinstance(source, pd.DataFrame):
+            dup_key = id(source)
+
+        if dup_key is not None and dup_key in seen:
+            liner.send(
+                '{}:  [{}] {} [DUPLICATE EXMOTIF INPUT]\n'.format(
+                    altspacing, idx, label))
+            all_valid = False
+            continue
+
+        if dup_key is not None:
+            seen.add(dup_key)
+
+        # Parse this source silently
+        (motifs, valid) = get_parsed_exseqs_info(
+            exseqs=source,
+            exseqs_field=exmotifs_field,
+            exseqs_desc='Unique Motif(s)',
+            df_field='Exmotif',
+            required=False,
+            liner=silent)
+
+        if not valid:
+            liner.send(
+                '{}:  [{}] {} [INVALID EXMOTIF INPUT]\n'.format(
+                    altspacing, idx, label))
+            all_valid = False
+            continue
+
+        if motifs is None or len(motifs) == 0:
+            liner.send(
+                '{}:  [{}] {} (0 Unique Motif(s))\n'.format(
+                    altspacing, idx, label))
+            exmotif_inputs.append({
+                'name':        name,
+                'label':       label,
+                'motif_count': 0,
+                'motifs':      [],
+            })
+            continue
+
+        # Per-source strict ATGC enforcement
+        source_invalid = False
+        for m in motifs:
+            if not ut.is_strict_DNA(m):
+                liner.send(
+                    '{}:  [{}] {} [NON-ATGC MOTIF=\'{}\']\n'.format(
+                        altspacing, idx, label, m))
+                all_valid = False
+                source_invalid = True
+                break
+
+        if source_invalid:
+            continue
+
+        liner.send(
+            '{}:  [{}] {} ({:,} Unique Motif(s))\n'.format(
+                altspacing, idx, label, len(motifs)))
+
+        all_motifs.extend(motifs)
+        exmotif_inputs.append({
+            'name':        name,
+            'label':       label,
+            'motif_count': len(motifs),
+            'motifs':      list(motifs),
+        })
+
+    silent.close()
+
+    if not all_valid:
+        return (None, False, None)
+
+    # Merge and deduplicate across all sources
+    merged = list(ut.get_uniques(
+        iterable=all_motifs,
+        typer=list))
+
+    # Print merged total
+    liner.send(
+        '{}:  {:,} Unique Motif(s)\n'.format(
+            altspacing, len(merged)))
+
+    if not merged:
+        return (None, True, None)
+
+    return (merged, True, exmotif_inputs)
 
 def get_numeric_validity(
     numeric,

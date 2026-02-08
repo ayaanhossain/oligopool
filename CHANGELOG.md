@@ -1,3 +1,9 @@
+2026.02.08
+1. Feature: `excluded_motifs` now accepts multiple motif sets (list of sources or `{name: source}` dict) in `barcode`, `primer`, `motif`, `spacer`, and `verify`; all sources are merged for screening, with per-set attribution in stats.
+2. CLI: `--excluded-motifs` now accepts multiple values (space-separated) for barcode/primer/motif/spacer/verify.
+3. Validation/Core: added `validation_parsing.get_parsed_exmotifs()` polymorphic wrapper; added `utils.is_strict_DNA()` and `utils.stamp_exmotif_stats()`.
+4. Strict ATGC enforcement: excluded motifs must be concrete ATGC strings (no IUPAC codes, no dashes).
+
 2026.02.04
 1. Feature: `background_directory` now accepts multiple background DBs (list of `.oligopool.background` paths or `vectorDB` instances) in `barcode`, `primer`, `motif`, `spacer`, and `verify`; screening is applied across ALL specified DBs.
 2. CLI: `--background-directory` now accepts multiple values (space- or comma-separated) for barcode/primer/motif/spacer/verify.
@@ -7,7 +13,7 @@
 6. Validation: added `validation_parsing.get_parsed_verify_indata_info()` for verify-specific input validation (requires ID column + at least one DNA column); error shown in Required Arguments section if no DNA columns detected.
 7. CLI: stats JSON output now works for tuple-return modules like `compress` (stats are extracted from the dict element rather than assuming `(df, stats)`), including in pipeline mode.
 8. Style: `verify` now follows design module conventions — type hints without spaces (`str|pd.DataFrame`), `id_from_index` handling for caller intent preservation.
-9. Docs: clarified that `json.loads` applies to all `*ConflictDetails` columns in `verify` CSV output.
+9. Docs: clarified that `json.loads` applies to all `*Details` columns in `verify` CSV output (currently the `*ConflictDetails` columns).
 10. CLI: `op verify` now requires `--output-file` (Python API still allows `output_file=None`).
 
 2026.02.01

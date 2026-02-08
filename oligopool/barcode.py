@@ -28,7 +28,7 @@ def barcode(
     patch_mode:bool=False,
     cross_barcode_columns:list|None=None,
     minimum_cross_distance:int|None=None,
-    excluded_motifs:list|str|pd.DataFrame|None=None,
+    excluded_motifs:list|str|dict|pd.DataFrame|None=None,
     background_directory:str|list|None=None,
     random_seed:int|None=None,
     verbose:bool=True) -> Tuple[pd.DataFrame, dict]:
@@ -54,7 +54,7 @@ def barcode(
             (does not overwrite existing barcodes). (default: `False`).
         - `cross_barcode_columns` (`list` / `None`): Existing barcode column(s) used as a cross-set constraint (default: `None`).
         - `minimum_cross_distance` (`int` / `None`): Minimum cross-set Hamming distance (default: `None`).
-        - `excluded_motifs` (`list` / `str` / `pd.DataFrame` / `None`): Motifs to exclude (default: `None`).
+        - `excluded_motifs` (`list` / `str` / `dict` / `pd.DataFrame` / `None`): Excluded motif source(s) (default: `None`).
         - `background_directory` (`str` / `list` / `None`): Background k-mer DB(s) from `background()` (default: `None`).
         - `random_seed` (`int` / `None`): Seed for local RNG (default: `None`).
         - `verbose` (`bool`): If `True`, logs progress to stdout (default: `True`).
@@ -71,11 +71,9 @@ def barcode(
             (aliases: 'term', 't', 'fast', 'spec', 's', 'slow').
         - Terminus optimization targets distinctive 5'/3' ends; spectrum optimization targets k-mer saturation.
         - At least one of `left_context_column` or `right_context_column` must be specified.
-        - If `excluded_motifs` is a CSV or DataFrame, it must have an 'Exmotif' column.
-        - `excluded_motifs` can be a list, CSV, DataFrame, or FASTA file.
-        - `background_directory` screens designed barcodes against background k-mers (e.g., transcriptome, vector
-            backbone, or other reference sequences). Supports one or more DBs (paths and/or vectorDB instances);
-            designs avoid k-mers in ALL specified DBs.
+        - `excluded_motifs`: one or more sources (list/dict), merged; strict ATGC only; CSV/DataFrame requires 'Exmotif';
+            FASTA sources are supported.
+        - `background_directory` screens against one or more background k-mer DB(s); designs avoid k-mers in ALL specified DBs.
         - If design is challenging, adjust `barcode_length`, `minimum_hamming_distance`, `maximum_repeat_length`,
             and/or `excluded_motifs`, or switch `barcode_type`.
         - Constant anchors (e.g., index prefix/suffix) are typically designed first (see `motif`, `motif_type=1`).
@@ -286,12 +284,10 @@ def barcode(
 
     # Full exmotifs Parsing and Validation
     (exmotifs,
-    exmotifs_valid) = vp.get_parsed_exseqs_info(
-        exseqs=exmotifs,
-        exseqs_field='   Excluded Motifs  ',
-        exseqs_desc='Unique Motif(s)',
-        df_field='Exmotif',
-        required=False,
+    exmotifs_valid,
+    exmotif_inputs) = vp.get_parsed_exmotifs(
+        exmotifs=exmotifs,
+        exmotifs_field='   Excluded Motifs  ',
         liner=liner)
 
     # Full background Parsing and Validation
@@ -1044,6 +1040,11 @@ def barcode(
     # Close Backgrounds
     for bg in opened_backgrounds:
         bg.close()
+
+    # Excluded-motif attribution for stats
+    ut.stamp_exmotif_stats(
+        stats=stats,
+        exmotif_inputs=exmotif_inputs)
 
     # Close Liner
     liner.close()

@@ -77,7 +77,7 @@ df, stats = op.barcode(
     patch_mode=False,              # bool
     cross_barcode_columns=None,    # str | list | None
     minimum_cross_distance=None,   # int | None
-    excluded_motifs=None,          # list | str | pd.DataFrame | None
+    excluded_motifs=None,          # list | str | dict | pd.DataFrame | None
     background_directory=None,     # str | list | None
     random_seed=None,              # int | None
     verbose=True,                  # bool
@@ -102,7 +102,7 @@ df, stats = op.barcode(
 - `patch_mode` (bool, default=False): Fill only missing values (`None`/`NaN`/empty/`'-'`); existing values must be valid ATGC of length `barcode_length`
 - `cross_barcode_columns` (str | list | None, default=None): Existing barcode column(s) for cross-set separation
 - `minimum_cross_distance` (int | None, default=None): Min Hamming distance to cross set (requires `cross_barcode_columns`)
-- `excluded_motifs` (list | str | DataFrame | None, default=None): Motifs to exclude (list, CSV, DataFrame with `Exmotif` column, or FASTA)
+- `excluded_motifs` (list | str | dict | DataFrame | None, default=None): Motifs to exclude. Accepts a list, CSV/FASTA path, DataFrame with `Exmotif` column, comma-string, or multiple sources (list of sources or `{name: source}` dict). Motifs must be strict ATGC only (no IUPAC codes, no dashes).
 - `background_directory` (str | list | None, default=None): Background k-mer DB(s) from `background()` (screened against ALL specified DBs; junction-aware when context columns are provided)
 - `random_seed` (int | None, default=None): RNG seed for reproducibility
 - `verbose` (bool, default=True): Print progress output
@@ -157,7 +157,7 @@ df, stats = op.primer(
     patch_mode=False,              # bool
     oligo_sets=None,               # list | str | pd.DataFrame | None
     paired_primer_column=None,     # str | None
-    excluded_motifs=None,          # list | str | pd.DataFrame | None
+    excluded_motifs=None,          # list | str | dict | pd.DataFrame | None
     background_directory=None,     # str | list | None
     random_seed=None,              # int | None
     verbose=True,                  # bool
@@ -183,7 +183,7 @@ df, stats = op.primer(
 - `patch_mode` (bool, default=False): Fill only missing values (`None`/`NaN`/empty/`'-'`)
 - `oligo_sets` (list | str | DataFrame | None, default=None): Per-row grouping labels for set-specific primers (list, CSV, or DataFrame with `ID` + `OligoSet`)
 - `paired_primer_column` (str | None, default=None): Column of paired primer for Tm matching (within 1°C)
-- `excluded_motifs` (list | str | DataFrame | None, default=None): Motifs to exclude (list, CSV, DataFrame with `Exmotif`, or FASTA)
+- `excluded_motifs` (list | str | dict | DataFrame | None, default=None): Motifs to exclude. Accepts a list, CSV/FASTA path, DataFrame with `Exmotif` column, comma-string, or multiple sources. Strict ATGC only (no IUPAC codes, no dashes).
 - `background_directory` (str | list | None, default=None): Background k-mer DB(s) from `background()` (screened against ALL specified DBs)
 - `random_seed` (int | None, default=None): RNG seed for reproducibility
 - `verbose` (bool, default=True): Print progress output
@@ -237,7 +237,7 @@ df, stats = op.motif(
     left_context_column=None,      # str | None
     right_context_column=None,     # str | None
     patch_mode=False,              # bool
-    excluded_motifs=None,          # list | str | pd.DataFrame | None
+    excluded_motifs=None,          # list | str | dict | pd.DataFrame | None
     background_directory=None,     # str | list | None
     random_seed=None,              # int | None
     verbose=True,                  # bool
@@ -259,7 +259,7 @@ df, stats = op.motif(
 - `left_context_column` (str | None, default=None): Column for left DNA context
 - `right_context_column` (str | None, default=None): Column for right DNA context
 - `patch_mode` (bool, default=False): Fill only missing values; for `motif_type=1`, existing anchor (must be unique across all rows) is reused
-- `excluded_motifs` (list | str | DataFrame | None, default=None): Motifs to exclude (list, CSV, DataFrame with `Exmotif`, or FASTA)
+- `excluded_motifs` (list | str | dict | DataFrame | None, default=None): Motifs to exclude. Accepts a list, CSV/FASTA path, DataFrame with `Exmotif` column, comma-string, or multiple sources. Strict ATGC only (no IUPAC codes, no dashes).
 - `background_directory` (str | list | None, default=None): Background k-mer DB(s) from `background()` (screened against ALL specified DBs; junction-aware when context columns are provided)
 - `random_seed` (int | None, default=None): RNG seed for reproducibility
 - `verbose` (bool, default=True): Print progress output
@@ -310,7 +310,7 @@ df, stats = op.spacer(
     left_context_column=None,      # str | None
     right_context_column=None,     # str | None
     patch_mode=False,              # bool
-    excluded_motifs=None,          # list | str | pd.DataFrame | None
+    excluded_motifs=None,          # list | str | dict | pd.DataFrame | None
     background_directory=None,     # str | list | None
     random_seed=None,              # int | None
     verbose=True,                  # bool
@@ -331,7 +331,7 @@ df, stats = op.spacer(
 - `left_context_column` (str | None, default=None): Column for left DNA context
 - `right_context_column` (str | None, default=None): Column for right DNA context
 - `patch_mode` (bool, default=False): Fill only missing values (`None`/`NaN`/empty/`'-'`)
-- `excluded_motifs` (list | str | DataFrame | None, default=None): Motifs to exclude (list, CSV, DataFrame with `Exmotif`, or FASTA)
+- `excluded_motifs` (list | str | dict | DataFrame | None, default=None): Motifs to exclude. Accepts a list, CSV/FASTA path, DataFrame with `Exmotif` column, comma-string, or multiple sources. Strict ATGC only (no IUPAC codes, no dashes).
 - `background_directory` (str | list | None, default=None): Background k-mer DB(s) from `background()` (screened against ALL specified DBs; junction-aware when context columns are provided)
 - `random_seed` (int | None, default=None): RNG seed for reproducibility
 - `verbose` (bool, default=True): Print progress output
@@ -558,7 +558,7 @@ df, stats = op.verify(
 
     # Optional
     output_file=None,              # str | None
-    excluded_motifs=None,          # list | str | pd.DataFrame | None
+    excluded_motifs=None,          # list | str | dict | pd.DataFrame | None
     background_directory=None,     # str | list | None
     verbose=True,                  # bool
 )
@@ -572,7 +572,7 @@ df, stats = op.verify(
 **Optional Parameters**
 
 - `output_file` (str | None, default=None): Output CSV path (required for CLI)
-- `excluded_motifs` (list | str | DataFrame | None, default=None): Motifs to check for emergence; list, comma-separated string, or DataFrame with `Exmotif` column
+- `excluded_motifs` (list | str | dict | DataFrame | None, default=None): Motifs to check for emergence. Accepts a list, CSV/FASTA path, DataFrame with `Exmotif` column, comma-string, or multiple sources. Strict ATGC only (no IUPAC codes, no dashes).
 - `background_directory` (str | list | None, default=None): Background k-mer DB path(s) from `background()` (checked against all specified DBs)
 - `verbose` (bool, default=True): Print progress output
 
@@ -597,10 +597,18 @@ df, stats = op.verify(
 
 **CLI Equivalent**:
 ```bash
+# Single source (comma-separated motifs)
 op verify \
     --input-data library.csv \
     --oligo-length-limit 200 \
     --excluded-motifs GAATTC,GGATCC \
+    --output-file results
+
+# Multiple sources (merged)
+op verify \
+    --input-data library.csv \
+    --oligo-length-limit 200 \
+    --excluded-motifs cutsites.csv homopolymers.csv \
     --output-file results
 ```
 

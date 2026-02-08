@@ -32,10 +32,9 @@ Four modes (library + CLI):
 
 - Python entry point: `import oligopool as op`
 - CLI entry points: `op` and `oligopool` are equivalent.
-- CLI help model: there is no `--help` flag; use:
-  - `op` (main menu)
-  - `op COMMAND` (command options)
-  - `op manual TOPIC` and `op manual topics`
+- CLI help model:
+  - `op --help` / `op COMMAND --help` (quick reference)
+  - `op manual TOPIC` and `op manual topics` (full docs)
   - `op cite` (citation)
   - `op complete` (argcomplete)
 - CLI file outputs: prefer basenames (no suffix). The CLI appends the appropriate
@@ -57,7 +56,8 @@ Four modes (library + CLI):
 - Context columns: `left_context_column` / `right_context_column` prevent *edge
   effects* (undesired motifs/repeats spanning an insertion boundary).
 - `excluded_motifs`: global "do not create these" list (restriction sites, Type
-  IIS sites, primers, etc.; many modules accept it).
+  IIS sites, primers, etc.; many modules accept it). Accepts single source or
+  multiple sources (list of sources or `{name: source}` dict). Strict ATGC only.
 - `background_directory`: screen designed elements against one or more background
   k-mer DB(s) created by `background()` (single path or list of paths; supported
   by multiple Design/QC modules).
@@ -182,7 +182,7 @@ Design Mode:
 - `barcode`: design Hamming-separated barcodes (supports cross-set constraints).
 - `spacer`: fill length (supports per-ID lengths; can auto-fill).
 - `lenstat`: ruler/telemetry for oligo lengths mid-pipeline.
-- `verify`: QC: detect length, exmotif emergence, and background conflicts (returns DataFrame + stats).
+- `verify`: QC: detect length, motif emergence, and background conflicts (CLI: "motif").
 - `final`: concatenate into synthesis-ready `CompleteOligo` (+ length).
 - `merge`/`revcomp`: mid-pipeline architecture maneuvers.
 
@@ -197,8 +197,10 @@ Degenerate Mode:
 Analysis Mode:
 - `index`: build barcode(+associate) index; requires constant anchors.
 - `pack`: preprocess FastQ into packs for counting.
-- `acount`: association counting (barcode <-> associate); supports `failed_reads_file` sampling.
-- `xcount`: barcode-only counting (single or combinatorial); supports `failed_reads_file` sampling.
+- `acount`: association counting (barcode <-> associate).
+- `xcount`: barcode-only counting (single or combinatorial).
+  - both `acount` and `xcount` support `failed_reads_file` sampling
+    for assessing analysis failures
 
 ## Workflow Templates
 

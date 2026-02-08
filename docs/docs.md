@@ -226,7 +226,15 @@ The simplest approach is to pass a list:
 df, stats = op.barcode(..., excluded_motifs=['GAATTC', 'GGATCC'])
 ```
 
-You can also pass a CSV path, a DataFrame with an `Exmotif` column, or a FASTA file. See the
+You can also pass a CSV path, a DataFrame with an `Exmotif` column, or a FASTA file. To use
+multiple motif sets, pass a list of sources or a `{name: source}` dict:
+
+```python
+df, stats = op.barcode(..., excluded_motifs=['cutsites.csv', 'homopolymers.csv'])
+df, stats = op.barcode(..., excluded_motifs={'cutsites': 'cutsites.csv', 'homo': ['AAAA', 'TTTT']})
+```
+
+All sources are merged; motifs must be strict ATGC (no IUPAC, no dashes). See the
 [API Reference](api.md#barcode) for details.
 
 > **Note**: Excluded motifs are applied globally to all variants (no per-variant exclusion).
@@ -574,7 +582,7 @@ df, stats = op.verify(
 **Output DataFrame columns:**
 - `HasLengthConflict`, `HasExmotifConflict`, `HasBackgroundConflict`: Boolean flags
 - `HasAnyConflicts`: Combined OR of above
-- `*ConflictDetails`: Dict with violation details (or None)
+- `*Details` (currently `*ConflictDetails`): Dict with violation details (or None)
 
 **How columns are concatenated:**
 - Uses `CompleteOligo` if present; otherwise concatenates all **pure ATGC columns** left-to-right
@@ -594,8 +602,8 @@ for col in detail_cols:
 ```
 
 **Notes (the stuff that bites people):**
-- `verify` now returns `(DataFrame, stats)` like other design modules (breaking change from previous stats-only return).
-- `oligo_length_limit` is now **required** (no longer optional).
+- `verify` returns `(DataFrame, stats)` like other design modules.
+- `oligo_length_limit` is **required**.
 - Motif **emergence** = count exceeds library-wide minimum; flagged even if baseline >= 1.
 - Motif matching is literal substring matching; IUPAC bases are not expanded as wildcards.
 

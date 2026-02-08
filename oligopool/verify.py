@@ -14,7 +14,7 @@ def verify(
     input_data:str|pd.DataFrame,
     oligo_length_limit:int,
     output_file:str|None=None,
-    excluded_motifs:list|str|pd.DataFrame|None=None,
+    excluded_motifs:list|str|dict|pd.DataFrame|None=None,
     background_directory:str|list|None=None,
     verbose:bool=True) -> Tuple[pd.DataFrame, dict]:
     '''
@@ -29,9 +29,8 @@ def verify(
     Optional Parameters:
         - `output_file` (`str` / `None`): Output CSV filename; required in CLI usage, optional in
             library usage (default: `None`). A `.oligopool.verify.csv` suffix is added if missing.
-        - `excluded_motifs` (`list` / `str` / `pd.DataFrame` / `None`): Motifs to check for emergence;
-            can be a list, comma-separated string, or DataFrame with 'Exmotif' column (default: `None`).
-        - `background_directory` (`str` / `list` / `None`): Background k-mer DB path(s) from `background()`
+        - `excluded_motifs` (`list` / `str` / `dict` / `pd.DataFrame` / `None`): Excluded motif source(s) (default: `None`).
+        - `background_directory` (`str` / `list` / `None`): Background k-mer DB(s) from `background()`
             (default: `None`).
         - `verbose` (`bool`): If `True`, logs progress to stdout (default: `True`).
 
@@ -45,11 +44,12 @@ def verify(
         - IUPAC/degenerate columns are skipped silently during DNA column detection.
         - Length conflict: oligo length exceeds `oligo_length_limit`.
         - Exmotif conflict: motif count exceeds library-wide minimum (baseline).
-        - Background conflict: any k-mer in oligo matches a background database.
-            If multiple background DBs are provided, conflicts are flagged if a k-mer matches
-            any of the specified DBs.
+            `excluded_motifs`: one or more sources (list/dict), merged; strict ATGC only; CSV/DataFrame requires 'Exmotif';
+            FASTA sources are supported.
+        - Background conflict: any k-mer in an oligo matches a background DB; with multiple DBs, any match flags a conflict.
         - Conflict details are stored as dicts in the DataFrame; when written to CSV, they are
-            serialized as JSON strings (parse back with `json.loads()` for any `*ConflictDetails` column).
+            serialized as JSON strings (parse back with `json.loads()` for any `*Details` column; currently
+            the `*ConflictDetails` columns).
     '''
 
     # Preserve return style when the caller intentionally used ID as index.
@@ -118,12 +118,10 @@ def verify(
 
     # Full exmotifs Parsing and Validation (optional)
     (exmotifs,
-    exmotifs_valid) = vp.get_parsed_exseqs_info(
-        exseqs=exmotifs,
-        exseqs_field='   Excluded Motifs  ',
-        exseqs_desc='Unique Motif(s)',
-        df_field='Exmotif',
-        required=False,
+    exmotifs_valid,
+    exmotif_inputs) = vp.get_parsed_exmotifs(
+        exmotifs=exmotifs,
+        exmotifs_field='   Excluded Motifs  ',
         liner=liner)
 
     # Full background Parsing and Validation
@@ -370,6 +368,11 @@ def verify(
         },
         'warns': warns
     }
+
+    # Excluded-motif attribution for stats (uniform across modules)
+    ut.stamp_exmotif_stats(
+        stats=stats,
+        exmotif_inputs=exmotif_inputs)
 
     # Write output CSV if specified
     if outfile is not None:

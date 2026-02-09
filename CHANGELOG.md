@@ -3,6 +3,8 @@
 2. CLI: `--excluded-motifs` now accepts multiple values (space-separated) for barcode/primer/motif/spacer/verify.
 3. Validation/Core: added `validation_parsing.get_parsed_exmotifs()` polymorphic wrapper; added `utils.is_strict_DNA()` and `utils.stamp_exmotif_stats()`.
 4. Strict ATGC enforcement: excluded motifs must be concrete ATGC strings (no IUPAC codes, no dashes).
+5. Utility: added `inspect` (stats-only) to summarize non-CSV artifacts (background DBs, `.oligopool.index`, `.oligopool.pack`) and added `op inspect` CLI command.
+6. Inspect: reports a `verdict` (`Valid`/`Corrupted`/`Invalid`) plus artifact metadata (background K/LEN, index anchors/gaps, pack type/size/read counts).
 
 2026.02.04
 1. Feature: `background_directory` now accepts multiple background DBs (list of `.oligopool.background` paths or `vectorDB` instances) in `barcode`, `primer`, `motif`, `spacer`, and `verify`; screening is applied across ALL specified DBs.

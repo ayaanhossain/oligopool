@@ -21,8 +21,6 @@ Complete parameter reference for all `oligopool` modules.
 - [`background`](#background) - K-mer screening database
 - [`merge`](#merge) - Collapse columns
 - [`revcomp`](#revcomp) - Reverse complement
-- [`lenstat`](#lenstat) - Length statistics
-- [`verify`](#verify) - Conflict detection
 - [`final`](#final) - Finalize for synthesis
 
 **Assembly Mode**
@@ -38,6 +36,11 @@ Complete parameter reference for all `oligopool` modules.
 - [`pack`](#pack) - Preprocess FastQ
 - [`acount`](#acount) - Association counting
 - [`xcount`](#xcount) - Combinatorial counting
+
+**QC Mode**
+- [`lenstat`](#lenstat) - Length statistics
+- [`verify`](#verify) - Conflict detection
+- [`inspect`](#inspect) - Inspect artifacts
 
 **Advanced**
 - [`vectorDB`](#vectordb) - K-mer database
@@ -497,119 +500,6 @@ op revcomp \
     --left-context-column Gene \
     --right-context-column Primer3 \
     --output-file revcomped
-```
-
-[↑ Back to TOC](#table-of-contents)
-
----
-
-### `lenstat`
-
-**Purpose**: Report length statistics and free space remaining (non-destructive).
-
-**Signature**:
-```python
-stats = op.lenstat(
-    # Required
-    input_data,                    # str | pd.DataFrame
-    oligo_length_limit,            # int
-
-    # Optional
-    verbose=True,                  # bool
-)
-```
-
-**Required Parameters**
-
-- `input_data` (str | DataFrame): CSV path or DataFrame with `ID` column + DNA sequence columns
-- `oligo_length_limit` (int, ≥4): Reference length limit for free space calculation
-
-**Optional Parameters**
-
-- `verbose` (bool, default=True): Print progress output
-
-**Returns**: `stats_dict` (stats-only, no DataFrame, no `output_file`)
-
-**Notes**:
-- Non-destructive; use to check remaining space before adding more elements
-- Reports min/max/mean lengths and free space distribution
-
-**CLI Equivalent**:
-```bash
-op lenstat \
-    --input-data library.csv \
-    --oligo-length-limit 200
-```
-
-[↑ Back to TOC](#table-of-contents)
-
----
-
-### `verify`
-
-**Purpose**: Verify oligo pool for length, motif emergence, and background k-mer conflicts.
-
-**Signature**:
-```python
-df, stats = op.verify(
-    # Required
-    input_data,                    # str | pd.DataFrame
-    oligo_length_limit,            # int
-
-    # Optional
-    output_file=None,              # str | None
-    excluded_motifs=None,          # list | str | dict | pd.DataFrame | None
-    background_directory=None,     # str | list | None
-    verbose=True,                  # bool
-)
-```
-
-**Required Parameters**
-
-- `input_data` (str | DataFrame): CSV path or DataFrame with `ID` column and at least one DNA column (ATGC only)
-- `oligo_length_limit` (int): Maximum allowed oligo length (>= 4)
-
-**Optional Parameters**
-
-- `output_file` (str | None, default=None): Output CSV path (required for CLI)
-- `excluded_motifs` (list | str | dict | DataFrame | None, default=None): Motifs to check for emergence. Accepts a list, CSV/FASTA path, DataFrame with `Exmotif` column, comma-string, or multiple sources. Strict ATGC only (no IUPAC codes, no dashes).
-- `background_directory` (str | list | None, default=None): Background k-mer DB path(s) from `background()` (checked against all specified DBs)
-- `verbose` (bool, default=True): Print progress output
-
-**Returns**: `(DataFrame, stats_dict)` — DataFrame contains per-row conflict flags and details
-
-**Output DataFrame Columns**:
-- `ID`: Original row identifier
-- `CompleteOligo`: Concatenated oligo sequence
-- `OligoLength`: Length of CompleteOligo
-- `HasLengthConflict`: True if length exceeds `oligo_length_limit`
-- `HasExmotifConflict`: True if motif emergence detected (False if `excluded_motifs=None`)
-- `HasBackgroundConflict`: True if k-mer matches background DB (False if `background_directory=None`)
-- `HasAnyConflicts`: OR of above three flags
-- `LengthConflictDetails`, `ExmotifConflictDetails`, `BackgroundConflictDetails`: Dict or None with violation details
-
-**Notes**:
-- Uses `CompleteOligo` column if present; otherwise concatenates all pure ATGC columns left-to-right
-- IUPAC/degenerate columns are skipped silently during DNA column detection
-- **Emergence**: A motif has emergence when its count exceeds the library-wide minimum (baseline)
-- Conflict details are Python dicts in the returned DataFrame; serialized as JSON strings in CSV output
-- **Reading CSV back**: Parse JSON for all `*Details` columns (currently the `*ConflictDetails` columns; e.g., loop over columns ending in `Details` and apply `json.loads`).
-
-**CLI Equivalent**:
-```bash
-# Single source (comma-separated motifs)
-op verify \
-    --input-data library.csv \
-    --oligo-length-limit 200 \
-    --excluded-motifs GAATTC,GGATCC \
-    --output-file results
-
-# Multiple sources (merged)
-op verify \
-    --input-data library.csv \
-    --oligo-length-limit 200 \
-    --excluded-motifs cutsites.csv homopolymers.csv \
-    --output-file results
 ```
 
 [↑ Back to TOC](#table-of-contents)
@@ -1238,6 +1128,170 @@ op xcount \
     --index-files bc1_index,bc2_index \
     --pack-file sample \
     --count-file combo_counts
+```
+
+[↑ Back to TOC](#table-of-contents)
+
+---
+
+## QC Mode
+
+### `lenstat`
+
+**Purpose**: Report length statistics and free space remaining (non-destructive).
+
+**Signature**:
+```python
+stats = op.lenstat(
+    # Required
+    input_data,                    # str | pd.DataFrame
+    oligo_length_limit,            # int
+
+    # Optional
+    verbose=True,                  # bool
+)
+```
+
+**Required Parameters**
+
+- `input_data` (str | DataFrame): CSV path or DataFrame with `ID` column + DNA sequence columns
+- `oligo_length_limit` (int, ≥4): Reference length limit for free space calculation
+
+**Optional Parameters**
+
+- `verbose` (bool, default=True): Print progress output
+
+**Returns**: `stats_dict` (stats-only, no DataFrame, no `output_file`)
+
+**Notes**:
+- Non-destructive; use to check remaining space before adding more elements
+- Reports min/max/mean lengths and free space distribution
+
+**CLI Equivalent**:
+```bash
+op lenstat \
+    --input-data library.csv \
+    --oligo-length-limit 200
+```
+
+[↑ Back to TOC](#table-of-contents)
+
+---
+
+### `verify`
+
+**Purpose**: Verify oligo pool for length, motif emergence, and background k-mer conflicts.
+
+**Signature**:
+```python
+df, stats = op.verify(
+    # Required
+    input_data,                    # str | pd.DataFrame
+    oligo_length_limit,            # int
+
+    # Optional
+    output_file=None,              # str | None
+    excluded_motifs=None,          # list | str | dict | pd.DataFrame | None
+    background_directory=None,     # str | list | None
+    verbose=True,                  # bool
+)
+```
+
+**Required Parameters**
+
+- `input_data` (str | DataFrame): CSV path or DataFrame with `ID` column and at least one DNA column (ATGC only)
+- `oligo_length_limit` (int): Maximum allowed oligo length (>= 4)
+
+**Optional Parameters**
+
+- `output_file` (str | None, default=None): Output CSV path (required for CLI)
+- `excluded_motifs` (list | str | dict | DataFrame | None, default=None): Motifs to check for emergence. Accepts a list, CSV/FASTA path, DataFrame with `Exmotif` column, comma-string, or multiple sources. Strict ATGC only (no IUPAC codes, no dashes).
+- `background_directory` (str | list | None, default=None): Background k-mer DB path(s) from `background()` (checked against all specified DBs)
+- `verbose` (bool, default=True): Print progress output
+
+**Returns**: `(DataFrame, stats_dict)` — DataFrame contains per-row conflict flags and details
+
+**Output DataFrame Columns**:
+- `ID`: Original row identifier
+- `CompleteOligo`: Concatenated oligo sequence
+- `OligoLength`: Length of CompleteOligo
+- `HasLengthConflict`: True if length exceeds `oligo_length_limit`
+- `HasExmotifConflict`: True if motif emergence detected (False if `excluded_motifs=None`)
+- `HasBackgroundConflict`: True if k-mer matches background DB (False if `background_directory=None`)
+- `HasAnyConflicts`: OR of above three flags
+- `LengthConflictDetails`, `ExmotifConflictDetails`, `BackgroundConflictDetails`: Dict or None with violation details
+
+**Notes**:
+- Uses `CompleteOligo` column if present; otherwise concatenates all pure ATGC columns left-to-right
+- IUPAC/degenerate columns are skipped silently during DNA column detection
+- **Emergence**: A motif has emergence when its count exceeds the library-wide minimum (baseline)
+- Conflict details are Python dicts in the returned DataFrame; serialized as JSON strings in CSV output
+- **Reading CSV back**: Parse JSON for all `*Details` columns (currently the `*ConflictDetails` columns; e.g., loop over columns ending in `Details` and apply `json.loads`).
+
+**CLI Equivalent**:
+```bash
+# Single source (comma-separated motifs)
+op verify \
+    --input-data library.csv \
+    --oligo-length-limit 200 \
+    --excluded-motifs GAATTC,GGATCC \
+    --output-file results
+
+# Multiple sources (merged)
+op verify \
+    --input-data library.csv \
+    --oligo-length-limit 200 \
+    --excluded-motifs cutsites.csv homopolymers.csv \
+    --output-file results
+```
+
+[↑ Back to TOC](#table-of-contents)
+
+---
+
+### `inspect`
+
+**Purpose**: Inspect non-CSV artifacts produced by Oligopool Calculator (background DBs, index files, pack files).
+
+**Signature**:
+```python
+stats = op.inspect(
+    # Required
+    target,                        # str
+
+    # Optional
+    kind='auto',                   # str
+    verbose=True,                  # bool
+)
+```
+
+**Required Parameters**
+
+- `target` (str): Artifact path (background directory, `.oligopool.index`, or `.oligopool.pack`)
+
+**Optional Parameters**
+
+- `kind` (str, default=`auto`): `background`, `index`, `pack`, or `auto`
+- `verbose` (bool, default=True): Print progress output
+
+**Returns**: `stats_dict` (stats-only module) — summary is stored under `stats['vars']['meta']` and `stats['vars']['verdict']`
+
+**Notes**:
+- Read-only: does not repair artifacts and never unpickles unsafe objects
+- Background directories are validated before opening to avoid accidentally creating a new DB
+- Index summary loads `meta.map` if present; pack summary loads `packing.stat` if present
+- `stats['status']=True` only when `stats['vars']['verdict']=='Valid'`
+
+**CLI Equivalent**:
+```bash
+# Background directory
+op inspect --target demo.oligopool.background --stats-json --quiet
+
+# Index file
+op inspect --target BC1.oligopool.index --stats-json --quiet
+
+# Pack file
+op inspect --target reads.oligopool.pack --stats-json --quiet
 ```
 
 [↑ Back to TOC](#table-of-contents)

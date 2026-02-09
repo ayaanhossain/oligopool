@@ -133,6 +133,8 @@ That's it. You just designed unique barcodes with guaranteed Hamming distance. N
 
 ### The DataFrame Flow
 
+[↑ Back to TOC](#table-of-contents)
+
 Most modules return both a DataFrame and a stats dictionary:
 
 ```python
@@ -155,6 +157,8 @@ stats = op.background(input_data=[...], output_directory='ref_bg')
 
 ### The Stats Dictionary
 
+[↑ Back to TOC](#table-of-contents)
+
 Every module returns a `stats` dict with:
 - `status`: `True` (success) or `False` (failed)
 - `basis`: Why it succeeded/failed
@@ -165,6 +169,8 @@ Every module returns a `stats` dict with:
 When debugging, start with `status`, `basis`, and `step_name`, then inspect `vars` for the concrete values that drove the decision.
 
 ### Patch Mode: The Secret Weapon
+
+[↑ Back to TOC](#table-of-contents)
 
 Extending an existing library? Don't redesign everything:
 
@@ -229,11 +235,15 @@ Note: `'-'` is not meaningful biological context — avoid using placeholder-onl
 
 ### String-Friendly Type Selectors
 
+[↑ Back to TOC](#table-of-contents)
+
 Many `*_type` parameters accept either integer codes or descriptive strings (case-insensitive), e.g.
 `barcode_type='terminus'`, `primer_type='forward'`, `motif_type='anchor'`, `pack_type='merge'`,
 `mapping_type='sensitive'`. See the [API Reference](api.md) for the full alias list.
 
 ### Context Columns and Edge Effects
+
+[↑ Back to TOC](#table-of-contents)
 
 Most design modules need to know what's next to the element being designed:
 
@@ -254,6 +264,8 @@ For the main element-design modules (`barcode`, `primer`, `motif`, `spacer`), at
 
 ### Reproducibility
 
+[↑ Back to TOC](#table-of-contents)
+
 All stochastic design modules support `random_seed` for reproducible results:
 
 ```python
@@ -263,6 +275,8 @@ df, stats = op.barcode(..., random_seed=42)
 Same seed + same inputs = same outputs. Great for debugging and publications.
 
 ### Verbose Mode
+
+[↑ Back to TOC](#table-of-contents)
 
 Control output verbosity with `verbose` (default: `True`):
 
@@ -1115,6 +1129,8 @@ op inspect --target demo.oligopool.background --stats-json --quiet
 
 ### Basic Library Design
 
+[↑ Back to TOC](#table-of-contents)
+
 Start with your variants in a CSV (must have an `ID` column):
 
 ```python
@@ -1189,6 +1205,8 @@ final_df, _ = op.final(input_data=df, output_file='library_for_synthesis')
 ```
 
 ### Analysis Pipeline
+
+[↑ Back to TOC](#table-of-contents)
 
 First, index your barcodes. The anchors (constant flanking sequences) help locate barcodes in reads:
 
@@ -1279,6 +1297,8 @@ op complete --install
 
 ### CLI-Specific Notes
 
+[↑ Back to TOC](#table-of-contents)
+
 **CLI outputs require an output basename**: Unlike the Python API (where many modules can return results in-memory), CLI commands that write files require an output basename (e.g., `--output-file`, `--index-file`, `--pack-file`, `--count-file`, `--mapping-file`, `--synthesis-file`).
 
 **Output filenames are auto-suffixed**: Commands append a suffix if missing (e.g., `.oligopool.barcode.csv`), so prefer basenames like `--output-file output_basename` to avoid doubled extensions.
@@ -1314,6 +1334,8 @@ The CLI supports YAML config files for repeatable, documented workflows. Config 
 
 ### Single Command Config
 
+[↑ Back to TOC](#table-of-contents)
+
 Use `--config` with any command to load parameters from a YAML file:
 
 ```bash
@@ -1346,6 +1368,8 @@ op barcode --config barcode_design.yaml --barcode-length 20
 ```
 
 ### Pipeline Execution
+
+[↑ Back to TOC](#table-of-contents)
 
 Run multi-step workflows from a single config with `op pipeline`:
 
@@ -1402,6 +1426,8 @@ final:
 Each step's config section specifies explicit `input_data` and `output_file` paths, giving you full control over the data flow.
 
 ### Parallel Pipeline Execution
+
+[↑ Back to TOC](#table-of-contents)
 
 For workflows with independent branches, use the parallel (DAG) format to run steps concurrently:
 
@@ -1467,6 +1493,8 @@ op pipeline --config parallel_pipeline.yaml --dry-run
 
 ### Dry Run Validation
 
+[↑ Back to TOC](#table-of-contents)
+
 Validate a pipeline config without executing:
 
 ```bash
@@ -1477,6 +1505,8 @@ This checks that all steps are valid commands and displays the parameters for ea
 
 ### Config Precedence
 
+[↑ Back to TOC](#table-of-contents)
+
 Parameter values are resolved in this order (highest priority first):
 
 1. **CLI arguments** - Always win
@@ -1484,6 +1514,8 @@ Parameter values are resolved in this order (highest priority first):
 3. **Command defaults** - Built-in defaults
 
 ### Config Tips
+
+[↑ Back to TOC](#table-of-contents)
 
 1. **Use comments liberally**: YAML supports `#` comments - document your design choices.
 2. **Keep configs in version control**: Reproducibility for future you.
@@ -1499,6 +1531,8 @@ Parameter values are resolved in this order (highest priority first):
 
 ### Design Tips
 
+[↑ Back to TOC](#table-of-contents)
+
 1. **Design anchors before barcodes**: Use `motif(motif_type=1)` for constant anchors, then design barcodes adjacent to them.
 
 2. **Check length early and often**: Run `lenstat` after each element to avoid surprises.
@@ -1510,6 +1544,8 @@ Parameter values are resolved in this order (highest priority first):
 5. **Mind the edge effects**: Always specify context columns - repeat collisions at boundaries are sneaky.
 
 ### Analysis Tips
+
+[↑ Back to TOC](#table-of-contents)
 
 1. **Index anchors matter**: The quality of your anchors determines counting accuracy. Design them well.
 
@@ -1524,6 +1560,8 @@ Parameter values are resolved in this order (highest priority first):
 6. **Scale knobs**: For analysis, tune `core_count` and `memory_limit` together when runs are slow or memory constrained.
 
 ### Performance Tips
+
+[↑ Back to TOC](#table-of-contents)
 
 1. **Parallelize**: Most modules auto-detect cores. For analysis, ensure you have RAM (memory_limit parameter).
 
@@ -1541,9 +1579,13 @@ Most complex oligo library designs don't require new features — they require c
 
 ### The Decomposition Principle
 
+[↑ Back to TOC](#table-of-contents)
+
 Every compound oligo element can be built from the primitive modules (`motif`, `barcode`, `primer`, `spacer`) joined by `merge`, flipped by `revcomp`, and threaded via context columns. Every complex analysis can be built from independent `index` files, reusable `pack` files, `acount` vs `xcount`, and `callback` functions. Constraint composition (`excluded_motifs` + `background`) threads across the entire pipeline. Because modules accept/return DataFrames, you can freely insert small `pandas` transforms between steps to glue pipelines together. When an ask seems to require a new feature, decompose it into existing primitives first.
 
 ### Design Recipes
+
+[↑ Back to TOC](#table-of-contents)
 
 #### Barcode with Embedded Restriction Site
 
@@ -1763,6 +1805,8 @@ df, _ = op.revcomp(
 
 ### Constraint Composition
 
+[↑ Back to TOC](#table-of-contents)
+
 #### Cut-Site-Free Library with Host Genome Screening
 
 **The ask**: "I need a library with no EcoRI or BamHI sites anywhere, and no homology to the E. coli genome."
@@ -1827,6 +1871,8 @@ print(f"Any conflicts? {verify_stats['vars']['any_conflict']}")
 **Why pipeline-wide matters**: Each design module avoids creating the motif within its own element. But a motif could emerge at the **junction** between two independently designed elements. Context columns help within a single module call, but `verify` checks the fully concatenated oligo for any remaining conflicts.
 
 ### Analysis Recipes
+
+[↑ Back to TOC](#table-of-contents)
 
 #### Multi-Index Combinatorial Counting
 
@@ -1934,6 +1980,8 @@ op.index(
 
 ### Degenerate Recipes
 
+[↑ Back to TOC](#table-of-contents)
+
 Degenerate mode (`compress`/`expand`) supports multiple workflows: (1) cost-efficient synthesis of large variant sets via IUPAC-degenerate oligos, (2) selection-based screens where you sequence survivors and map them back using `mapping_df`, and (3) “compression for analysis” where a single degenerate library (plus its mapping) becomes a reusable bridge between sequencing results and the original variant IDs.
 
 #### Saturation Mutagenesis Compression
@@ -2004,6 +2052,8 @@ hits = mapping_df[mapping_df['Sequence'].isin(survivors['Sequence'])]
 
 ### Application Templates
 
+[↑ Back to TOC](#table-of-contents)
+
 These compact templates show how the primitives compose for common biological applications. Adapt parameters to your specific constraints.
 
 #### Promoter MPRA Library
@@ -2056,6 +2106,8 @@ At analysis time, build two indexes (`BC_molecule`, `BC_state`) and use `xcount(
 
 ### Composability Cheat Sheet
 
+[↑ Back to TOC](#table-of-contents)
+
 | # | Ask | Compose |
 |---|-----|---------|
 | 1 | Embed restriction site in barcode | `barcode` → `motif(const)` → `barcode` → `merge` |
@@ -2080,6 +2132,8 @@ At analysis time, build two indexes (`BC_molecule`, `BC_state`) and use `xcount(
 
 ### Notes (the stuff that bites people)
 
+[↑ Back to TOC](#table-of-contents)
+
 Composability works because each module enforces local constraints against explicit context, then passes structured outputs forward. The “gotchas” are mostly about where constraints *actually apply* (junctions, reverse complements, terminal outputs) and which APIs are available in CLI vs Python.
 
 - **Reverse-complements for `excluded_motifs`**: Literal substring matching (strict ATGC only). To avoid dsDNA sites, include motif + reverse complement for non-palindromes; palindromes only need one.
@@ -2097,6 +2151,8 @@ Composability works because each module enforces local constraints against expli
 For power users who want to peek under the hood:
 
 ### vectorDB
+
+[↑ Back to TOC](#table-of-contents)
 
 LevelDB-based k-mer storage. Created by `background()`, but you can access it directly.
 
@@ -2128,6 +2184,8 @@ Useful for inspecting or manipulating background databases.
 > **API Reference**: See [`vectorDB`](api.md#vectordb) for complete method documentation.
 
 ### Scry
+
+[↑ Back to TOC](#table-of-contents)
 
 1-nearest-neighbor barcode classifier. Powers `acount`/`xcount` internally.
 
@@ -2162,6 +2220,8 @@ Useful for building custom counting pipelines or debugging classification issues
 
 ### Design Failures
 
+[↑ Back to TOC](#table-of-contents)
+
 **"Barcode Design Infeasible"**
 - Reduce `minimum_hamming_distance`
 - Increase `barcode_length`
@@ -2181,6 +2241,8 @@ Useful for building custom counting pipelines or debugging classification issues
 - Consider splitting with `split` + `pad`
 
 ### Analysis Issues
+
+[↑ Back to TOC](#table-of-contents)
 
 **Debugging failed reads**
 - Use `failed_reads_file` to sample discarded reads by failure category (anchor missing, barcode absent, barcode ambiguous, callback rejected, etc.)
@@ -2204,6 +2266,8 @@ Useful for building custom counting pipelines or debugging classification issues
 - Verify read length covers all barcode positions
 
 ### General
+
+[↑ Back to TOC](#table-of-contents)
 
 **"ID column missing/invalid"**
 - Input DataFrame must have a unique `ID` column

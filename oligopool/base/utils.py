@@ -504,6 +504,7 @@ def liner_engine(online=True):
 
     # Book-keeping
     clrlen = 0
+    istty  = sys.stdout.isatty()
 
     # Online
     try:
@@ -512,9 +513,10 @@ def liner_engine(online=True):
             # Receive String
             printstr = (yield)
 
-            # Line Preservation
+            # Strip |* Prefix
             if online and printstr.startswith('|*'):
-                sys.stdout.write('\n')
+                if istty:
+                    sys.stdout.write('\n')
                 clrlen   = 0
                 printstr = removestarfix(
                     string=printstr,
@@ -523,14 +525,24 @@ def liner_engine(online=True):
 
             # Line String
             if online:
-                sys.stdout.write('\r' + ' '*clrlen)
-                sys.stdout.write('\r' + printstr)
-                # Only track length after last newline for proper clearing
-                if '\n' in printstr:
-                    clrlen = len(printstr.rsplit('\n', 1)[-1])
-                else:
-                    clrlen = len(printstr)
-                sys.stdout.flush()
+
+                # TTY Mode: overwrite current line in-place
+                if istty:
+                    sys.stdout.write('\r' + ' '*clrlen)
+                    sys.stdout.write('\r' + printstr)
+                    # Only track length after last newline for proper clearing
+                    if '\n' in printstr:
+                        clrlen = len(printstr.rsplit('\n', 1)[-1])
+                    else:
+                        clrlen = len(printstr)
+                    sys.stdout.flush()
+
+                # Pipe Mode: only emit persistent lines (contain \n)
+                # to avoid flooding non-TTY consumers with ephemeral
+                # carriage-return progress updates
+                elif '\n' in printstr:
+                    sys.stdout.write(printstr)
+                    sys.stdout.flush()
 
     # Closure
     except GeneratorExit:

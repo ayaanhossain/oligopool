@@ -1109,7 +1109,7 @@ for col in detail_cols:
 
 [↑ Back to TOC](#table-of-contents)
 
-`inspect` is a small utility for inspecting non-CSV artifacts produced by `Oligopool Calculator` (background DBs, index files, pack files). It is stats-only and does not write an output file. The returned `stats['vars']['verdict']` is `Valid`, `Corrupted`, or `Invalid` (`stats['status']=True` only for `Valid`).
+`inspect` is a small utility for inspecting non-CSV artifacts produced by `Oligopool Calculator` (background DBs, index files, pack files). It is stats-only and does not write an output file. The returned `stats['vars']['verdict']` is `Valid`, `Corrupted`, or `Invalid` (`stats['status']=True` only for `Valid`). If the artifact is `Valid`, the module describes the contents of the artifact (e.g. How many k-mers in the background? What fraction of scanned reads were deduplicated? etc.)
 
 ```python
 stats = op.inspect(target='demo.oligopool.background')

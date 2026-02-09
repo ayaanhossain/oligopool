@@ -4,7 +4,7 @@
     </a>
 </h1>
 
-<h4><p align="center">Version: 2026.02.01</p></h4>
+<h4><p align="center">Version: 2026.02.08</p></h4>
 
 <p align="center">
   <a href="#features" style="text-decoration: none !important;">✨ Features</a> •
@@ -36,10 +36,11 @@ To learn more, please check out [our paper in ACS Synthetic Biology](https://pub
 <a id="features"></a>
 ## ✨ Features
 
-- 🧬 **Design mode:** constraint-based design of barcodes, primers, motifs/anchors, and spacers with background screening and utilities (`barcode`, `primer`, `motif`, `spacer`, `background`, `merge`, `revcomp`, `lenstat`, `verify`, `final`).
+- 🧬 **Design mode:** constraint-based design of barcodes, primers, motifs/anchors, and spacers with background screening and utilities (`barcode`, `primer`, `motif`, `spacer`, `background`, `merge`, `revcomp`, `final`).
 - 🔧 **Assembly mode:** fragment long oligos into overlapping pieces and add Type IIS primer pads for scarless assembly (`split`, `pad`).
 - 🧪 **Degenerate mode:** compress variant libraries with low mutational diversity into IUPAC-degenerate oligos for cost-efficient synthesis (`compress`, `expand`).
 - 📈 **Analysis mode:** fast NGS-based activity quantification with read indexing, packing, and barcode/associate counting (`index`, `pack`, `acount`, `xcount`) extensible with callback methods (via Python library).
+- ✅ **QC mode:** validate and inspect constraints and outputs (`lenstat`, `verify`, `inspect`).
 - 🔁 **Iterative & multiplexed workflows:** `patch_mode` for extending existing pools, cross-set barcode separation, and per-group primer design with cross-compatibility screening.
 - ⚡ **Performance:** scalable to very large libraries and high-throughput sequencing datasets, with published benchmarks demonstrating efficient design and analysis on commodity hardware (see paper).
 - 🔒 **Rich constraints:** IUPAC sequence constraints, motif exclusion, repeat screening, Hamming-distance barcodes, and primer thermodynamic constraints (including optional paired-primer Tm matching).
@@ -83,7 +84,7 @@ Successful installation will look like this.
 $ python
 >>> import oligopool as op
 >>> op.__version__
-'2026.02.01'
+'2026.02.08'
 >>>
 ```
 
@@ -121,8 +122,6 @@ $ python
         background  k-mer database for off-target screening
         merge       collapse columns into single element
         revcomp     reverse complement a column range
-        lenstat     length statistics and free-space check
-        verify      verify length, motif, and background conflicts
         final       concatenate into synthesis-ready oligos
 
     Assembly Mode - fragment long oligos for assembly
@@ -138,6 +137,11 @@ $ python
         pack        filter/merge/deduplicate FastQ reads
         acount      association counting (barcode + variant verification)
         xcount      combinatorial counting (single or multiple barcodes)
+
+    QC Mode - validate and inspect outputs
+        lenstat     length statistics and free-space check
+        verify      verify length, motif, and background conflicts
+        inspect     inspect background/index/pack artifacts
 
     Advanced
         vectorDB    LevelDB k-mer storage
@@ -172,7 +176,7 @@ Run `op` with no arguments to see the command list, and run `op COMMAND` to see 
 ```bash
 $ op
 
-oligopool v2026.02.01
+oligopool v2026.02.08
 by ah
 
 Oligopool Calculator is a suite of algorithms for
@@ -202,6 +206,7 @@ COMMANDS Available:
 
     lenstat     compute length stats and free space
     verify      detect length, motif, and background conflicts
+
     final       finalize into synthesis-ready oligos
 
     compress    compress sequences into IUPAC-degenerate oligos
@@ -211,6 +216,8 @@ COMMANDS Available:
     pack        preprocess and deduplicate FastQ reads
     acount      association counting (single index)
     xcount      combinatorial counting (multiple indexes)
+
+    inspect     inspect non-CSV artifacts
 
     complete    print or install shell completion
 

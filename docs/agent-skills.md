@@ -21,12 +21,12 @@ and then module docstrings (`help(op.<module>)`) for runtime truth.
 
 ## Surface Area
 
-Four modes (library + CLI):
-- Design Mode: `background`, `primer`, `motif`, `barcode`, `spacer`, plus `lenstat`,
-  `verify`, `final`, `merge`, `revcomp`.
+Five modes (library + CLI):
+- Design Mode: `background`, `primer`, `motif`, `barcode`, `spacer`, `merge`, `revcomp`, `final`.
 - Assembly Mode: `split`, `pad` (for synthesis limits / post-synthesis assembly).
 - Degenerate Mode: `compress`, `expand` (cost optimization via IUPAC-degenerate oligos, selection-based discovery workflows).
 - Analysis Mode: `index`, `pack`, `acount`, `xcount` (counting from sequencing reads).
+- QC Mode: `lenstat`, `verify`, `inspect` (validate outputs + inspect non-CSV artifacts).
 
 ## Interface Map
 
@@ -71,7 +71,7 @@ Four modes (library + CLI):
 ## Return Shapes
 
 - Most design/transform modules: `(out_df, stats_dict)`
-- Stats-only modules: `background`, `lenstat`, `index`, `pack`
+- Stats-only modules: `background`, `lenstat`, `inspect`, `index`, `pack`
 - Counting modules: `(counts_df, stats_dict)` for `acount` and `xcount`
 - `compress`: `(mapping_df, synthesis_df, stats_dict)` (two DataFrames)
 - `split`: returns either `(df, stats)` or `([df_Split1, df_Split2, ...], stats)`
@@ -181,10 +181,8 @@ Design Mode:
 - `motif`: insert motifs or design constant anchors (`motif_type='constant'`).
 - `barcode`: design Hamming-separated barcodes (supports cross-set constraints).
 - `spacer`: fill length (supports per-ID lengths; can auto-fill).
-- `lenstat`: ruler/telemetry for oligo lengths mid-pipeline.
-- `verify`: QC: detect length, motif emergence, and background conflicts (CLI: "motif").
-- `final`: concatenate into synthesis-ready `CompleteOligo` (+ length).
 - `merge`/`revcomp`: mid-pipeline architecture maneuvers.
+- `final`: concatenate into synthesis-ready `CompleteOligo` (+ length).
 
 Assembly Mode:
 - `split`: fragment long oligos into overlapping pieces.
@@ -202,10 +200,18 @@ Analysis Mode:
   - both `acount` and `xcount` support `failed_reads_file` sampling
     for assessing analysis failures
 
+QC Mode:
+- `lenstat`: ruler/telemetry for oligo lengths mid-pipeline.
+- `verify`: detect length, motif emergence, and background conflicts (CLI: "motif").
+- `inspect`: inspect non-CSV artifacts (background/index/pack) and summarize their metadata.
+
 ## Workflow Templates
 
 Design:
-`background -> primer -> motif -> barcode -> spacer -> verify -> final`
+`background -> primer -> motif -> barcode -> spacer -> lenstat -> verify -> final`
+
+QC:
+`lenstat -> verify` (and `inspect` for background/index/pack artifacts as needed)
 
 Assembly (long constructs):
 `split (separate outputs) -> pad (per fragment) -> final (per fragment)`

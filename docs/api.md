@@ -59,6 +59,8 @@ Complete parameter reference for all `oligopool` modules.
 
 ### `barcode`
 
+[↑ Back to TOC](#table-of-contents)
+
 **Purpose**: Generate Hamming-distance separated barcodes for unique variant identification.
 
 **Signature**:
@@ -137,6 +139,8 @@ op barcode \
 ---
 
 ### `primer`
+
+[↑ Back to TOC](#table-of-contents)
 
 **Purpose**: Design thermodynamically optimal primers for amplification with Tm constraints and optional background screening.
 
@@ -222,6 +226,8 @@ op primer \
 
 ### `motif`
 
+[↑ Back to TOC](#table-of-contents)
+
 **Purpose**: Insert sequence motifs (per-variant or constant anchors) with constraint satisfaction.
 
 **Signature**:
@@ -296,6 +302,8 @@ op motif \
 
 ### `spacer`
 
+[↑ Back to TOC](#table-of-contents)
+
 **Purpose**: Insert neutral DNA spacers to meet length requirements.
 
 **Signature**:
@@ -363,6 +371,8 @@ op spacer \
 
 ### `background`
 
+[↑ Back to TOC](#table-of-contents)
+
 **Purpose**: Build a k-mer database for screening designed sequences against off-target repeats.
 
 **Signature**:
@@ -408,6 +418,8 @@ op background \
 ---
 
 ### `merge`
+
+[↑ Back to TOC](#table-of-contents)
 
 **Purpose**: Concatenate contiguous columns into a single column.
 
@@ -460,6 +472,8 @@ op merge \
 
 ### `revcomp`
 
+[↑ Back to TOC](#table-of-contents)
+
 **Purpose**: Reverse complement a range of columns and reverse their order.
 
 **Signature**:
@@ -508,6 +522,8 @@ op revcomp \
 
 ### `final`
 
+[↑ Back to TOC](#table-of-contents)
+
 **Purpose**: Concatenate all columns into synthesis-ready oligos.
 
 **Signature**:
@@ -553,6 +569,8 @@ op final \
 Assembly Mode provides tools for fragmenting long oligos that exceed synthesis length limits into overlapping pieces for assembly workflows.
 
 ### `split`
+
+[↑ Back to TOC](#table-of-contents)
 
 **Purpose**: Break long oligos into overlapping fragments for overlap-based assembly (Gibson, overlap-extension PCR, etc.).
 
@@ -619,6 +637,8 @@ Tip: CLI defaults to separate files. Use `--no-separate-outputs` to write a sing
 ---
 
 ### `pad`
+
+[↑ Back to TOC](#table-of-contents)
 
 **Purpose**: Add primers and Type IIS restriction sites to split fragments for scarless assembly.
 
@@ -690,6 +710,8 @@ Degenerate Mode compresses variant libraries with low mutational diversity into 
 
 ### `compress`
 
+[↑ Back to TOC](#table-of-contents)
+
 **Purpose**: Compress concrete DNA sequences into IUPAC-degenerate oligos for cost-efficient synthesis.
 
 **Signature**:
@@ -748,6 +770,8 @@ op compress \
 
 ### `expand`
 
+[↑ Back to TOC](#table-of-contents)
+
 **Purpose**: Expand IUPAC-degenerate sequences into all concrete A/T/G/C sequences.
 
 **Signature**:
@@ -802,6 +826,8 @@ op expand \
 ## Analysis Mode
 
 ### `index`
+
+[↑ Back to TOC](#table-of-contents)
 
 **Purpose**: Build a searchable index of barcodes (and optional associates) for counting.
 
@@ -880,6 +906,8 @@ op index \
 ---
 
 ### `pack`
+
+[↑ Back to TOC](#table-of-contents)
 
 **Purpose**: Preprocess FastQ files - filter, optionally merge paired-ends, deduplicate.
 
@@ -967,6 +995,8 @@ op pack \
 ---
 
 ### `acount`
+
+[↑ Back to TOC](#table-of-contents)
 
 **Purpose**: Association counting - verify barcode-variant coupling in reads.
 
@@ -1059,6 +1089,8 @@ op acount \
 
 ### `xcount`
 
+[↑ Back to TOC](#table-of-contents)
+
 **Purpose**: Barcode-only counting (single or combinatorial) without associate verification.
 
 **Signature**:
@@ -1138,6 +1170,8 @@ op xcount \
 
 ### `lenstat`
 
+[↑ Back to TOC](#table-of-contents)
+
 **Purpose**: Report length statistics and free space remaining (non-destructive).
 
 **Signature**:
@@ -1179,6 +1213,8 @@ op lenstat \
 ---
 
 ### `verify`
+
+[↑ Back to TOC](#table-of-contents)
 
 **Purpose**: Verify oligo pool for length, motif emergence, and background k-mer conflicts.
 
@@ -1251,6 +1287,8 @@ op verify \
 
 ### `inspect`
 
+[↑ Back to TOC](#table-of-contents)
+
 **Purpose**: Inspect non-CSV artifacts produced by Oligopool Calculator (background DBs, index files, pack files).
 
 **Signature**:
@@ -1302,6 +1340,8 @@ op inspect --target reads.oligopool.pack --stats-json --quiet
 
 ### vectorDB
 
+[↑ Back to TOC](#table-of-contents)
+
 **Purpose**: LevelDB-based k-mer storage. Created by `background()`, accessible directly for custom workflows.
 
 **Constructor**:
@@ -1347,6 +1387,8 @@ db.drop()                          # Delete DB from disk
 ---
 
 ### Scry
+
+[↑ Back to TOC](#table-of-contents)
 
 **Purpose**: 1-nearest-neighbor barcode classifier. Powers `acount`/`xcount` internally.
 
@@ -1394,6 +1436,8 @@ label, score = model.predict('ATGCATGC')  # ('bc1', 1.0)
 
 ### IUPAC Codes
 
+[↑ Back to TOC](#table-of-contents)
+
 | Code | Bases | Description |
 |------|-------|-------------|
 | A | A | Adenine |
@@ -1418,6 +1462,8 @@ label, score = model.predict('ATGCATGC')  # ('bc1', 1.0)
 
 ### Common Restriction Sites
 
+[↑ Back to TOC](#table-of-contents)
+
 | Enzyme | Recognition Sequence |
 |--------|---------------------|
 | EcoRI | GAATTC |
@@ -1441,6 +1487,8 @@ label, score = model.predict('ATGCATGC')  # ('bc1', 1.0)
 
 ### Type IIS Enzymes
 
+[↑ Back to TOC](#table-of-contents)
+
 Supported enzymes for `pad()` (34 total):
 
 `AcuI`, `AlwI`, `BbsI`, `BccI`, `BceAI`, `BciVI`, `BcoDI`, `BmrI`, `BpuEI`, `BsaI`, `BseRI`, `BsmAI`, `BsmBI`, `BsmFI`, `BsmI`, `BspCNI`, `BspQI`, `BsrDI`, `BsrI`, `BtgZI`, `BtsCI`, `BtsI`, `BtsIMutI`, `EarI`, `EciI`, `Esp3I`, `FauI`, `HgaI`, `HphI`, `HpyAV`, `MlyI`, `MnlI`, `SapI`, `SfaNI`
@@ -1454,6 +1502,8 @@ For other enzymes, design primers/sites manually with `primer` or `motif`.
 ---
 
 ### File Formats
+
+[↑ Back to TOC](#table-of-contents)
 
 **Input CSV**:
 ```csv
@@ -1487,6 +1537,8 @@ v3,TTAACCGGTTAACCGG
 ---
 
 ### CLI Parameter Mapping
+
+[↑ Back to TOC](#table-of-contents)
 
 Python parameters map to CLI flags by converting `snake_case` to `kebab-case`:
 

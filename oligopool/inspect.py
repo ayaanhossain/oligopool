@@ -249,9 +249,16 @@ def inspect(
                     '     Pack Type   : {}\n'.format(
                         _PACK_TYPES.get(pstat['pack_type'], pstat['pack_type'])))
             if 'pack_size' in pstat:
-                liner.send(
-                    '     Pack Size   : {:.1f}M Reads/Pack\n'.format(
-                        pstat['pack_size']))
+                pack_size = pstat.get('pack_size')
+                if isinstance(pack_size, (int, float)):
+                    # `packing.stat['pack_size']` is stored as raw reads-per-pack.
+                    liner.send(
+                        '     Pack Size   : {:.1f}M Reads/Pack\n'.format(
+                            float(pack_size) / 1e6))
+                else:
+                    liner.send(
+                        '     Pack Size   : {}\n'.format(
+                            pack_size))
             if 'pack_count' in pstat:
                 liner.send(
                     '     Pack Count  : {:,}\n'.format(

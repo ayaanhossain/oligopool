@@ -1,3 +1,11 @@
+2026.02.09
+1. Docs: added Composability section to `docs/docs.md` with worked Python examples for design composition, constraint composition, analysis composition, degenerate recipes, application templates (MPRA, CRISPR, ribozyme dual-barcode readout), and cheat sheet.
+2. Docs: added Composability Recipes section to `docs/agent-skills.md` with dense recipe lookup table, context threading rules, and analysis workflow notes.
+3. Docs: added concrete Patch Mode example to Core Concepts in `docs/docs.md`.
+4. Docs: added back-to-TOC navigation links to all subsections in `docs/docs.md` and `docs/api.md`.
+5. Docs: added stats-dict debugging hint, analysis tips (artifact reuse, scale knobs), and clarified ribozyme dual-barcode narrative in notebook.
+6. Bugfix: `inspect` now correctly converts `pack_size` from raw reads-per-pack to millions for display.
+
 2026.02.08
 1. Feature: `excluded_motifs` now accepts multiple motif sets (list of sources or `{name: source}` dict) in `barcode`, `primer`, `motif`, `spacer`, and `verify`; all sources are merged for screening, with per-set attribution in stats.
 2. CLI: `--excluded-motifs` now accepts multiple values (space-separated) for barcode/primer/motif/spacer/verify.

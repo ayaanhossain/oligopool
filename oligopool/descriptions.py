@@ -18,8 +18,6 @@ PACKAGE_DESCRIPTIONS = {
     'background': 'k-mer database for off-target screening',
     'merge': 'collapse columns into single element',
     'revcomp': 'reverse complement a column range',
-    'lenstat': 'length statistics and free-space check',
-    'verify': 'verify length, motif, and background conflicts',
     'final': 'concatenate into synthesis-ready oligos',
     # Assembly Mode
     'split': 'fragment oligos into overlapping pieces',
@@ -32,6 +30,10 @@ PACKAGE_DESCRIPTIONS = {
     'pack': 'filter/merge/deduplicate FastQ reads',
     'acount': 'association counting (barcode + variant verification)',
     'xcount': 'combinatorial counting (single or multiple barcodes)',
+    # QC Mode
+    'lenstat': 'length statistics and free-space check',
+    'verify': 'verify length, motif, and background conflicts',
+    'inspect': 'inspect background/index/pack artifacts',
 }
 
 
@@ -45,8 +47,6 @@ CLI_DESCRIPTIONS = {
     'background': 'build k-mer background database',
     'merge': 'collapse contiguous columns',
     'revcomp': 'reverse-complement a column range',
-    'lenstat': 'compute length stats and free space',
-    'verify': 'detect length, motif, and background conflicts',
     'final': 'finalize into synthesis-ready oligos',
     # Assembly Mode
     'split': 'break long oligos into overlapping fragments',
@@ -59,6 +59,10 @@ CLI_DESCRIPTIONS = {
     'pack': 'preprocess and deduplicate FastQ reads',
     'acount': 'association counting (single index)',
     'xcount': 'combinatorial counting (multiple indexes)',
+    # QC Mode
+    'lenstat': 'compute length stats and free space',
+    'verify': 'detect length, motif, and background conflicts',
+    'inspect': 'inspect non-CSV artifacts',
     # Other
     'manual': 'show module documentation',
     'cite': 'show citation information',

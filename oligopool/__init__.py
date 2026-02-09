@@ -15,6 +15,7 @@ __api__ = [
     'revcomp',
     'lenstat',
     'verify',
+    'inspect',
     'final',
     'compress',
     'expand',
@@ -35,7 +36,7 @@ __all__ = ['__author__', '__version__']
 # Setup
 __author__ = 'Ayaan Hossain'
 
-__version__ = '2026.02.01'
+__version__ = '2026.02.08'
 
 _LAZY_ATTRS = {
     # Design Mode functions
@@ -48,6 +49,7 @@ _LAZY_ATTRS = {
     'revcomp': ('.revcomp', 'revcomp'),
     'lenstat': ('.lenstat', 'lenstat'),
     'verify': ('.verify', 'verify'),
+    'inspect': ('.inspect', 'inspect'),
     'final': ('.final', 'final'),
     # Assembly Mode functions
     'split': ('.split', 'split'),
@@ -97,8 +99,6 @@ Design Mode - build synthesis-ready oligo architectures
     background  {_PKG_DESC["background"]}
     merge       {_PKG_DESC["merge"]}
     revcomp     {_PKG_DESC["revcomp"]}
-    lenstat     {_PKG_DESC["lenstat"]}
-    verify      {_PKG_DESC["verify"]}
     final       {_PKG_DESC["final"]}
 
 Assembly Mode - fragment long oligos for assembly
@@ -114,6 +114,11 @@ Analysis Mode - quantify variants from NGS reads
     pack        {_PKG_DESC["pack"]}
     acount      {_PKG_DESC["acount"]}
     xcount      {_PKG_DESC["xcount"]}
+
+QC Mode - validate and inspect outputs
+    lenstat     {_PKG_DESC["lenstat"]}
+    verify      {_PKG_DESC["verify"]}
+    inspect     {_PKG_DESC["inspect"]}
 
 Advanced
     vectorDB    LevelDB k-mer storage

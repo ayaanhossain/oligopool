@@ -42,7 +42,7 @@ def lenstat(
     liner = ut.liner_engine(verbose)
 
     # Length Statistics Verbiage Print
-    liner.send('\n[Oligopool Calculator: Design Mode - Length Statistics]\n')
+    liner.send('\n[Oligopool Calculator: QC Mode - Length Statistics]\n')
 
     # Required Argument Parsing
     liner.send('\n Required Arguments\n')

@@ -67,7 +67,7 @@ def verify(
     liner = ut.liner_engine(verbose)
 
     # Verify Verbiage Print
-    liner.send('\n[Oligopool Calculator: Design Mode - Verify]\n')
+    liner.send('\n[Oligopool Calculator: QC Mode - Verify]\n')
 
     # Required Argument Parsing
     liner.send('\n Required Arguments\n')

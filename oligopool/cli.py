@@ -74,6 +74,7 @@ COMMAND_TO_API = {
     'revcomp': ('revcomp', 'revcomp'),
     'verify': ('verify', 'verify'),
     'lenstat': ('lenstat', 'lenstat'),
+    'inspect': ('inspect', 'inspect'),
     'final': ('final', 'final'),
     'compress': ('compress', 'compress'),
     'expand': ('expand', 'expand'),
@@ -462,13 +463,14 @@ class OligopoolParser(argparse.ArgumentParser):
         manual_line = next((line for line in command_lines if line.lstrip().startswith('manual')), None)
         cite_line = next((line for line in command_lines if line.lstrip().startswith('cite')), None)
         pipeline_line = next((line for line in command_lines if line.lstrip().startswith('pipeline')), None)
+        inspect_line = next((line for line in command_lines if line.lstrip().startswith('inspect')), None)
         complete_line = next((line for line in command_lines if line.lstrip().startswith('complete')), None)
-        if manual_line is None or cite_line is None or pipeline_line is None or complete_line is None:
+        if manual_line is None or cite_line is None or pipeline_line is None or inspect_line is None or complete_line is None:
             return text
 
-        special_lines = {manual_line, cite_line, pipeline_line, complete_line}
+        special_lines = {manual_line, cite_line, pipeline_line, inspect_line, complete_line}
         middle_lines = [line for line in command_lines if line not in special_lines]
-        gap_after = {'spacer', 'background', 'pad', 'revcomp', 'final', 'expand'}
+        gap_after = {'spacer', 'background', 'pad', 'revcomp', 'verify', 'final', 'expand'}
         middle_out = []
         for line in middle_lines:
             middle_out.append(line)
@@ -488,6 +490,8 @@ class OligopoolParser(argparse.ArgumentParser):
         out.append(pipeline_line)
         out.append('\n')
         out.extend(middle_out)
+        out.append('\n')
+        out.append(inspect_line)
         out.append('\n')
         out.append(complete_line)
         out.append('\n')
@@ -2453,6 +2457,36 @@ Maximum allowed oligo length for reporting (>= 4).''')
     _add_common_options(parser, opt)
     return parser
 
+def _add_inspect(cmdpar):
+    '''Register the inspect subcommand parser.'''
+    parser = cmdpar.add_parser(
+        'inspect',
+        help=_CLI_DESC['inspect'],
+        description='Inspect non-CSV artifacts (background DBs, index files, pack files).',
+        epilog=_notes_epilog('inspect'),
+        usage=argparse.SUPPRESS,
+        formatter_class=OligopoolFormatter,
+        add_help=False)
+    req = parser.add_argument_group('Required Arguments')
+    opt = parser.add_argument_group('Optional Arguments')
+    req.add_argument(
+        '--target',
+        required=True,
+        type=str,
+        metavar='\b',
+        help='''>>[required string]
+Artifact path: background directory, ".oligopool.index", or ".oligopool.pack".''')
+    opt.add_argument(
+        '--kind',
+        type=str,
+        default='auto',
+        metavar='\b',
+        help='''>>[optional string]
+Artifact kind: background, index, pack, or auto.
+(default: auto).''')
+    _add_common_options(parser, opt)
+    return parser
+
 def _add_final(cmdpar):
     '''Register the final subcommand parser.'''
     parser = cmdpar.add_parser(
@@ -3024,6 +3058,7 @@ def _get_parsers():
     _add_revcomp(cmdpar)
     _add_lenstat(cmdpar)
     _add_verify(cmdpar)
+    _add_inspect(cmdpar)
     _add_final(cmdpar)
     _add_compress(cmdpar)
     _add_expand(cmdpar)
@@ -3253,6 +3288,12 @@ def main(argv=None):
                 result = lenstat(
                     input_data=args.input_data,
                     oligo_length_limit=args.oligo_length_limit,
+                    verbose=args.verbose)
+            case 'inspect':
+                inspect = _load_api_func('inspect')
+                result = inspect(
+                    target=args.target,
+                    kind=args.kind,
                     verbose=args.verbose)
             case 'final':
                 final = _load_api_func('final')

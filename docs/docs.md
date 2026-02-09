@@ -35,8 +35,6 @@ Welcome to the `Oligopool Calculator` docs! Whether you're designing your first 
   - [`background`](#background) - K-mer screening database
   - [`merge`](#merge) - Collapse columns
   - [`revcomp`](#revcomp) - Reverse complement
-  - [`lenstat`](#lenstat) - Length statistics
-  - [`verify`](#verify) - Conflict detection
   - [`final`](#final) - Finalize for synthesis
 - [Assembly Mode](#assembly-mode)
   - [`split`](#split) - Fragment long oligos
@@ -49,6 +47,10 @@ Welcome to the `Oligopool Calculator` docs! Whether you're designing your first 
   - [`pack`](#pack) - Preprocess FastQ
   - [`acount`](#acount) - Association counting
   - [`xcount`](#xcount) - Combinatorial counting
+- [QC Mode](#qc-mode)
+  - [`lenstat`](#lenstat) - Length statistics
+  - [`verify`](#verify) - Conflict detection
+  - [`inspect`](#inspect) - Inspect artifacts
 - [Workflows](#workflows)
 - [CLI Reference](#cli-reference)
 - [Config Files](#config-files)
@@ -113,7 +115,7 @@ stats = op.background(input_data=[...], output_directory='ref_bg')
 - **Input**: CSV path or pandas DataFrame with an `ID` column
 - **Output**:
   - **Design/transform modules** return `(out_df, stats)`
-  - **Stats-only modules** return `stats` (`background`, `lenstat`, `index`, `pack`)
+  - **Stats-only modules** return `stats` (`background`, `lenstat`, `inspect`, `index`, `pack`)
   - **Counting modules** return `(counts_df, stats)` (`acount`, `xcount`)
 - **Chainable**: Output of one module feeds into the next
 
@@ -192,7 +194,7 @@ Design Mode is where you build your library piece by piece. Think of it like mol
 The typical workflow:
 1. Start with your core sequences (variants, promoters, genes, etc.)
 2. Add functional elements: `primer` → `motif` → `barcode` → `spacer`
-3. Validate with `lenstat` and `verify`
+3. Validate in QC Mode with `lenstat` and `verify`
 4. Finalize with `final` to get synthesis-ready oligos
 
 ### `barcode`
@@ -529,85 +531,6 @@ df, stats = op.revcomp(
 - Useful mid-pipeline when you design in "readout orientation" but must synthesize in the opposite orientation (and for sanity-checking `split` fragment orientation).
 
 > **API Reference**: See [`revcomp`](api.md#revcomp) for complete parameter documentation.
-
----
-
-### `lenstat`
-
-[↑ Back to TOC](#table-of-contents)
-
-**What it does**: Reports length statistics and free space remaining.
-
-**When to use it**: Check progress during design, ensure you're within synthesis limits.
-
-```python
-stats = op.lenstat(
-    input_data=df,
-    oligo_length_limit=200,
-)
-# Prints a nice table of per-column and total lengths
-```
-
-**Notes (the stuff that bites people):**
-- `lenstat` is stats-only and does not modify or write your DataFrame (no `output_file`).
-- It assumes all non-ID columns are DNA strings; if you have metadata columns or degenerate/IUPAC bases, use `verify` instead.
-- Run it early and often—especially before `spacer`, `split`, and `pad`.
-
-> **API Reference**: See [`lenstat`](api.md#lenstat) for complete parameter documentation.
-
----
-
-### `verify`
-
-[↑ Back to TOC](#table-of-contents)
-
-**What it does**: Detects length, motif emergence, and background k-mer conflicts in your oligo pool.
-
-**When to use it**: QC check after design, before ordering synthesis.
-
-```python
-df, stats = op.verify(
-    input_data=df,
-    oligo_length_limit=200,
-    excluded_motifs=['GAATTC', 'GGATCC'],  # Restriction sites to flag
-    output_file='verify_results',
-)
-```
-
-**Checks:**
-- **Length conflicts**: Oligos exceeding `oligo_length_limit`
-- **Exmotif conflicts**: Motif emergence (count exceeds library-wide baseline)
-- **Background conflicts**: K-mer matches in background DB(s)
-
-**Output DataFrame columns:**
-- `HasLengthConflict`, `HasExmotifConflict`, `HasBackgroundConflict`: Boolean flags
-- `HasAnyConflicts`: Combined OR of above
-- `*Details` (currently `*ConflictDetails`): Dict with violation details (or None)
-
-**How columns are concatenated:**
-- Uses `CompleteOligo` if present; otherwise concatenates all **pure ATGC columns** left-to-right
-- IUPAC/degenerate columns are skipped silently
-- Gap characters (`'-'`) are stripped
-
-**Reading conflict details from CSV:**
-```python
-import json
-import pandas as pd
-
-df = pd.read_csv('verify_results.oligopool.verify.csv')
-# Parse JSON-serialized dicts in all `*Details` columns
-detail_cols = [c for c in df.columns if c.endswith('Details')]
-for col in detail_cols:
-    df[col] = df[col].apply(lambda x: json.loads(x) if pd.notna(x) else None)
-```
-
-**Notes (the stuff that bites people):**
-- `verify` returns `(DataFrame, stats)` like other design modules.
-- `oligo_length_limit` is **required**.
-- Motif **emergence** = count exceeds library-wide minimum; flagged even if baseline >= 1.
-- Motif matching is literal substring matching; IUPAC bases are not expanded as wildcards.
-
-> **API Reference**: See [`verify`](api.md#verify) for complete parameter documentation.
 
 ---
 
@@ -986,6 +909,114 @@ df, stats = op.xcount(..., callback=my_filter)
 ```
 
 > **API Reference**: See [`xcount`](api.md#xcount) for complete parameter documentation.
+
+---
+
+## QC Mode
+
+[↑ Back to TOC](#table-of-contents)
+
+QC Mode provides utilities for validating designed libraries and inspecting non-CSV artifacts before synthesis or downstream analysis.
+
+The typical workflow:
+1. `lenstat` to check length budget and free space
+2. `verify` to detect length, excluded-motif emergence, and background conflicts
+3. `inspect` to sanity-check background/index/pack artifacts
+
+### `lenstat`
+
+[↑ Back to TOC](#table-of-contents)
+
+**What it does**: Reports length statistics and free space remaining.
+
+**When to use it**: Check progress during design, ensure you're within synthesis limits.
+
+```python
+stats = op.lenstat(
+    input_data=df,
+    oligo_length_limit=200,
+)
+# Prints a nice table of per-column and total lengths
+```
+
+**Notes (the stuff that bites people):**
+- `lenstat` is stats-only and does not modify or write your DataFrame (no `output_file`).
+- It assumes all non-ID columns are DNA strings; if you have metadata columns or degenerate/IUPAC bases, use `verify` instead.
+- Run it early and often—especially before `spacer`, `split`, and `pad`.
+
+> **API Reference**: See [`lenstat`](api.md#lenstat) for complete parameter documentation.
+
+---
+
+### `verify`
+
+[↑ Back to TOC](#table-of-contents)
+
+**What it does**: Detects length, motif emergence, and background k-mer conflicts in your oligo pool.
+
+**When to use it**: QC check after design, before ordering synthesis.
+
+```python
+df, stats = op.verify(
+    input_data=df,
+    oligo_length_limit=200,
+    excluded_motifs=['GAATTC', 'GGATCC'],  # Restriction sites to flag
+    output_file='verify_results',
+)
+```
+
+**Checks:**
+- **Length conflicts**: Oligos exceeding `oligo_length_limit`
+- **Exmotif conflicts**: Motif emergence (count exceeds library-wide baseline)
+- **Background conflicts**: K-mer matches in background DB(s)
+
+**Output DataFrame columns:**
+- `HasLengthConflict`, `HasExmotifConflict`, `HasBackgroundConflict`: Boolean flags
+- `HasAnyConflicts`: Combined OR of above
+- `*Details` (currently `*ConflictDetails`): Dict with violation details (or None)
+
+**How columns are concatenated:**
+- Uses `CompleteOligo` if present; otherwise concatenates all **pure ATGC columns** left-to-right
+- IUPAC/degenerate columns are skipped silently
+- Gap characters (`'-'`) are stripped
+
+**Reading conflict details from CSV:**
+```python
+import json
+import pandas as pd
+
+df = pd.read_csv('verify_results.oligopool.verify.csv')
+# Parse JSON-serialized dicts in all `*Details` columns
+detail_cols = [c for c in df.columns if c.endswith('Details')]
+for col in detail_cols:
+    df[col] = df[col].apply(lambda x: json.loads(x) if pd.notna(x) else None)
+```
+
+**Notes (the stuff that bites people):**
+- `verify` returns `(DataFrame, stats)` like other design/transform modules.
+- `oligo_length_limit` is **required**.
+- Motif **emergence** = count exceeds library-wide minimum; flagged even if baseline >= 1.
+- Motif matching is literal substring matching; IUPAC bases are not expanded as wildcards.
+
+> **API Reference**: See [`verify`](api.md#verify) for complete parameter documentation.
+
+---
+
+### `inspect`
+
+[↑ Back to TOC](#table-of-contents)
+
+`inspect` is a small utility for inspecting non-CSV artifacts produced by Oligopool Calculator (background DBs, index files, pack files). It is stats-only and does not write an output file. The returned `stats['vars']['verdict']` is `Valid`, `Corrupted`, or `Invalid` (`stats['status']=True` only for `Valid`).
+
+```python
+stats = op.inspect(target='demo.oligopool.background')
+```
+
+```bash
+op inspect --target demo.oligopool.background --stats-json --quiet
+```
+
+> **API Reference**: See [`inspect`](api.md#inspect) for complete parameter documentation.
 
 ---
 

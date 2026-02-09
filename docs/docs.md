@@ -258,7 +258,7 @@ df, stats = op.barcode(
 For the main element-design modules (`barcode`, `primer`, `motif`, `spacer`), at least one of
 `left_context_column` or `right_context_column` is required.
 
-**Edge effects** occur when an undesired sequence (excluded motif, repeat) emerges at the fusion boundary when inserting an element. For example, inserting barcode `GAATT` next to context ending in `...G` creates `...GGAATT`, which contains `GAATTC` (EcoRI site) spanning the junction. Context columns let the algorithm check and prevent these.
+**Edge effects** occur when an undesired sequence (excluded motif, repeat) emerges at the fusion boundary when inserting an element. For example, inserting barcode `AATTC` next to context ending in `...G` creates `...GAATTC`, which contains `GAATTC` (EcoRI site) spanning the junction. Context columns let the algorithm check and prevent these.
 
 **Background screening** is the same idea, but against a whole reference (genome, transcriptome, plasmid backbone, …). Build one or more k-mer DBs with `background()`, then pass `background_directory` (single path or list of paths) to `barcode`/`primer`/`motif`/`spacer` (or to `verify` for QC). It is junction-aware when context columns are provided.
 

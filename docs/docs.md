@@ -174,6 +174,52 @@ df, stats = op.barcode(..., patch_mode=True)
 
 Patch mode fills only missing values (`None`, `NaN`, `'-'`, empty). Your existing designs stay untouched. Your sanity stays intact.
 
+Concrete example (append rows, fill only the new ones):
+
+```python
+import pandas as pd
+import oligopool as op
+
+df = pd.DataFrame({
+    'ID': ['V1', 'V2'],
+    'Variant': ['ATGC' * 10, 'GCTA' * 10],
+})
+
+# Initial design
+df, _ = op.barcode(
+    input_data=df,
+    oligo_length_limit=200,
+    barcode_length=12,
+    minimum_hamming_distance=3,
+    maximum_repeat_length=8,
+    barcode_column='BC',
+    left_context_column='Variant',
+)
+
+# If your pipeline keeps ID as the index, normalize back to an ID column:
+if 'ID' not in df.columns:
+    df = df.reset_index()
+
+# Later: append new variants; mark missing barcodes with '-'
+df = pd.concat([df, pd.DataFrame({
+    'ID': ['V3'],
+    'Variant': ['TTAA' * 10],
+    'BC': ['-'],
+})], ignore_index=True)
+
+# Patch mode fills only the '-' row; existing BC values are preserved
+df, _ = op.barcode(
+    input_data=df,
+    oligo_length_limit=200,
+    barcode_length=12,
+    minimum_hamming_distance=3,
+    maximum_repeat_length=8,
+    barcode_column='BC',
+    left_context_column='Variant',
+    patch_mode=True,
+)
+```
+
 Two common orchestration patterns:
 
 - **Pre-seed placeholders**: In scripted pipelines, it’s fine to initialize “future” element columns to `'-'` as placeholders, then fill them later with Patch Mode.

@@ -5,6 +5,7 @@
 4. Docs: added back-to-TOC navigation links to all subsections in `docs/docs.md` and `docs/api.md`.
 5. Docs: added stats-dict debugging hint, analysis tips (artifact reuse, scale knobs), and clarified ribozyme dual-barcode narrative in notebook.
 6. Bugfix: `inspect` now correctly converts `pack_size` from raw reads-per-pack to millions for display.
+7. Bugfix: `liner_engine` now detects non-TTY stdout and suppresses ephemeral carriage-return progress updates in pipe mode, preventing output flooding in CI runners, subprocess consumers, and AI agents; persistent milestone lines are still emitted.
 
 2026.02.08
 1. Feature: `excluded_motifs` now accepts multiple motif sets (list of sources or `{name: source}` dict) in `barcode`, `primer`, `motif`, `spacer`, and `verify`; all sources are merged for screening, with per-set attribution in stats.

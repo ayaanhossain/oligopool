@@ -1,32 +1,24 @@
 '''
-Config file loader and validation for Oligopool CLI.
-
-This module provides YAML config file support for:
-1. Single-command execution from config files
-2. Multi-step pipeline execution from a single config
-3. CLI argument overrides for config values
-4. Parallel/branching pipeline execution with DAG dependencies
-
-Config precedence: CLI args > config file > defaults
+YAML config parsing and validation helpers
+for Oligopool CLI workflows.
+Internal use only.
 '''
 
-from collections import defaultdict
+import collections as cx
 
 import yaml
 
 
+# Parser and Setup Functions
+
 def load_config(path):
-    '''Load and parse a YAML config file.
+    '''
+    Load and parse YAML config file.
+    Internal use only.
 
-    Parameters:
-        path (str): Path to the YAML config file.
-
-    Returns:
-        dict: Parsed config dictionary.
-
-    Raises:
-        FileNotFoundError: If the config file doesn't exist.
-        yaml.YAMLError: If the config file is invalid YAML.
+    :: path
+       type - string
+       desc - path to YAML config file
     '''
     with open(path, 'r', encoding='utf-8') as f:
         config = yaml.safe_load(f)
@@ -35,14 +27,16 @@ def load_config(path):
     return config
 
 def get_command_config(config, command):
-    '''Extract the config section for a specific command.
+    '''
+    Extract command config section.
+    Internal use only.
 
-    Parameters:
-        config (dict): Full config dictionary.
-        command (str): Command name (e.g., 'barcode', 'primer').
-
-    Returns:
-        dict: Config section for the command, or empty dict if not found.
+    :: config
+       type - dict
+       desc - full parsed config dictionary
+    :: command
+       type - string
+       desc - command name to lookup
     '''
     section = config.get(command, {})
     if section is None:
@@ -50,22 +44,13 @@ def get_command_config(config, command):
     return dict(section)
 
 def get_pipeline_steps(config):
-    '''Extract ordered step list from pipeline config.
+    '''
+    Extract pipeline step definitions.
+    Internal use only.
 
-    Parameters:
-        config (dict): Full config dictionary.
-
-    Returns:
-        list: List of step/command names in execution order.
-
-    Example config:
-        pipeline:
-          name: "MPRA Design"
-          steps:
-            - primer
-            - barcode
-            - spacer
-            - final
+    :: config
+       type - dict
+       desc - full parsed config dictionary
     '''
     pipeline = config.get('pipeline', {})
     if pipeline is None:
@@ -76,13 +61,13 @@ def get_pipeline_steps(config):
     return list(steps)
 
 def get_pipeline_name(config):
-    '''Extract pipeline name from config.
+    '''
+    Extract pipeline name string.
+    Internal use only.
 
-    Parameters:
-        config (dict): Full config dictionary.
-
-    Returns:
-        str: Pipeline name, or 'Unnamed Pipeline' if not specified.
+    :: config
+       type - dict
+       desc - full parsed config dictionary
     '''
     pipeline = config.get('pipeline', {})
     if pipeline is None:
@@ -90,17 +75,13 @@ def get_pipeline_name(config):
     return pipeline.get('name', 'Unnamed Pipeline')
 
 def validate_config_structure(config):
-    '''Validate basic config structure and return warnings.
+    '''
+    Validate top-level config structure.
+    Internal use only.
 
-    Parameters:
-        config (dict): Full config dictionary.
-
-    Returns:
-        list: List of warning messages (empty if valid).
-
-    Notes:
-        - This performs structural validation only.
-        - Parameter validation is handled by the existing validation_parsing.py.
+    :: config
+       type - dict
+       desc - full parsed config dictionary
     '''
     warnings = []
 
@@ -121,19 +102,13 @@ def validate_config_structure(config):
     return warnings
 
 def convert_config_keys_to_args(config_section):
-    '''Convert config keys to CLI-compatible argument names.
+    '''
+    Normalize config keys for argparse.
+    Internal use only.
 
-    YAML config uses snake_case (e.g., 'barcode_length').
-    CLI args use kebab-case (e.g., '--barcode-length').
-    argparse converts kebab-case to snake_case attributes.
-
-    This function ensures config keys match argparse attribute names.
-
-    Parameters:
-        config_section (dict): Config section for a command.
-
-    Returns:
-        dict: Config with keys converted to snake_case.
+    :: config_section
+       type - dict
+       desc - command config section
     '''
     converted = {}
     for key, value in config_section.items():
@@ -143,31 +118,13 @@ def convert_config_keys_to_args(config_section):
     return converted
 
 def is_parallel_pipeline(config):
-    '''Check if the pipeline uses parallel/DAG-style step definitions.
+    '''
+    Determine if pipeline is DAG-style.
+    Internal use only.
 
-    Parallel pipelines use dict-style steps with name/command/after fields.
-    Sequential pipelines use simple string lists.
-
-    Parameters:
-        config (dict): Full config dictionary.
-
-    Returns:
-        bool: True if pipeline uses parallel step definitions.
-
-    Example parallel config:
-        pipeline:
-          steps:
-            - name: fwd_primer
-              command: primer
-            - name: barcode
-              command: barcode
-              after: [fwd_primer]
-
-    Example sequential config:
-        pipeline:
-          steps:
-            - primer
-            - barcode
+    :: config
+       type - dict
+       desc - full parsed config dictionary
     '''
     steps = get_pipeline_steps(config)
     if not steps:
@@ -176,19 +133,13 @@ def is_parallel_pipeline(config):
     return isinstance(steps[0], dict)
 
 def parse_parallel_steps(config):
-    '''Parse parallel pipeline steps into normalized step definitions.
+    '''
+    Parse and normalize pipeline steps.
+    Internal use only.
 
-    Parameters:
-        config (dict): Full config dictionary.
-
-    Returns:
-        list: List of step dicts with keys: name, command, after, config_key
-
-    Each returned step dict contains:
-        - name: Step identifier (for dependencies)
-        - command: The oligopool command to run
-        - after: List of step names this step depends on
-        - config_key: Key to look up step config (defaults to name)
+    :: config
+       type - dict
+       desc - full parsed config dictionary
     '''
     steps = get_pipeline_steps(config)
     parsed = []
@@ -209,7 +160,8 @@ def parse_parallel_steps(config):
             config_key = step.get('config', name)
 
             if name is None:
-                raise ValueError(f"Pipeline step missing 'name': {step}")
+                raise ValueError(
+                    "Pipeline step missing 'name': {}".format(step))
 
             # Normalize 'after' to list
             if after is None:
@@ -224,39 +176,19 @@ def parse_parallel_steps(config):
                 'config_key': config_key,
             })
         else:
-            raise ValueError(f"Invalid pipeline step format: {step}")
+            raise ValueError(
+                'Invalid pipeline step format: {}'.format(step))
 
     return parsed
 
 def build_execution_levels(steps):
-    '''Build execution levels from step dependencies (topological sort).
+    '''
+    Build execution levels from dependencies.
+    Internal use only.
 
-    Groups steps into levels where all steps in a level can run in parallel.
-    Steps in level N+1 depend on steps in levels 0..N.
-
-    Parameters:
-        steps (list): Parsed step definitions from parse_parallel_steps().
-
-    Returns:
-        list: List of levels, where each level is a list of step dicts
-              that can execute in parallel.
-
-    Raises:
-        ValueError: If there's a cycle in dependencies or unknown dependency.
-
-    Example:
-        Input steps:
-          - {name: 'a', after: []}
-          - {name: 'b', after: []}
-          - {name: 'c', after: ['a', 'b']}
-          - {name: 'd', after: ['c']}
-
-        Output levels:
-          [
-            [{name: 'a', ...}, {name: 'b', ...}],  # Level 0: parallel
-            [{name: 'c', ...}],                     # Level 1: after a,b
-            [{name: 'd', ...}],                     # Level 2: after c
-          ]
+    :: steps
+       type - list
+       desc - normalized step definitions
     '''
     if not steps:
         return []
@@ -267,19 +199,22 @@ def build_execution_levels(steps):
         for dep in step['after']:
             if dep not in step_by_name:
                 raise ValueError(
-                    f"Step '{step['name']}' depends on unknown step '{dep}'"
+                    "Step '{}' depends on unknown step '{}'".format(
+                        step['name'], dep)
                 )
 
     # Kahn's algorithm for topological sort with level tracking
     in_degree = {s['name']: len(s['after']) for s in steps}
-    dependents = defaultdict(list)
+    dependents = cx.defaultdict(list)
     for step in steps:
         for dep in step['after']:
             dependents[dep].append(step['name'])
 
     # Start with steps that have no dependencies
     levels = []
-    current_level = [step_by_name[name] for name, deg in in_degree.items() if deg == 0]
+    current_level = [
+        step_by_name[name] for name, deg in in_degree.items() \
+            if deg == 0]
 
     processed = set()
     while current_level:
@@ -297,22 +232,24 @@ def build_execution_levels(steps):
 
     # Check for cycles
     if len(processed) != len(steps):
-        unprocessed = [s['name'] for s in steps if s['name'] not in processed]
+        unprocessed = [
+            s['name'] for s in steps \
+                if s['name'] not in processed]
         raise ValueError(
-            f"Cycle detected in pipeline dependencies. "
-            f"Steps involved: {', '.join(unprocessed)}"
+            'Cycle detected in pipeline dependencies. Steps involved: {}'.format(
+                ', '.join(unprocessed))
         )
 
     return levels
 
 def validate_parallel_pipeline(config):
-    '''Validate a parallel pipeline config and return warnings/errors.
+    '''
+    Validate DAG-style pipeline structure.
+    Internal use only.
 
-    Parameters:
-        config (dict): Full config dictionary.
-
-    Returns:
-        list: List of warning/error messages (empty if valid).
+    :: config
+       type - dict
+       desc - full parsed config dictionary
     '''
     warnings = []
 
@@ -331,7 +268,7 @@ def validate_parallel_pipeline(config):
     seen = set()
     for name in names:
         if name in seen:
-            warnings.append(f"Duplicate step name: '{name}'")
+            warnings.append("Duplicate step name: '{}'".format(name))
         seen.add(name)
 
     # Check that config sections exist for each step
@@ -339,8 +276,8 @@ def validate_parallel_pipeline(config):
         config_key = step['config_key']
         if config_key not in config:
             warnings.append(
-                f"Step '{step['name']}' references config section '{config_key}' "
-                f"which is not defined."
+                "Step '{}' references config section '{}' which is not defined.".format(
+                    step['name'], config_key)
             )
 
     # Try to build execution levels (checks for cycles)

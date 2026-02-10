@@ -95,7 +95,7 @@ Welcome to the `Oligopool Calculator` docs! Whether you're designing your first 
 
 ## Quick Start
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 ```python
 import pandas as pd
@@ -129,11 +129,11 @@ That's it. You just designed unique barcodes with guaranteed Hamming distance. N
 
 ## Core Concepts
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 ### The DataFrame Flow
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 Most modules return both a DataFrame and a stats dictionary:
 
@@ -153,11 +153,11 @@ stats = op.background(input_data=[...], output_directory='ref_bg')
   - **Stats-only modules** return `stats` (`background`, `lenstat`, `inspect`, `index`, `pack`)
   - **Counting modules** return `(counts_df, stats)` (`acount`, `xcount`)
 - **Chainable**: Output of one module feeds into the next
-- **Placeholders**: `'-'` is a conventional “gap/placeholder” value. Some modules treat `'-'` as missing in Patch Mode, and `final` ignores `'-'` when concatenating.
+- **Placeholders**: `'-'` is a conventional "gap/placeholder" value. Some modules treat `'-'` as missing in Patch Mode, and `final` ignores `'-'` when concatenating.
 
 ### The Stats Dictionary
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 Every module returns a `stats` dict with:
 - `status`: `True` (success) or `False` (failed)
@@ -170,7 +170,7 @@ When debugging, start with `status`, `basis`, and `step_name`, then inspect `var
 
 ### Patch Mode: The Secret Weapon
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 Extending an existing library? Don't redesign everything:
 
@@ -228,14 +228,14 @@ df, _ = op.barcode(
 
 Two common orchestration patterns:
 
-- **Pre-seed placeholders**: In scripted pipelines, it’s fine to initialize “future” element columns to `'-'` as placeholders, then fill them later with Patch Mode.
+- **Pre-seed placeholders**: In scripted pipelines, it's fine to initialize "future" element columns to `'-'` as placeholders, then fill them later with Patch Mode.
 - **Drop + redesign**: If you intentionally want to redesign a whole element column, drop it first (otherwise most modules treat it as an output column that already exists).
 
-Note: `'-'` is not meaningful biological context — avoid using placeholder-only columns as `left_context_column`/`right_context_column`.
+Note: `'-'` is not meaningful biological context - avoid using placeholder-only columns as `left_context_column`/`right_context_column`.
 
 ### String-Friendly Type Selectors
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 Many `*_type` parameters accept either integer codes or descriptive strings (case-insensitive), e.g.
 `barcode_type='terminus'`, `primer_type='forward'`, `motif_type='anchor'`, `pack_type='merge'`,
@@ -243,7 +243,7 @@ Many `*_type` parameters accept either integer codes or descriptive strings (cas
 
 ### Context Columns and Edge Effects
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 Most design modules need to know what's next to the element being designed:
 
@@ -258,13 +258,16 @@ df, stats = op.barcode(
 For the main element-design modules (`barcode`, `primer`, `motif`, `spacer`), at least one of
 `left_context_column` or `right_context_column` is required.
 
+When both are provided, newly designed columns are inserted between those context columns in the DataFrame.
+This means dependency/context specification also resolves final linear column ordering for downstream `merge`.
+
 **Edge effects** occur when an undesired sequence (excluded motif, repeat) emerges at the fusion boundary when inserting an element. For example, inserting barcode `AATTC` next to context ending in `...G` creates `...GAATTC`, which contains `GAATTC` (EcoRI site) spanning the junction. Context columns let the algorithm check and prevent these.
 
-**Background screening** is the same idea, but against a whole reference (genome, transcriptome, plasmid backbone, …). Build one or more k-mer DBs with `background()`, then pass `background_directory` (single path or list of paths) to `barcode`/`primer`/`motif`/`spacer` (or to `verify` for QC). It is junction-aware when context columns are provided.
+**Background screening** is the same idea, but against a whole reference (genome, transcriptome, plasmid backbone, ...). Build one or more k-mer DBs with `background()`, then pass `background_directory` (single path or list of paths) to `barcode`/`primer`/`motif`/`spacer` (or to `verify` for QC). It is junction-aware when context columns are provided.
 
 ### Reproducibility
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 All stochastic design modules support `random_seed` for reproducible results:
 
@@ -276,7 +279,7 @@ Same seed + same inputs = same outputs. Great for debugging and publications.
 
 ### Verbose Mode
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 Control output verbosity with `verbose` (default: `True`):
 
@@ -288,21 +291,21 @@ df, stats = op.barcode(..., verbose=False)  # Silent mode
 
 ## Design Mode
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 Design Mode is where you build your library piece by piece. Think of it like molecular LEGO, but with more constraints and fewer stepping-on-brick injuries.
 
-**When to use Design Mode**: You're building a new oligo pool library from scratch or extending an existing one. Design Mode handles the molecular constraints—Hamming distance for barcodes, thermodynamic parameters for primers, excluded-motif screening, and `oligo_length_limit` constraints—so you can focus on the biology.
+**When to use Design Mode**: You're building a new oligo pool library from scratch or extending an existing one. Design Mode handles the molecular constraints-Hamming distance for barcodes, thermodynamic parameters for primers, excluded-motif screening, and `oligo_length_limit` constraints-so you can focus on the biology.
 
 The typical workflow:
 1. Start with your core sequences (variants, promoters, genes, etc.)
-2. Add functional elements: `primer` → `motif` → `barcode` → `spacer`
+2. Add functional elements: `primer` -> `motif` -> `barcode` -> `spacer`
 3. Validate in QC Mode with `lenstat` and `verify`
 4. Finalize with `final` to get synthesis-ready oligos
 
 ### `barcode`
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 **What it does**: Designs unique barcodes with guaranteed minimum Hamming distance between all pairs.
 
@@ -368,9 +371,9 @@ df, stats = op.barcode(
 
 ### `primer`
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
-**What it does**: Designs primers with thermodynamic constraints (Tm), repeat screening, and optional background filtering.
+**What it does**: Designs primers with thermodynamic and structural constraints: Tm targeting, repeat screening, and anti-structure checks (hairpin, homodimer, heterodimer, cross-primer dimer), plus optional background filtering.
 
 **When to use it**: You need amplification primers, sequencing primers, or assembly overlap regions.
 
@@ -388,7 +391,7 @@ df, stats = op.primer(
 )
 ```
 
-**Paired primer design** ensures your forward and reverse primers have matched Tm (within 1°C). Design the inner primer first:
+**Paired primer design** ensures your forward and reverse primers have matched Tm (within 1 degC). Design the inner primer first:
 
 ```python
 df, stats = op.primer(..., primer_column='FwdPrimer', primer_type=0)
@@ -438,8 +441,10 @@ df, stats = op.primer(
 
 **Notes (the stuff that bites people):**
 - `maximum_repeat_length` controls non-repetitiveness against `input_data` only; screening against a background requires `background_directory`.
-- If `paired_primer_column` is provided, the paired primer type is inferred and Tm matching is applied within 1°C.
+- If `paired_primer_column` is provided, the paired primer type is inferred and Tm matching is applied within 1 degC.
 - When `oligo_sets` is provided, primers are designed per set and screened for cross-set compatibility; if `paired_primer_column` is also provided, it must be constant within each set.
+- `primer_sequence_constraint` is flexible by design; mix fixed and degenerate bases to enforce patterns (for example, GC clamp-like starts such as `'SS' + 'N'*18`).
+- Structural screening is first-class: candidates with strong hairpin/homodimer/heterodimer behavior (including cross-primer dimer risks when relevant) are rejected during optimization.
 - `patch_mode` preserves existing primers; in `oligo_sets` mode, existing per-set primers are reused and only missing sets trigger new primer design.
 
 > **API Reference**: See [`primer`](api.md#primer) for complete parameter documentation.
@@ -448,7 +453,7 @@ df, stats = op.primer(
 
 ### `motif`
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 **What it does**: Inserts sequence motifs (per-variant or constant anchors) with constraint satisfaction.
 
@@ -495,7 +500,7 @@ df, stats = op.motif(
 
 ### `spacer`
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 **What it does**: Inserts neutral DNA spacers to meet length requirements.
 
@@ -545,7 +550,7 @@ You can also pass a CSV path or a DataFrame with `ID` and `Length` columns. See 
 
 ### `background`
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 **What it does**: Builds a k-mer database for screening designed sequences (primers, barcodes, motifs, spacers) against off-target k-mers.
 
@@ -588,7 +593,7 @@ df, stats = op.primer(..., background_directory=['ecoli_bg', 'plasmid_bg'])
 
 ### `merge`
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 **What it does**: Concatenates contiguous columns into a single column.
 
@@ -599,13 +604,13 @@ df, stats = op.merge(
     input_data=df,
     merge_column='5prime_region',         # Output column name
     left_context_column='Primer5',
-    right_context_column='BC1',           # Merges Primer5 through BC1 (inclusive)
+    right_context_column='BC1',           # Merges Primer5 through BC1
 )
 ```
 
 **Notes (the stuff that bites people):**
 - `left_context_column` and `right_context_column` do not need to be adjacent; `merge` collapses the full inclusive range.
-- If you omit the bounds, `merge` collapses the first → last sequence columns.
+- If you omit the bounds, `merge` collapses the first -> last sequence columns.
 - The merged source columns are removed from the output DataFrame.
 
 > **API Reference**: See [`merge`](api.md#merge) for complete parameter documentation.
@@ -614,7 +619,7 @@ df, stats = op.merge(
 
 ### `revcomp`
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 **What it does**: Reverse complements a range of columns and reverses their order.
 
@@ -630,7 +635,7 @@ df, stats = op.revcomp(
 
 **Notes (the stuff that bites people):**
 - `left_context_column` and `right_context_column` do not need to be adjacent; `revcomp` acts on the full inclusive range.
-- If you omit the bounds, `revcomp` reverse-complements the first → last sequence columns and reverses their order.
+- If you omit the bounds, `revcomp` reverse-complements the first -> last sequence columns and reverses their order.
 - Useful mid-pipeline when you design in "readout orientation" but must synthesize in the opposite orientation (and for sanity-checking `split` fragment orientation).
 
 > **API Reference**: See [`revcomp`](api.md#revcomp) for complete parameter documentation.
@@ -639,7 +644,7 @@ df, stats = op.revcomp(
 
 ### `final`
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 **What it does**: Concatenates all columns into synthesis-ready oligos.
 
@@ -664,11 +669,11 @@ final_df, stats = op.final(
 
 ## Assembly Mode
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 Assembly Mode provides tools for fragmenting long oligos that exceed synthesis length limits into overlapping pieces for assembly workflows.
 
-**When to use Assembly Mode**: Your designed oligos exceed synthesis length limits (typically ~200–300 bp depending on vendor). Assembly Mode splits them into overlapping fragments that can be synthesized separately and reassembled post-synthesis via Gibson assembly, overlap-extension PCR, or similar methods.
+**When to use Assembly Mode**: Your designed oligos exceed synthesis length limits (typically ~200-300 bp depending on vendor). Assembly Mode splits them into overlapping fragments that can be synthesized separately and reassembled post-synthesis via Gibson assembly, overlap-extension PCR, or similar methods.
 
 The typical workflow:
 1. Design your full-length library with Design Mode
@@ -678,7 +683,7 @@ The typical workflow:
 
 ### `split`
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 **What it does**: Breaks long oligos into overlapping fragments for overlap-based assembly (Gibson, overlap-extension PCR, etc.).
 
@@ -707,7 +712,7 @@ When `split` returns `Split1`, `Split2`, `Split3` columns, you will **order thre
 - Fragments are returned in PCR/assembly order; even-numbered split columns (`Split2`, `Split4`, ...) are reverse-complemented by design. This alternating orientation enables efficient PCR-based assembly where adjacent fragments anneal via their overlapping regions.
 - `split` returns only the split fragments (your original annotation columns are not preserved). Save the annotated library separately if you need it later.
 - As a rule of thumb, keep `minimum_overlap_length` comfortably larger than `minimum_hamming_distance`.
-- **Raw split output is not synthesis-ready for assembly** — run `pad` per `SplitN` to add primers/Type IIS sites, then `final` each padded DataFrame.
+- **Raw split output is not synthesis-ready for assembly** - run `pad` per `SplitN` to add primers/Type IIS sites, then `final` each padded DataFrame.
 - For separate per-fragment outputs: in Python, enable `separate_outputs`; in CLI, this is already the default (writes `out.Split1.oligopool.split.csv`, etc.). Use `--no-separate-outputs` in CLI for a single combined file.
 
 > **API Reference**: See [`split`](api.md#split) for complete parameter documentation.
@@ -716,7 +721,7 @@ When `split` returns `Split1`, `Split2`, `Split3` columns, you will **order thre
 
 ### `pad`
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 **What it does**: Adds primers and Type IIS restriction sites to split fragments for scarless assembly.
 
@@ -743,24 +748,24 @@ final3_df, _ = op.final(input_data=pad3_df, output_file='synthesis_split3')
 
 **Notes (the stuff that bites people):**
 - **The chosen Type IIS recognition site must be absent from your split fragments** (in either orientation). If fragments contain internal cut sites, they will be cleaved during digest. `pad` checks this and fails early if conflicts are found.
-- **Exclude your Type IIS motif from upstream design elements.** If you plan to use `BsaI` for padding, add its recognition site (`GGTCTC`) and reverse complement (`GAGACC`) to `excluded_motifs` when designing primers, barcodes, motifs, and spacers. This helps prevent internal cut sites from showing up in newly designed elements (it doesn't "clean" a core/variant sequence that already contains the site — in that case, choose a different enzyme or redesign the offending sequences).
+- **Exclude your Type IIS motif from upstream design elements.** If you plan to use `BsaI` for padding, add its recognition site (`GGTCTC`) and reverse complement (`GAGACC`) to `excluded_motifs` when designing primers, barcodes, motifs, and spacers. This helps prevent internal cut sites from showing up in newly designed elements (it doesn't "clean" a core/variant sequence that already contains the site - in that case, choose a different enzyme or redesign the offending sequences).
 - Output columns are `5primeSpacer`, `ForwardPrimer`, `<split_column>`, `ReversePrimer`, `3primeSpacer` (other `split_df` columns are not preserved).
 - If a fragment can't fit under `oligo_length_limit`, the spacer(s) for that row are set to `'-'` (a deliberate "no-space" sentinel).
-- The supported Type IIS enzymes list is the "batteries included" set for pad excision: each one has a recognition motif plus a 3' cut offset into adjacent `N` bases implemented in `pad` (e.g., BsaI: `GGTCTC` + `N*5`), enabling complete pad removal (optionally followed by blunting). Upstream/complex cutters are not included.
+- The supported Type IIS enzymes list is the "batteries included" set for `pad`, not an arbitrary list: these 34 were chosen because `pad` has a clearly defined recognition motif plus 3' cut-offset model for each one (e.g., BsaI: `GGTCTC` + `N*5`), enabling predictable excision and scarless removal of primer pads (optionally followed by blunting). Upstream/complex cutters are not included.
 - Choose an enzyme whose recognition site is absent from your fragments and that matches your downstream handling preferences (e.g., sticky-end cutters vs blunt cutters like `MlyI`).
 
 **Post-synthesis workflow** (after you get your oligos back):
 1. **PCR amplify** the padded fragments
-2. **Type IIS digest** → excises primers and spacers, leaving enzyme-specific sticky overhangs (the overhangs are primer-derived, not from your fragment)
-3. **Mung bean nuclease** (optional) → blunts the overhangs; skip this step if using a blunt-cutter like `MlyI`
+2. **Type IIS digest** -> excises primers and spacers, leaving enzyme-specific sticky overhangs (the overhangs are primer-derived, not from your fragment)
+3. **Mung bean nuclease** (optional) -> blunts the overhangs; skip this step if using a blunt-cutter like `MlyI`
 4. **Assemble** the cleaned fragments via their **split-designed overlaps** (Gibson, overlap-extension PCR, etc.)
 
-The Type IIS enzyme is for **pad removal**, not fragment-to-fragment ligation — the 15–30 bp overlaps from `split` drive the actual assembly.
+The Type IIS enzyme is for **pad removal**, not fragment-to-fragment ligation - the 15-30 bp overlaps from `split` drive the actual assembly.
 
 **Supported Type IIS enzymes (34 total):**
 `AcuI`, `AlwI`, `BbsI`, `BccI`, `BceAI`, `BciVI`, `BcoDI`, `BmrI`, `BpuEI`, `BsaI`, `BseRI`, `BsmAI`, `BsmBI`, `BsmFI`, `BsmI`, `BspCNI`, `BspQI`, `BsrDI`, `BsrI`, `BtgZI`, `BtsCI`, `BtsI`, `BtsIMutI`, `EarI`, `EciI`, `Esp3I`, `FauI`, `HgaI`, `HphI`, `HpyAV`, `MlyI`, `MnlI`, `SapI`, `SfaNI`
 
-For other enzymes, design primers manually with the appropriate recognition/cut sites using `primer` or `motif`.
+For other enzymes, build custom pads from primitives with `primer` + `motif` + `spacer` (i.e., reproduce the same primitive composition that `pad` automates for built-in Type IIS systems).
 
 > **API Reference**: See [`pad`](api.md#pad) for complete parameter documentation.
 
@@ -768,7 +773,7 @@ For other enzymes, design primers manually with the appropriate recognition/cut 
 
 ## Degenerate Mode
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 Degenerate Mode enables cost-efficient synthesis of variant libraries with low mutational diversity. Instead of synthesizing each variant individually, similar sequences are compressed into IUPAC-degenerate oligos that expand to cover multiple variants.
 
@@ -783,7 +788,7 @@ This enables **selection-based discovery workflows**:
 
 ### `compress`
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 **What it does**: Compresses concrete DNA sequences into IUPAC-degenerate representation.
 
@@ -817,7 +822,7 @@ print(f"Compressed {stats['vars']['input_variants']} variants "
 
 ### `expand`
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 **What it does**: Expands IUPAC-degenerate sequences into all concrete A/T/G/C sequences.
 
@@ -847,7 +852,7 @@ assert original_seqs == expanded_seqs, "Lossless guarantee violated!"
 
 ## Analysis Mode
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 Analysis Mode is where sequencing data meets your designed library. You've done the experiment, now let's count some barcodes.
 
@@ -856,12 +861,12 @@ Analysis Mode is where sequencing data meets your designed library. You've done 
 The typical workflow:
 1. Build one index per barcode column with `index` (multi-barcode designs use multiple index files)
 2. Preprocess FastQ files with `pack` (length/quality filtering, optional paired-end merging, deduplication)
-3. Count associations with `acount` (barcode ↔ associate) or `xcount` (combinatorial)
+3. Count associations with `acount` (barcode <-> associate) or `xcount` (combinatorial)
 4. Export count matrices for downstream analysis
 
 ### `index`
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 **What it does**: Builds a searchable index of barcodes (and optional associates) for counting.
 
@@ -905,7 +910,7 @@ stats = op.index(
 
 ### `pack`
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 **What it does**: Preprocesses FastQ files - filters, optionally merges paired-ends, deduplicates.
 
@@ -938,7 +943,7 @@ stats = op.pack(
 
 ### `acount`
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 **What it does**: Association counting - verifies that the expected variant is indeed coupled to its target barcode in each read.
 
@@ -965,11 +970,11 @@ df, stats = op.acount(
 
 ### `xcount`
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 **What it does**: Barcode-focused counting - maps reads to one or more barcode indices without associate verification.
 
-**When to use it**: Pure barcode counting (single or multiple indices), combinatorial barcode designs (BC1 × BC2).
+**When to use it**: Pure barcode counting (single or multiple indices), combinatorial barcode designs (BC1 x BC2).
 
 For single barcode counting, point to one index:
 
@@ -981,7 +986,7 @@ df, stats = op.xcount(
 )
 ```
 
-For combinatorial counting (BC1 × BC2), list multiple indices:
+For combinatorial counting (BC1 x BC2), list multiple indices:
 
 ```python
 df, stats = op.xcount(
@@ -1017,7 +1022,7 @@ df, stats = op.xcount(..., callback=my_filter)
 
 ## QC Mode
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 QC Mode provides utilities for validating designed libraries and inspecting non-CSV artifacts before synthesis or downstream analysis.
 
@@ -1028,7 +1033,7 @@ The typical workflow:
 
 ### `lenstat`
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 **What it does**: Reports length statistics and free space remaining.
 
@@ -1045,7 +1050,7 @@ stats = op.lenstat(
 **Notes (the stuff that bites people):**
 - `lenstat` is stats-only and does not modify or write your DataFrame (no `output_file`).
 - It assumes all non-ID columns are DNA strings; if you have metadata columns or degenerate/IUPAC bases, use `verify` instead.
-- Run it early and often—especially before `spacer`, `split`, and `pad`.
+- Run it early and often-especially before `spacer`, `split`, and `pad`.
 
 > **API Reference**: See [`lenstat`](api.md#lenstat) for complete parameter documentation.
 
@@ -1053,7 +1058,7 @@ stats = op.lenstat(
 
 ### `verify`
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 **What it does**: Detects length, motif emergence, and background k-mer conflicts in your oligo pool.
 
@@ -1107,9 +1112,17 @@ for col in detail_cols:
 
 ### `inspect`
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
-`inspect` is a small utility for inspecting non-CSV artifacts produced by `Oligopool Calculator` (background DBs, index files, pack files). It is stats-only and does not write an output file. The returned `stats['vars']['verdict']` is `Valid`, `Corrupted`, or `Invalid` (`stats['status']=True` only for `Valid`). If the artifact is `Valid`, the module describes the contents of the artifact (e.g. How many k-mers in the background? What fraction of scanned reads were deduplicated? etc.)
+`inspect` is a read-only, stats-only utility for retrieving important facts from complex non-CSV artifacts produced by `Oligopool Calculator`, so you can introspect them later during design and analysis workflows.
+Use `inspect` when generation-step stats are unavailable, or when you need to quickly verify what a background/index/pack artifact actually contains before reusing it.
+
+- Accepted targets: `.oligopool.background` directories, `.oligopool.index` files, `.oligopool.pack` files.
+- `kind='auto'` (default) infers artifact type from the target path.
+- No output file is written; the module returns `stats` only.
+- `stats['vars']['verdict']` is `Valid`, `Corrupted`, or `Invalid`.
+- `stats['status']=True` only when verdict is `Valid`.
+- Artifact summaries are reported under `stats['vars']['meta']` (for example k-mer counts for backgrounds or packing stats for packs).
 
 ```python
 stats = op.inspect(target='demo.oligopool.background')
@@ -1125,11 +1138,11 @@ op inspect --target demo.oligopool.background --stats-json --quiet
 
 ## Workflows
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 ### Basic Library Design
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 Start with your variants in a CSV (must have an `ID` column):
 
@@ -1206,7 +1219,7 @@ final_df, _ = op.final(input_data=df, output_file='library_for_synthesis')
 
 ### Analysis Pipeline
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 First, index your barcodes. The anchors (constant flanking sequences) help locate barcodes in reads:
 
@@ -1255,7 +1268,7 @@ print(counts_df)
 
 ## CLI Reference
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 Every module is available via command line. See all commands:
 
@@ -1297,7 +1310,7 @@ op complete --install
 
 ### CLI-Specific Notes
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 **CLI outputs require an output basename**: Unlike the Python API (where many modules can return results in-memory), CLI commands that write files require an output basename (e.g., `--output-file`, `--index-file`, `--pack-file`, `--count-file`, `--mapping-file`, `--synthesis-file`).
 
@@ -1328,13 +1341,13 @@ op complete --install
 
 ## Config Files
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 The CLI supports YAML config files for repeatable, documented workflows. Config files eliminate long command lines and enable multi-step pipeline execution.
 
 ### Single Command Config
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 Use `--config` with any command to load parameters from a YAML file:
 
@@ -1369,7 +1382,7 @@ op barcode --config barcode_design.yaml --barcode-length 20
 
 ### Pipeline Execution
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 Run multi-step workflows from a single config with `op pipeline`:
 
@@ -1427,7 +1440,7 @@ Each step's config section specifies explicit `input_data` and `output_file` pat
 
 ### Parallel Pipeline Execution
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 For workflows with independent branches, use the parallel (DAG) format to run steps concurrently:
 
@@ -1493,7 +1506,7 @@ op pipeline --config parallel_pipeline.yaml --dry-run
 
 ### Dry Run Validation
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 Validate a pipeline config without executing:
 
@@ -1505,7 +1518,7 @@ This checks that all steps are valid commands and displays the parameters for ea
 
 ### Config Precedence
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 Parameter values are resolved in this order (highest priority first):
 
@@ -1515,7 +1528,7 @@ Parameter values are resolved in this order (highest priority first):
 
 ### Config Tips
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 1. **Use comments liberally**: YAML supports `#` comments - document your design choices.
 2. **Keep configs in version control**: Reproducibility for future you.
@@ -1527,31 +1540,35 @@ Parameter values are resolved in this order (highest priority first):
 
 ## Tips & Tricks
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 ### Design Tips
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
-1. **Design anchors before barcodes**: Use `motif(motif_type=1)` for constant anchors, then design barcodes adjacent to them.
+1. **Design in dependency order**: Start with constrained context-defining regions (fewest degenerate bases), then design dependent regions (anchors before barcodes; inner/primary primers before paired outer/reverse primers).
 
 2. **Check length early and often**: Run `lenstat` after each element to avoid surprises.
 
-3. **Start loose, tighten constraints**: Begin with relaxed parameters, then increase stringency if design succeeds easily.
+3. **Read `stats` after every step**: All modules return `stats`; use them to catch infeasibility, conflicts, and weak settings early.
 
-4. **Use Patch Mode for iterations**: When adding variants to an existing pool, use `patch_mode=True` to preserve existing designs.
+4. **Layer constraints**: Set core constraints first, add optional layers incrementally, and if infeasible remove optional layers one at a time while keeping core layers fixed.
 
-5. **Mind the edge effects**: Always specify context columns - repeat collisions at boundaries are sneaky.
+5. **Start loose, then tighten**: Begin with permissive settings (algorithm mode, distance/Tm/repeat thresholds, optional constraints), then tighten only after a feasible baseline is found.
+
+6. **Use Patch Mode for iterations**: When adding variants to an existing pool, use `patch_mode=True` to preserve existing designs.
+
+7. **Mind edge effects**: Always specify context columns; boundary motif/repeat emergence is common.
 
 ### Analysis Tips
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 1. **Index anchors matter**: The quality of your anchors determines counting accuracy. Design them well.
 
 2. **Quality filter aggressively**: Low-quality reads just add noise. Use `minimum_*_read_quality=30` or higher.
 
-3. **Check your stats**: The returned stats dict tells you exactly what happened. Read it.
+3. **Check run summaries**: For counting runs, inspect returned stats and sample `failed_reads_file` (when enabled) to diagnose filtering, mapping, and ambiguity.
 
 4. **Start with sensitive mapping**: Use `mapping_type=1` initially to catch more reads, then compare with `mapping_type=0`.
 
@@ -1561,37 +1578,35 @@ Parameter values are resolved in this order (highest priority first):
 
 ### Performance Tips
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 1. **Parallelize**: Most modules auto-detect cores. For analysis, ensure you have RAM (memory_limit parameter).
 
 2. **Use fast barcode mode**: `barcode_type=0` is usually sufficient and much faster.
 
-3. **Pack once, count many**: The pack file can be reused across multiple counting runs.
-
 ---
 
 ## Composability
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
-Most complex oligo library designs don't require new features — they require composing existing primitives. This section teaches you how.
+Most complex oligo library designs don't require new features - they require composing existing primitives. This section teaches you how.
 
 ### The Decomposition Principle
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 Every compound oligo element can be built from the primitive modules (`motif`, `barcode`, `primer`, `spacer`) joined by `merge`, flipped by `revcomp`, and threaded via context columns. Every complex analysis can be built from independent `index` files, reusable `pack` files, `acount` vs `xcount`, and `callback` functions. Constraint composition (`excluded_motifs` + `background`) threads across the entire pipeline. Because modules accept/return DataFrames, you can freely insert small `pandas` transforms between steps to glue pipelines together. When an ask seems to require a new feature, decompose it into existing primitives first.
 
 ### Design Recipes
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 #### Barcode with Embedded Restriction Site
 
 **The ask**: "I need a barcode that contains an EcoRI site in the middle."
 
-**The decomposition**: Split the barcode into two halves, place a constant restriction site motif between them, then merge into a single column.
+**The decomposition**: Conceptually split the barcode into two halves: place a constant restriction-site motif as the center core, design the left and right extensions with `barcode`, then merge all three pieces into one compound element column.
 
 ```python
 import pandas as pd
@@ -1602,7 +1617,18 @@ df = pd.DataFrame({
     'Variant': ['ATGCATGCATGCATGC', 'GCTAGCTAGCTAGCTA', 'TTAATTAATTAATTAA']
 })
 
-# Step 1: Design the first barcode half (left of restriction site)
+# Step 1: Insert the constant EcoRI site (center core)
+df, _ = op.motif(
+    input_data=df,
+    oligo_length_limit=200,
+    motif_sequence_constraint='GAATTC',
+    maximum_repeat_length=8,
+    motif_column='EcoRI_Site',
+    motif_type=1,                     # Constant - same for all rows
+    left_context_column='Variant',
+)
+
+# Step 2: Design the first barcode half (left extension)
 df, _ = op.barcode(
     input_data=df,
     oligo_length_limit=200,
@@ -1611,20 +1637,10 @@ df, _ = op.barcode(
     maximum_repeat_length=8,
     barcode_column='BC1_Left',
     left_context_column='Variant',
+    right_context_column='EcoRI_Site',
 )
 
-# Step 2: Insert the constant EcoRI site
-df, _ = op.motif(
-    input_data=df,
-    oligo_length_limit=200,
-    motif_sequence_constraint='GAATTC',
-    maximum_repeat_length=8,
-    motif_column='EcoRI_Site',
-    motif_type=1,                     # Constant — same for all rows
-    left_context_column='BC1_Left',
-)
-
-# Step 3: Design the second barcode half (right of restriction site)
+# Step 3: Design the second barcode half (right extension)
 df, _ = op.barcode(
     input_data=df,
     oligo_length_limit=200,
@@ -1636,7 +1652,6 @@ df, _ = op.barcode(
 )
 
 # Step 4: Merge into a single compound barcode column
-# merge range is inclusive: BC1_Left through BC1_Right are all concatenated
 df, _ = op.merge(
     input_data=df,
     merge_column='BC1',
@@ -1648,36 +1663,25 @@ df, _ = op.merge(
 # Each compound barcode has a guaranteed EcoRI site in the middle
 ```
 
-**Why it works**: `merge` concatenates the inclusive range of columns (`BC1_Left`, `EcoRI_Site`, `BC1_Right`) into a single `BC1` column. The source columns are removed. The two barcode halves provide Hamming separation on either side of the constant site.
+**Why it works**: `merge` concatenates the column range from `BC1_Left` through `BC1_Right` into a single `BC1` column. The source columns are removed. The two barcode halves provide Hamming separation on either side of the constant site.
 
 #### Barcode with Flanking Anchors (Bridge to Analysis)
 
 **The ask**: "I need constant sequences flanking my barcode so I can find it in reads later."
 
-**The decomposition**: Design constant anchor motifs before and after the barcode. These serve double duty: they prevent edge effects during design and become the prefix/suffix anchors for `index`.
+**The decomposition**: Design both constant anchor motifs first, then design the barcode between them using both context columns. These anchors serve double duty: they prevent edge effects during design and become the prefix/suffix anchors for `index`.
 
 ```python
-# Design constant prefix anchor (≥6 bp recommended for indexing).
-# Note: 'NNNNNNNN' is an IUPAC constraint — the anchor is *designed*, then held constant across rows.
+# Design constant prefix anchor (>=6 bp recommended for indexing).
+# Note: 'NNNNNNNN' is an IUPAC constraint - the anchor is *designed*, then held constant across rows.
 df, _ = op.motif(
     input_data=df,
     oligo_length_limit=200,
-    motif_sequence_constraint='NNNNNNNN',   # 8N — enough for robust anchoring
+    motif_sequence_constraint='NNNNNNNN',   # 8N - enough for robust anchoring
     maximum_repeat_length=8,
     motif_column='BC_Prefix',
     motif_type=1,                           # Constant anchor
     left_context_column='Variant',
-)
-
-# Design barcode between anchors
-df, _ = op.barcode(
-    input_data=df,
-    oligo_length_limit=200,
-    barcode_length=12,
-    minimum_hamming_distance=3,
-    maximum_repeat_length=8,
-    barcode_column='BC1',
-    left_context_column='BC_Prefix',
 )
 
 # Design constant suffix anchor
@@ -1688,10 +1692,22 @@ df, _ = op.motif(
     maximum_repeat_length=8,
     motif_column='BC_Suffix',
     motif_type=1,
-    left_context_column='BC1',
+    left_context_column='Variant',
 )
 
-# Later, at analysis time — these anchors locate the barcode in reads:
+# Design barcode between anchors (use both contexts)
+df, _ = op.barcode(
+    input_data=df,
+    oligo_length_limit=200,
+    barcode_length=12,
+    minimum_hamming_distance=3,
+    maximum_repeat_length=8,
+    barcode_column='BC1',
+    left_context_column='BC_Prefix',
+    right_context_column='BC_Suffix',
+)
+
+# Later, at analysis time - these anchors locate the barcode in reads:
 # op.index(
 #     barcode_data=df,
 #     barcode_column='BC1',
@@ -1719,7 +1735,7 @@ df, _ = op.barcode(
     left_context_column='Variant',
 )
 
-# Design second barcode set — globally separated from BC1
+# Design second barcode set - globally separated from BC1
 df, _ = op.barcode(
     input_data=df,
     oligo_length_limit=200,
@@ -1737,19 +1753,24 @@ Cross-set separation is global: each new BC2 barcode must be at least `minimum_c
 
 #### General Compound Element Pattern
 
-Any compound element follows the same recipe: design sub-regions with appropriate modules, then `merge`.
+Any compound element follows the same recipe: design sub-regions in dependency/context order, starting with the most constrained pieces (the ones with the fewest degenerate bases), then `merge`.
 
 ```python
 # Example: constant tag + variable region + constant tag
-df, _ = op.motif(..., motif_column='Tag5', motif_type=1)    # Constant 5' tag
-df, _ = op.motif(..., motif_column='VarRegion', motif_type=0)  # Variable per-row
-df, _ = op.motif(..., motif_column='Tag3', motif_type=1)    # Constant 3' tag
+# Design order (dependency/context-driven, non-linear):
+df, _ = op.motif(..., motif_column='Tag5', motif_type=1)          # Constant 5' tag (more constrained)
+df, _ = op.motif(..., motif_column='Tag3', motif_type=1,
+                 left_context_column='Tag5')                      # Constant 3' tag (equally constrained)
+df, _ = op.motif(..., motif_column='VarRegion', motif_type=0,
+                 left_context_column='Tag5',
+                 right_context_column='Tag3')                     # Variable middle region (less constrained)
+
 df, _ = op.merge(..., merge_column='CompoundElement',
                  left_context_column='Tag5',
                  right_context_column='Tag3')
 ```
 
-#### Long Constructs via `split` → `pad` → `final`
+#### Long Constructs via `split` -> `pad` -> `final`
 
 If an oligo is too long to synthesize directly, split it into overlapping fragments (`split`), pad each fragment into an assembly-ready layout (`pad`), then finalize each fragment for synthesis (`final`).
 
@@ -1769,16 +1790,21 @@ frags, _ = op.split(
 
 # 2) Pad + finalize each fragment as its own synthesis pool
 for i, frag_df in enumerate(frags, 1):
+    split_col = next(col for col in frag_df.columns if col != 'ID')
     padded_df, _ = op.pad(
         input_data=frag_df,
         oligo_length_limit=200,
-        split_column=f'Split{i}',
+        split_column=split_col,
         typeIIS_system='BsaI',
         minimum_melting_temperature=55.0,
         maximum_melting_temperature=75.0,
         maximum_repeat_length=12,
+        output_file=f'frag_{i}.padded',
     )
-    final_df, _ = op.final(input_data=padded_df)
+    final_df, _ = op.final(
+        input_data=padded_df,
+        output_file=f'frag_{i}.final',
+    )
 ```
 
 #### Flip Orientation Mid-Pipeline (`revcomp`)
@@ -1805,7 +1831,7 @@ df, _ = op.revcomp(
 
 ### Constraint Composition
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 #### Cut-Site-Free Library with Host Genome Screening
 
@@ -1816,11 +1842,11 @@ df, _ = op.revcomp(
 ```python
 import oligopool as op
 
-# Restriction sites to exclude — for non-palindromic motifs, include the reverse complement too.
+# Restriction sites to exclude - for non-palindromic motifs, include the reverse complement too.
 cut_sites = [
-    'GAATTC',  # EcoRI (palindromic — reverse complement is itself)
-    'GGATCC',  # BamHI (palindromic — reverse complement is itself)
-    'CGTCTC', 'GAGACG',  # BsmBI (non-palindromic — MUST include both)
+    'GAATTC',  # EcoRI (palindromic - reverse complement is itself)
+    'GGATCC',  # BamHI (palindromic - reverse complement is itself)
+    'CGTCTC', 'GAGACG',  # BsmBI (non-palindromic - MUST include both)
 ]
 
 # Build host genome background DB
@@ -1856,7 +1882,7 @@ df, _ = op.spacer(
     background_directory=bg_dir,
 )
 
-# Final QC — verify catches anything that slipped through at junctions
+# Final QC - verify catches anything that slipped through at junctions
 verify_df, verify_stats = op.verify(
     input_data=df,
     oligo_length_limit=200,
@@ -1870,13 +1896,40 @@ print(f"Any conflicts? {verify_stats['vars']['any_conflict']}")
 
 **Why pipeline-wide matters**: Each design module avoids creating the motif within its own element. But a motif could emerge at the **junction** between two independently designed elements. Context columns help within a single module call, but `verify` checks the fully concatenated oligo for any remaining conflicts.
 
+#### Constraint Layering Strategy (Add/Remove Layers)
+
+Use multiple `excluded_motifs` sources and multiple background DBs as explicit constraint layers that you can toggle while troubleshooting feasibility.
+
+```python
+constraint_layers = {
+    'cloning_sites': 'cutsites.csv',
+    'platform_rules': 'platform_forbidden.csv',
+    'homopolymers': ['AAAAA', 'CCCCC', 'GGGGG', 'TTTTT'],
+}
+background_layers = ['ecoli_bg', 'vector_bg', 'phix_bg']
+
+df, stats = op.barcode(
+    ...,
+    excluded_motifs=constraint_layers,
+    background_directory=background_layers,
+)
+```
+
+Recommended workflow:
+1. Start with core mandatory layers only (for example cloning sites + primary host background).
+2. Add optional hardening layers incrementally (extra host DBs, platform-specific motif sets).
+3. If infeasible, remove one optional layer at a time and rerun.
+4. Lock your final layer set and thread it unchanged through all design modules and `verify`.
+
+This gives you better documentation (`stats` can report per-set motif attribution) and a controlled path to recover feasibility without losing track of which constraints are active.
+
 ### Analysis Recipes
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 #### Multi-Index Combinatorial Counting
 
-**The ask**: "I have BC1 and BC2 in each oligo. I need a count matrix of all BC1 × BC2 combinations."
+**The ask**: "I have BC1 and BC2 in each oligo. I need a count matrix of all BC1 x BC2 combinations."
 
 **The decomposition**: Build a separate `index` for each barcode (each with its own anchors), then pass both to `xcount`.
 
@@ -1899,7 +1952,7 @@ op.index(
     index_file='bc2_idx',
 )
 
-# Pack reads (once — reusable)
+# Pack reads (once - reusable)
 op.pack(
     r1_fastq_file='reads_R1.fq.gz',
     r2_fastq_file='reads_R2.fq.gz',
@@ -1909,7 +1962,7 @@ op.pack(
     pack_file='experiment',
 )
 
-# Combinatorial counting — xcount handles multiple indexes natively
+# Combinatorial counting - xcount handles multiple indexes natively
 counts_df, stats = op.xcount(
     index_files=['bc1_idx', 'bc2_idx'],
     pack_file='experiment',
@@ -1925,7 +1978,7 @@ This scales to N-way matrices: just add more index files to the list.
 
 **The ask**: "I only want to count reads that meet custom criteria (e.g., minimum length, specific subsequence)."
 
-**The decomposition**: Write a callback function and pass it to `acount` or `xcount` (Python API only — not available via CLI).
+**The decomposition**: Write a callback function and pass it to `acount` or `xcount` (Python API only - not available via CLI).
 
 ```python
 def my_filter(r1, r2, ID, count, coreid):
@@ -1953,36 +2006,11 @@ counts_df, stats = op.xcount(
 )
 ```
 
-#### Design-to-Analysis Anchor Bridge
-
-**The ask**: "How do I connect what I designed to what I count?"
-
-**The bridge**: Constant motifs designed with `motif(motif_type=1)` become the prefix/suffix anchors in `index`.
-
-```python
-# During design — constant anchors flank the barcode
-df, _ = op.motif(..., motif_column='Anchor5', motif_type=1, ...)
-df, _ = op.barcode(..., barcode_column='BC1', left_context_column='Anchor5', ...)
-df, _ = op.motif(..., motif_column='Anchor3', motif_type=1, left_context_column='BC1', ...)
-
-# Save the annotated design (final strips annotation columns)
-df.to_csv('library_design.csv', index=False)
-
-# During analysis — same columns become index anchors
-op.index(
-    barcode_data='library_design.csv',
-    barcode_column='BC1',
-    barcode_prefix_column='Anchor5',
-    barcode_suffix_column='Anchor3',
-    index_file='bc1_index',
-)
-```
-
 ### Degenerate Recipes
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
-Degenerate mode (`compress`/`expand`) supports multiple workflows: (1) cost-efficient synthesis of large variant sets via IUPAC-degenerate oligos, (2) selection-based screens where you sequence survivors and map them back using `mapping_df`, and (3) “compression for analysis” where a single degenerate library (plus its mapping) becomes a reusable bridge between sequencing results and the original variant IDs.
+Degenerate mode (`compress`/`expand`) supports multiple workflows: (1) cost-efficient synthesis of large variant sets via IUPAC-degenerate oligos, (2) selection-based screens where you sequence survivors and map them back using `mapping_df`, and (3) "compression for analysis" where a single degenerate library (plus its mapping) becomes a reusable bridge between sequencing results and the original variant IDs.
 
 #### Saturation Mutagenesis Compression
 
@@ -2000,7 +2028,7 @@ df = pd.DataFrame({
     'Sequence': [...]  # 1000 single-substitution variants, strict ATGC
 })
 
-# Compress — similar sequences share degenerate representations
+# Compress - similar sequences share degenerate representations
 mapping_df, synthesis_df, stats = op.compress(
     input_data=df,
     mapping_file='satmut_library',
@@ -2019,14 +2047,14 @@ expanded_df, _ = op.expand(
     mapping_file='satmut_library',
 )
 
-# Order synthesis_df for synthesis — these are your degenerate oligos
+# Order synthesis_df for synthesis - these are your degenerate oligos
 ```
 
 #### Selection-Based Discovery Without Barcodes
 
 **The ask**: "I want to screen variants by selection (growth, FACS) without barcodes."
 
-**The decomposition**: `compress` → synthesize → select → sequence survivors → map back to original variant IDs using `mapping_df`.
+**The decomposition**: `compress` -> synthesize -> select -> sequence survivors -> map back to original variant IDs using `mapping_df`.
 
 ```python
 # 1. Compress variants
@@ -2046,27 +2074,30 @@ survivors = pd.read_csv('sequenced_survivors.csv')
 hits = mapping_df[mapping_df['Sequence'].isin(survivors['Sequence'])]
 ```
 
-**Key property**: Compression is lossless by construction — `expand` recovers exactly the input set, with no invented sequences. Sequences of different lengths are compressed into separate groups automatically.
+**Key property**: Compression is lossless by construction - `expand` recovers exactly the input set, with no invented sequences. Sequences of different lengths are compressed into separate groups automatically.
 
-**Important caveat**: `compress` output (`synthesis_df`) is terminal for the design pipeline. You cannot chain it into `barcode`, `primer`, or `spacer` — barcodes are designed to be maximally different from each other, which defeats IUPAC compression. Use compression for selection-based workflows; use the standard design pipeline for barcode-based readout workflows.
+**Important caveat**: `compress` output (`synthesis_df`) is terminal for the design pipeline. You cannot chain it into `barcode`, `primer`, or `spacer` - barcodes are designed to be maximally different from each other, which defeats IUPAC compression. Use compression for selection-based workflows; use the standard design pipeline for barcode-based readout workflows.
 
 ### Application Templates
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 These compact templates show how the primitives compose for common biological applications. Adapt parameters to your specific constraints.
 
 #### Promoter MPRA Library
 
 ```
-background(host.fasta)
-  → primer(fwd)
-  → motif(constant, anchor)         # BC prefix for indexing
-  → barcode
-  → motif(constant, anchor)         # BC suffix for indexing
-  → primer(rev, paired)
-  → spacer(auto)
-  → lenstat → verify → final
+pipeline/
+|-- background(host.fasta)
+|-- primer(fwd)
+|-- motif(constant, anchor)            # BC prefix for indexing
+|-- motif(constant, anchor)            # BC suffix for indexing
+|-- barcode                            # Designed with both motif flanks as context
+|-- primer(rev, paired)
+|-- spacer(auto)
+|-- lenstat
+|-- verify
+`-- final
 ```
 
 Thread `excluded_motifs` (cloning sites + reverse complements) and `background_directory` through every design module.
@@ -2075,11 +2106,14 @@ This same single-barcode MPRA pattern also applies to other regulatory/stability
 #### CRISPR Guide Library
 
 ```
-background(host.fasta)
-  → primer(fwd)
-  → barcode
-  → spacer
-  → lenstat → verify → final
+pipeline/
+|-- background(host.fasta)
+|-- primer(fwd)
+|-- barcode
+|-- spacer
+|-- lenstat
+|-- verify
+`-- final
 ```
 
 Guides are the variant column. Add `excluded_motifs` for cloning-system recognition sites (e.g., BsmBI: `CGTCTC`/`GAGACG`, BbsI: `GAAGAC`/`GTCTTC`) to prevent internal cleavage.
@@ -2087,14 +2121,19 @@ Guides are the variant column. Add `excluded_motifs` for cloning-system recognit
 #### Ribozyme Library (Pre/Post Cleavage Readout)
 
 ```
-	background(host.fasta)
-	  → motif(constant, conserved_core)      # Catalytic/structural region
-	  → motif(constant, BCmolecule_anchor)  # Anchor for indexing
-	  → barcode(BC_molecule)                # Tracks variant/molecule identity (present in all outcomes)
-	  → motif(constant, BCstate_anchor)     # Anchor for indexing
-	  → barcode(BC_state, cross_barcode_columns=['BC_molecule'])  # “State” barcode designed to avoid cross-talk
-	  → primer(fwd) → primer(rev, paired) → spacer
-	  → lenstat → verify → final
+pipeline/
+|-- background(host.fasta)
+|-- motif(constant, conserved_core)                    # Catalytic/structural region
+|-- motif(constant, BCmolecule_anchor)                 # Anchor for indexing
+|-- barcode(BC_molecule)                               # Tracks variant/molecule identity (present in all outcomes)
+|-- motif(constant, BCstate_anchor)                    # Anchor for indexing
+|-- barcode(BC_state, cross_barcode_columns=['BC_molecule'])  # "State" barcode designed to avoid cross-talk
+|-- primer(fwd)
+|-- primer(rev, paired)
+|-- spacer
+|-- lenstat
+|-- verify
+`-- final
 ```
 
 Variants flank the conserved core. Use a dual-barcode strategy when cleavage changes what part of the construct is sequenced in your assay:
@@ -2106,39 +2145,38 @@ At analysis time, build two indexes (`BC_molecule`, `BC_state`) and use `xcount(
 
 ### Composability Cheat Sheet
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 | # | Ask | Compose |
 |---|-----|---------|
-| 1 | Embed restriction site in barcode | `barcode` → `motif(const)` → `barcode` → `merge` |
-| 2 | Flanking anchors for barcode | `motif(const)` → `barcode` → `motif(const)` |
-| 3 | Cross-talk-free barcode sets | `barcode(BC1)` → `barcode(BC2, cross_barcode_columns)` |
-| 4 | Tm-matched primer pair | `primer(fwd)` → `primer(rev, paired_primer_column)` |
-| 5 | Extend existing pool | append rows → `patch_mode=True` on each element |
-| 6 | Multi-genome screening | `background` per genome → `background_directory=[bg1, bg2]` |
+| 1 | Embed restriction site in barcode | `motif(const, site)` -> `barcode(left_ext, right_context=site)` -> `barcode(right_ext, left_context=site)` -> `merge` |
+| 2 | Flanking anchors for barcode | `motif(const, prefix)` -> `motif(const, suffix)` -> `barcode` (use both as contexts) |
+| 3 | Cross-talk-free barcode sets | `barcode(BC1)` -> `barcode(BC2, cross_barcode_columns)` |
+| 4 | Tm-matched primer pair | `primer(fwd)` -> `primer(rev, paired_primer_column)` |
+| 5 | Extend existing pool | append rows -> `patch_mode=True` on each element |
+| 6 | Multi-genome screening | `background` per genome -> `background_directory=[bg1, bg2]` |
 | 7 | Auto-fill to length | `spacer(spacer_length=None)` |
-| 8 | Compound element | chain `motif`/`barcode` → `merge` |
+| 8 | Compound element | chain `motif`/`barcode` -> `merge` |
 | 9 | Flip orientation mid-pipeline | `revcomp(left_context_column=..., right_context_column=...)` |
-| 10 | Long constructs / assembly | `split` → `pad` (per fragment) → `final` (per fragment) |
-| 11 | Mid-pipeline length telemetry | `lenstat` → adjust element lengths → rerun |
+| 10 | Long constructs / assembly | `split` -> `pad` (per fragment) -> `final` (per fragment) |
+| 11 | Mid-pipeline length telemetry | `lenstat` -> adjust element lengths -> rerun |
 | 12 | Inspect artifacts quickly | `inspect(background/index/pack)` before reuse |
 | 13 | Cut-site-free library | `excluded_motifs` (motif + reverse complement) on all modules + `verify` |
 | 14 | No host homology | `background_directory` on all modules + `verify` |
-| 15 | Multi-barcode counting | separate `index` per barcode → `xcount(index_files=[...])` |
+| 15 | Multi-barcode counting | separate `index` per barcode -> `xcount(index_files=[...])` |
 | 16 | Custom read filtering | `callback(r1, r2, ID, count, coreid)` (Python only) |
-| 17 | Pack once, count many | single `pack` → reuse with different indexes/modes |
-| 18 | Cost-efficient mutagenesis | `compress` → order `synthesis_df` |
-| 19 | Selection without barcodes | `compress` → select → map back via `mapping_df` |
+| 17 | Pack once, count many | single `pack` -> reuse with different indexes/modes |
+| 18 | Cost-efficient mutagenesis | `compress` -> order `synthesis_df` |
+| 19 | Selection without barcodes | `compress` -> select -> map back via `mapping_df` |
 
 ### Notes (the stuff that bites people)
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
-Composability works because each module enforces local constraints against explicit context, then passes structured outputs forward. The “gotchas” are mostly about where constraints *actually apply* (junctions, reverse complements, terminal outputs) and which APIs are available in CLI vs Python.
+Composability works because each module enforces local constraints against explicit context, then passes structured outputs forward. The "gotchas" are mostly about where constraints *actually apply* (junctions, reverse complements, terminal outputs) and which APIs are available in CLI vs Python.
 
-- **Reverse-complements for `excluded_motifs`**: Literal substring matching (strict ATGC only). To avoid dsDNA sites, include motif + reverse complement for non-palindromes; palindromes only need one.
 - **Context columns prevent junction artifacts**: Always specify `left_context_column`/`right_context_column` at every design step; junction-emergent motifs/repeats are common.
-- **`merge` is inclusive**: The full range `left_context_column`..`right_context_column` is consumed; source columns are removed.
+- **`merge` is inclusive**: The full range `left_context_column`..`right_context_column` is consumed; source columns are removed. If both contexts were used during design, column order is usually already aligned for merge.
 - **`compress` is terminal**: `synthesis_df` is not chainable into `barcode`/`primer`/`spacer`; use degenerate mode for selection-style workflows.
 - **CLI vs Python**: `callback` is Python-only; for CLI-only workflows, filter the count DataFrame post-hoc.
 
@@ -2146,13 +2184,13 @@ Composability works because each module enforces local constraints against expli
 
 ## Advanced Modules
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 For power users who want to peek under the hood:
 
 ### vectorDB
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 LevelDB-based k-mer storage. Created by `background()`, but you can access it directly.
 
@@ -2185,7 +2223,7 @@ Useful for inspecting or manipulating background databases.
 
 ### Scry
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 1-nearest-neighbor barcode classifier. Powers `acount`/`xcount` internally.
 
@@ -2216,11 +2254,11 @@ Useful for building custom counting pipelines or debugging classification issues
 
 ## Troubleshooting
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 ### Design Failures
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 **"Barcode Design Infeasible"**
 - Reduce `minimum_hamming_distance`
@@ -2242,7 +2280,7 @@ Useful for building custom counting pipelines or debugging classification issues
 
 ### Analysis Issues
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 **Debugging failed reads**
 - Use `failed_reads_file` to sample discarded reads by failure category (anchor missing, barcode absent, barcode ambiguous, callback rejected, etc.)
@@ -2267,7 +2305,7 @@ Useful for building custom counting pipelines or debugging classification issues
 
 ### General
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 **"ID column missing/invalid"**
 - Input DataFrame must have a unique `ID` column
@@ -2284,7 +2322,7 @@ Useful for building custom counting pipelines or debugging classification issues
 <p align="center">
 <i>Made with molecules and math by the Salis Lab</i>
 <br>
-<a href="https://github.com/ayaanhossain/oligopool">GitHub</a> ·
-<a href="https://pubs.acs.org/doi/10.1021/acssynbio.4c00661">Paper</a> ·
+<a href="https://github.com/ayaanhossain/oligopool">GitHub</a> -
+<a href="https://pubs.acs.org/doi/10.1021/acssynbio.4c00661">Paper</a> -
 <a href="https://github.com/ayaanhossain/oligopool/issues">Issues</a>
 </p>

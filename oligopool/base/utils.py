@@ -2989,7 +2989,7 @@ def get_exmotif_counter_by_input(exmotif_counter, exmotif_inputs):
               'name', 'label', 'motifs' keys
     '''
 
-    # Build reverse mapping: motif → list of input keys
+    # Build reverse mapping: motif -> list of input keys
     motif_to_inputs = {}
     for inp in exmotif_inputs:
         key = inp['name'] or inp['label']

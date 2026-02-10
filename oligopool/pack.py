@@ -36,7 +36,7 @@ def pack(
         - `pack_file` (`str`): Filename for output pack file.
 
     Optional Parameters:
-        - `minimum_r1_read_length` (`int`): Minimum R1 read length (≥ 1).
+        - `minimum_r1_read_length` (`int`): Minimum R1 read length (>= 1).
         - `minimum_r1_read_quality` (`int`): Minimum average R1 quality (default: 20).
         - `r2_fastq_file` (`str` / `None`): Path to R2 FastQ file (default: `None`).
         - `r2_read_type` (`int` / `str` / `None`): Orientation of R2 reads (see Notes; default: `None`).

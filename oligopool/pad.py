@@ -30,11 +30,11 @@ def pad(
 
     Required Parameters:
         - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated oligo pool variants.
-        - `oligo_length_limit` (`int`): Maximum allowed padded oligo length (≥ 60).
+        - `oligo_length_limit` (`int`): Maximum allowed padded oligo length (>= 60).
         - `split_column` (`str`): Column name containing split fragments.
         - `typeIIS_system` (`str`): Type IIS restriction enzyme to be used for pad excision. See Notes.
-        - `minimum_melting_temperature` (`float`): Minimum padding primer Tm (≥ 25°C).
-        - `maximum_melting_temperature` (`float`): Maximum padding primer Tm (≤ 95°C).
+        - `minimum_melting_temperature` (`float`): Minimum padding primer Tm (>= 25 degC).
+        - `maximum_melting_temperature` (`float`): Maximum padding primer Tm (<= 95 degC).
         - `maximum_repeat_length` (`int`): Max shared repeat length b/w padding primers & oligos (between 6 and 20).
 
     Optional Parameters:
@@ -142,7 +142,7 @@ def pad(
         minval=mintmelt,
         maxval=maxtmelt,
         range_field=' Melting Temperature',
-        range_unit='°C',
+        range_unit=' degC',
         range_min=25,
         range_max=95,
         liner=liner)
@@ -808,7 +808,7 @@ def pad(
     if stats['status']:
 
         liner.send(
-            '     Melting Temperature: {:6.2f} °C and {:6.2f} °C\n'.format(
+            '     Melting Temperature: {:6.2f} degC and {:6.2f} degC\n'.format(
                 stats['vars']['fwd_pad_primer_Tm'],
                 stats['vars']['rev_pad_primer_Tm']))
         liner.send(

@@ -59,7 +59,7 @@ Complete parameter reference for all `oligopool` modules.
 
 ### `barcode`
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 **Purpose**: Generate Hamming-distance separated barcodes for unique variant identification.
 
@@ -92,10 +92,10 @@ df, stats = op.barcode(
 **Required Parameters**
 
 - `input_data` (str | DataFrame): CSV path or DataFrame with `ID` column + DNA sequence columns
-- `oligo_length_limit` (int, ≥4): Maximum allowed oligo length (bp)
-- `barcode_length` (int, ≥4): Length of designed barcodes (bp)
-- `minimum_hamming_distance` (int, ≥1): Minimum pairwise Hamming distance within newly designed set
-- `maximum_repeat_length` (int, ≥4): Maximum shared repeat length between barcode and context/oligos
+- `oligo_length_limit` (int, >=4): Maximum allowed oligo length (bp)
+- `barcode_length` (int, >=4): Length of designed barcodes (bp)
+- `minimum_hamming_distance` (int, >=1): Minimum pairwise Hamming distance within newly designed set
+- `maximum_repeat_length` (int, >=4): Maximum shared repeat length between barcode and context/oligos
 - `barcode_column` (str): Column name to create/overwrite (or patch-fill when `patch_mode=True`)
 
 **Optional Parameters**
@@ -117,7 +117,7 @@ df, stats = op.barcode(
 **Notes**:
 - At least one of `left_context_column` or `right_context_column` must be specified
 - Design order: after primers/motifs, before spacers
-- Cross-set mode is global (not per-row): each new barcode must be ≥`minimum_cross_distance` away from every barcode in the union of `cross_barcode_columns`
+- Cross-set mode is global (not per-row): each new barcode must be >=`minimum_cross_distance` away from every barcode in the union of `cross_barcode_columns`
 - If design is challenging: adjust `barcode_length`, `minimum_hamming_distance`, `maximum_repeat_length`, or switch `barcode_type`
 - Constant anchors (e.g., index prefix/suffix) are typically designed first via `motif` with `motif_type=1`
 
@@ -134,15 +134,15 @@ op barcode \
     --output-file output
 ```
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 ---
 
 ### `primer`
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
-**Purpose**: Design thermodynamically optimal primers for amplification with Tm constraints and optional background screening.
+**Purpose**: Design thermodynamically and structurally robust primers for amplification, with Tm constraints, anti-structure screening (hairpin/homodimer/heterodimer/cross-dimer), and optional background screening.
 
 **Signature**:
 ```python
@@ -174,12 +174,12 @@ df, stats = op.primer(
 **Required Parameters**
 
 - `input_data` (str | DataFrame): CSV path or DataFrame with `ID` column + DNA sequence columns
-- `oligo_length_limit` (int, ≥4): Maximum allowed oligo length (bp)
+- `oligo_length_limit` (int, >=4): Maximum allowed oligo length (bp)
 - `primer_sequence_constraint` (str): IUPAC constraint string (e.g., `'SS' + 'N'*18` for GC clamp)
 - `primer_type` (int | str): `0`/`'forward'`=forward, `1`/`'reverse'`=reverse. Also accepts: `'fwd'`, `'f'`, `'rev'`, `'r'`
-- `minimum_melting_temperature` (float, ≥25): Minimum primer Tm (°C)
-- `maximum_melting_temperature` (float, ≤95): Maximum primer Tm (°C)
-- `maximum_repeat_length` (int, ≥6): Maximum shared repeat length between primer and oligos/background
+- `minimum_melting_temperature` (float, >=25): Minimum primer Tm ( degC)
+- `maximum_melting_temperature` (float, <=95): Maximum primer Tm ( degC)
+- `maximum_repeat_length` (int, >=6): Maximum shared repeat length between primer and oligos/background
 - `primer_column` (str): Output column name
 
 **Optional Parameters**
@@ -189,7 +189,7 @@ df, stats = op.primer(
 - `right_context_column` (str | None, default=None): Column for right DNA context
 - `patch_mode` (bool, default=False): Fill only missing values (`None`/`NaN`/empty/`'-'`)
 - `oligo_sets` (list | str | DataFrame | None, default=None): Per-row grouping labels for set-specific primers (list, CSV, or DataFrame with `ID` + `OligoSet`)
-- `paired_primer_column` (str | None, default=None): Column of paired primer for Tm matching (within 1°C)
+- `paired_primer_column` (str | None, default=None): Column of paired primer for Tm matching (within 1 degC)
 - `excluded_motifs` (list | str | dict | DataFrame | None, default=None): Motifs to exclude. Accepts a list, CSV/FASTA path, DataFrame with `Exmotif` column, comma-string, or multiple sources. Strict ATGC only (no IUPAC codes, no dashes).
 - `background_directory` (str | list | None, default=None): Background k-mer DB(s) from `background()` (screened against ALL specified DBs)
 - `random_seed` (int | None, default=None): RNG seed for reproducibility
@@ -200,6 +200,7 @@ df, stats = op.primer(
 **Notes**:
 - At least one of `left_context_column` or `right_context_column` must be specified
 - Design primers early; for paired primers, design inner primer first, then outer with `paired_primer_column`
+- Strong hairpin/homodimer/heterodimer/cross-dimer candidates are rejected during optimization
 - `maximum_repeat_length` screens against `input_data` only; for genome-wide screening, build a background DB with `background()` and pass via `background_directory`
 - Chained primer design: design one primer, then design its partner by passing `paired_primer_column`
 - With `oligo_sets`: primers are designed per set with cross-set dimer screening; if `paired_primer_column` is provided, Tm matching is applied per set
@@ -220,13 +221,13 @@ op primer \
     --output-file output
 ```
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 ---
 
 ### `motif`
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 **Purpose**: Insert sequence motifs (per-variant or constant anchors) with constraint satisfaction.
 
@@ -256,9 +257,9 @@ df, stats = op.motif(
 **Required Parameters**
 
 - `input_data` (str | DataFrame): CSV path or DataFrame with `ID` column + DNA sequence columns
-- `oligo_length_limit` (int, ≥4): Maximum allowed oligo length (bp)
+- `oligo_length_limit` (int, >=4): Maximum allowed oligo length (bp)
 - `motif_sequence_constraint` (str): IUPAC constraint string (can be degenerate or constant)
-- `maximum_repeat_length` (int, ≥4): Maximum shared repeat length between motif/anchor and oligos
+- `maximum_repeat_length` (int, >=4): Maximum shared repeat length between motif/anchor and oligos
 - `motif_column` (str): Output column name
 
 **Optional Parameters**
@@ -296,13 +297,13 @@ op motif \
     --output-file output
 ```
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 ---
 
 ### `spacer`
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 **Purpose**: Insert neutral DNA spacers to meet length requirements.
 
@@ -331,8 +332,8 @@ df, stats = op.spacer(
 **Required Parameters**
 
 - `input_data` (str | DataFrame): CSV path or DataFrame with `ID` column + DNA sequence columns
-- `oligo_length_limit` (int, ≥4): Maximum allowed oligo length (bp)
-- `maximum_repeat_length` (int, ≥4): Maximum shared repeat length between spacer and oligos
+- `oligo_length_limit` (int, >=4): Maximum allowed oligo length (bp)
+- `maximum_repeat_length` (int, >=4): Maximum shared repeat length between spacer and oligos
 - `spacer_column` (str): Output column name
 
 **Optional Parameters**
@@ -365,13 +366,13 @@ op spacer \
     --output-file output
 ```
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 ---
 
 ### `background`
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 **Purpose**: Build a k-mer database for screening designed sequences against off-target repeats.
 
@@ -413,13 +414,13 @@ op background \
     --output-directory ecoli_bg
 ```
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 ---
 
 ### `merge`
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 **Purpose**: Concatenate contiguous columns into a single column.
 
@@ -450,7 +451,7 @@ df, stats = op.merge(
 - `right_context_column` (str | None, default=None): Last column to merge (defaults to last sequence column)
 - `verbose` (bool, default=True): Print progress output
 
-**Returns**: `(DataFrame, stats_dict)` — source columns in range are removed
+**Returns**: `(DataFrame, stats_dict)` - source columns in range are removed
 
 **Notes**:
 - Use to collapse multiple adjacent columns into one before further design steps
@@ -466,13 +467,13 @@ op merge \
     --output-file merged
 ```
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 ---
 
 ### `revcomp`
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 **Purpose**: Reverse complement a range of columns and reverse their order.
 
@@ -516,13 +517,13 @@ op revcomp \
     --output-file revcomped
 ```
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 ---
 
 ### `final`
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 **Purpose**: Concatenate all columns into synthesis-ready oligos.
 
@@ -547,7 +548,7 @@ df, stats = op.final(
 - `output_file` (str | None, default=None): Output CSV path (required for CLI)
 - `verbose` (bool, default=True): Print progress output
 
-**Returns**: `(DataFrame, stats_dict)` — output contains `ID`, `CompleteOligo`, `OligoLength` only
+**Returns**: `(DataFrame, stats_dict)` - output contains `ID`, `CompleteOligo`, `OligoLength` only
 
 **Notes**:
 - Concatenates all sequence columns left-to-right; gap characters (`'-'`) are stripped
@@ -560,7 +561,7 @@ op final \
     --output-file synthesis_ready
 ```
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 ---
 
@@ -570,7 +571,7 @@ Assembly Mode provides tools for fragmenting long oligos that exceed synthesis l
 
 ### `split`
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 **Purpose**: Break long oligos into overlapping fragments for overlap-based assembly (Gibson, overlap-extension PCR, etc.).
 
@@ -597,7 +598,7 @@ df, stats = op.split(
 
 - `input_data` (str | DataFrame): CSV path or DataFrame with `ID` column + DNA sequence columns
 - `split_length_limit` (int): Maximum fragment length (bp)
-- `minimum_melting_temperature` (float): Minimum overlap Tm (°C)
+- `minimum_melting_temperature` (float): Minimum overlap Tm ( degC)
 - `minimum_hamming_distance` (int): Minimum pairwise Hamming distance between overlaps
 - `minimum_overlap_length` (int): Minimum overlap length (bp)
 - `maximum_overlap_length` (int): Maximum overlap length (bp)
@@ -610,8 +611,8 @@ df, stats = op.split(
 - `verbose` (bool, default=True): Print progress output
 
 **Returns**:
-- `(DataFrame, stats_dict)` when `separate_outputs=False` (default) — output contains `Split1`, `Split2`, ... columns
-- `([DataFrame, ...], stats_dict)` when `separate_outputs` is enabled — one DataFrame per `SplitN` column
+- `(DataFrame, stats_dict)` when `separate_outputs=False` (default) - output contains `Split1`, `Split2`, ... columns
+- `([DataFrame, ...], stats_dict)` when `separate_outputs` is enabled - one DataFrame per `SplitN` column
 
 **Notes**:
 - Number of fragments varies per oligo; even-numbered splits (`Split2`, `Split4`, ...) are reverse-complemented
@@ -632,13 +633,13 @@ op split \
 ```
 Tip: CLI defaults to separate files. Use `--no-separate-outputs` to write a single combined `.oligopool.split.csv`.
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 ---
 
 ### `pad`
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 **Purpose**: Add primers and Type IIS restriction sites to split fragments for scarless assembly.
 
@@ -664,11 +665,11 @@ df, stats = op.pad(
 **Required Parameters**
 
 - `input_data` (str | DataFrame): Output from `split()` or any DataFrame with fragment column
-- `oligo_length_limit` (int, ≥60): Maximum padded fragment length (bp)
+- `oligo_length_limit` (int, >=60): Maximum padded fragment length (bp)
 - `split_column` (str): Which fragment column to pad (e.g., `Split1`)
 - `typeIIS_system` (str): Type IIS enzyme name (see [supported list](#type-iis-enzymes))
-- `minimum_melting_temperature` (float, ≥25): Minimum pad primer Tm (°C)
-- `maximum_melting_temperature` (float, ≤95): Maximum pad primer Tm (°C)
+- `minimum_melting_temperature` (float, >=25): Minimum pad primer Tm ( degC)
+- `maximum_melting_temperature` (float, <=95): Maximum pad primer Tm ( degC)
 - `maximum_repeat_length` (int, 6-20): Maximum shared repeat length
 
 **Optional Parameters**
@@ -677,15 +678,15 @@ df, stats = op.pad(
 - `random_seed` (int | None, default=None): RNG seed for reproducibility
 - `verbose` (bool, default=True): Print progress output
 
-**Returns**: `(DataFrame, stats_dict)` — output contains `5primeSpacer`, `ForwardPrimer`, `<split_column>`, `ReversePrimer`, `3primeSpacer`
+**Returns**: `(DataFrame, stats_dict)` - output contains `5primeSpacer`, `ForwardPrimer`, `<split_column>`, `ReversePrimer`, `3primeSpacer`
 
 **Notes**:
 - The Type IIS recognition site must be absent from all split fragments (in either orientation); `pad` validates this and fails early if conflicts are found
 - To prevent conflicts, add your Type IIS motif and its reverse complement (e.g., `GGTCTC` and `GAGACC` for BsaI) to `excluded_motifs` when designing upstream elements
-- This only constrains newly designed elements—if your input sequences already contain the site, choose a different enzyme or redesign those sequences
+- This only constrains newly designed elements-if your input sequences already contain the site, choose a different enzyme or redesign those sequences
 - Run `pad` separately for each fragment (e.g., `Split1`, `Split2`, ...); you cannot pad all columns in one call
 - If a fragment can't fit under `oligo_length_limit`, spacer(s) are set to `'-'`
-- Post-synthesis workflow: PCR amplify → Type IIS digest → mung bean nuclease (skip for blunt-cutters like `MlyI`) → assemble via overlaps
+- Post-synthesis workflow: PCR amplify -> Type IIS digest -> mung bean nuclease (skip for blunt-cutters like `MlyI`) -> assemble via overlaps
 
 **CLI Equivalent**:
 ```bash
@@ -700,17 +701,17 @@ op pad \
     --output-file padded_split1
 ```
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 ---
 
 ## Degenerate Mode
 
-Degenerate Mode compresses variant libraries with low mutational diversity into IUPAC-degenerate oligos for cost-efficient synthesis. Best for selection assays where enriched variants are identified by sequencing (no barcode-based readout required). Ideal for selection-based discovery: design → compress → synthesize → select → sequence → map back.
+Degenerate Mode compresses variant libraries with low mutational diversity into IUPAC-degenerate oligos for cost-efficient synthesis. Best for selection assays where enriched variants are identified by sequencing (no barcode-based readout required). Ideal for selection-based discovery: design -> compress -> synthesize -> select -> sequence -> map back.
 
 ### `compress`
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 **Purpose**: Compress concrete DNA sequences into IUPAC-degenerate oligos for cost-efficient synthesis.
 
@@ -738,7 +739,7 @@ mapping_df, synthesis_df, stats = op.compress(
 
 - `mapping_file` (str | None, default=None): Output CSV for variant-to-degenerate mapping
 - `synthesis_file` (str | None, default=None): Output CSV for degenerate oligos ready for synthesis
-- Output suffixes (if missing): `mapping_file` → `.oligopool.compress.mapping.csv`, `synthesis_file` → `.oligopool.compress.synthesis.csv`
+- Output suffixes (if missing): `mapping_file` -> `.oligopool.compress.mapping.csv`, `synthesis_file` -> `.oligopool.compress.synthesis.csv`
 - `rollout_simulations` (int, default=100): Monte Carlo simulations per decision (higher = better compression, slower)
 - `rollout_horizon` (int, default=4): Lookahead positions for rollouts
 - `random_seed` (int | None, default=None): RNG seed for reproducibility
@@ -750,7 +751,7 @@ mapping_df, synthesis_df, stats = op.compress(
 - `stats_dict`: Includes `compression_ratio`, `min_degeneracy`, `max_degeneracy`, `mean_degeneracy`
 
 **Notes**:
-- Core guarantee (lossless): `degeneracy(prefix) <= count(compatible variants)` — no invented sequences
+- Core guarantee (lossless): `degeneracy(prefix) <= count(compatible variants)` - no invented sequences
 - Sequences of different lengths are compressed independently
 - If sequences are too diverse to compress, returns 1:1 mapping
 - Monte Carlo rollouts are parallelized across CPU cores automatically via numba
@@ -764,13 +765,13 @@ op compress \
     --random-seed 42
 ```
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 ---
 
 ### `expand`
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 **Purpose**: Expand IUPAC-degenerate sequences into all concrete A/T/G/C sequences.
 
@@ -802,7 +803,7 @@ df, stats = op.expand(
 - `expansion_limit` (int | None, default=None): Safety cap for maximum total expanded sequences
 - `verbose` (bool, default=True): Print progress output
 
-**Returns**: `(DataFrame, stats_dict)` — output contains original columns plus `ExpandedSeq` and `OligoLength`; if `mapping_file` provided, includes both `ID` and `DegenerateID` columns
+**Returns**: `(DataFrame, stats_dict)` - output contains original columns plus `ExpandedSeq` and `OligoLength`; if `mapping_file` provided, includes both `ID` and `DegenerateID` columns
 
 **Notes**:
 - Primarily used as a verification tool to confirm `compress` output
@@ -819,7 +820,7 @@ op expand \
     --output-file expanded
 ```
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 ---
 
@@ -827,7 +828,7 @@ op expand \
 
 ### `index`
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 **Purpose**: Build a searchable index of barcodes (and optional associates) for counting.
 
@@ -888,7 +889,7 @@ stats = op.index(
 
 **Notes**:
 - At least one of `barcode_prefix_column` or `barcode_suffix_column` is required
-- Anchors must be constant (single-unique) sequences, ideally ≥6 bp and adjacent to indexed column
+- Anchors must be constant (single-unique) sequences, ideally >=6 bp and adjacent to indexed column
 - If an anchor appears multiple times in a read, counting keeps the best-scoring placement; ties that yield different barcodes are rejected as `barcode_ambiguous`
 - When using associates, at least one of `associate_prefix_column` or `associate_suffix_column` is required
 
@@ -901,13 +902,13 @@ op index \
     --index-file bc1_index
 ```
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 ---
 
 ### `pack`
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 **Purpose**: Preprocess FastQ files - filter, optionally merge paired-ends, deduplicate.
 
@@ -990,13 +991,13 @@ op pack \
     --pack-file sample
 ```
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 ---
 
 ### `acount`
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 **Purpose**: Association counting - verify barcode-variant coupling in reads.
 
@@ -1035,11 +1036,12 @@ counts_df, stats = op.acount(
 - `callback` (callable | None, default=None): Custom read filter function (Python API only)
 - `core_count` (int, default=0): CPU cores (`0`=auto)
 - `memory_limit` (float, default=0.0): GB per core (`0`=auto)
-- `failed_reads_file` (str | None, default=None): Output CSV path for failed read samples (`.oligopool.acount.failed_reads.csv` appended if missing). `None` disables sampling.
+- `failed_reads_file` (str | None, default=None): Output CSV path for failed read samples (`.oligopool.acount.failedreads.csv` appended if missing). `None` disables sampling.
 - `failed_reads_sample_size` (int, default=1000): Maximum samples per failure category (1-100,000)
+- Failed-reads CSV columns: `FailureReason`, `R1`, `R2`, `ReadCount`, `DiagnosticDetails`
 - `verbose` (bool, default=True): Print progress output
 
-**Returns**: `(counts_DataFrame, stats_dict)` — output contains `<indexname>.ID`, `BarcodeCounts`, `AssociationCounts`
+**Returns**: `(counts_DataFrame, stats_dict)` - output contains `<indexname>.ID`, `BarcodeCounts`, `AssociationCounts`
 
 **Notes**:
 - Use `acount` when you need to verify barcode-variant coupling (requires associates in index)
@@ -1083,13 +1085,13 @@ op acount \
     --failed-reads-sample-size 500
 ```
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 ---
 
 ### `xcount`
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 **Purpose**: Barcode-only counting (single or combinatorial) without associate verification.
 
@@ -1126,15 +1128,16 @@ counts_df, stats = op.xcount(
 - `callback` (callable | None, default=None): Custom read filter function (Python API only)
 - `core_count` (int, default=0): CPU cores (`0`=auto)
 - `memory_limit` (float, default=0.0): GB per core (`0`=auto)
-- `failed_reads_file` (str | None, default=None): Output CSV path for failed read samples (`.oligopool.xcount.failed_reads.csv` appended if missing). `None` disables sampling.
+- `failed_reads_file` (str | None, default=None): Output CSV path for failed read samples (`.oligopool.xcount.failedreads.csv` appended if missing). `None` disables sampling.
 - `failed_reads_sample_size` (int, default=1000): Maximum samples per failure category (1-100,000)
+- Failed-reads CSV columns: `FailureReason`, `R1`, `R2`, `ReadCount`, `DiagnosticDetails`
 - `verbose` (bool, default=True): Print progress output
 
-**Returns**: `(counts_DataFrame, stats_dict)` — output contains one `<indexname>.ID` column per index, plus `CombinatorialCounts`. Missing barcodes shown as `'-'`
+**Returns**: `(counts_DataFrame, stats_dict)` - output contains one `<indexname>.ID` column per index, plus `CombinatorialCounts`. Missing barcodes shown as `'-'`
 
 **Notes**:
 - Use `xcount` for barcode-only counting without associate verification
-- For combinatorial counting (BC1 × BC2), pass multiple indexes as a list
+- For combinatorial counting (BC1 x BC2), pass multiple indexes as a list
 - Single index: counts each barcode; multiple indexes: counts barcode combinations
 - Multi-anchor reads: if an anchor appears multiple times, the best-scoring one is used; ties with multiple barcodes are rejected as `barcode_ambiguous`
 - Failed reads sampling collects representative samples from each failure category for diagnostics:
@@ -1162,7 +1165,7 @@ op xcount \
     --count-file combo_counts
 ```
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 ---
 
@@ -1170,7 +1173,7 @@ op xcount \
 
 ### `lenstat`
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 **Purpose**: Report length statistics and free space remaining (non-destructive).
 
@@ -1189,7 +1192,7 @@ stats = op.lenstat(
 **Required Parameters**
 
 - `input_data` (str | DataFrame): CSV path or DataFrame with `ID` column + DNA sequence columns
-- `oligo_length_limit` (int, ≥4): Reference length limit for free space calculation
+- `oligo_length_limit` (int, >=4): Reference length limit for free space calculation
 
 **Optional Parameters**
 
@@ -1208,13 +1211,13 @@ op lenstat \
     --oligo-length-limit 200
 ```
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 ---
 
 ### `verify`
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 **Purpose**: Verify oligo pool for length, motif emergence, and background k-mer conflicts.
 
@@ -1245,7 +1248,7 @@ df, stats = op.verify(
 - `background_directory` (str | list | None, default=None): Background k-mer DB path(s) from `background()` (checked against all specified DBs)
 - `verbose` (bool, default=True): Print progress output
 
-**Returns**: `(DataFrame, stats_dict)` — DataFrame contains per-row conflict flags and details
+**Returns**: `(DataFrame, stats_dict)` - DataFrame contains per-row conflict flags and details
 
 **Output DataFrame Columns**:
 - `ID`: Original row identifier
@@ -1281,13 +1284,13 @@ op verify \
     --output-file results
 ```
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 ---
 
 ### `inspect`
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 **Purpose**: Inspect non-CSV artifacts produced by Oligopool Calculator (background DBs, index files, pack files).
 
@@ -1312,7 +1315,7 @@ stats = op.inspect(
 - `kind` (str, default=`auto`): `background`, `index`, `pack`, or `auto`
 - `verbose` (bool, default=True): Print progress output
 
-**Returns**: `stats_dict` (stats-only module) — summary is stored under `stats['vars']['meta']` and `stats['vars']['verdict']`
+**Returns**: `stats_dict` (stats-only module) - summary is stored under `stats['vars']['meta']` and `stats['vars']['verdict']`
 
 **Notes**:
 - Read-only: does not repair artifacts and never unpickles unsafe objects
@@ -1332,7 +1335,7 @@ op inspect --target BC1.oligopool.index --stats-json --quiet
 op inspect --target reads.oligopool.pack --stats-json --quiet
 ```
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 ---
 
@@ -1340,7 +1343,7 @@ op inspect --target reads.oligopool.pack --stats-json --quiet
 
 ### vectorDB
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 **Purpose**: LevelDB-based k-mer storage. Created by `background()`, accessible directly for custom workflows.
 
@@ -1380,15 +1383,15 @@ db.drop()                          # Delete DB from disk
 **Parameters**:
 - `path`: Directory path (background outputs end with `.oligopool.background`)
 - `maximum_repeat_length`: Max repeat length. If reopening existing DB, stored value is used.
-- `rna`: If `True`, convert U→T before processing
+- `rna`: If `True`, convert U->T before processing
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 ---
 
 ### Scry
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 **Purpose**: 1-nearest-neighbor barcode classifier. Powers `acount`/`xcount` internally.
 
@@ -1428,7 +1431,7 @@ model.prime(t=1, mode=0)
 label, score = model.predict('ATGCATGC')  # ('bc1', 1.0)
 ```
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 ---
 
@@ -1436,7 +1439,7 @@ label, score = model.predict('ATGCATGC')  # ('bc1', 1.0)
 
 ### IUPAC Codes
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 | Code | Bases | Description |
 |------|-------|-------------|
@@ -1456,13 +1459,13 @@ label, score = model.predict('ATGCATGC')  # ('bc1', 1.0)
 | H | A, C, T | Not G |
 | V | A, C, G | Not T |
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 ---
 
 ### Common Restriction Sites
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 | Enzyme | Recognition Sequence |
 |--------|---------------------|
@@ -1481,29 +1484,29 @@ label, score = model.predict('ATGCATGC')  # ('bc1', 1.0)
 | AatII | GACGTC |
 | KpnI | GGTACC |
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 ---
 
 ### Type IIS Enzymes
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 Supported enzymes for `pad()` (34 total):
 
 `AcuI`, `AlwI`, `BbsI`, `BccI`, `BceAI`, `BciVI`, `BcoDI`, `BmrI`, `BpuEI`, `BsaI`, `BseRI`, `BsmAI`, `BsmBI`, `BsmFI`, `BsmI`, `BspCNI`, `BspQI`, `BsrDI`, `BsrI`, `BtgZI`, `BtsCI`, `BtsI`, `BtsIMutI`, `EarI`, `EciI`, `Esp3I`, `FauI`, `HgaI`, `HphI`, `HpyAV`, `MlyI`, `MnlI`, `SapI`, `SfaNI`
 
-Why this list: `pad()` uses Type IIS for pad excision (scarless removal after optional blunting). Each supported system is modeled as a recognition motif plus a 3' cut offset into adjacent `N` bases (e.g., BsaI: `GGTCTC` + `N*5`). Enzymes that cut upstream (or require more complex cut models) are not included. The variety is intentional: if one recognition site conflicts with your library, you can often switch enzymes without changing the workflow.
+Why this list: `pad()` uses Type IIS for pad excision (scarless primer-pad removal after optional blunting). These 34 are the "batteries included" built-ins because each has a clearly defined recognition motif plus a 3' cut offset into adjacent `N` bases in the current model (e.g., BsaI: `GGTCTC` + `N*5`). Enzymes that cut upstream (or require more complex cut models) are not included. The variety is intentional: if one recognition site conflicts with your library, you can often switch enzymes without changing the workflow.
 
-For other enzymes, design primers/sites manually with `primer` or `motif`.
+For other enzymes, build custom pads from primitives with `primer` + `motif` + `spacer`.
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 ---
 
 ### File Formats
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 **Input CSV**:
 ```csv
@@ -1532,13 +1535,13 @@ v3,TTAACCGGTTAACCGG
 | `.oligopool.acount.csv` | `acount` | Association counts |
 | `.oligopool.xcount.csv` | `xcount` | Combinatorial counts |
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 ---
 
 ### CLI Parameter Mapping
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 Python parameters map to CLI flags by converting `snake_case` to `kebab-case`:
 
@@ -1584,14 +1587,14 @@ Python parameters map to CLI flags by converting `snake_case` to `kebab-case`:
 --motif-sequence-constraint GCC+N*20+CCG
 ```
 
-[↑ Back to TOC](#table-of-contents)
+[^ Back to TOC](#table-of-contents)
 
 ---
 
 <p align="center">
 <i>Made with molecules and math by the Salis Lab</i>
 <br>
-<a href="https://github.com/ayaanhossain/oligopool">GitHub</a> ·
-<a href="https://pubs.acs.org/doi/10.1021/acssynbio.4c00661">Paper</a> ·
+<a href="https://github.com/ayaanhossain/oligopool">GitHub</a> -
+<a href="https://pubs.acs.org/doi/10.1021/acssynbio.4c00661">Paper</a> -
 <a href="https://github.com/ayaanhossain/oligopool/issues">Issues</a>
 </p>

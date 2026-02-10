@@ -51,7 +51,7 @@ def acount(
 
     Notes:
         - Reads with unresolved associates are excluded from counts.
-        - Useful for validating barcode ↔ associate mappings (e.g., synthesis QC, library quantification).
+        - Useful for validating barcode <-> associate mappings (e.g., synthesis QC, library quantification).
         - `mapping_type`:
             0 or 'fast' for fast, 1 or 'sensitive' for sensitive
             (aliases: 'quick', 'near-exact', 'sens', 'accurate', 'slow').
@@ -189,7 +189,7 @@ def acount(
     # Full failedreadsfile Validation
     failedreadsfile_valid = vp.get_optional_outfile_validity(
         outfile=failedreadsfile,
-        outfile_suffix='.oligopool.acount.failed_reads.csv',
+        outfile_suffix='.oligopool.acount.failedreads.csv',
         outfile_field='    Failed Reads ',
         liner=liner)
 
@@ -197,7 +197,7 @@ def acount(
     if failedreadsfile_valid and failedreadsfile is not None:
         failedreadsfile = ut.get_adjusted_path(
             path=failedreadsfile,
-            suffix='.oligopool.acount.failed_reads.csv')
+            suffix='.oligopool.acount.failedreads.csv')
 
     # Full failedreadssamplesize Validation
     failedreadssamplesize_valid = True

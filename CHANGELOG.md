@@ -6,6 +6,18 @@
 5. Docs: added stats-dict debugging hint, analysis tips (artifact reuse, scale knobs), and clarified ribozyme dual-barcode narrative in notebook.
 6. Bugfix: `inspect` now correctly converts `pack_size` from raw reads-per-pack to millions for display.
 7. Bugfix: `liner_engine` now detects non-TTY stdout and suppresses ephemeral carriage-return progress updates in pipe mode, preventing output flooding in CI runners, subprocess consumers, and AI agents; persistent milestone lines are still emitted.
+8. CLI: reordered subcommand registration so fallback/default argparse command listing aligns with the intended top-level menu grouping (`manual`, `cite`, `pipeline`, design/assembly/QC/final/degenerate/analysis, `inspect`, `complete`).
+9. Bugfix: `op --help` command grouping is now ANSI-safe; help-layout regrouping strips terminal escape codes before parsing, so interactive colored output and piped/plain output render with consistent ordering and blank-line gaps.
+10. CLI: `op manual <topic>` now suggests close matches for unknown topics (e.g., `op manual brcde` -> `Did you mean: barcode?`), mirroring typo-assist behavior already used for invalid CLI arguments.
+11. Core/style: normalized `oligopool/base/config_loader.py` to match legacy `oligopool/base/core_*` conventions (docstring format, import/section style, and message formatting) without changing YAML loading, pipeline parsing, dependency validation, or execution-level behavior.
+12. CLI: `op manual cite` is now recognized and prints citation information directly (previously reported no documentation for `cite`).
+13. Breaking (analysis diagnostics): failed-read sample autosuffixes are now `.oligopool.acount.failedreads.csv` and `.oligopool.xcount.failedreads.csv` (previously used `.failed_reads.csv`).
+14. Breaking (analysis diagnostics): failed-read sample CSV headers are now explicit TitleCase fields: `FailureReason`, `R1`, `R2`, `ReadCount`, `DiagnosticDetails` (previously snake_case).
+15. Tests: added `smoketest/failedreads_smoketest.py` to validate failed-read diagnostics end-to-end (`index -> pack -> xcount`) including autosuffix and CSV schema assertions.
+16. Smoketest robustness: `failedreads_smoketest` now supports lightweight/LFS-pointer checkouts by auto-generating synthetic ribozyme architecture + FASTQ inputs when large example assets are unavailable.
+17. Docs/Examples: updated failed-read suffix references and API notes (`docs/api.md`, `examples/OligopoolCalculatorInAction.ipynb`) to match the new `failedreads` naming and explicit failed-read CSV columns.
+18. CLI/Validation UX: normalized validation-path rendering to basename style across `validation_parsing` (multi-index, multi-background, multi-exmotif, and related file/dir checks) for compact, consistent terminal output.
+19. Bugfix (pack merge/truncation): overlap-parameter sampling now handles truncated/incomplete read pairs safely (including one-sided `None` and empty-overlap cases) without crashing, and emits a conservative merge-priority fallback when overlap evidence is unavailable.
 
 2026.02.08
 1. Feature: `excluded_motifs` now accepts multiple motif sets (list of sources or `{name: source}` dict) in `barcode`, `primer`, `motif`, `spacer`, and `verify`; all sources are merged for screening, with per-set attribution in stats.
@@ -20,10 +32,10 @@
 2. CLI: `--background-directory` now accepts multiple values (space- or comma-separated) for barcode/primer/motif/spacer/verify.
 3. Validation/Core: added `validation_parsing.get_parsed_backgrounds()` and updated background feasibility logic in `core_background.py` and `core_primer.py` to accept lists.
 4. Tests: `smoketest/smoke_multiple_backgrounds.py` covers single + multi-background workflows.
-5. Breaking: redesigned `verify` — now requires `oligo_length_limit`, returns `(DataFrame, stats)`, and can write `.oligopool.verify.csv` with per-row conflict flags (`HasLengthConflict`, `HasExmotifConflict`, `HasBackgroundConflict`, `HasAnyConflicts`) plus `*ConflictDetails` dict columns (serialized as JSON strings in CSV).
+5. Breaking: redesigned `verify` - now requires `oligo_length_limit`, returns `(DataFrame, stats)`, and can write `.oligopool.verify.csv` with per-row conflict flags (`HasLengthConflict`, `HasExmotifConflict`, `HasBackgroundConflict`, `HasAnyConflicts`) plus `*ConflictDetails` dict columns (serialized as JSON strings in CSV).
 6. Validation: added `validation_parsing.get_parsed_verify_indata_info()` for verify-specific input validation (requires ID column + at least one DNA column); error shown in Required Arguments section if no DNA columns detected.
 7. CLI: stats JSON output now works for tuple-return modules like `compress` (stats are extracted from the dict element rather than assuming `(df, stats)`), including in pipeline mode.
-8. Style: `verify` now follows design module conventions — type hints without spaces (`str|pd.DataFrame`), `id_from_index` handling for caller intent preservation.
+8. Style: `verify` now follows design module conventions - type hints without spaces (`str|pd.DataFrame`), `id_from_index` handling for caller intent preservation.
 9. Docs: clarified that `json.loads` applies to all `*Details` columns in `verify` CSV output (currently the `*ConflictDetails` columns).
 10. CLI: `op verify` now requires `--output-file` (Python API still allows `output_file=None`).
 
@@ -43,13 +55,13 @@
 13. Docs: added multi-anchor handling and `barcode_ambiguous` documentation to `api.md` and `agent-skills.md`.
 14. Tests: added `smoketest/smoke_background_integration.py` for background k-mer screening across all design modules.
 15. Tests: added `smoketest/smoke_multi_anchor.py` for multi-anchor read handling in acount/xcount.
-16. Docs: standardized terminology—"oligo pool" (two words) for the concept, "oligopool" for the tool/package name—across README, docstrings, docs, and notebook.
+16. Docs: standardized terminology-"oligo pool" (two words) for the concept, "oligopool" for the tool/package name-across README, docstrings, docs, and notebook.
 17. Cleanup: removed unused functions (`get_hdist`, `get_edist`, `get_categorical_validity`, `merge_config_with_args`, `_nb_popcount4`, `get_validated_concrete_sequence`).
-18. Docs: expanded mode introductions in `docs.md`—added "When to use" guidance and workflow steps for Design Mode, Assembly Mode, and Analysis Mode (matching Degenerate Mode style).
-19. Breaking: `compress` output suffixes are now distinct—`mapping_file` writes `.oligopool.compress.mapping.csv`, and `synthesis_file` writes `.oligopool.compress.synthesis.csv` (previously both used `.oligopool.compress.csv`).
+18. Docs: expanded mode introductions in `docs.md`-added "When to use" guidance and workflow steps for Design Mode, Assembly Mode, and Analysis Mode (matching Degenerate Mode style).
+19. Breaking: `compress` output suffixes are now distinct-`mapping_file` writes `.oligopool.compress.mapping.csv`, and `synthesis_file` writes `.oligopool.compress.synthesis.csv` (previously both used `.oligopool.compress.csv`).
 20. Docs: updated `compress` CLI help text and API docs to reflect the new mapping/synthesis output suffixes.
 21. Docs: tightened module docstrings and mode workflow text for accuracy (e.g., `pack` does not perform adapter trimming; `index` builds one index per barcode column).
-22. Notebook: updated `OligopoolCalculatorInAction.ipynb` to reflect Analysis Mode terminology (replaced “Counting Mode”), documented new `compress` output suffixes, and standardized string quoting in code cells.
+22. Notebook: updated `OligopoolCalculatorInAction.ipynb` to reflect Analysis Mode terminology (replaced "Counting Mode"), documented new `compress` output suffixes, and standardized string quoting in code cells.
 23. Expand: `mapping_file` now auto-suffixes to `.oligopool.compress.mapping.csv` (matching index/pack input behavior); mapping parsing moved into `validation_parsing.py`.
 24. Consistency: standardized `random_seed` validation + display across all RNG-using design modules via `validation_parsing.get_parsed_random_seed_info()`.
 
@@ -62,7 +74,7 @@
 6. Docs: added "Config Files" section to `docs/docs.md` with single command, pipeline, and parallel examples.
 7. Docs: rewrote `agent-skills.md` as compact machine-first "contracts + patterns" format.
 8. Docs: added `--config` and `op pipeline` to CLI appendix in `api.md`.
-9. Examples: added `examples/cli-pipeline/` with sequential and parallel YAML pipeline examples.
+9. Examples: added `examples/cli-yaml-pipeline/` with sequential and parallel YAML pipeline examples.
 10. Examples: added README.md files to all example directories.
 11. Pack format: migrated from delimiter-based concatenation (`r1 + '-----' + r2`) to tuple-based storage `(r1, r2)` for cleaner semantics and type safety.
 12. Core: `get_concatenated_reads()` now returns `(r1, r2)` tuple instead of delimiter-joined string.

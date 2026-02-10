@@ -35,9 +35,9 @@ def motif(
 
     Required Parameters:
         - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated oligo pool variants.
-        - `oligo_length_limit` (`int`): Maximum allowed oligo length (≥ 4).
+        - `oligo_length_limit` (`int`): Maximum allowed oligo length (>= 4).
         - `motif_sequence_constraint` (`str`): IUPAC degenerate sequence constraint, or a constant.
-        - `maximum_repeat_length` (`int`): Max shared repeat length with oligos (≥ 4).
+        - `maximum_repeat_length` (`int`): Max shared repeat length with oligos (>= 4).
         - `motif_column` (`str`): Column name for inserting the designed motifs.
 
     Optional Parameters:

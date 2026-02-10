@@ -230,17 +230,24 @@ $ op complete --install          # auto-detect shell (restart your shell)
 $ op complete --install bash     # or: zsh|fish
 ```
 
+> **CLI Notes**
+> - **Output arguments are required for file-writing commands**: pass a basename via `--output-file` / `--index-file` / `--pack-file` / `--count-file` / `--mapping-file` / `--synthesis-file`.
+> - **Suffixing is automatic and append-if-missing**: if a command expects `.oligopool.<module>...`, that suffix is appended when absent.
+> - **Type parameters are flexible**: most `--*-type` flags accept either integers or readable strings (`forward`, `spectrum`, `anchor`, `merge`, `sensitive`, etc.).
+> - **Sequence constraints support shorthand**: use literal IUPAC (`NNNN...`) or compact expressions like `"'N'*20"` and `'GCC+N*20+CCG'`.
+> - **`split` defaults to per-fragment outputs**: use `--no-separate-outputs` if you want one combined split CSV.
+
 ### YAML Pipelines
 
 Define entire workflows in a single YAML config file and execute with one command:
 ```bash
-$ op pipeline --config mpra_design.yaml
-$ op pipeline --config mpra_design.yaml --dry-run  # validate first
+$ op pipeline --config pipeline.yaml
+$ op pipeline --config pipeline.yaml --dry-run  # validate first
 ```
 
-Pipelines support **sequential** or **parallel DAG** execution-independent steps run concurrently:
+Pipelines support **sequential** or **parallel DAG** execution, where independent steps run concurrently:
 ```yaml
-# mpra_design.yaml
+# pipeline.yaml
 pipeline:
   name: "MPRA Library"
   steps:
@@ -257,18 +264,23 @@ pipeline:
 
 fwd_primer:
   input_data: "variants.csv"
-  output_file: "fwd.csv"
+  output_file: "fwd"
   primer_type: forward
   # ...
 ```
 
 Use `--config` with any command to load parameters from YAML (CLI args override config values). See [`examples/cli-yaml-pipeline`](https://github.com/ayaanhossain/oligopool/tree/master/examples/cli-yaml-pipeline) for a complete working example.
+Canonical examples there are `mpra_design_serial.yaml`, `mpra_design_parallel.yaml`, `analysis_single.yaml`, and `analysis_multi.yaml`.
 
-> **CLI Notes**
-> - Commands that write files require an output basename (e.g., `--output-file`, `--index-file`, `--pack-file`, `--count-file`, `--mapping-file`, `--synthesis-file`), unlike library mode where outputs can be returned in-memory.
-> - Most `--*-type` parameters accept either integers or descriptive strings (case-insensitive), e.g. `--primer-type forward`, `--barcode-type spectrum`, `--motif-type anchor`, `--pack-type merge`, `--mapping-type sensitive`.
-> - For `--primer-sequence-constraint` / `--motif-sequence-constraint`, pass an IUPAC string (`NNNN...`) or a quoted expression like `"'N'*20"` / `'GCC+N*20+CCG'`.
-> - `op split` writes separate files per fragment by default (e.g., `out.Split1.oligopool.split.csv`, `out.Split2...`); use `--no-separate-outputs` to write a single combined file.
+> **YAML Pipeline Notes**
+> - **You can write concise pipelines**: downstream `input_data` can reference upstream `output_file` basenames.
+> - **Explicit paths always win**: if an `input_data` path already exists, it is used as-is (no alias rewrite).
+> - **Alias resolution is strict**: only unique basename aliases are auto-resolved; ambiguous aliases are reported as config errors.
+> - **DAG is especially useful for analysis orchestration**: run independent `index`/`pack` steps in parallel, then gate `acount`/`xcount` on all dependencies.
+> - **Suffix behavior is predictable**:
+>   - `output_file: "my_library"` -> `my_library.oligopool.<module>.csv`
+>   - `output_file: "my_library.csv"` -> `my_library.csv.oligopool.<module>.csv`
+>   - `output_file: "my_library.oligopool.<module>.csv"` -> unchanged
 
 <a id="citation"></a>
 ## 📖 Citation

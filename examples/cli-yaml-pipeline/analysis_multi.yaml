@@ -1,0 +1,133 @@
+# Multi-Sample Analysis DAG Pipeline
+# Run with: op pipeline --config analysis_multi.yaml
+# Dry run:  op pipeline --config analysis_multi.yaml --dry-run
+#
+# Pattern:
+# 1) Build fixed indexes once.
+# 2) Pack each sample independently.
+# 3) Count each sample against the same indexes.
+
+pipeline:
+  name: "Multi-Sample Analysis DAG Demo"
+  steps:
+    # Shared indexes (run once)
+    - name: index_bc1
+      command: index
+    - name: index_bc2
+      command: index
+
+    # Per-sample packing (parallelizable)
+    - name: pack_sample_a
+      command: pack
+    - name: pack_sample_b
+      command: pack
+
+    # Per-sample counting (xcount + acount in parallel)
+    - name: xcount_sample_a
+      command: xcount
+      after: [index_bc1, index_bc2, pack_sample_a]
+    - name: acount_sample_a
+      command: acount
+      after: [index_bc2, pack_sample_a]
+
+    - name: xcount_sample_b
+      command: xcount
+      after: [index_bc1, index_bc2, pack_sample_b]
+    - name: acount_sample_b
+      command: acount
+      after: [index_bc2, pack_sample_b]
+
+# Shared BC1 index
+index_bc1:
+  barcode_data: "../analysis-pipeline/ribozyme_architecture.csv"
+  barcode_column: "BC1"
+  barcode_prefix_column: "OrangeForwardPrimer"
+  barcode_suffix_column: null
+  barcode_prefix_gap: 0
+  barcode_suffix_gap: 0
+  index_file: "ms_bc1"
+
+# Shared BC2 index (with associates)
+index_bc2:
+  barcode_data: "../analysis-pipeline/ribozyme_architecture.csv"
+  barcode_column: "BC2"
+  barcode_prefix_column: "PinkForwardPrimer"
+  barcode_suffix_column: "YellowReversePrimer"
+  barcode_prefix_gap: 0
+  barcode_suffix_gap: 0
+  associate_data: "../analysis-pipeline/ribozyme_architecture.csv"
+  associate_column: "Variant"
+  associate_prefix_column: null
+  associate_suffix_column: "PinkForwardPrimer"
+  associate_prefix_gap: 0
+  associate_suffix_gap: 0
+  index_file: "ms_bc2"
+
+# Sample A pack
+pack_sample_a:
+  r1_fastq_file: "../analysis-pipeline/ribozyme_1M_R1.fq.gz"
+  r2_fastq_file: "../analysis-pipeline/ribozyme_1M_R2.fq.gz"
+  r1_read_type: forward
+  r2_read_type: reverse
+  minimum_r1_read_quality: 30
+  minimum_r2_read_quality: 30
+  minimum_r1_read_length: 10
+  minimum_r2_read_length: 10
+  pack_type: merge
+  pack_size: 0.1
+  pack_file: "ms_s1_reads"
+
+# Sample B pack
+# For real runs, replace these FASTQ paths with your second sample.
+pack_sample_b:
+  r1_fastq_file: "../analysis-pipeline/ribozyme_1M_R1.fq.gz"
+  r2_fastq_file: "../analysis-pipeline/ribozyme_1M_R2.fq.gz"
+  r1_read_type: forward
+  r2_read_type: reverse
+  minimum_r1_read_quality: 30
+  minimum_r2_read_quality: 30
+  minimum_r1_read_length: 10
+  minimum_r2_read_length: 10
+  pack_type: merge
+  pack_size: 0.1
+  pack_file: "ms_s2_reads"
+
+# Sample A count matrix
+xcount_sample_a:
+  index_files: ["ms_bc1", "ms_bc2"]
+  pack_file: "ms_s1_reads"
+  count_file: "ms_s1_xcount"
+  mapping_type: sensitive
+  failed_reads_file: "ms_s1_xcount_failedreads"
+  failed_reads_sample_size: 1000
+
+# Sample A association matrix (barcode+associate verification)
+acount_sample_a:
+  index_file: "ms_bc2"
+  pack_file: "ms_s1_reads"
+  count_file: "ms_s1_acount"
+  mapping_type: sensitive
+  barcode_errors: -1
+  associate_errors: -1
+  failed_reads_file: "ms_s1_acount_failedreads"
+  failed_reads_sample_size: 1000
+
+# Sample B count matrix
+xcount_sample_b:
+  index_files: ["ms_bc1", "ms_bc2"]
+  pack_file: "ms_s2_reads"
+  count_file: "ms_s2_xcount"
+  mapping_type: sensitive
+  failed_reads_file: "ms_s2_xcount_failedreads"
+  failed_reads_sample_size: 1000
+
+# Sample B association matrix (barcode+associate verification)
+acount_sample_b:
+  index_file: "ms_bc2"
+  pack_file: "ms_s2_reads"
+  count_file: "ms_s2_acount"
+  mapping_type: sensitive
+  barcode_errors: -1
+  associate_errors: -1
+  failed_reads_file: "ms_s2_acount_failedreads"
+  failed_reads_sample_size: 1000

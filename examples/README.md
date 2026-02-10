@@ -20,7 +20,7 @@ This directory contains working examples demonstrating various `oligopool` workf
 ```bash
 # CLI pipeline example
 cd cli-yaml-pipeline
-op pipeline --config mpra_pipeline.yaml
+op pipeline --config mpra_design_serial.yaml
 
 # Python examples
 cd design-assembly-parser

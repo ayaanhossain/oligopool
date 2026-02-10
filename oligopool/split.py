@@ -31,7 +31,7 @@ def split(
     Required Parameters:
         - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated oligo pool variants.
         - `split_length_limit` (`int`): Maximum allowed length for split oligos (>= 4).
-        - `minimum_melting_temperature` (`float`): Minimum overlap region Tm (>= 4 degC).
+        - `minimum_melting_temperature` (`float`): Minimum overlap region Tm (>= 4 °C).
         - `minimum_hamming_distance` (`int`): Minimum overlap region pairwise Hamming distance (>= 1).
         - `minimum_overlap_length` (`int`): Minimum overlap region length (>= 15).
         - `maximum_overlap_length` (`int`): Maximum overlap region length (>= 15).
@@ -114,7 +114,7 @@ def split(
         numeric=mintmelt,
         numeric_field='  Melting Temperature',
         numeric_pre_desc=' At least ',
-        numeric_post_desc=' degC b/w On-Target Overlaps',
+        numeric_post_desc=' °C b/w On-Target Overlaps',
         minval=4,
         maxval=float('inf'),
         precheck=False,
@@ -444,7 +444,7 @@ def split(
                     max(stats['vars']['overlap_lens']) != min(stats['vars']['overlap_lens'])
                 ]))
         liner.send(
-            '    Overlap Tm      : {:{},d} {} degC\n'.format(
+            '    Overlap Tm      : {:{},d} {}°C\n'.format(
                 min(stats['vars']['mean_Tm_distro']),
                 plen,
                 ['', 'to {:,d} '.format(max(stats['vars']['mean_Tm_distro']))][

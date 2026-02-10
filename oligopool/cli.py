@@ -214,7 +214,7 @@ def _notes_epilog(command: str):
         wrapped = textwrap.fill(
             text,
             width=120,
-            initial_indent='  - ',
+            initial_indent='  • ',
             subsequent_indent='      ',
         )
         formatted.append(wrapped)
@@ -271,7 +271,7 @@ Sequential Pipeline Format:
 
   barcode:
     input_data: "input.csv"
-    output_file: "step1.csv"
+    output_file: "step1"
     # ... parameters
 
 Parallel Pipeline Format (DAG):
@@ -291,13 +291,13 @@ Parallel Pipeline Format (DAG):
 
   fwd_primer:                    # Config section matches step name
     input_data: "variants.csv"
-    output_file: "fwd.csv"
+    output_file: "fwd"
     primer_type: forward
     # ...
 
   rev_primer:
     input_data: "variants.csv"
-    output_file: "rev.csv"
+    output_file: "rev"
     primer_type: reverse
     # ...
 
@@ -315,8 +315,15 @@ Execution:
 
 Notes:
   - Use snake_case for parameter names (e.g., barcode_length)
-  - Paths are explicit - you control the data flow
+  - You can use explicit paths OR basename chaining for pipeline inputs
+  - Basename chaining resolves prior declared outputs (e.g., input_data: step1)
+  - Explicit existing paths are always honored as-is
+  - Ambiguous basename aliases are config errors (rename colliding outputs)
   - Output files are auto-suffixed (e.g., .oligopool.barcode.csv)
+  - Suffixes are append-if-missing:
+      output_file: my_library -> my_library.oligopool.<module>.csv
+      output_file: my_library.csv -> my_library.csv.oligopool.<module>.csv
+      output_file: my_library.oligopool.<module>.csv -> unchanged
   - Cycles in dependencies are detected and rejected
 
 Single Command Config:
@@ -974,7 +981,198 @@ def _apply_step_type_conversions(step_config):
         step_config['index_files'] = _parse_list_str(step_config['index_files'])
     return step_config
 
-def _execute_step(step_name, command, config_key, config):
+def _get_pipeline_step_defs(config):
+    '''
+    Normalize pipeline step definitions for helper routines.
+    Internal use only.
+    '''
+    if is_parallel_pipeline(config):
+        return parse_parallel_steps(config)
+    return [{
+        'name': step,
+        'command': step,
+        'after': [],
+        'config_key': step,
+    } for step in get_pipeline_steps(config)]
+
+def _append_suffix_if_missing(path, suffix):
+    '''
+    Append artifact suffix if not already present.
+    Internal use only.
+    '''
+    if not isinstance(path, str):
+        return path
+    return path if path.endswith(suffix) else '{}{}'.format(path, suffix)
+
+def _iter_output_targets_for_command(command, step_config):
+    '''
+    Yield (raw_value, resolved_value) for declared pipeline outputs.
+    Internal use only.
+    '''
+    output_fields = {
+        'barcode': (('output_file', '.oligopool.barcode.csv'),),
+        'primer': (('output_file', '.oligopool.primer.csv'),),
+        'motif': (('output_file', '.oligopool.motif.csv'),),
+        'spacer': (('output_file', '.oligopool.spacer.csv'),),
+        'split': (('output_file', '.oligopool.split.csv'),),
+        'pad': (('output_file', '.oligopool.pad.csv'),),
+        'merge': (('output_file', '.oligopool.merge.csv'),),
+        'revcomp': (('output_file', '.oligopool.revcomp.csv'),),
+        'verify': (('output_file', '.oligopool.verify.csv'),),
+        'final': (('output_file', '.oligopool.final.csv'),),
+        'expand': (('output_file', '.oligopool.expand.csv'),),
+        'index': (('index_file', '.oligopool.index'),),
+        'pack': (('pack_file', '.oligopool.pack'),),
+        'acount': (
+            ('count_file', '.oligopool.acount.csv'),
+            ('failed_reads_file', '.oligopool.acount.failedreads.csv')),
+        'xcount': (
+            ('count_file', '.oligopool.xcount.csv'),
+            ('failed_reads_file', '.oligopool.xcount.failedreads.csv')),
+        'compress': (
+            ('mapping_file', '.oligopool.compress.mapping.csv'),
+            ('synthesis_file', '.oligopool.compress.synthesis.csv')),
+    }
+
+    for field, suffix in output_fields.get(command, ()):
+        value = step_config.get(field)
+        if isinstance(value, str) and value:
+            yield value, _append_suffix_if_missing(value, suffix)
+
+def _iter_output_aliases(path):
+    '''
+    Yield alias spellings that may refer to a pipeline output.
+    Internal use only.
+    '''
+    aliases = set()
+    if not isinstance(path, str):
+        return aliases
+
+    basename = os.path.basename(path)
+    for candidate in (path, basename):
+        if not candidate:
+            continue
+        aliases.add(candidate)
+        stem, _ = os.path.splitext(candidate)
+        if stem:
+            aliases.add(stem)
+    return aliases
+
+def _build_pipeline_output_alias_info(config):
+    '''
+    Build pipeline output alias metadata.
+    Internal use only.
+
+    Returns:
+      (resolved_alias_map, ambiguous_aliases)
+      - resolved_alias_map: alias -> single resolved path
+      - ambiguous_aliases: alias -> sorted list of conflicting targets
+    '''
+    alias_targets = {}
+    for step in _get_pipeline_step_defs(config):
+        step_config = get_command_config(config, step['config_key'])
+        step_config = convert_config_keys_to_args(step_config)
+        for raw, resolved in _iter_output_targets_for_command(
+            command=step['command'],
+            step_config=step_config):
+            for alias in _iter_output_aliases(raw):
+                targets = alias_targets.setdefault(alias, set())
+                targets.add(resolved)
+
+    resolved_map = {}
+    ambiguous = {}
+    for alias, targets in alias_targets.items():
+        if len(targets) == 1:
+            resolved_map[alias] = next(iter(targets))
+        else:
+            ambiguous[alias] = sorted(targets)
+    return (resolved_map, ambiguous)
+
+def _report_pipeline_alias_ambiguity(ambiguous_aliases):
+    '''
+    Print human-readable pipeline alias ambiguity errors.
+    Internal use only.
+    '''
+    if not ambiguous_aliases:
+        return
+
+    print(
+        'config error: Ambiguous output basename aliases detected in pipeline config.',
+        file=sys.stderr)
+    print(
+        'Each alias must map to exactly one output. Rename colliding output basenames.',
+        file=sys.stderr)
+
+    # Keep output compact but actionable.
+    shown = 0
+    for alias, targets in sorted(ambiguous_aliases.items()):
+        shown += 1
+        if shown > 20:
+            remaining = len(ambiguous_aliases) - 20
+            print(
+                '  ... and {} more ambiguous alias(es).'.format(remaining),
+                file=sys.stderr)
+            break
+        print(
+            '  - alias "{}" maps to: {}'.format(
+                alias,
+                ', '.join(targets)),
+            file=sys.stderr)
+
+def _get_pipeline_resolvable_input_keys(command):
+    '''
+    Return input keys eligible for pipeline magic path resolution.
+    Internal use only.
+    '''
+    keys = {'input_data'}
+    if command == 'index':
+        keys.update({'barcode_data', 'associate_data'})
+    if command == 'expand':
+        keys.add('mapping_file')
+    return keys
+
+def _resolve_pipeline_magic_paths(command, step_config, output_alias_map):
+    '''
+    Resolve basename-like pipeline references to declared outputs.
+    Honors explicit paths if they already exist.
+    Internal use only.
+    '''
+    if not output_alias_map:
+        return step_config
+
+    resolvable_input_keys = _get_pipeline_resolvable_input_keys(command)
+
+    for key in resolvable_input_keys:
+        value = step_config.get(key)
+        if not isinstance(value, str) or not value:
+            continue
+
+        # Explicit, existing path always wins.
+        if os.path.exists(value):
+            continue
+
+        candidates = [value, os.path.basename(value)]
+        stem, _ = os.path.splitext(value)
+        if stem:
+            candidates.append(stem)
+            stem_base = os.path.basename(stem)
+            if stem_base:
+                candidates.append(stem_base)
+
+        for candidate in candidates:
+            resolved = output_alias_map.get(candidate)
+            if resolved:
+                step_config[key] = resolved
+                break
+
+    return step_config
+
+def _execute_step(
+    step_name,
+    command,
+    config_key,
+    config,
+    output_alias_map=None):
     '''Execute a single pipeline step.
 
     Returns:
@@ -984,6 +1182,10 @@ def _execute_step(step_name, command, config_key, config):
         step_config = get_command_config(config, config_key)
         step_config = convert_config_keys_to_args(step_config)
         step_config = _apply_step_type_conversions(step_config)
+        step_config = _resolve_pipeline_magic_paths(
+            command=command,
+            step_config=step_config,
+            output_alias_map=output_alias_map)
         step_config['verbose'] = False  # Suppress step output in pipeline mode
 
         func = _load_api_func(command)
@@ -1026,6 +1228,11 @@ def _run_pipeline_sequential(config, steps, dry_run, verbose):
         print(f'Steps: {len(steps)}')
         print()
 
+    output_alias_map, ambiguous_aliases = _build_pipeline_output_alias_info(config)
+    if ambiguous_aliases:
+        _report_pipeline_alias_ambiguity(ambiguous_aliases)
+        return 1
+
     if dry_run:
         print('Dry run: config validation passed.')
         for i, step in enumerate(steps, 1):
@@ -1048,6 +1255,7 @@ def _run_pipeline_sequential(config, steps, dry_run, verbose):
             command=step,
             config_key=step,
             config=config,
+            output_alias_map=output_alias_map,
         )
 
         if not success:
@@ -1092,6 +1300,10 @@ def _run_pipeline_parallel(config, dry_run, verbose):
             return 1
 
     total_steps = len(steps)
+    output_alias_map, ambiguous_aliases = _build_pipeline_output_alias_info(config)
+    if ambiguous_aliases:
+        _report_pipeline_alias_ambiguity(ambiguous_aliases)
+        return 1
 
     if verbose:
         print(f'Pipeline: {pipeline_name}')
@@ -1132,6 +1344,7 @@ def _run_pipeline_parallel(config, dry_run, verbose):
                         step['command'],
                         step['config_key'],
                         config,
+                        output_alias_map,
                     ): step
                     for step in level
                 }
@@ -1171,6 +1384,7 @@ def _run_pipeline_parallel(config, dry_run, verbose):
                 step['command'],
                 step['config_key'],
                 config,
+                output_alias_map,
             )
 
             if not success:
@@ -1817,14 +2031,14 @@ Aliases: 'fwd', 'f', 'rev', 'r'.''')
         type=float,
         metavar='\b',
         help='''>>[required float]
-Minimum primer melting temperature in degC (>= 25).''')
+Minimum primer melting temperature in °C (>= 25).''')
     req.add_argument(
         '--maximum-melting-temperature',
         required=True,
         type=float,
         metavar='\b',
         help='''>>[required float]
-Maximum primer melting temperature in degC (<= 95).''')
+Maximum primer melting temperature in °C (<= 95).''')
     req.add_argument(
         '--maximum-repeat-length',
         required=True,
@@ -2174,7 +2388,7 @@ Maximum allowed length for split fragments (>= 4).''')
         type=float,
         metavar='\b',
         help='''>>[required float]
-Minimum overlap melting temperature in degC (>= 4).''')
+Minimum overlap melting temperature in °C (>= 4).''')
     req.add_argument(
         '--minimum-hamming-distance',
         required=True,
@@ -2272,14 +2486,14 @@ Type IIS enzyme name for pad excision (see pad() docs for options).''')
         type=float,
         metavar='\b',
         help='''>>[required float]
-Minimum padding primer melting temperature in degC (>= 25).''')
+Minimum padding primer melting temperature in °C (>= 25).''')
     req.add_argument(
         '--maximum-melting-temperature',
         required=True,
         type=float,
         metavar='\b',
         help='''>>[required float]
-Maximum padding primer melting temperature in degC (<= 95).''')
+Maximum padding primer melting temperature in °C (<= 95).''')
     req.add_argument(
         '--maximum-repeat-length',
         required=True,

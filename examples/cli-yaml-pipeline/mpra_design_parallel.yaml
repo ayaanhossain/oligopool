@@ -1,7 +1,7 @@
 # Parallel Pipeline Example
 # Demonstrates DAG execution with parallel steps
-# Run with: op pipeline --config parallel_pipeline.yaml
-# Dry run:  op pipeline --config parallel_pipeline.yaml --dry-run
+# Run with: op pipeline --config mpra_design_parallel.yaml
+# Dry run:  op pipeline --config mpra_design_parallel.yaml --dry-run
 
 pipeline:
   name: "Parallel Design Demo"
@@ -25,7 +25,7 @@ pipeline:
 # Forward primer design (runs at level 1)
 fwd_primer:
   input_data: "variants.csv"
-  output_file: "p1_fwd_primer.oligopool.primer.csv"
+  output_file: "p1_fwd_primer"
   oligo_length_limit: 150
   primer_sequence_constraint: "NNNNNNNNNNNNNNNNNNNN"
   primer_type: forward
@@ -39,7 +39,7 @@ fwd_primer:
 # Barcode design (runs at level 1, parallel with fwd_primer)
 barcode_design:
   input_data: "variants.csv"
-  output_file: "p1_barcode.oligopool.barcode.csv"
+  output_file: "p1_barcode"
   oligo_length_limit: 150
   barcode_length: 10
   minimum_hamming_distance: 3
@@ -51,8 +51,8 @@ barcode_design:
 
 # Spacer design (runs at level 2, after fwd_primer)
 add_spacer:
-  input_data: "p1_fwd_primer.oligopool.primer.csv"
-  output_file: "p2_spacer.oligopool.spacer.csv"
+  input_data: "p1_fwd_primer"
+  output_file: "p2_spacer"
   oligo_length_limit: 150
   maximum_repeat_length: 8
   spacer_column: "Spacer"
@@ -63,5 +63,5 @@ add_spacer:
 # Note: This example uses add_spacer output; in a real workflow you might
 # merge outputs from parallel branches before finalizing
 finalize:
-  input_data: "p2_spacer.oligopool.spacer.csv"
-  output_file: "p3_final.oligopool.final.csv"
+  input_data: "p2_spacer"
+  output_file: "p3_final"

@@ -177,8 +177,8 @@ df, stats = op.primer(
 - `oligo_length_limit` (int, >=4): Maximum allowed oligo length (bp)
 - `primer_sequence_constraint` (str): IUPAC constraint string (e.g., `'SS' + 'N'*18` for GC clamp)
 - `primer_type` (int | str): `0`/`'forward'`=forward, `1`/`'reverse'`=reverse. Also accepts: `'fwd'`, `'f'`, `'rev'`, `'r'`
-- `minimum_melting_temperature` (float, >=25): Minimum primer Tm ( degC)
-- `maximum_melting_temperature` (float, <=95): Maximum primer Tm ( degC)
+- `minimum_melting_temperature` (float, >=25): Minimum primer Tm (°C)
+- `maximum_melting_temperature` (float, <=95): Maximum primer Tm (°C)
 - `maximum_repeat_length` (int, >=6): Maximum shared repeat length between primer and oligos/background
 - `primer_column` (str): Output column name
 
@@ -189,7 +189,7 @@ df, stats = op.primer(
 - `right_context_column` (str | None, default=None): Column for right DNA context
 - `patch_mode` (bool, default=False): Fill only missing values (`None`/`NaN`/empty/`'-'`)
 - `oligo_sets` (list | str | DataFrame | None, default=None): Per-row grouping labels for set-specific primers (list, CSV, or DataFrame with `ID` + `OligoSet`)
-- `paired_primer_column` (str | None, default=None): Column of paired primer for Tm matching (within 1 degC)
+- `paired_primer_column` (str | None, default=None): Column of paired primer for Tm matching (within 1 °C)
 - `excluded_motifs` (list | str | dict | DataFrame | None, default=None): Motifs to exclude. Accepts a list, CSV/FASTA path, DataFrame with `Exmotif` column, comma-string, or multiple sources. Strict ATGC only (no IUPAC codes, no dashes).
 - `background_directory` (str | list | None, default=None): Background k-mer DB(s) from `background()` (screened against ALL specified DBs)
 - `random_seed` (int | None, default=None): RNG seed for reproducibility
@@ -598,7 +598,7 @@ df, stats = op.split(
 
 - `input_data` (str | DataFrame): CSV path or DataFrame with `ID` column + DNA sequence columns
 - `split_length_limit` (int): Maximum fragment length (bp)
-- `minimum_melting_temperature` (float): Minimum overlap Tm ( degC)
+- `minimum_melting_temperature` (float): Minimum overlap Tm (°C)
 - `minimum_hamming_distance` (int): Minimum pairwise Hamming distance between overlaps
 - `minimum_overlap_length` (int): Minimum overlap length (bp)
 - `maximum_overlap_length` (int): Maximum overlap length (bp)
@@ -668,8 +668,8 @@ df, stats = op.pad(
 - `oligo_length_limit` (int, >=60): Maximum padded fragment length (bp)
 - `split_column` (str): Which fragment column to pad (e.g., `Split1`)
 - `typeIIS_system` (str): Type IIS enzyme name (see [supported list](#type-iis-enzymes))
-- `minimum_melting_temperature` (float, >=25): Minimum pad primer Tm ( degC)
-- `maximum_melting_temperature` (float, <=95): Maximum pad primer Tm ( degC)
+- `minimum_melting_temperature` (float, >=25): Minimum pad primer Tm (°C)
+- `maximum_melting_temperature` (float, <=95): Maximum pad primer Tm (°C)
 - `maximum_repeat_length` (int, 6-20): Maximum shared repeat length
 
 **Optional Parameters**
@@ -1580,6 +1580,8 @@ Python parameters map to CLI flags by converting `snake_case` to `kebab-case`:
 
 **CLI Workflow Runner**:
 - `op pipeline --config PIPELINE.yaml` (and `--dry-run`): Execute multi-step workflows from a single YAML config (see `docs/docs.md` "Config Files")
+- Pipeline inputs support basename chaining to prior declared outputs (for example `output_file: step1`, next step `input_data: step1`), while explicit existing paths are honored as-is.
+- Output suffixes are append-if-missing (for example, `output_file: my_library.csv` becomes `my_library.csv.oligopool.<module>.csv`; fully suffixed names are preserved).
 
 **Sequence Constraint Shorthand** (CLI):
 ```bash

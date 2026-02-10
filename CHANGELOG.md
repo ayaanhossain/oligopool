@@ -18,6 +18,12 @@
 17. Docs/Examples: updated failed-read suffix references and API notes (`docs/api.md`, `examples/OligopoolCalculatorInAction.ipynb`) to match the new `failedreads` naming and explicit failed-read CSV columns.
 18. CLI/Validation UX: normalized validation-path rendering to basename style across `validation_parsing` (multi-index, multi-background, multi-exmotif, and related file/dir checks) for compact, consistent terminal output.
 19. Bugfix (pack merge/truncation): overlap-parameter sampling now handles truncated/incomplete read pairs safely (including one-sided `None` and empty-overlap cases) without crashing, and emits a conservative merge-priority fallback when overlap evidence is unavailable.
+20. CLI pipeline UX: added basename-based input resolution across YAML pipeline steps (declared step outputs can be referenced by basename in downstream inputs), while preserving explicit existing path behavior; updated examples/manual/docs to demonstrate concise chaining.
+21. Docs/examples: normalized YAML pipeline snippets to basename outputs (avoids doubled suffixes), fixed single-command barcode config to include required context, and documented ambiguous-basename behavior.
+22. Examples/docs: renamed CLI YAML pipeline example files for clearer intent (`mpra_design_serial.yaml`, `mpra_design_parallel.yaml`, `analysis_single.yaml`, `analysis_multi.yaml`), and updated all cross-references (`README.md`, `docs/docs.md`, `examples/README.md`, `examples/cli-yaml-pipeline/README.md`, `run_example.sh`) accordingly.
+23. Docs: fixed `docs/docs.md` Table-of-Contents anchor for "Analysis DAG Example" and added explicit runnable-file pointers from config tutorial snippets to the canonical YAML example files.
+24. Examples: `analysis_multi.yaml` now demonstrates running `xcount` and `acount` per sample in parallel (shared indexes, per-sample pack, parallel counting modes).
+25. CLI UX: normalized temperature-unit rendering to `°C` (removes double-space artifacts) and restored non-ASCII bullets in `Command Notes` help output.
 
 2026.02.08
 1. Feature: `excluded_motifs` now accepts multiple motif sets (list of sources or `{name: source}` dict) in `barcode`, `primer`, `motif`, `spacer`, and `verify`; all sources are merged for screening, with per-set attribution in stats.

@@ -491,7 +491,7 @@ def get_primer_tmelt_bounds(
         posminTm = min(posminTm, ut.get_tmelt(
             seq=minprimer))
         liner.send(
-            ' Estimated Minimum Tm: {:.2f} degC'.format(
+            ' Estimated Minimum Tm: {:.2f} °C'.format(
                 posminTm))
 
     # Estimate Maximum Feasible Tm
@@ -503,12 +503,12 @@ def get_primer_tmelt_bounds(
         posmaxTm = max(posmaxTm, ut.get_tmelt(
             seq=maxprimer))
         liner.send(
-            ' Estimated Maximum Tm: {:.2f} degC'.format(
+            ' Estimated Maximum Tm: {:.2f} °C'.format(
                 posmaxTm))
 
     # Show Update
     liner.send(
-        ' Possible Tm Range: {:.2f} to {:.2f} degC\n'.format(
+        ' Possible Tm Range: {:.2f} to {:.2f} °C\n'.format(
             posminTm,
             posmaxTm))
 
@@ -574,7 +574,7 @@ def get_parsed_primer_tmelt_constraint(
         # As is ... no update
         liner.send('  Parameter Source: From Input Argument(s)\n')
         liner.send(
-            ' Required Tm Range: {:.2f} to {:.2f} degC\n'.format(
+            ' Required Tm Range: {:.2f} to {:.2f} °C\n'.format(
                 mintmelt,
                 maxtmelt))
     else:
@@ -586,7 +586,7 @@ def get_parsed_primer_tmelt_constraint(
 
         liner.send('  Parameter Source: Altered to Match Paired Primer\n')
         liner.send(
-            '   Paired Tm Range: {:.2f} to {:.2f} degC\n'.format(
+            '   Paired Tm Range: {:.2f} to {:.2f} °C\n'.format(
                 mintmelt,
                 maxtmelt))
 
@@ -618,7 +618,7 @@ def get_parsed_primer_tmelt_constraint(
         # Minimum Feasibility
         if posmaxTm < mintmelt:
             liner.send(
-                '   - Required Min Tm of {:.2f} degC is Higher than Possible Max Tm of {:.2f} degC [INFEASIBLE]\n'.format(
+                '   - Required Min Tm of {:.2f} °C is Higher than Possible Max Tm of {:.2f} °C [INFEASIBLE]\n'.format(
                     mintmelt,
                     posmaxTm))
             higherminTm = True
@@ -627,7 +627,7 @@ def get_parsed_primer_tmelt_constraint(
         # Maximum Feasibility
         if posminTm > maxtmelt:
             liner.send(
-                '   - Required Max Tm of {:.2f} degC is Lower than Possible Min Tm of {:.2f} degC [INFEASIBLE]\n'.format(
+                '   - Required Max Tm of {:.2f} °C is Lower than Possible Min Tm of {:.2f} °C [INFEASIBLE]\n'.format(
                     maxtmelt,
                     posminTm))
             lowermaxTm  = True
@@ -640,7 +640,7 @@ def get_parsed_primer_tmelt_constraint(
 
         # Show Update
         liner.send(
-            '  Updated Tm Range: {:.2f} to {:.2f} degC\n'.format(
+            '  Updated Tm Range: {:.2f} to {:.2f} °C\n'.format(
                 minTm,
                 maxTm))
         liner.send(

@@ -179,6 +179,10 @@ Key rules:
 - CLI flags override config values.
 - Pipeline configs can express sequential steps and parallel groups; see
   `docs/docs.md` examples for the supported schema.
+- Pipeline shorthand is supported: downstream `input_data` can reference
+  a prior step `output_file` basename; explicit existing paths are preserved.
+- If the same basename is produced by multiple steps, that alias is treated as
+  ambiguous and pipeline validation raises a config error.
 - See `docs/docs.md` Config Files for the exact schema + examples.
 
 ## Module Cheat Sheet

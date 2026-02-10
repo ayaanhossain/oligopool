@@ -67,6 +67,7 @@ Welcome to the `Oligopool Calculator` docs! Whether you're designing your first 
   - [Single Command Config](#single-command-config)
   - [Pipeline Execution](#pipeline-execution)
   - [Parallel Pipeline Execution](#parallel-pipeline-execution)
+  - [Analysis DAG Example](#analysis-dag-example)
   - [Dry Run Validation](#dry-run-validation)
   - [Config Precedence](#config-precedence)
   - [Config Tips](#config-tips)
@@ -391,7 +392,7 @@ df, stats = op.primer(
 )
 ```
 
-**Paired primer design** ensures your forward and reverse primers have matched Tm (within 1 degC). Design the inner primer first:
+**Paired primer design** ensures your forward and reverse primers have matched Tm (within 1 °C). Design the inner primer first:
 
 ```python
 df, stats = op.primer(..., primer_column='FwdPrimer', primer_type=0)
@@ -441,7 +442,7 @@ df, stats = op.primer(
 
 **Notes (the stuff that bites people):**
 - `maximum_repeat_length` controls non-repetitiveness against `input_data` only; screening against a background requires `background_directory`.
-- If `paired_primer_column` is provided, the paired primer type is inferred and Tm matching is applied within 1 degC.
+- If `paired_primer_column` is provided, the paired primer type is inferred and Tm matching is applied within 1 °C.
 - When `oligo_sets` is provided, primers are designed per set and screened for cross-set compatibility; if `paired_primer_column` is also provided, it must be constant within each set.
 - `primer_sequence_constraint` is flexible by design; mix fixed and degenerate bases to enforce patterns (for example, GC clamp-like starts such as `'SS' + 'N'*18`).
 - Structural screening is first-class: candidates with strong hairpin/homodimer/heterodimer behavior (including cross-primer dimer risks when relevant) are rejected during optimization.
@@ -1315,6 +1316,7 @@ op complete --install
 **CLI outputs require an output basename**: Unlike the Python API (where many modules can return results in-memory), CLI commands that write files require an output basename (e.g., `--output-file`, `--index-file`, `--pack-file`, `--count-file`, `--mapping-file`, `--synthesis-file`).
 
 **Output filenames are auto-suffixed**: Commands append a suffix if missing (e.g., `.oligopool.barcode.csv`), so prefer basenames like `--output-file output_basename` to avoid doubled extensions.
+For example, `output_file: "my_library.csv"` becomes `my_library.csv.oligopool.barcode.csv`, while `output_file: "my_library.oligopool.barcode.csv"` is left unchanged.
 
 **Stats output**: Use `--stats-json` to print the stats dict as JSON to stdout, or `--stats-file path.json` to write it to disk.
 
@@ -1366,7 +1368,8 @@ barcode:
   minimum_hamming_distance: 3
   maximum_repeat_length: 8
   barcode_column: "BC"
-  output_file: "library_barcoded.csv"
+  left_context_column: "Variant"
+  output_file: "library_barcoded"
   barcode_type: "spectrum"
   excluded_motifs:
     - "GGATCC"
@@ -1387,10 +1390,10 @@ op barcode --config barcode_design.yaml --barcode-length 20
 Run multi-step workflows from a single config with `op pipeline`:
 
 ```bash
-op pipeline --config mpra_pipeline.yaml
+op pipeline --config mpra_design_serial.yaml
 ```
 
-Example pipeline config (`mpra_pipeline.yaml`):
+Example pipeline config (condensed):
 
 ```yaml
 # MPRA Design Pipeline
@@ -1404,7 +1407,7 @@ pipeline:
 
 primer:
   input_data: "variants.csv"
-  output_file: "step1_primer.csv"
+  output_file: "step1_primer"
   oligo_length_limit: 250
   primer_sequence_constraint: "N*22"
   primer_type: "forward"
@@ -1414,8 +1417,8 @@ primer:
   maximum_repeat_length: 10
 
 barcode:
-  input_data: "step1_primer.csv"
-  output_file: "step2_barcode.csv"
+  input_data: "step1_primer"
+  output_file: "step2_barcode"
   oligo_length_limit: 250
   barcode_length: 16
   minimum_hamming_distance: 3
@@ -1424,19 +1427,25 @@ barcode:
   left_context_column: "FwdPrimer"
 
 spacer:
-  input_data: "step2_barcode.csv"
-  output_file: "step3_spacer.csv"
+  input_data: "step2_barcode"
+  output_file: "step3_spacer"
   oligo_length_limit: 250
   maximum_repeat_length: 8
   spacer_column: "Spacer"
   left_context_column: "BC"
 
 final:
-  input_data: "step3_spacer.csv"
-  output_file: "final_library.csv"
+  input_data: "step3_spacer"
+  output_file: "final_library"
 ```
 
-Each step's config section specifies explicit `input_data` and `output_file` paths, giving you full control over the data flow.
+For a runnable file version, see `examples/cli-yaml-pipeline/mpra_design_serial.yaml`.
+
+Pipeline input resolution supports both explicit filenames and basename chaining. Example:
+- `output_file: "step1_primer"` writes `step1_primer.oligopool.primer.csv`
+- a downstream `input_data: "step1_primer"` resolves to that produced file
+- if `input_data` is an explicit existing path, it is used as-is
+- if multiple steps produce the same basename alias, pipeline validation fails with a config error
 
 ### Parallel Pipeline Execution
 
@@ -1445,7 +1454,7 @@ Each step's config section specifies explicit `input_data` and `output_file` pat
 For workflows with independent branches, use the parallel (DAG) format to run steps concurrently:
 
 ```yaml
-# parallel_pipeline.yaml
+# mpra_design_parallel.yaml
 pipeline:
   name: "Parallel Design"
   steps:
@@ -1463,26 +1472,26 @@ pipeline:
 
 fwd_primer:
   input_data: "variants.csv"
-  output_file: "fwd_primer.csv"
+  output_file: "fwd_primer"
   primer_type: "forward"
   primer_sequence_constraint: "N*20"
   # ...
 
 rev_primer:
   input_data: "variants.csv"
-  output_file: "rev_primer.csv"
+  output_file: "rev_primer"
   primer_type: "reverse"
   primer_sequence_constraint: "N*20"
   # ...
 
 add_barcode:
-  input_data: "fwd_primer.csv"
-  output_file: "with_barcode.csv"
+  input_data: "fwd_primer"
+  output_file: "with_barcode"
   # ...
 
 finalize:
-  input_data: "with_barcode.csv"
-  output_file: "final.csv"
+  input_data: "with_barcode"
+  output_file: "final"
 ```
 
 **Step fields:**
@@ -1497,12 +1506,72 @@ finalize:
 - `--dry-run` shows execution levels and parallelism
 
 ```bash
-op pipeline --config parallel_pipeline.yaml --dry-run
+op pipeline --config mpra_design_parallel.yaml --dry-run
 # Output shows:
 #   Level 1: fwd_primer, rev_primer (parallel)
 #   Level 2: add_barcode
 #   Level 3: finalize
 ```
+
+For a runnable file version, see `examples/cli-yaml-pipeline/mpra_design_parallel.yaml`.
+
+### Analysis DAG Example
+
+[^ Back to TOC](#table-of-contents)
+
+Design-heavy workflows are often dependency-dense and mostly sequential. Analysis workflows usually have naturally independent branches and are a strong fit for DAG execution.
+
+```yaml
+# analysis_single.yaml
+pipeline:
+  name: "Analysis DAG Demo"
+  steps:
+    - name: index_bc1
+      command: index
+    - name: index_bc2
+      command: index
+    - name: pack_reads
+      command: pack
+    - name: count_combinatorial
+      command: xcount
+      after: [index_bc1, index_bc2, pack_reads]
+
+index_bc1:
+  barcode_data: "../analysis-pipeline/ribozyme_architecture.csv"
+  barcode_column: "BC1"
+  barcode_prefix_column: "OrangeForwardPrimer"
+  index_file: "a1_bc1"
+
+index_bc2:
+  barcode_data: "../analysis-pipeline/ribozyme_architecture.csv"
+  barcode_column: "BC2"
+  barcode_prefix_column: "PinkForwardPrimer"
+  barcode_suffix_column: "YellowReversePrimer"
+  associate_data: "../analysis-pipeline/ribozyme_architecture.csv"
+  associate_column: "Variant"
+  associate_suffix_column: "PinkForwardPrimer"
+  index_file: "a1_bc2"
+
+pack_reads:
+  r1_fastq_file: "../analysis-pipeline/ribozyme_1M_R1.fq.gz"
+  r2_fastq_file: "../analysis-pipeline/ribozyme_1M_R2.fq.gz"
+  r1_read_type: forward
+  r2_read_type: reverse
+  pack_type: merge
+  pack_file: "a1_reads"
+
+count_combinatorial:
+  index_files: ["a1_bc1", "a1_bc2"]
+  pack_file: "a1_reads"
+  count_file: "a1_counts"
+```
+
+Execution levels:
+- Level 1 (parallel): `index_bc1`, `index_bc2`, `pack_reads`
+- Level 2: `count_combinatorial`
+
+See `examples/cli-yaml-pipeline/analysis_single.yaml` for the full runnable config.
+For the common "many read-pair samples, fixed index set" pattern, see `examples/cli-yaml-pipeline/analysis_multi.yaml` (`index` once, then per-sample `pack -> (xcount and/or acount)` branches).
 
 ### Dry Run Validation
 
@@ -1511,7 +1580,7 @@ op pipeline --config parallel_pipeline.yaml --dry-run
 Validate a pipeline config without executing:
 
 ```bash
-op pipeline --config mpra_pipeline.yaml --dry-run
+op pipeline --config mpra_design_serial.yaml --dry-run
 ```
 
 This checks that all steps are valid commands and displays the parameters for each step.
@@ -1532,9 +1601,10 @@ Parameter values are resolved in this order (highest priority first):
 
 1. **Use comments liberally**: YAML supports `#` comments - document your design choices.
 2. **Keep configs in version control**: Reproducibility for future you.
-3. **Explicit paths over magic**: Pipeline steps use explicit `input_data`/`output_file` paths - no implicit chaining.
+3. **Choose explicit or shorthand**: Use explicit paths for full control, or basename chaining (e.g., `output_file: step1`, next step `input_data: step1`) for concise configs.
 4. **Lists in YAML**: Use YAML list syntax for multi-value parameters like `excluded_motifs`.
 5. **Type aliases work**: Use `"spectrum"` or `1` for `barcode_type` - same as CLI.
+6. **Avoid alias collisions**: Reusing the same output basename in multiple steps creates ambiguous aliases, which pipeline validation rejects as a config error.
 
 ---
 

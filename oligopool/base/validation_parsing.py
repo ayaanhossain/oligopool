@@ -80,6 +80,17 @@ def _normalize_field(field):
 
     return field
 
+def _display_path(path):
+    '''
+    Return a compact basename-style label for paths.
+    Internal use only.
+    '''
+
+    if not isinstance(path, str):
+        return path
+    compact = os.path.basename(path.rstrip(os.sep))
+    return compact if compact else path
+
 def get_infile_validity(
     infile,
     infile_suffix,
@@ -122,7 +133,7 @@ def get_infile_validity(
     if   infile_status == 0:
         liner.send(
             '{}{} {} [INPUT TYPE IS INVALID]\n'.format(
-                infile_field, sep, infile))
+                infile_field, sep, _display_path(infile)))
 
     else:
 
@@ -133,27 +144,27 @@ def get_infile_validity(
         if   infile_status == 1:
             liner.send(
                 '{}{} {} [READ PERMISSION DENIED]\n'.format(
-                    infile_field, sep, infile))
+                    infile_field, sep, _display_path(infile)))
 
         elif infile_status == 3:
             liner.send(
                 '{}{} {} [FILE IS EMPTY]\n'.format(
-                    infile_field, sep, infile))
+                    infile_field, sep, _display_path(infile)))
 
         elif infile_status == 'X':
             liner.send(
                 '{}{} {} [FILE IS SPECIAL]\n'.format(
-                    infile_field, sep, infile))
+                    infile_field, sep, _display_path(infile)))
 
         elif 5 <= infile_status <= 8:
             liner.send(
                 '{}{} {} [FILE IS DIRECTORY]\n'.format(
-                    infile_field, sep, infile))
+                    infile_field, sep, _display_path(infile)))
 
         elif infile_status == 9:
             liner.send(
                 '{}{} {} [FILE DOES NOT EXIST]\n'.format(
-                    infile_field, sep, infile))
+                    infile_field, sep, _display_path(infile)))
 
     # infile valid
     return infile_status == 4
@@ -197,7 +208,7 @@ def get_indir_validity(
     if   indir_status == 0:
         liner.send(
             '{}: {} [INPUT TYPE IS INVALID]\n'.format(
-                indir_field, indir))
+                indir_field, _display_path(indir)))
 
     else:
 
@@ -208,27 +219,27 @@ def get_indir_validity(
         if   indir_status == 5:
             liner.send(
                 '{}: {} [READ PERMISSION DENIED]\n'.format(
-                    indir_field, indir))
+                    indir_field, _display_path(indir)))
 
         elif indir_status == 7:
             liner.send(
                 '{}: {} [DIRECTORY IS EMPTY]\n'.format(
-                    indir_field, indir))
+                    indir_field, _display_path(indir)))
 
         elif indir_status == 'X':
             liner.send(
                 '{}: {} [DIRECTORY IS SPECIAL]\n'.format(
-                    indir_field, indir))
+                    indir_field, _display_path(indir)))
 
         elif 1 <= indir_status <= 4:
             liner.send(
                 '{}: {} [DIRECTORY IS FILE]\n'.format(
-                    indir_field, indir))
+                    indir_field, _display_path(indir)))
 
         elif indir_status == 9:
             liner.send(
                 '{}: {} [DIRECTORY DOES NOT EXIST]\n'.format(
-                    indir_field, indir))
+                    indir_field, _display_path(indir)))
 
     # indir valid
     return indir_status == 8
@@ -281,7 +292,7 @@ def get_readfile_validity(
         except:
             liner.send(
                 '{}: {} [INVALID FASTQ FILE]\n'.format(
-                    readfile_field, readfile))
+                    readfile_field, _display_path(readfile)))
 
         # Read successful
         else:
@@ -298,14 +309,14 @@ def get_readfile_validity(
                 paired_readfile):
                 liner.send(
                     '{}: {} [DUPLICATE OF R1 FILE]\n'.format(
-                        readfile_field, readfile))
+                        readfile_field, _display_path(readfile)))
                 readfile_duplicate = True
 
         # Pair comparison successful
         # or unnecessary
         if not readfile_duplicate:
             liner.send('{}: {}\n'.format(
-                readfile_field, readfile))
+                readfile_field, _display_path(readfile)))
 
     # Return readfile validity
     return all([
@@ -383,7 +394,7 @@ def get_inzip_validity(
        desc - dynamic printing
     '''
 
-    fname = inzip.split('/')[-1]
+    fname = _display_path(inzip)
     # Use space separator for numbered list items (field ends with ])
     sep = '' if inzip_field.rstrip().endswith(']') else ':'
     liner.send(
@@ -408,7 +419,7 @@ def get_inzip_validity(
         if not inzip_is_zipfile:
             liner.send(
                 '{}{} {} [INVALID {} FILE]\n'.format(
-                    inzip_field, sep, inzip, inzip_type))
+                    inzip_field, sep, _display_path(inzip), inzip_type))
 
     # inzip is good?
     inzip_is_good = False
@@ -490,11 +501,11 @@ def get_indexfile_validity(
         except:
             liner.send(
                 '{}{} {} [INVALID INDEX FILE]\n'.format(
-                    indexfile_field, sep, indexfile))
+                    indexfile_field, sep, _display_path(indexfile)))
         else:
             liner.send(
                 '{}{} {} w/ {:,} Variant(s)\n'.format(
-                    indexfile_field, sep, indexfile, variantcount))
+                    indexfile_field, sep, _display_path(indexfile), variantcount))
             indexfile_ok_content = True
         finally:
             archive.close()
@@ -579,9 +590,9 @@ def get_indexfiles_validity(
                 # Show Update
                 liner.send(
                     '{}:  [{}] {} [DUPLICATE INDEX FILE]\n'.format(
-                        altspacing, idx, ut.get_adjusted_path(
+                        altspacing, idx, _display_path(ut.get_adjusted_path(
                             path=indexfile,
-                            suffix='.oligopool.index')))
+                            suffix='.oligopool.index'))))
                 # Update Global Validity
                 indexfiles_ok = indexfiles_ok and False
                 # Next!
@@ -666,18 +677,18 @@ def get_parsed_packfile(
             # Invalid / corrupt packfile
             liner.send(
                 '{}: {} [INVALID PACK FILE]\n'.format(
-                    packfile_field, packfile))
+                    packfile_field, _display_path(packfile)))
         else:
             # Empty packfile
             if not packfile_nonempty:
                 liner.send(
                     '{}: {} w/ {} Read Packs [EMPTY PACK FILE]\n'.format(
-                        packfile_field, packfile, packcount))
+                        packfile_field, _display_path(packfile), packcount))
             # Packfile has packs
             else:
                 liner.send(
                     '{}: {} w/ {} Read Packs\n'.format(
-                        packfile_field, packfile, packcount))
+                        packfile_field, _display_path(packfile), packcount))
                 packfile_ok_content = True
         finally:
             archive.close()
@@ -765,7 +776,7 @@ def get_parsed_data_info(
             except:
                 liner.send('{}: {} [INVALID CSV FILE]\n'.format(
                     data_field,
-                    data))
+                    _display_path(data)))
 
             # Read succesful
             else:
@@ -790,6 +801,7 @@ def get_parsed_data_info(
         data      = 'DataFrame'
         data_type = 'DATAFRAME'
     elif data_is_csv:
+        data      = _display_path(data)
         data_type = 'CSV FILE'
 
     # df is non-empty?
@@ -1235,7 +1247,7 @@ def get_outfile_validity(
     if outfile_status == 0:
         liner.send(
             '{}: {} [INPUT TYPE IS INVALID]\n'.format(
-                outfile_field, outfile))
+                outfile_field, _display_path(outfile)))
 
     else:
 
@@ -1248,27 +1260,27 @@ def get_outfile_validity(
         if outfile_status in (2, 11):
             liner.send(
                 '{}: {} [WRITE PERMISSION DENIED]\n'.format(
-                    outfile_field, outfile))
+                    outfile_field, _display_path(outfile)))
 
         elif outfile_status == 4:
             liner.send(
                 '{}: {} [FILE ALREADY EXISTS]\n'.format(
-                    outfile_field, outfile))
+                    outfile_field, _display_path(outfile)))
 
         elif outfile_status == 'X':
             liner.send(
                 '{}: {} [FILE IS SPECIAL]\n'.format(
-                    outfile_field, outfile))
+                    outfile_field, _display_path(outfile)))
 
         elif 6 <= outfile_status <= 8:
             liner.send(
                 '{}: {} [FILE IS DIRECTORY]\n'.format(
-                    outfile_field, outfile))
+                    outfile_field, _display_path(outfile)))
 
         # outfile is valid
         elif outfile_status in (3, 10):
             liner.send('{}: {}\n'.format(
-                outfile_field, outfile))
+                outfile_field, _display_path(outfile)))
             outfile_valid = True
 
     # Return outfile validity
@@ -1359,7 +1371,7 @@ def get_outdir_validity(
     if outdir_status == 0:
         liner.send(
             '{}: {} [INPUT TYPE IS INVALID]\n'.format(
-                outdir_field, outdir))
+                outdir_field, _display_path(outdir)))
 
     else:
 
@@ -1372,27 +1384,27 @@ def get_outdir_validity(
         if outdir_status in (6, 11):
             liner.send(
                 '{}: {} [WRITE PERMISSION DENIED]\n'.format(
-                    outdir_field, outdir))
+                    outdir_field, _display_path(outdir)))
 
         elif outdir_status == 8:
             liner.send(
                 '{}: {} [DIRECTORY ALREADY EXISTS]\n'.format(
-                    outdir_field, outdir))
+                    outdir_field, _display_path(outdir)))
 
         elif outdir_status == 'X':
             liner.send(
                 '{}: {} [DIRECTORY IS SPECIAL]\n'.format(
-                    outdir_field, outdir))
+                    outdir_field, _display_path(outdir)))
 
         elif 1 <= outdir_status <= 4:
             liner.send(
                 '{}: {} [DIRECTORY IS FILE]\n'.format(
-                    outdir_field, outdir))
+                    outdir_field, _display_path(outdir)))
 
         # outdir is valid
         elif outdir_status in (7, 10):
             liner.send('{}: {}\n'.format(
-                outdir_field, outdir))
+                outdir_field, _display_path(outdir)))
             outdir_valid = True
 
     # Return outdir validity
@@ -2093,7 +2105,7 @@ def get_parsed_exseqs_info(
                     liner.send(
                         '{}: {} [FILE NOT FOUND]\n'.format(
                             exseqs_field,
-                            exseqs))
+                            _display_path(exseqs)))
                     return (None, False)
 
                 # Parse FASTA file using pyfastx (handles gzip automatically)
@@ -2123,7 +2135,7 @@ def get_parsed_exseqs_info(
                 liner.send(
                     '{}: {} [INVALID FASTA FILE]\n'.format(
                         exseqs_field,
-                        exseqs))
+                        _display_path(exseqs)))
                 return (None, False)
 
     # Is exseqs iterable?
@@ -2179,12 +2191,12 @@ def get_parsed_exseqs_info(
     elif isinstance(exseqs, str):
         try:
             df = pd.read_csv(exseqs, sep=',', header=0, engine='c')
-            data_name = exseqs
+            data_name = _display_path(exseqs)
         except:
             liner.send(
                 '{}: {} [INVALID CSV FILE]\n'.format(
                     exseqs_field,
-                    exseqs))
+                    _display_path(exseqs)))
             return (None, False)
 
     # Check if df_field column exists
@@ -2258,7 +2270,7 @@ def _get_exmotif_source_label(source, idx):
         if ',' in source:
             return 'comma[{}]'.format(idx)
         if os.sep in source or '.' in source:
-            return os.path.basename(source)
+            return _display_path(source)
         return 'inline[{}]'.format(idx)
     elif isinstance(source, pd.DataFrame):
         return 'DataFrame[{}]'.format(idx)
@@ -2278,15 +2290,15 @@ def get_parsed_exmotifs(
 
     Polymorphic wrapper around get_parsed_exseqs_info.
     Accepts:
-      - None                  → no screening
-      - single set            → list of motifs, comma-string,
+      - None                  -> no screening
+      - single set            -> list of motifs, comma-string,
                                 CSV/FASTA path, DataFrame
-      - multiple sets (list)  → list of set sources
-      - named sets  (dict)    → {name: set_source, ...}
+      - multiple sets (list)  -> list of set sources
+      - named sets  (dict)    -> {name: set_source, ...}
 
     Disambiguation for flat list[str]:
-      - All elements pass strict ATGC → single motif set
-      - Otherwise → each element is a separate set source
+      - All elements pass strict ATGC -> single motif set
+      - Otherwise -> each element is a separate set source
 
     Returns:
       - exmotifs       : merged union list (or None)
@@ -2307,7 +2319,7 @@ def get_parsed_exmotifs(
 
     exmotifs_field = _normalize_field(exmotifs_field)
 
-    # None → no screening
+    # None -> no screening
     if exmotifs is None:
         liner.send(
             '{}: 0 Unique Motif(s)\n'.format(
@@ -2334,7 +2346,7 @@ def get_parsed_exmotifs(
         is_multi = False
 
     elif hasattr(exmotifs, '__iter__'):
-        # List/iterable — disambiguate
+        # List/iterable - disambiguate
         items = list(exmotifs)
 
         if not items:
@@ -2343,7 +2355,7 @@ def get_parsed_exmotifs(
                     exmotifs_field))
             return (None, True, None)
 
-        # All strict ATGC strings → single motif set
+        # All strict ATGC strings -> single motif set
         if all(ut.is_strict_DNA(s) for s in items):
             is_multi = False
         else:
@@ -2399,7 +2411,7 @@ def get_parsed_exmotifs(
 
     # Multi-set path
 
-    # Single-item list → delegate to single-set display
+    # Single-item list -> delegate to single-set display
     if len(sources) == 1:
         name, source = sources[0]
 
@@ -2440,7 +2452,7 @@ def get_parsed_exmotifs(
 
         return (motifs, True, exmotif_inputs)
 
-    # Multiple sources — custom display
+    # Multiple sources - custom display
     altspacing = ' ' * len(exmotifs_field)
 
     liner.send(
@@ -3600,9 +3612,13 @@ def get_parsed_compress_mapping_info(
         try:
             mapdf = pd.read_csv(mapfile, sep=',', header=0, engine='c')
         except Exception:
-            liner.send('{}: {} [INVALID CSV FILE]\n'.format(mapping_field, mapfile))
+            liner.send('{}: {} [INVALID CSV FILE]\n'.format(
+                mapping_field,
+                _display_path(mapfile)))
             return (None, False)
-        liner.send('{}: Loaded from {}\n'.format(mapping_field, mapfile))
+        liner.send('{}: Loaded from {}\n'.format(
+            mapping_field,
+            _display_path(mapfile)))
     else:
         liner.send('{}: {} [INPUT TYPE IS INVALID]\n'.format(mapping_field, mapping_data))
         return (None, False)
@@ -4352,7 +4368,7 @@ def get_parsed_background(
                 liner.send(
                     '{}: {} [INVALID OR PRE-OPENED BACKGROUND OBJECT]\n'.format(
                         background_field,
-                        indir))
+                        _display_path(indir)))
                 return False, None
 
             # Valid attempt
@@ -4496,7 +4512,7 @@ def get_parsed_backgrounds(
         if bg_path in seen_paths:
             liner.send(
                 '{}:  [{}] {} [DUPLICATE BACKGROUND]\n'.format(
-                    altspacing, idx, bg_path))
+                    altspacing, idx, _display_path(bg_path)))
             backgrounds_ok = False
             continue
 
@@ -4531,7 +4547,7 @@ def get_parsed_backgrounds(
             except Exception as E:
                 liner.send(
                     '{}:  [{}] {} [INVALID OR PRE-OPENED BACKGROUND OBJECT]\n'.format(
-                        altspacing, idx, bg_path))
+                        altspacing, idx, _display_path(bg_path)))
                 backgrounds_ok = False
                 continue
             else:

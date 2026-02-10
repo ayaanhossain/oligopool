@@ -1,19 +1,19 @@
 <h1 align="center">
     <a href="https://github.com/ayaanhossain/oligopool/" style="text-decoration: none !important;">
-        <img src="https://raw.githubusercontent.com/ayaanhossain/repfmt/main/oligopool/img/logo.svg"  alt="Oligopool Calculator" width="460" class="center"/>
+        <img src="https://raw.githubusercontent.com/ayaanhossain/repfmt/main/oligopool/img/logo.svg" alt="Oligopool Calculator" width="460" class="center"/>
     </a>
 </h1>
 
 <h4><p align="center">Version: 2026.02.08</p></h4>
 
 <p align="center">
-  <a href="#features" style="text-decoration: none !important;">✨ Features</a> •
-  <a href="#installation" style="text-decoration: none !important;">📦 Installation</a> •
-  <a href="#getting-started" style="text-decoration: none !important;">🚀 Getting Started</a> •
-  <a href="https://github.com/ayaanhossain/oligopool/blob/master/docs/docs.md" style="text-decoration: none !important;">📚 Docs</a> •
-  <a href="https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md" style="text-decoration: none !important;">📋 API</a> •
-  <a href="#command-line-interface-cli" style="text-decoration: none !important;">💻 CLI</a> •
-  <a href="#citation" style="text-decoration: none !important;">📖 Citation</a> •
+  <a href="#features" style="text-decoration: none !important;">✨ Features</a> -
+  <a href="#installation" style="text-decoration: none !important;">📦 Installation</a> -
+  <a href="#getting-started" style="text-decoration: none !important;">🚀 Getting Started</a> -
+  <a href="https://github.com/ayaanhossain/oligopool/blob/master/docs/docs.md" style="text-decoration: none !important;">📚 Docs</a> -
+  <a href="https://github.com/ayaanhossain/oligopool/blob/master/docs/api.md" style="text-decoration: none !important;">📋 API</a> -
+  <a href="#command-line-interface-cli" style="text-decoration: none !important;">💻 CLI</a> -
+  <a href="#citation" style="text-decoration: none !important;">📖 Citation</a> -
   <a href="#license" style="text-decoration: none !important;">⚖️ License</a>
 </p>
 
@@ -27,7 +27,7 @@ To learn more, please check out [our paper in ACS Synthetic Biology](https://pub
 
 <h1 align="center">
     <a href="https://github.com/ayaanhossain/oligopool/" style="text-decoration: none !important;">
-        <img src="https://raw.githubusercontent.com/ayaanhossain/repfmt/refs/heads/main/oligopool/img/workflow.svg"  alt="Oligopool Calculator Workflow" width="3840" class="center"/>
+        <img src="https://raw.githubusercontent.com/ayaanhossain/repfmt/refs/heads/main/oligopool/img/workflow.svg" alt="Oligopool Calculator Workflow" width="3840" class="center"/>
     </a>
 </h1>
 
@@ -95,7 +95,7 @@ $ python
 
 You can import the library and use its various functions either in a script or interactively inside a `Jupyter` environment. Use `help(...)` to read the docs as necessary and follow along.
 
-The [`examples`](https://github.com/ayaanhossain/oligopool/tree/master/examples) directory includes a [design parser](https://github.com/ayaanhossain/oligopool/tree/master/examples/design-assembly-parser), a [library compressor](https://github.com/ayaanhossain/oligopool/tree/master/examples/library-compressor), an [analysis pipeline](https://github.com/ayaanhossain/oligopool/tree/master/examples/analysis-pipeline), and a complete [CLI YAML pipeline](https://github.com/ayaanhossain/oligopool/tree/master/examples/cli-pipeline).
+The [`examples`](https://github.com/ayaanhossain/oligopool/tree/master/examples) directory includes a [design parser](https://github.com/ayaanhossain/oligopool/tree/master/examples/design-assembly-parser), a [library compressor](https://github.com/ayaanhossain/oligopool/tree/master/examples/library-compressor), an [analysis pipeline](https://github.com/ayaanhossain/oligopool/tree/master/examples/analysis-pipeline), and a complete [CLI YAML pipeline](https://github.com/ayaanhossain/oligopool/tree/master/examples/cli-yaml-pipeline).
 
 If you want the full end-to-end walkthrough, start with the notebook: [`Oligopool Calculator` in action](https://github.com/ayaanhossain/oligopool/blob/master/examples/OligopoolCalculatorInAction.ipynb).
 
@@ -262,7 +262,7 @@ fwd_primer:
   # ...
 ```
 
-Use `--config` with any command to load parameters from YAML (CLI args override config values). See [`examples/cli-pipeline`](https://github.com/ayaanhossain/oligopool/tree/master/examples/cli-pipeline) for a complete working example.
+Use `--config` with any command to load parameters from YAML (CLI args override config values). See [`examples/cli-yaml-pipeline`](https://github.com/ayaanhossain/oligopool/tree/master/examples/cli-yaml-pipeline) for a complete working example.
 
 > **CLI Notes**
 > - Commands that write files require an output basename (e.g., `--output-file`, `--index-file`, `--pack-file`, `--count-file`, `--mapping-file`, `--synthesis-file`), unlike library mode where outputs can be returned in-memory.

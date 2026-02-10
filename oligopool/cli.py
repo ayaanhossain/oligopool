@@ -86,6 +86,7 @@ COMMAND_TO_API = {
 
 _MODULE_AST_CACHE: dict[str, ast.AST] = {}
 _FUNC_DOC_CACHE: dict[tuple[str, str], str] = {}
+_ANSI_RE = re.compile(r'\x1B\[[0-?]*[ -/]*[@-~]')
 
 # In argcomplete mode, the CLI is executed on every tab press; avoid any work
 # that is irrelevant to completion quality (e.g., docstring parsing for epilogs).
@@ -94,6 +95,9 @@ _ARGCOMPLETE_MODE = bool(
     or ('COMP_LINE' in os.environ and 'COMP_POINT' in os.environ)
 )
 
+
+def _strip_ansi(text):
+    return _ANSI_RE.sub('', text)
 
 def _load_api_func(command: str):
     module_name, func_name = COMMAND_TO_API[command]
@@ -210,7 +214,7 @@ def _notes_epilog(command: str):
         wrapped = textwrap.fill(
             text,
             width=120,
-            initial_indent='  • ',
+            initial_indent='  - ',
             subsequent_indent='      ',
         )
         formatted.append(wrapped)
@@ -440,31 +444,32 @@ class OligopoolParser(argparse.ArgumentParser):
         '''Format help output with grouped command listing.'''
         text = super().format_help()
         lines = text.splitlines(True)
+        plain = [_strip_ansi(line) for line in lines]
         try:
-            header_idx = next(i for i, line in enumerate(lines) if line.startswith('COMMANDS Available:'))
+            header_idx = next(i for i, line in enumerate(plain) if line.startswith('COMMANDS Available:'))
         except StopIteration:
             return text
 
         first_cmd_idx = header_idx + 1
-        while first_cmd_idx < len(lines) and lines[first_cmd_idx].strip() == '':
+        while first_cmd_idx < len(lines) and plain[first_cmd_idx].strip() == '':
             first_cmd_idx += 1
-        if first_cmd_idx >= len(lines) or not lines[first_cmd_idx].startswith('    '):
+        if first_cmd_idx >= len(lines) or not plain[first_cmd_idx].startswith('    '):
             return text
 
         cmd_idx = first_cmd_idx
         command_lines = []
-        while cmd_idx < len(lines) and lines[cmd_idx].startswith('    '):
-            if lines[cmd_idx].strip():
+        while cmd_idx < len(lines) and plain[cmd_idx].startswith('    '):
+            if plain[cmd_idx].strip():
                 command_lines.append(lines[cmd_idx])
             cmd_idx += 1
-        while cmd_idx < len(lines) and lines[cmd_idx].strip() == '':
+        while cmd_idx < len(lines) and plain[cmd_idx].strip() == '':
             cmd_idx += 1
 
-        manual_line = next((line for line in command_lines if line.lstrip().startswith('manual')), None)
-        cite_line = next((line for line in command_lines if line.lstrip().startswith('cite')), None)
-        pipeline_line = next((line for line in command_lines if line.lstrip().startswith('pipeline')), None)
-        inspect_line = next((line for line in command_lines if line.lstrip().startswith('inspect')), None)
-        complete_line = next((line for line in command_lines if line.lstrip().startswith('complete')), None)
+        manual_line = next((line for line in command_lines if _strip_ansi(line).lstrip().startswith('manual')), None)
+        cite_line = next((line for line in command_lines if _strip_ansi(line).lstrip().startswith('cite')), None)
+        pipeline_line = next((line for line in command_lines if _strip_ansi(line).lstrip().startswith('pipeline')), None)
+        inspect_line = next((line for line in command_lines if _strip_ansi(line).lstrip().startswith('inspect')), None)
+        complete_line = next((line for line in command_lines if _strip_ansi(line).lstrip().startswith('complete')), None)
         if manual_line is None or cite_line is None or pipeline_line is None or inspect_line is None or complete_line is None:
             return text
 
@@ -475,7 +480,7 @@ class OligopoolParser(argparse.ArgumentParser):
         for line in middle_lines:
             middle_out.append(line)
             try:
-                cmd = line.strip().split()[0]
+                cmd = _strip_ansi(line).strip().split()[0]
             except Exception:
                 cmd = None
             if cmd in gap_after:
@@ -755,7 +760,7 @@ def _parse_excluded_motifs_arg(value):
 
     Returns None, a list of set sources, or a dict (if NAME=SOURCE
     form is used). Does NOT flatten comma-strings into individual
-    motifs — that is handled by get_parsed_exmotifs in the API layer.
+    motifs - that is handled by get_parsed_exmotifs in the API layer.
     '''
 
     if value is None:
@@ -782,11 +787,11 @@ def _parse_excluded_motifs_arg(value):
                 result[s.strip()] = s.strip()
         return result
 
-    # Single-item list → pass as-is (let API disambiguate)
+    # Single-item list -> pass as-is (let API disambiguate)
     if len(value) == 1:
         return value[0]
 
-    # Multi-item list → pass as list (each is a set source)
+    # Multi-item list -> pass as list (each is a set source)
     return value
 
 def _parse_list_int(value):
@@ -1473,6 +1478,15 @@ def _print_manual(topic):
     '''Print module or package documentation for manual command.'''
     import oligopool as op
 
+    manual_aliases = {
+        'list', 'topic', 'topics',
+        'cli', 'manual',
+        'complete', 'completion',
+        'pipeline',
+        'library', 'package',
+    }
+    suggestion_pool = sorted(set(MANUAL_COMMAND_TOPICS) | manual_aliases)
+
     def _strip_header(doc):
         if not doc:
             return doc
@@ -1493,11 +1507,15 @@ def _print_manual(topic):
         meta_topics = 'topic/topics/list, cli/manual, library/package, complete/completion, pipeline'
         print('Available command topics:')
         print(textwrap.fill(command_topics, width=79, initial_indent='  ', subsequent_indent='  '))
+        print()
         print('Available meta topics:')
         print(textwrap.fill(meta_topics, width=79, initial_indent='  ', subsequent_indent='  '))
         return 0
     if key in ('cli', 'manual'):
         print(CLI_MANUAL.strip())
+        return 0
+    if key == 'cite':
+        print(CITATION_TEXT.strip())
         return 0
     if key in ('complete', 'completion'):
         print(CLI_COMPLETE_MANUAL.strip())
@@ -1514,7 +1532,10 @@ def _print_manual(topic):
         return 1
 
     if key not in MANUAL_COMMAND_TOPICS:
+        suggestions = difflib.get_close_matches(key, suggestion_pool, n=3, cutoff=0.6)
         print(f'No documentation available for "{topic}".')
+        if suggestions:
+            print('Did you mean: {}?'.format(', '.join(suggestions)))
         return 1
 
     try:
@@ -2932,7 +2953,7 @@ GB of memory per core (0 = auto).''')
         metavar='\b',
         help='''>>[optional string]
 Output CSV path for failed read samples.
-A ".oligopool.acount.failed_reads.csv" suffix is added if missing.''')
+A ".oligopool.acount.failedreads.csv" suffix is added if missing.''')
     opt.add_argument(
         '--failed-reads-sample-size',
         type=int,
@@ -3016,7 +3037,7 @@ GB of memory per core (0 = auto).''')
         metavar='\b',
         help='''>>[optional string]
 Output CSV path for failed read samples.
-A ".oligopool.xcount.failed_reads.csv" suffix is added if missing.''')
+A ".oligopool.xcount.failedreads.csv" suffix is added if missing.''')
     opt.add_argument(
         '--failed-reads-sample-size',
         type=int,
@@ -3047,6 +3068,7 @@ def _get_parsers():
 
     _add_manual(cmdpar)
     _add_cite(cmdpar)
+    _add_pipeline(cmdpar)
     _add_barcode(cmdpar)
     _add_primer(cmdpar)
     _add_motif(cmdpar)
@@ -3058,7 +3080,6 @@ def _get_parsers():
     _add_revcomp(cmdpar)
     _add_lenstat(cmdpar)
     _add_verify(cmdpar)
-    _add_inspect(cmdpar)
     _add_final(cmdpar)
     _add_compress(cmdpar)
     _add_expand(cmdpar)
@@ -3066,8 +3087,8 @@ def _get_parsers():
     _add_pack(cmdpar)
     _add_acount(cmdpar)
     _add_xcount(cmdpar)
+    _add_inspect(cmdpar)
     _add_complete(cmdpar)
-    _add_pipeline(cmdpar)
 
     return mainpar
 

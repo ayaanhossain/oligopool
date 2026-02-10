@@ -12,7 +12,7 @@ parameter-by-parameter reference and `docs/docs.md` for tutorials/examples.
 - User guide (`docs/docs.md`) [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/docs.md)]
 - API reference (`docs/api.md`) [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/api.md)]
 - Example notebook [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/examples/OligopoolCalculatorInAction.ipynb)]
-- CLI pipeline example (repo) [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/examples/cli-pipeline/README.md)]
+- CLI YAML pipeline example (repo) [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/examples/cli-yaml-pipeline/README.md)]
 - Docker notes [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/docker-notes.md)]
 
 Agent policy: don't fetch everything by default. Fetch the minimum needed:
@@ -55,6 +55,8 @@ Five modes (library + CLI):
 
 - Context columns: `left_context_column` / `right_context_column` prevent *edge
   effects* (undesired motifs/repeats spanning an insertion boundary).
+  When both are set, new design columns are inserted between those context
+  columns, which also resolves linear column order for later `merge`.
 - `excluded_motifs`: global "do not create these" list (restriction sites, Type
   IIS sites, primers, etc.; many modules accept it). Accepts single source or
   multiple sources (list of sources or `{name: source}` dict). Strict ATGC only.
@@ -128,6 +130,12 @@ embed the recognition site where it breaks the workflow). Upstream design can
 also exclude the recognition site via `excluded_motifs`. The sites are meant to
 facilitate scarless removal of the installed amplification pads for overlap-based
 assembly strategies identified via `split`.
+
+The built-in Type IIS set is intentionally limited to systems with a clearly
+defined motif + 3' cut-offset model in `pad`; for non-built-ins, manually compose
+padding with `primer` + `motif` + `spacer`.
+Think of this set as the "batteries included" Type IIS options for predictable
+3' excision and scarless primer-pad removal.
 
 ### Counting callbacks (Python only)
 
@@ -231,7 +239,7 @@ use `patch_mode=True` on the element you need to fill (e.g., barcodes/primers).
 
 ## Composability Recipes
 
-Dense lookup for common “compose it from primitives” patterns. For worked examples and caveats, see `docs/docs.md#composability`.
+Dense lookup for common "compose it from primitives" patterns. For worked examples and caveats, see `docs/docs.md#composability`.
 
 Note: `'-'` is a conventional placeholder value; Patch Mode treats `'-'` as missing and fills it.
 
@@ -239,44 +247,42 @@ Note: `'-'` is a conventional placeholder value; Patch Mode treats `'-'` as miss
 
 | Ask | Compose |
 |-----|---------|
-| Embed restriction site inside a barcode | `barcode(N1)` → `motif(constant, 'GAATTC')` → `barcode(N2)` → `merge` |
-| Barcode with constant flanking anchors | `motif(constant, prefix)` → `barcode` → `motif(constant, suffix)` (keep separate for `index` anchors; `merge` optional) |
-| Two barcodes that don't cross-talk | `barcode(col='BC1')` → `barcode(col='BC2', cross_barcode_columns=['BC1'])` |
-| Tm-matched primer pair | `primer(forward)` → `primer(reverse, paired_primer_column='Fwd')` |
-| Extend pool with new variants | append rows → `barcode(patch_mode=True)` → `spacer(patch_mode=True)` |
-| Screen against multiple genomes | `background(g1)` + `background(g2)` → `background_directory=[bg1, bg2]` |
-| Auto-fill to target length | `spacer(spacer_length=None)` — auto-computes per-row fill |
-| Compound element (mixed fixed/variable) | chain `motif`/`barcode` sub-regions → `merge` |
+| Embed restriction site inside a barcode | `motif(constant, 'GAATTC')` -> `barcode(N1, right_context='site')` -> `barcode(N2, left_context='site')` -> `merge` |
+| Two barcodes that don't cross-talk | `barcode(col='BC1')` -> `barcode(col='BC2', cross_barcode_columns=['BC1'])` |
+| Tm-matched primer pair | `primer(forward)` -> `primer(reverse, paired_primer_column='Fwd')` |
+| Extend pool with new variants | append rows -> `barcode(patch_mode=True)` -> `spacer(patch_mode=True)` |
+| Auto-fill to target length | `spacer(spacer_length=None)` - auto-computes per-row fill |
+| Compound element (mixed fixed/variable) | chain `motif`/`barcode` sub-regions -> `merge` |
 | Flip a region's orientation | `revcomp(left_context_column=..., right_context_column=...)` |
-| Long constructs / assembly | `split(separate_outputs=True)` → `pad` (per `SplitN`) → `final` (per fragment) |
-| Mid-pipeline length telemetry | `lenstat` → adjust element lengths → rerun |
+| Long constructs / assembly | `split(separate_outputs=True)` -> `pad` (per `SplitN`) -> `final` (per fragment) |
+| Mid-pipeline length telemetry | `lenstat` -> adjust element lengths -> rerun |
 | Inspect artifacts quickly | `inspect(background/index/pack)` before reuse |
 | Cut-site-free library | same `excluded_motifs` (motifs + reverse complements) on every design module + `verify` |
-| No host-genome homology | `background(host.fasta)` → `background_directory` on every design module + `verify` |
-| Cut-site-free AND no host homology | both `excluded_motifs` and `background_directory` on every module |
-| Verify entire library post-design | `verify(excluded_motifs=..., background_directory=...)` — full oligo + junction check |
-| Count multi-barcode combos (BC1 × BC2) | separate `index` per barcode → `xcount(index_files=[idx1, idx2])` |
-| N-way combinatorial matrix | N independent `index` files → `xcount(index_files=[idx1,...,idxN])` |
-| Verify barcode-variant coupling | `index` with associate columns → `acount` |
-| Filter reads by custom criteria | `acount`/`xcount` with `callback(r1, r2, ID, count, coreid) → bool` (Python only) |
-| Pack once, count many ways | single `pack` → reuse with different indexes/callbacks/counting modes |
-| Debug discarded reads | `failed_reads_file` → sample reads per failure category |
-| Design-to-analysis anchor bridge | Design: `motif(constant)` → Analysis: `index(barcode_prefix_column=..., barcode_suffix_column=...)` |
-| Cost-efficient saturation mutagenesis | generate all substitutions → `compress` → order `synthesis_df` (6-20× fewer oligos) |
-| Compression for analysis mapping | `compress` once → reuse `mapping_df` to map sequenced survivors/readouts back to variant IDs |
-| Selection-based discovery (no barcodes) | `compress` → synthesize → select → sequence → map back via `mapping_df` |
-| Verify compression before synthesis | `compress` → `expand` → confirm expanded set == original set |
-| Promoter MPRA library | `background` → `primer(fwd)` → `motif(const, anchor)` → `barcode` → `motif(const, anchor)` → `primer(rev, paired)` → `spacer(auto)` → `verify` → `final` |
-| CRISPR guide library | guides as variant column → `background` → `primer` → `barcode` → `spacer` → `verify` → `final` — with `excluded_motifs` for cloning sites (BsmBI/BbsI) |
-| Saturation mutagenesis (barcoded) | generate all substitutions → standard design pipeline for individual tracking |
-| Saturation mutagenesis (degenerate) | generate all substitutions → `compress` → selection-based discovery at fraction of cost |
+| No host-genome homology | `background(host.fasta)` -> `background_directory` on every design module + `verify` |
+| Count multi-barcode combos (BC1 x BC2) | separate `index` per barcode -> `xcount(index_files=[idx1, idx2])` |
+| N-way combinatorial matrix | N independent `index` files -> `xcount(index_files=[idx1,...,idxN])` |
+| Verify barcode-variant coupling | `index` with associate columns -> `acount` |
+| Filter reads by custom criteria | `acount`/`xcount` with `callback(r1, r2, ID, count, coreid) -> bool` (Python only) |
+| Pack once, count many ways | single `pack` -> reuse with different indexes/callbacks/counting modes |
+| Debug discarded reads | `failed_reads_file` -> sample reads per failure category |
+| Design-to-analysis anchor bridge | Design: `motif(const, prefix)` -> `motif(const, suffix)` -> `barcode(left_context=prefix, right_context=suffix)`; Analysis: `index(barcode_prefix_column=..., barcode_suffix_column=...)` |
+| Cost-efficient saturation mutagenesis | generate all substitutions -> `compress` -> order `synthesis_df` (6-20x fewer oligos) |
+| Compression for analysis mapping | `compress` once -> reuse `mapping_df` to map sequenced survivors/readouts back to variant IDs |
+| Selection-based discovery (no barcodes) | `compress` -> synthesize -> select -> sequence -> map back via `mapping_df` |
+| Verify compression before synthesis | `compress` -> `expand` -> confirm expanded set == original set |
+| Promoter MPRA library | `background` -> `primer(fwd)` -> `motif(const, BC_prefix_anchor)` -> `motif(const, BC_suffix_anchor)` -> `barcode` -> `primer(rev, paired)` -> `spacer(auto)` -> `verify` -> `final` |
+| CRISPR guide library | guides as variant column -> `background` -> `primer` -> `barcode` -> `spacer` -> `verify` -> `final` - with `excluded_motifs` for cloning sites (BsmBI/BbsI) |
+| Saturation mutagenesis (barcoded) | generate all substitutions -> standard design pipeline for individual tracking |
+| Saturation mutagenesis (degenerate) | generate all substitutions -> `compress` -> selection-based discovery at fraction of cost |
 
 ### Context Threading Rules
 
-1. `excluded_motifs` is strict ATGC only — for **non-palindromic** motifs, list both orientations (motif + reverse complement), e.g. BsmBI: `CGTCTC` + `GAGACG`.
-2. Pass `left_context_column`/`right_context_column` at every design step — prevents motif/repeat emergence at element boundaries.
-3. Thread `excluded_motifs` and `background_directory` identically through every design module AND `verify` — constraint composition is pipeline-wide, not per-module.
-4. `verify` checks the full concatenated oligo + junctions; run it as final QC to catch anything that slipped through.
+1. `excluded_motifs` is strict ATGC only - for **non-palindromic** motifs, list both orientations (motif + reverse complement), e.g. BsmBI: `CGTCTC` + `GAGACG`.
+2. Pass `left_context_column`/`right_context_column` at every design step - prevents motif/repeat emergence at element boundaries.
+3. If both context columns are specified, insertion order is resolved automatically (new column lands between contexts), so merge ranges usually line up without manual column reordering.
+4. Thread `excluded_motifs` and `background_directory` identically through every design module AND `verify` - constraint composition is pipeline-wide, not per-module.
+5. Treat motif/background inputs as named layers (core vs optional); add optional layers incrementally, and if infeasible, remove optional layers one at a time while keeping core layers fixed.
+6. `verify` checks the full concatenated oligo + junctions; run it as final QC to catch anything that slipped through.
 
 ### Pointers
 

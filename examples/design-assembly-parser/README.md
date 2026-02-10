@@ -61,7 +61,7 @@ Where:
 - `Primer1/2/3` - PCR primers with Tm constraints
 - `Cut1/2` - Restriction sites (BamHI, XbaI)
 - `Promoter` - Core variant sequences
-- `Barcode` - Unique identifiers (16 bp, Hamming ≥ 3)
+- `Barcode` - Unique identifiers (16 bp, Hamming >= 3)
 - `Filler` - Spacer to reach target length
 
 ## Element Types

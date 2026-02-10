@@ -2567,7 +2567,7 @@ def write_failed_reads(samples, seen_counts, filepath, liner):
     with open(filepath, 'w', newline='') as outfile:
         writer = csv.writer(outfile)
         writer.writerow(
-            ('failure_reason', 'r1', 'r2', 'read_count', 'diagnostic_info'))
+            ('FailureReason', 'R1', 'R2', 'ReadCount', 'DiagnosticDetails'))
 
         # Write samples grouped by failure category
         for category, cat_samples in samples.items():

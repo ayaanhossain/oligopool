@@ -39,7 +39,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Change prompt anchor (interactive shells source ~/.bashrc).
-RUN echo 'export PS1="\[\033[0;34m\][\[\033[1;32m\]\u\[\033[0;34m\]]─(\[\033[1;34m\]\w\[\033[0;34m\])\n \[\033[1;36m\]>> \[\033[0m\]"' >> /root/.bashrc
+RUN echo 'export PS1="\[\033[0;34m\][\[\033[1;32m\]\u\[\033[0;34m\]]-(\[\033[1;34m\]\w\[\033[0;34m\])\n \[\033[1;36m\]>> \[\033[0m\]"' >> /root/.bashrc
 
 # Default working directory (mounted by docs/docker-notes.md examples).
 WORKDIR /op-workspace

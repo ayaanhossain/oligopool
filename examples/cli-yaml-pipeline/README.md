@@ -11,7 +11,7 @@ This directory contains examples of YAML-based pipeline execution for `oligopool
 ## Quick Start
 
 ```bash
-cd examples/cli-pipeline
+cd examples/cli-yaml-pipeline
 
 # Validate the pipeline config (dry run)
 op pipeline --config mpra_pipeline.yaml --dry-run
@@ -25,7 +25,7 @@ op pipeline --config mpra_pipeline.yaml
 `mpra_pipeline.yaml` runs four steps in sequence:
 
 ```
-primer → barcode → spacer → final
+primer -> barcode -> spacer -> final
 ```
 
 Output:
@@ -46,9 +46,9 @@ Pipeline completed successfully.
 `parallel_pipeline.yaml` demonstrates DAG execution where independent steps run concurrently:
 
 ```
-fwd_primer ──────→ add_spacer ──→ finalize
-                                    ↑
-barcode_design ─────────────────────┘
+fwd_primer ------> add_spacer --> finalize
+                                  ^
+barcode_design -------------------|
 ```
 
 Dry run output:

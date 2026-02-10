@@ -178,7 +178,7 @@ def xcount(
     # Full failedreadsfile Validation
     failedreadsfile_valid = vp.get_optional_outfile_validity(
         outfile=failedreadsfile,
-        outfile_suffix='.oligopool.xcount.failed_reads.csv',
+        outfile_suffix='.oligopool.xcount.failedreads.csv',
         outfile_field='    Failed Reads  ',
         liner=liner)
 
@@ -186,7 +186,7 @@ def xcount(
     if failedreadsfile_valid and failedreadsfile is not None:
         failedreadsfile = ut.get_adjusted_path(
             path=failedreadsfile,
-            suffix='.oligopool.xcount.failed_reads.csv')
+            suffix='.oligopool.xcount.failedreads.csv')
 
     # Full failedreadssamplesize Validation
     failedreadssamplesize_valid = True

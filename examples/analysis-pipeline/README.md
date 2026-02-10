@@ -4,7 +4,7 @@ This example demonstrates NGS-based activity quantification using `oligopool`'s 
 
 ## Files
 
-- `analysis_pipeline.py` - Main analysis script
+- `run_analysis_pipeline.py` - Main analysis script
 - `ribozyme_architecture.csv` - Library architecture with barcodes and variants
 - `ribozyme_1M_R1.fq.gz` - Simulated paired-end reads (R1)
 - `ribozyme_1M_R2.fq.gz` - Simulated paired-end reads (R2)
@@ -15,7 +15,7 @@ This example demonstrates NGS-based activity quantification using `oligopool`'s 
 The analysis pipeline follows three steps:
 
 ```
-index → pack → xcount
+index -> pack -> xcount
 ```
 
 1. **Index**: Build barcode/associate indexes for mapping
@@ -26,7 +26,7 @@ index → pack → xcount
 
 ```bash
 cd examples/analysis-pipeline
-python analysis_pipeline.py
+python run_analysis_pipeline.py
 ```
 
 ## Pipeline Details

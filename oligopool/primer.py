@@ -34,18 +34,18 @@ def primer(
     random_seed:int|None=None,
     verbose:bool=True) -> Tuple[pd.DataFrame, dict]:
     '''
-    Design constrained primers under an IUPAC sequence constraint with Tm/repeat/dimer screening.
+    Design constrained primers under an IUPAC sequence constraint with Tm/repeat/hairpin/dimer screening.
     Supports background screening, chained primer design via Tm matching, multiplexed per-set primers
     via `oligo_sets`, and patch mode for incremental pool extension.
 
     Required Parameters:
         - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated oligo pool variants.
-        - `oligo_length_limit` (`int`): Maximum allowed oligo length (≥ 4).
+        - `oligo_length_limit` (`int`): Maximum allowed oligo length (>= 4).
         - `primer_sequence_constraint` (`str`): IUPAC degenerate sequence constraint.
         - `primer_type` (`int` / `str`): Primer direction/type (default: required). See Notes.
-        - `minimum_melting_temperature` (`float`): Minimum primer Tm (≥ 25°C).
-        - `maximum_melting_temperature` (`float`): Maximum primer Tm (≤ 95°C).
-        - `maximum_repeat_length` (`int`): Max shared repeat length with oligos (≥ 6).
+        - `minimum_melting_temperature` (`float`): Minimum primer Tm (>= 25 degC).
+        - `maximum_melting_temperature` (`float`): Maximum primer Tm (<= 95 degC).
+        - `maximum_repeat_length` (`int`): Max shared repeat length with oligos (>= 6).
         - `primer_column` (`str`): Column name for the designed primer.
 
     Optional Parameters:
@@ -75,7 +75,7 @@ def primer(
         - `primer_type`:
             0 or 'forward' for forward, 1 or 'reverse' for reverse (aliases: 'fwd', 'f', 'rev', 'r').
         - The paired primer type is inferred based on the current primer type.
-        - If `paired_primer_column` is specified, Tm of the designed primer is optimized within 1°C of it.
+        - If `paired_primer_column` is specified, Tm of the designed primer is optimized within 1 degC of it.
         - `maximum_repeat_length` controls non-repetitiveness against `input_data` only; to screen against a
             background, build a background DB with `background(...)` and pass it via `background_directory`.
         - `background_directory` supports one or more DBs (paths and/or vectorDB instances); designs avoid k-mers in
@@ -185,7 +185,7 @@ def primer(
         minval=mintmelt,
         maxval=maxtmelt,
         range_field='    Melting Temperature',
-        range_unit='°C',
+        range_unit=' degC',
         range_min=25,
         range_max=95,
         liner=liner)
@@ -1306,7 +1306,7 @@ def primer(
     if stats['status']:
         if oligosets is None:
             liner.send(
-                '     Melting Temperature: {:6.2f} °C\n'.format(
+                '     Melting Temperature: {:6.2f} degC\n'.format(
                     stats['vars']['primer_Tm']))
             liner.send(
                 '          GC Content    : {:6.2f} %\n'.format(
@@ -1331,7 +1331,7 @@ def primer(
 
             for entry in stats['vars']['primer_sets']:
                 line = (
-                    '     - Set {}: Tm {:6.2f} °C, GC {:6.2f} %, '
+                    '     - Set {}: Tm {:6.2f} degC, GC {:6.2f} %, '
                     'Hairpin {:6.2f} kcal/mol, Homodimer {:6.2f} kcal/mol'
                 ).format(
                     entry['oligo_set'],

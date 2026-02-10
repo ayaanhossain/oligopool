@@ -38,10 +38,10 @@ def barcode(
 
     Required Parameters:
         - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated oligo pool variants.
-        - `oligo_length_limit` (`int`): Maximum allowed oligo length (≥ 4).
-        - `barcode_length` (`int`): Length of the designed barcodes (≥ 4).
-        - `minimum_hamming_distance` (`int`): Minimum pairwise Hamming distance (≥ 1).
-        - `maximum_repeat_length` (`int`): Max shared repeat length with oligos (≥ 4).
+        - `oligo_length_limit` (`int`): Maximum allowed oligo length (>= 4).
+        - `barcode_length` (`int`): Length of the designed barcodes (>= 4).
+        - `minimum_hamming_distance` (`int`): Minimum pairwise Hamming distance (>= 1).
+        - `maximum_repeat_length` (`int`): Max shared repeat length with oligos (>= 4).
         - `barcode_column` (`str`): Column name for the designed barcodes.
 
     Optional Parameters:
@@ -78,7 +78,7 @@ def barcode(
             and/or `excluded_motifs`, or switch `barcode_type`.
         - Constant anchors (e.g., index prefix/suffix) are typically designed first (see `motif`, `motif_type=1`).
         - Cross-set mode is global (not per-row): `cross_barcode_columns` and `minimum_cross_distance` must be set
-            together; each new barcode must be ≥ `minimum_cross_distance` mismatches away from every strict-ATGC
+            together; each new barcode must be >= `minimum_cross_distance` mismatches away from every strict-ATGC
             barcode in the union of sequences across `cross_barcode_columns` (length must equal `barcode_length`).
         - Patch mode (`patch_mode=True`) preserves existing values in `barcode_column` and fills only missing values
             (`None`/NaN/empty/`'-'`); existing values must already be strict ATGC of length `barcode_length`.
@@ -919,7 +919,7 @@ def barcode(
 
             for percentage,distance in stats['vars']['distance_distro']:
                 liner.send(
-                    '   - {:6.2f} % Barcode(s) w/ Distance ≥ {:{},d} Mismatch(es)\n'.format(
+                    '   - {:6.2f} % Barcode(s) w/ Distance >= {:{},d} Mismatch(es)\n'.format(
                         percentage,
                         distance,
                         dlen))

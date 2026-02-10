@@ -865,7 +865,7 @@ def get_distro(
 
         # Show Update
         liner.send(
-            ' Candidate {:{},d}: Pairwise Distance ≥ {:,} Mismatches'.format(
+            ' Candidate {:{},d}: Pairwise Distance >= {:,} Mismatches'.format(
                 idxsample[idx]+1, plen, hdist))
 
         # Add to Distribution

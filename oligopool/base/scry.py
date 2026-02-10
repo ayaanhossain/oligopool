@@ -258,7 +258,7 @@ class Scry:
                                           # iv stores sequence's index in X, i.e. X[p] = sequence
                                           #    that contains kmer inside it at region q..q+k
                     (                     # ig stores merged ranges into iv at index q
-                                          #    such that X[p][q..q+k] = kmer for p ∈ iv
+                                          #    such that X[p][q..q+k] = kmer for p in iv
                         (0, 3), # X[p] for p in iv[0:3] has kmer at region q=0..k
                         (3, 4), # X[p] for p in iv[3:4] has kmer at region q=1..1+k
                         (4, 5), # X[p] for p in iv[4:5] has kmer at region q=2..2+k

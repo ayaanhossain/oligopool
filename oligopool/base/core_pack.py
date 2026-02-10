@@ -87,13 +87,24 @@ def get_extracted_overlap_parameters(
     inniecount  = 0
     outiecount  = 0
     mergefnhigh = None
+    truncread   = False
 
     # Process Read Samples
     while samplecount < sampletotal:
 
         # Get Paired Reads
-        r1,_ = next(reader1)
-        r2,_ = next(reader2)
+        try:
+            r1,_ = next(reader1)
+            r2,_ = next(reader2)
+        except StopIteration:
+            break
+
+        # Exhausted / Truncated File Pair
+        if r1 is None and r2 is None:
+            break
+        if (r1 is None) or (r2 is None):
+            truncread = True
+            break
 
         # Update Book-keeping
         samplecount += 1
@@ -165,8 +176,13 @@ def get_extracted_overlap_parameters(
 
     # Normalize Counts
     totalcount = inniecount + outiecount
-    inniecount = (100. * inniecount) / totalcount
-    outiecount = 100. - inniecount
+    if totalcount > 0:
+        inniecount = (100. * inniecount) / totalcount
+        outiecount = 100. - inniecount
+    else:
+        # Default conservatively when no valid overlap evidence is available.
+        inniecount = 100.
+        outiecount = 0.
 
     # Show Update
     liner.send(
@@ -178,6 +194,12 @@ def get_extracted_overlap_parameters(
     liner.send(
         ' Outie Events  : {:6.2f} %\n'.format(
             outiecount))
+    if truncread:
+        liner.send(
+            ' Pair Truncation Detected During Overlap Sampling\n')
+    if totalcount == 0:
+        liner.send(
+            ' Overlap Evidence: Insufficient, Using Default Priority\n')
 
     # Compute Results
     if inniecount >= outiecount:

@@ -25,6 +25,7 @@ import importlib
 import json
 import os
 from pathlib import Path
+import subprocess
 import re
 import sys
 import textwrap
@@ -532,11 +533,13 @@ class OligopoolFormatter(argparse.RawTextHelpFormatter):
         # Strip hidden metavars so help alignment stays consistent.
         text = super()._format_action_invocation(action)
         text = text.replace('\x08', '')
-        # If a flag uses the hidden metavar sentinel (`\b`) with nargs, argparse may
-        # render an extra " [ ...]" token and leave double-spaces after stripping.
-        # Keep the invocation compact so the first help line stays on the same row.
-        if getattr(action, 'metavar', None) == '\b':
+        # Argparse often renders an extra " [ ...]" token for nargs on option flags,
+        # which is visually noisy. Remove it for flags so the invocation stays compact.
+        if getattr(action, 'option_strings', None):
             text = re.sub(r'\s*\[\s*\.\.\.\s*\]\s*$', '', text)
+            # Also strip the default nargs+ rendering: "X [X ...]" / "[X ...]".
+            # This keeps our ">>[optional ...]" help blocks as the source of truth.
+            text = re.sub(r'\s*\[[^\]]*\.\.\.[^\]]*\]\s*$', '', text)
         text = re.sub(r'\s+', ' ', text).rstrip()
         return text
 
@@ -1219,6 +1222,39 @@ def _execute_step(
     except Exception as exc:
         return (step_name, False, f'Step "{step_name}" raised exception: {exc}', None)
 
+def _build_cli_argv(command, step_config):
+    '''Build a CLI argv list for invoking a command with given config.
+
+    Pipeline parallel mode uses subprocess execution (one interpreter per step) so
+    multiprocessing-heavy commands can safely run concurrently.
+    '''
+    argv = [sys.executable, '-m', 'oligopool.cli', command]
+
+    # Keep step output quiet; pipeline output is handled by the parent.
+    argv.append('--quiet')
+    # Suppress banners and emit a machine-parseable stats dict (captured by the parent).
+    argv.append('--stats-json')
+
+    for key, value in (step_config or {}).items():
+        if key in ('verbose', 'stats_json', 'stats_file'):
+            continue
+        if value is None:
+            continue
+
+        flag = f'--{key.replace("_", "-")}'
+        if isinstance(value, bool):
+            if value:
+                argv.append(flag)
+            continue
+
+        argv.append(flag)
+        if isinstance(value, (list, tuple)):
+            argv.extend([str(v) for v in value])
+        else:
+            argv.append(str(value))
+
+    return argv
+
 def _run_pipeline_sequential(config, steps, dry_run, verbose):
     '''Execute a sequential (non-parallel) pipeline.'''
     pipeline_name = get_pipeline_name(config)
@@ -1275,7 +1311,6 @@ def _run_pipeline_sequential(config, steps, dry_run, verbose):
 
 def _run_pipeline_parallel(config, dry_run, verbose):
     '''Execute a parallel/DAG pipeline.'''
-    import concurrent.futures
 
     pipeline_name = get_pipeline_name(config)
 
@@ -1323,81 +1358,75 @@ def _run_pipeline_parallel(config, dry_run, verbose):
                 print(f'    {step["name"]}: {step["command"]}{deps}')
         return 0
 
-    # Execute levels
-    completed_step = 0
-    results = {}
-
     for level_idx, level in enumerate(levels):
-        level_names = [s['name'] for s in level]
         is_parallel = len(level) > 1
+        parallel_marker = ' (parallel)' if is_parallel else ''
 
-        if is_parallel:
-            # Execute level steps in parallel
-            if verbose:
-                print(f'  Level {level_idx + 1}: {", ".join(level_names)} (parallel) ... ', end='', flush=True)
+        if verbose:
+            print(f'  Level {level_idx + 1}{parallel_marker}:')
+            for step in level:
+                deps = f' (after: {", ".join(step["after"])})' if step['after'] else ''
+                print(f'    {step["name"]}: {step["command"]}{deps}')
+            # Keep the "progress line" visually tied to the step list (matches dry-run layout).
+            print('    ... ', end='', flush=True)
 
-            with concurrent.futures.ThreadPoolExecutor(max_workers=len(level)) as executor:
-                futures = {
-                    executor.submit(
-                        _execute_step,
-                        step['name'],
-                        step['command'],
-                        step['config_key'],
-                        config,
-                        output_alias_map,
-                    ): step
-                    for step in level
-                }
-
-                failed = None
-                for future in concurrent.futures.as_completed(futures):
-                    step = futures[future]
-                    step_name, success, result_or_error, summary = future.result()
-
-                    if not success:
-                        failed = result_or_error
-                        # Cancel remaining futures
-                        for f in futures:
-                            f.cancel()
-                        break
-
-                    results[step_name] = result_or_error
-                    completed_step += 1
-
-                if failed:
-                    if verbose:
-                        print('FAILED')
-                    print(f'error: {failed}', file=sys.stderr)
-                    return 1
-
-            if verbose:
-                print('done')
-
-        else:
-            # Single step - execute directly
-            step = level[0]
-            if verbose:
-                print(f'  Level {level_idx + 1}: {step["name"]} ... ', end='', flush=True)
-
-            step_name, success, result_or_error, summary = _execute_step(
-                step['name'],
-                step['command'],
-                step['config_key'],
-                config,
-                output_alias_map,
+        # Run each step in its own subprocess so multiprocessing-heavy commands
+        # can run concurrently without thread-level interference.
+        procs = {}
+        for step in level:
+            step_config = get_command_config(config, step['config_key'])
+            step_config = convert_config_keys_to_args(step_config)
+            step_config = _apply_step_type_conversions(step_config)
+            step_config = _resolve_pipeline_magic_paths(
+                command=step['command'],
+                step_config=step_config,
+                output_alias_map=output_alias_map)
+            argv = _build_cli_argv(step['command'], step_config)
+            procs[step['name']] = subprocess.Popen(
+                argv,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
             )
 
-            if not success:
-                if verbose:
-                    print('FAILED')
-                print(f'error: {result_or_error}', file=sys.stderr)
-                return 1
+        failed = None
+        failed_detail = None
+        for step_name, proc in procs.items():
+            out, err = proc.communicate()
+            if proc.returncode != 0 and failed is None:
+                failed = step_name
+                failed_detail = (err or out or '').strip()
+                if len(failed_detail) > 2000:
+                    failed_detail = failed_detail[:2000].rstrip() + ' ...'
+
+        if failed is not None:
+            # Best-effort terminate remaining processes.
+            for name, proc in procs.items():
+                if name == failed:
+                    continue
+                if proc.poll() is None:
+                    try:
+                        proc.terminate()
+                    except Exception:
+                        pass
+            for name, proc in procs.items():
+                if name == failed:
+                    continue
+                try:
+                    proc.wait(timeout=5)
+                except Exception:
+                    pass
 
             if verbose:
-                print('done')
+                print('FAILED')
+            if failed_detail:
+                print(f'error: Step "{failed}" failed: {failed_detail}', file=sys.stderr)
+            else:
+                print(f'error: Step "{failed}" failed.', file=sys.stderr)
+            return 1
 
-            results[step_name] = result_or_error
-            completed_step += 1
+        if verbose:
+            print('done')
 
     if verbose:
         print()
@@ -1910,7 +1939,7 @@ Output CSV filename. A ".oligopool.barcode.csv" suffix is added if missing.''')
         metavar='\b',
         help='''>>[optional int/string]
 Barcode design mode: 0 or 'terminus' = terminus optimized (fast),
-1 or 'spectrum' = spectrum optimized (slow). Aliases: 'term', 't', 'fast', 'spec', 's', 'slow'.
+1 or 'spectrum' = spectrum optimized (slow). Aliases: 'term', 'spec'.
 (default: 0).''')
     opt.add_argument(
         '--left-context-column',
@@ -2301,7 +2330,7 @@ Output CSV filename. A ".oligopool.spacer.csv" suffix is added if missing.''')
         metavar='\b',
         help='''>>[optional string]
 Spacer length as an integer, a comma-separated list, or a CSV path
-with ID and Length columns. If omitted, spacer length is auto-set
+with ID and SpacerLength columns. If omitted, spacer length is auto-set
 to reach the oligo length limit.''')
     opt.add_argument(
         '--left-context-column',

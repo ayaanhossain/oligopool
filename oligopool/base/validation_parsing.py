@@ -2779,6 +2779,7 @@ def get_parsed_spacerlen_info(
     '''
 
     spacerlen_field = _normalize_field(spacerlen_field)
+    df_field = _normalize_field(df_field)
 
     # Is spacerlen None?
     if spacerlen is None:
@@ -2877,7 +2878,6 @@ def get_parsed_spacerlen_info(
 
         # Is spacerlen df valid?
         if df_valid:
-
             # Are the indexes matching?
             idx_match = False
             if indata_valid:

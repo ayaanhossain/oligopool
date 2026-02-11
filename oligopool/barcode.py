@@ -68,7 +68,7 @@ def barcode(
             Column names must be unique and exclude `barcode_column`.
         - `barcode_type`:
             0 or 'terminus' = fast terminus optimized, 1 or 'spectrum' = slow spectrum optimized
-            (aliases: 'term', 't', 'fast', 'spec', 's', 'slow').
+            (aliases: 'term', 'spec').
         - Terminus optimization targets distinctive 5'/3' ends; spectrum optimization targets k-mer saturation.
         - At least one of `left_context_column` or `right_context_column` must be specified.
         - `excluded_motifs`: one or more sources (list/dict), merged; strict ATGC only; CSV/DataFrame requires 'Exmotif';

@@ -6,7 +6,6 @@ This directory contains examples of YAML-based pipeline execution for `oligopool
 
 - `variants.csv` - Sample input data (15 promoter variants)
 - `mpra_design_serial.yaml` - Sequential design pipeline example
-- `mpra_design_parallel.yaml` - Parallel design DAG example
 - `analysis_single.yaml` - Single-sample analysis DAG example (`index` + `pack` -> `xcount`)
 - `analysis_multi.yaml` - Multi-sample analysis DAG (`index once`, `pack/count per sample`)
 
@@ -32,8 +31,6 @@ You can also use the helper runner with explicit design vs analysis targets:
 
 ```bash
 ./run_example.sh design-serial
-./run_example.sh design-parallel
-./run_example.sh design
 ./run_example.sh analysis-single
 ./run_example.sh analysis-multi
 ./run_example.sh analysis
@@ -65,48 +62,6 @@ Steps: 4
   [2/4] barcode ... done
   [3/4] spacer ... done
   [4/4] final ... done
-
-Pipeline completed successfully.
-```
-
-## Parallel Pipeline
-
-`mpra_design_parallel.yaml` demonstrates DAG execution where independent steps run concurrently:
-
-```
-fwd_primer ------> add_spacer --> finalize
-                                  ^
-barcode_design -------------------|
-```
-
-The parallel example also uses basename chaining:
-- `output_file: "p1_fwd_primer"` writes `p1_fwd_primer.oligopool.primer.csv`
-- downstream `input_data: "p1_fwd_primer"` resolves to that produced file
-
-Dry run output:
-```
-Pipeline: Parallel Design Demo
-Steps: 4 across 3 levels
-
-Dry run: config validation passed.
-
-  Level 1 (parallel):
-    fwd_primer: primer
-    barcode_design: barcode
-  Level 2:
-    add_spacer: spacer (after: fwd_primer)
-  Level 3:
-    finalize: final (after: barcode_design, add_spacer)
-```
-
-Execution output:
-```
-Pipeline: Parallel Design Demo
-Steps: 4 across 3 levels
-
-  Level 1: fwd_primer, barcode_design (parallel) ... done
-  Level 2: add_spacer ... done
-  Level 3: finalize ... done
 
 Pipeline completed successfully.
 ```
@@ -204,18 +159,19 @@ primer:
 pipeline:
   name: "Parallel Pipeline"
   steps:
-    - name: step_a
-      command: primer
-    - name: step_b
-      command: barcode
-      # No 'after' - runs parallel with step_a
-    - name: step_c
-      command: final
-      after: [step_a, step_b]  # Waits for both
+    - name: index_bc1
+      command: index
+    - name: index_bc2
+      command: index
+    - name: pack_reads
+      command: pack
+    - name: count_combinatorial
+      command: xcount
+      after: [index_bc1, index_bc2, pack_reads]
 
-step_a:
+index_bc1:
   # ... parameters
-step_b:
+pack_reads:
   # ... parameters
 ```
 

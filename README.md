@@ -230,12 +230,7 @@ $ op complete --install          # auto-detect shell (restart your shell)
 $ op complete --install bash     # or: zsh|fish
 ```
 
-> **CLI Notes**
-> - **Output arguments are required for file-writing commands**: pass a basename via `--output-file` / `--index-file` / `--pack-file` / `--count-file` / `--mapping-file` / `--synthesis-file`.
-> - **Suffixing is automatic and append-if-missing**: if a command expects `.oligopool.<module>...`, that suffix is appended when absent.
-> - **Type parameters are flexible**: most `--*-type` flags accept either integers or readable strings (`forward`, `spectrum`, `anchor`, `merge`, `sensitive`, etc.).
-> - **Sequence constraints support shorthand**: use literal IUPAC (`NNNN...`) or compact expressions like `"'N'*20"` and `'GCC+N*20+CCG'`.
-> - **`split` defaults to per-fragment outputs**: use `--no-separate-outputs` if you want one combined split CSV.
+For detailed CLI behavior (output basenames, suffixing, type aliases, sequence-constraint shorthand, and split output defaults), see the [CLI-Specific Notes](docs/docs.md#cli-specific-notes).
 
 ### YAML Pipelines
 
@@ -269,18 +264,9 @@ fwd_primer:
   # ...
 ```
 
-Use `--config` with any command to load parameters from YAML (CLI args override config values). See [`examples/cli-yaml-pipeline`](https://github.com/ayaanhossain/oligopool/tree/master/examples/cli-yaml-pipeline) for a complete working example.
-Canonical examples there are `mpra_design_serial.yaml`, `mpra_design_parallel.yaml`, `analysis_single.yaml`, and `analysis_multi.yaml`.
+Use `--config` with any command to load parameters from YAML (CLI args override config values). See [`examples/cli-yaml-pipeline`](https://github.com/ayaanhossain/oligopool/tree/master/examples/cli-yaml-pipeline) for complete working examples.
 
-> **YAML Pipeline Notes**
-> - **You can write concise pipelines**: downstream `input_data` can reference upstream `output_file` basenames.
-> - **Explicit paths always win**: if an `input_data` path already exists, it is used as-is (no alias rewrite).
-> - **Alias resolution is strict**: only unique basename aliases are auto-resolved; ambiguous aliases are reported as config errors.
-> - **DAG is especially useful for analysis orchestration**: run independent `index`/`pack` steps in parallel, then gate `acount`/`xcount` on all dependencies.
-> - **Suffix behavior is predictable**:
->   - `output_file: "my_library"` -> `my_library.oligopool.<module>.csv`
->   - `output_file: "my_library.csv"` -> `my_library.csv.oligopool.<module>.csv`
->   - `output_file: "my_library.oligopool.<module>.csv"` -> unchanged
+For full pipeline rules (alias resolution, path precedence, DAG tips, and output suffix behavior), see [Config Files](docs/docs.md#config-files).
 
 <a id="citation"></a>
 ## 📖 Citation

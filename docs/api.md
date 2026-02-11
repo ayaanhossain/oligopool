@@ -339,7 +339,7 @@ df, stats = op.spacer(
 **Optional Parameters**
 
 - `output_file` (str | None, default=None): Output CSV path (required for CLI)
-- `spacer_length` (int | list | str | DataFrame | None, default=None): `None`=auto-fill to `oligo_length_limit`, `int`=fixed length, `list`=per-row lengths, DataFrame/CSV with `ID` + `Length`
+- `spacer_length` (int | list | str | DataFrame | None, default=None): `None`=auto-fill to `oligo_length_limit`, `int`=fixed length, `list`=per-row lengths, DataFrame/CSV with `ID` + `SpacerLength`
 - `left_context_column` (str | None, default=None): Column for left DNA context
 - `right_context_column` (str | None, default=None): Column for right DNA context
 - `patch_mode` (bool, default=False): Fill only missing values (`None`/`NaN`/empty/`'-'`)
@@ -588,8 +588,8 @@ df, stats = op.split(
 
     # Optional
     output_file=None,              # str | None
-    random_seed=None,              # int | None
     separate_outputs=False,        # bool
+    random_seed=None,              # int | None
     verbose=True,                  # bool
 )
 ```
@@ -606,8 +606,8 @@ df, stats = op.split(
 **Optional Parameters**
 
 - `output_file` (str | None, default=None): Output CSV path (required for CLI)
-- `random_seed` (int | None, default=None): RNG seed for reproducibility
 - `separate_outputs` (bool, default=False): Return list of per-split DataFrames; if `output_file` set, writes `{base}.SplitN.oligopool.split.csv` files
+- `random_seed` (int | None, default=None): RNG seed for reproducibility
 - `verbose` (bool, default=True): Print progress output
 
 **Returns**:
@@ -686,7 +686,7 @@ df, stats = op.pad(
 - This only constrains newly designed elements-if your input sequences already contain the site, choose a different enzyme or redesign those sequences
 - Run `pad` separately for each fragment (e.g., `Split1`, `Split2`, ...); you cannot pad all columns in one call
 - If a fragment can't fit under `oligo_length_limit`, spacer(s) are set to `'-'`
-- Post-synthesis workflow: PCR amplify -> Type IIS digest -> mung bean nuclease (skip for blunt-cutters like `MlyI`) -> assemble via overlaps
+- Post-synthesis workflow: PCR amplify → Type IIS digest → mung bean nuclease (skip for blunt-cutters like `MlyI`) → assemble via overlaps
 
 **CLI Equivalent**:
 ```bash
@@ -707,7 +707,7 @@ op pad \
 
 ## Degenerate Mode
 
-Degenerate Mode compresses variant libraries with low mutational diversity into IUPAC-degenerate oligos for cost-efficient synthesis. Best for selection assays where enriched variants are identified by sequencing (no barcode-based readout required). Ideal for selection-based discovery: design -> compress -> synthesize -> select -> sequence -> map back.
+Degenerate Mode compresses variant libraries with low mutational diversity into IUPAC-degenerate oligos for cost-efficient synthesis. Best for selection assays where enriched variants are identified by sequencing (no barcode-based readout required). Ideal for selection-based discovery: design → compress → synthesize → select → sequence → map back.
 
 ### `compress`
 
@@ -739,7 +739,7 @@ mapping_df, synthesis_df, stats = op.compress(
 
 - `mapping_file` (str | None, default=None): Output CSV for variant-to-degenerate mapping
 - `synthesis_file` (str | None, default=None): Output CSV for degenerate oligos ready for synthesis
-- Output suffixes (if missing): `mapping_file` -> `.oligopool.compress.mapping.csv`, `synthesis_file` -> `.oligopool.compress.synthesis.csv`
+- Output suffixes (if missing): `mapping_file` → `.oligopool.compress.mapping.csv`, `synthesis_file` → `.oligopool.compress.synthesis.csv`
 - `rollout_simulations` (int, default=100): Monte Carlo simulations per decision (higher = better compression, slower)
 - `rollout_horizon` (int, default=4): Lookahead positions for rollouts
 - `random_seed` (int | None, default=None): RNG seed for reproducibility
@@ -1530,10 +1530,16 @@ v3,TTAACCGGTTAACCGG
 | `.oligopool.merge.csv` | `merge` | Merged element library |
 | `.oligopool.revcomp.csv` | `revcomp` | Reverse-complemented library |
 | `.oligopool.final.csv` | `final` | Synthesis-ready library |
+| `.oligopool.verify.csv` | `verify` | Verification report table |
+| `.oligopool.expand.csv` | `expand` | Expanded concrete-sequence library |
+| `.oligopool.compress.mapping.csv` | `compress` | Variant-to-degenerate mapping table |
+| `.oligopool.compress.synthesis.csv` | `compress` | Degenerate synthesis-ready library |
 | `.oligopool.index` | `index` | Barcode index file |
 | `.oligopool.pack` | `pack` | Packed reads file |
 | `.oligopool.acount.csv` | `acount` | Association counts |
+| `.oligopool.acount.failedreads.csv` | `acount` | Failed reads sample table (optional) |
 | `.oligopool.xcount.csv` | `xcount` | Combinatorial counts |
+| `.oligopool.xcount.failedreads.csv` | `xcount` | Failed reads sample table (optional) |
 
 [^ Back to TOC](#table-of-contents)
 

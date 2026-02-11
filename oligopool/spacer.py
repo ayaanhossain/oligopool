@@ -62,7 +62,7 @@ def spacer(
         - `spacer_length`:
             if `None`, it is computed per row as remaining free space under `oligo_length_limit` after concatenating
             existing sequence columns (ignoring `'-'` gaps); a computed length of 0 yields `'-'`.
-        - When `spacer_length` is a CSV or DataFrame, it must have 'ID' and 'Length' columns.
+        - When `spacer_length` is a CSV or DataFrame, it must have 'ID' and 'SpacerLength' columns.
         - `excluded_motifs`: one or more sources (list/dict), merged; strict ATGC only; CSV/DataFrame requires 'Exmotif';
             FASTA sources are supported.
         - `background_directory` screens against one or more background k-mer DB(s); designs avoid k-mers in ALL specified DBs.
@@ -180,7 +180,7 @@ def spacer(
     spacerlen_valid) = vp.get_parsed_spacerlen_info(
         spacerlen=spacerlen,
         spacerlen_field='     Spacer Length  ',
-        df_field='Length',
+        df_field='SpacerLength',
         oligolimit=oligolimit,
         oligolimit_valid=oligolimit_valid,
         indf=indf,

@@ -27,7 +27,7 @@ def primer(
     left_context_column:str|None=None,
     right_context_column:str|None=None,
     patch_mode:bool=False,
-    oligo_sets:list|str|pd.DataFrame|None=None,
+    oligo_set:list|str|pd.DataFrame|None=None,
     paired_primer_column:str|None=None,
     excluded_motifs:list|str|dict|pd.DataFrame|None=None,
     background_directory:str|list|None=None,
@@ -36,7 +36,7 @@ def primer(
     '''
     Design constrained primers under an IUPAC sequence constraint with Tm/repeat/hairpin/dimer screening.
     Supports background screening, chained primer design via Tm matching, multiplexed per-set primers
-    via `oligo_sets`, and patch mode for incremental pool extension.
+    via `oligo_set`, and patch mode for incremental pool extension.
 
     Required Parameters:
         - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated oligo pool variants.
@@ -55,7 +55,7 @@ def primer(
         - `right_context_column` (`str` / `None`): Column for right DNA context (default: `None`).
         - `patch_mode` (`bool`): If `True`, fill only missing values in an existing primer column
             (does not overwrite existing primers). (default: `False`).
-        - `oligo_sets` (`list` / `str` / `pd.DataFrame`): Per-oligo grouping labels to design
+        - `oligo_set` (`list` / `str` / `pd.DataFrame`): Per-oligo grouping labels to design
             set-specific primers; can be a list aligned to `input_data` or a CSV/DataFrame
             with 'ID' and 'OligoSet' columns (default: `None`).
         - `paired_primer_column` (`str` / `None`): Column for paired primer sequence (default: `None`).
@@ -85,11 +85,11 @@ def primer(
         - Constant motifs in sequence constraint may lead to sub-optimal primers.
         - Chained primer design: design one primer, then its partner via `paired_primer_column`
             (pairing is inferred from `primer_type`).
-        - `oligo_sets` can be any group labels. Primers are designed per set and screened for cross-set
+        - `oligo_set` can be any group labels. Primers are designed per set and screened for cross-set
             compatibility; if `paired_primer_column` is provided, it must be constant within each set and
             pairing/Tm matching is applied per set.
         - Patch mode (`patch_mode=True`) preserves existing values in `primer_column` and fills only missing values
-            (`None`/NaN/empty/`'-'`). With `oligo_sets`, existing per-set primers are reused and missing-only sets
+            (`None`/NaN/empty/`'-'`). With `oligo_set`, existing per-set primers are reused and missing-only sets
             trigger new per-set primer design.
     '''
 
@@ -110,7 +110,7 @@ def primer(
     leftcontext  = left_context_column
     rightcontext = right_context_column
     patch_mode   = patch_mode
-    oligosets    = oligo_sets
+    oligosets    = oligo_set
     exmotifs     = excluded_motifs
     background   = background_directory
     random_seed  = random_seed

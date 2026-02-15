@@ -210,7 +210,6 @@ Design Mode:
 - `motif`: insert motifs or design constant anchors (`motif_type='constant'`).
 - `barcode`: design Hamming-separated barcodes (supports cross-set constraints).
 - `spacer`: fill length (supports per-ID lengths; can auto-fill).
-- `merge`/`revcomp`: mid-pipeline architecture maneuvers.
 - `merge`/`revcomp`/`join`: mid-pipeline architecture maneuvers (within-table collapse/reorder, or cross-table recombination).
 - `final`: concatenate into synthesis-ready `CompleteOligo` (+ length).
 

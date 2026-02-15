@@ -236,7 +236,7 @@ For detailed CLI behavior (output basenames, suffixing, type aliases, sequence-c
 
 ### YAML Pipelines
 
-YAML pipelines support both serial execution (design chains) and parallel DAG execution (best fit for analysis):
+YAML pipelines support both serial execution (design chains) and parallel DAG execution (analysis DAGs):
 ```bash
 $ op pipeline --config pipeline.yaml
 $ op pipeline --config pipeline.yaml --dry-run  # validate first

@@ -21,6 +21,7 @@ Complete parameter reference for all `oligopool` modules.
 - [`background`](#background) - K-mer screening database
 - [`merge`](#merge) - Collapse columns
 - [`revcomp`](#revcomp) - Reverse complement
+- [`join`](#join) - Join two tables
 - [`final`](#final) - Finalize for synthesis
 
 **Assembly Mode**
@@ -515,6 +516,62 @@ op revcomp \
     --left-context-column Gene \
     --right-context-column Primer3 \
     --output-file revcomped
+```
+
+[^ Back to TOC](#table-of-contents)
+
+---
+
+### `join`
+
+[^ Back to TOC](#table-of-contents)
+
+**Purpose**: Join two oligo tables on `ID` and reconcile branch outputs into one design table.
+This is most useful for recombining parallel design paths (for example, in a YAML CLI DAG) or merging separately designed DataFrames back into a single architecture.
+
+**Signature**:
+```python
+df, stats = op.join(
+    # Required
+    input_data,                    # str | pd.DataFrame
+    other_data,                    # str | pd.DataFrame
+    join_policy,                   # int | str
+
+    # Optional
+    output_file=None,              # str | None
+    verbose=True,                  # bool
+)
+```
+
+**Required Parameters**
+
+- `input_data` (str | DataFrame): Backbone CSV/DataFrame with `ID` + DNA sequence columns
+- `other_data` (str | DataFrame): Second CSV/DataFrame with the same `ID` set as `input_data`
+- `join_policy` (int | str): Ambiguity policy for intelligent insertion: `0`/`'left'` (left-biased), `1`/`'right'` (right-biased). Also accepts: `'l'`, `'r'`
+
+**Optional Parameters**
+
+- `output_file` (str | None, default=None): Output CSV path (required for CLI)
+- `verbose` (bool, default=True): Print progress output
+
+**Returns**: `(DataFrame, stats_dict)`
+
+**Notes**:
+- `ID` sets must match exactly across both inputs (order can differ)
+- Overlapping non-`ID` column names from `other_data` are ignored
+- Only new columns from `other_data` are inserted into the backbone order
+- `join` never creates or drops rows; mismatched IDs are an error
+
+**Example (parallel branches → join)**:
+Use `join` after two independent design branches to reconcile their outputs back into one annotated table.
+
+**CLI Equivalent**:
+```bash
+op join \
+    --input-data backbone.csv \
+    --other-data branch.csv \
+    --join-policy left \
+    --output-file joined
 ```
 
 [^ Back to TOC](#table-of-contents)
@@ -1528,6 +1585,7 @@ v3,TTAACCGGTTAACCGG
 | `.oligopool.split.csv` | `split` | Split-fragment library |
 | `.oligopool.pad.csv` | `pad` | Padded fragment library |
 | `.oligopool.merge.csv` | `merge` | Merged element library |
+| `.oligopool.join.csv` | `join` | Joined element library |
 | `.oligopool.revcomp.csv` | `revcomp` | Reverse-complemented library |
 | `.oligopool.final.csv` | `final` | Synthesis-ready library |
 | `.oligopool.verify.csv` | `verify` | Verification report table |

@@ -1266,10 +1266,10 @@ def write_count(
         match assoc:
             case True:
                 outfile.write(','.join('{}.ID'.format(
-                    idxname) for idxname in indexnames) + ',BarcodeCounts,AssociationCounts\n')
+                    idxname) for idxname in indexnames) + ',BarcodeCount,AssociationCount\n')
             case False:
                 outfile.write(','.join('{}.ID'.format(
-                    idxname) for idxname in indexnames) + ',CombinatorialCounts\n')
+                    idxname) for idxname in indexnames) + ',CombinatorialCount\n')
 
         # Book-keeping
         entrycount = 0

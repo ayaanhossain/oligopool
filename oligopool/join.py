@@ -426,7 +426,7 @@ def join(
         '     Columns Ignored : {:,} Column(s)\n'.format(
             len(stats['vars']['columns_ignored'])))
     liner.send(
-        ' Ambiguities Resolved: {:,} Columns(s)\n'.format(
+        ' Ambiguities Resolved: {:,} Column(s)\n'.format(
             stats['vars']['ambiguous_resolutions']))
 
     liner.send(

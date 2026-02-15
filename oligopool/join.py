@@ -110,7 +110,7 @@ def join(
     # Full oligolimit Validation
     oligolimit_valid = vp.get_numeric_validity(
         numeric=oligolimit,
-        numeric_field=' Oligo Limit  ',
+        numeric_field='  Oligo Limit ',
         numeric_pre_desc=' At most ',
         numeric_post_desc=' Base Pair(s)',
         minval=4,
@@ -184,7 +184,7 @@ def join(
             mismatched_columns.append(col)
 
     liner.send(
-        ' Shared Column(s): {:,} Column(s)\n'.format(
+        '     Shared Column(s): {:,} Column(s)\n'.format(
             len(shared_columns)))
 
     # Compatibility verdict (treat mismatches as infeasible, not an argument error).
@@ -220,12 +220,12 @@ def join(
             'step'    : 1,
             'step_name': 'checking-join-compatibility',
             'vars'    : {
-                'oligo_limit': oligolimit,
-                'join_policy': joinpolicy,
-                'shared_columns': tuple(shared_columns),
-                'mismatched_columns': tuple(mismatched_columns),
+                            'oligo_limit': oligolimit,
+                            'join_policy': joinpolicy,
+                         'shared_columns': tuple(shared_columns),
+                     'mismatched_columns': tuple(mismatched_columns),
                 'example_mismatch_column': example_mismatch_column,
-                'example_ids': tuple(examples),
+                            'example_ids': tuple(examples),
                 },
             'warns'   : warns}
 
@@ -295,11 +295,11 @@ def join(
 
     if minoligolen == maxoligolen:
         liner.send(
-            ' Joined Oligo Length: {:,} Base Pair(s)\n'.format(
+            '  Joined Oligo Length: {:,} Base Pair(s)\n'.format(
                 minoligolen))
     else:
         liner.send(
-            ' Joined Oligo Length: {:,} to {:,} Base Pair(s)\n'.format(
+            '  Joined Oligo Length: {:,} to {:,} Base Pair(s)\n'.format(
                 minoligolen,
                 maxoligolen))
 
@@ -317,12 +317,12 @@ def join(
             examples,
             label='Overflowing ID examples')
         liner.send(
-            ' Overflowing Oligos  : {:,} Variant(s) [INFEASIBLE]{}\n'.format(
+            '   Overflowing Oligos: {:,} Variant(s) [INFEASIBLE]{}\n'.format(
                 overflow_count,
                 example_note))
     else:
         liner.send(
-            ' Overflowing Oligos  : 0 Variant(s)\n')
+            '   Overflowing Oligos: 0 Variant(s)\n')
 
     liner.send(
         ' Time Elapsed: {:.2f} sec\n'.format(
@@ -339,17 +339,17 @@ def join(
             'step'    : 3,
             'step_name': 'parsing-oligo-limit',
             'vars'    : {
-                'oligo_limit': oligolimit,
-                'limit_overflow': True,
-                'min_oligo_len': minoligolen,
-                'max_oligo_len': maxoligolen,
-                'overflow_count': overflow_count,
-                'example_ids': tuple(examples),
-                'shared_columns': tuple(shared_columns),
-                'columns_joined': inserted_columns,
-                'columns_ignored': ignored_columns,
+                          'oligo_limit': oligolimit,
+                       'limit_overflow': True,
+                        'min_oligo_len': minoligolen,
+                        'max_oligo_len': maxoligolen,
+                       'overflow_count': overflow_count,
+                          'example_ids': tuple(examples),
+                       'shared_columns': tuple(shared_columns),
+                       'columns_joined': inserted_columns,
+                      'columns_ignored': ignored_columns,
                 'ambiguous_resolutions': ambiguous_resolutions,
-                'join_policy': joinpolicy,
+                          'join_policy': joinpolicy,
                 },
             'warns'   : warns}
 
@@ -374,48 +374,36 @@ def join(
 
     # Build Stats Dictionary
     stats = {
-        'status'  : True,
-        'basis'   : 'solved',
-        'step'    : 3,
+        'status'   : True,
+        'basis'    : 'solved',
+        'step'     : 3,
         'step_name': 'parsing-oligo-limit',
-        'vars'    : {
-            'oligo_limit': oligolimit,
-            'limit_overflow': False,
-            'min_oligo_len': minoligolen,
-            'max_oligo_len': maxoligolen,
-            'overflow_count': 0,
-            'shared_columns': tuple(shared_columns),
-            'columns_joined': inserted_columns,
-            'columns_ignored': ignored_columns,
+        'vars'     : {
+                      'oligo_limit': oligolimit,
+                   'limit_overflow': False,
+                    'min_oligo_len': minoligolen,
+                    'max_oligo_len': maxoligolen,
+                   'overflow_count': 0,
+                   'shared_columns': tuple(shared_columns),
+                   'columns_joined': inserted_columns,
+                  'columns_ignored': ignored_columns,
             'ambiguous_resolutions': ambiguous_resolutions,
-            'join_policy': joinpolicy,
+                      'join_policy': joinpolicy,
             },
-        'warns'   : warns}
+        'warns'    : warns}
 
     # Joining Statistics
     liner.send('\n[Joining Statistics]\n')
     liner.send(
-        '     Join Status     : Successful\n')
+        '     Joining Status  : Successful\n')
     liner.send(
-        ' Joined Oligo Length : {:,}{} Base Pair(s)\n'.format(
-            stats['vars']['min_oligo_len'],
-            ['', ' to {:,}'.format(stats['vars']['max_oligo_len'])][
-                stats['vars']['min_oligo_len'] != stats['vars']['max_oligo_len']
-            ]))
-    liner.send(
-        ' Maximum Oligo Length: {:,} Base Pair(s)\n'.format(
-            stats['vars']['oligo_limit']))
-    liner.send(
-        '  Shared Column(s)   : {:,} Column(s)\n'.format(
-            len(stats['vars']['shared_columns'])))
-    liner.send(
-        '  Columns Joined     : {:,} Column(s)\n'.format(
+        '     Columns Joined  : {:,} Column(s)\n'.format(
             len(stats['vars']['columns_joined'])))
     liner.send(
-        '  Columns Ignored    : {:,} Column(s)\n'.format(
+        '     Columns Ignored : {:,} Column(s)\n'.format(
             len(stats['vars']['columns_ignored'])))
     liner.send(
-        ' Ambiguities Resolved: {:,} Case(s)\n'.format(
+        ' Ambiguities Resolved: {:,} Columns(s)\n'.format(
             stats['vars']['ambiguous_resolutions']))
 
     liner.send(

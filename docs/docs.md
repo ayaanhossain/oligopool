@@ -1083,7 +1083,7 @@ df, stats = op.acount(
 **Output columns behavior sketch:**
 ```text
 acount()
-Output: count matrix as a CSV (rows = IDs; columns depend on mapping_type)
+Output columns: <index_name>.ID, BarcodeCounts, AssociationCounts
 ```
 
 **Stuff to Note:**
@@ -1128,7 +1128,7 @@ df, stats = op.xcount(
 **Output columns behavior sketch:**
 ```text
 xcount()
-Output: count matrix as a CSV (combinations across indices; missing barcodes use '-' gaps)
+Output columns: <index1_name>.ID, <index2_name>.ID, ..., CombinatorialCounts
 ```
 
 Output includes all observed combinations. Reads missing a barcode show `'-'` for that position.
@@ -1210,7 +1210,12 @@ df, stats = op.verify(
 **Output columns behavior sketch:**
 ```text
 verify()
-Output: per-row conflict flags + *Details columns (ID preserved)
+Output columns:
+  - CompleteOligo, OligoLength
+  - HasLengthConflict, HasExmotifConflict, HasBackgroundConflict, HasAnyConflicts
+  - LengthConflictDetails, ExmotifConflictDetails, BackgroundConflictDetails
+
+(When written to CSV, the *Details columns are JSON-serialized dicts; parse them back with json.loads().)
 ```
 
 **Checks:**
@@ -1221,7 +1226,7 @@ Output: per-row conflict flags + *Details columns (ID preserved)
 **Output DataFrame columns:**
 - `HasLengthConflict`, `HasExmotifConflict`, `HasBackgroundConflict`: Boolean flags
 - `HasAnyConflicts`: Combined OR of above
-- `*Details` (currently `*ConflictDetails`): Dict with violation details (or None)
+- `LengthConflictDetails`, `ExmotifConflictDetails`, `BackgroundConflictDetails`: Dict with violation details (or None)
 
 **How columns are concatenated:**
 - Uses `CompleteOligo` if present; otherwise concatenates all **pure ATGC columns** left-to-right
@@ -1234,9 +1239,8 @@ import json
 import pandas as pd
 
 df = pd.read_csv('verify_results.oligopool.verify.csv')
-# Parse JSON-serialized dicts in all `*Details` columns
-detail_cols = [c for c in df.columns if c.endswith('Details')]
-for col in detail_cols:
+# Parse JSON-serialized dicts in the *Details columns
+for col in ['LengthConflictDetails', 'ExmotifConflictDetails', 'BackgroundConflictDetails']:
     df[col] = df[col].apply(lambda x: json.loads(x) if pd.notna(x) else None)
 ```
 

@@ -36,7 +36,7 @@ To learn more, please check out [our paper in ACS Synthetic Biology](https://pub
 <a id="features"></a>
 ## ✨ Features
 
-- 🧬 **Design mode:** constraint-based design of barcodes, primers, motifs/anchors, and spacers with background screening and utilities (`barcode`, `primer`, `motif`, `spacer`, `background`, `merge`, `revcomp`, `final`).
+- 🧬 **Design mode:** constraint-based design of barcodes, primers, motifs/anchors, and spacers with background screening and utilities (`barcode`, `primer`, `motif`, `spacer`, `background`, `merge`, `revcomp`, `join`, `final`).
 - 🔧 **Assembly mode:** fragment long oligos into overlapping pieces and add Type IIS primer pads for scarless assembly (`split`, `pad`).
 - 🧪 **Degenerate mode:** compress variant libraries with low mutational diversity into IUPAC-degenerate oligos for cost-efficient synthesis (`compress`, `expand`).
 - 📈 **Analysis mode:** fast NGS-based activity quantification with read indexing, packing, and barcode/associate counting (`index`, `pack`, `acount`, `xcount`) extensible with callback methods (via Python library).
@@ -122,6 +122,7 @@ $ python
         background  k-mer database for off-target screening
         merge       collapse columns into single element
         revcomp     reverse complement a column range
+        join        join two tables on ID with ordered insertion
         final       concatenate into synthesis-ready oligos
 
     Assembly Mode - fragment long oligos for assembly
@@ -176,7 +177,7 @@ Run `op` with no arguments to see the command list, and run `op COMMAND` to see 
 ```bash
 $ op
 
-oligopool v2026.02.08
+oligopool v2026.02.15
 by ah
 
 Oligopool Calculator is a suite of algorithms for
@@ -203,6 +204,7 @@ COMMANDS Available:
 
     merge       collapse contiguous columns
     revcomp     reverse-complement a column range
+    join        join two tables on ID
 
     lenstat     compute length stats and free space
     verify      detect length, motif, and background conflicts
@@ -240,28 +242,38 @@ $ op pipeline --config pipeline.yaml
 $ op pipeline --config pipeline.yaml --dry-run  # validate first
 ```
 
-Pipelines support **sequential** or **parallel DAG** execution, where independent steps run concurrently:
+Pipelines support **sequential** or **parallel DAG** execution. For a single design output, use a serial chain:
 ```yaml
 # pipeline.yaml
 pipeline:
   name: "MPRA Library"
   steps:
-    - name: fwd_primer
-      command: primer
-    - name: rev_primer
-      command: primer          # parallel with fwd_primer
-    - name: add_barcode
-      command: barcode
-      after: [fwd_primer]      # waits for fwd_primer
-    - name: finalize
-      command: final
-      after: [add_barcode, rev_primer]
+    - primer
+    - barcode
+    - spacer
+    - final
+    ...
 
-fwd_primer:
-  input_data: "variants.csv"
-  output_file: "fwd"
-  primer_type: forward
-  # ...
+# See examples/cli-yaml-pipeline/mpra_design_serial.yaml for a complete runnable file.
+```
+
+For explicit parallelism, use the DAG step format. Parallel branches produce separate CSVs, and `join` is the
+recombiner when you want to rejoin branches back into a single design table:
+
+```yaml
+# Parallel branches (rare for design; common for analysis)
+pipeline:
+  steps:
+    - name: barcode_a
+      command: barcode
+    - name: barcode_b
+      command: barcode
+    - name: rejoin
+      command: join
+      after: [barcode_a, barcode_b]
+    ...
+
+# See examples/cli-yaml-pipeline/mpra_design_parallel.yaml for a complete runnable file.
 ```
 
 Use `--config` with any command to load parameters from YAML (CLI args override config values). See [`examples/cli-yaml-pipeline`](https://github.com/ayaanhossain/oligopool/tree/master/examples/cli-yaml-pipeline) for complete working examples.

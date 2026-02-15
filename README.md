@@ -236,7 +236,7 @@ For detailed CLI behavior (output basenames, suffixing, type aliases, sequence-c
 
 ### YAML Pipelines
 
-Run documented, repeatable workflows from a single YAML file:
+YAML pipelines support both serial execution (design chains) and parallel DAG execution (best fit for analysis):
 ```bash
 $ op pipeline --config pipeline.yaml
 $ op pipeline --config pipeline.yaml --dry-run  # validate first
@@ -277,8 +277,8 @@ pipeline:
 # (Configs for index/pack/xcount omitted here for brevity.)
 ```
 
-When parallel branches must recombine into one table, use `join` to rejoin on `ID`.
-Working examples live in `examples/cli-yaml-pipeline`, and full pipeline rules live in [Config Files](docs/docs.md#config-files).
+Working examples live in `examples/cli-yaml-pipeline`; full pipeline rules live in [Config Files](docs/docs.md#config-files).
+If parallel branches must recombine into one table, use `join` to rejoin on `ID`.
 
 <a id="citation"></a>
 ## 📖 Citation

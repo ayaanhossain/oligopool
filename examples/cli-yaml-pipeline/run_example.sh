@@ -86,6 +86,7 @@ case "${1:-design}" in
     design|both)
         clean
         run_sequential
+        run_parallel_design
         ;;
     analysis-single)
         run_analysis_single_dry

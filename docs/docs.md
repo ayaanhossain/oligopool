@@ -1626,6 +1626,7 @@ Parallel execution helps most when steps are naturally independent. In practice,
 The fundamental YAML change is in `pipeline.steps`:
 - **Serial format**: a list of command names (`- primer`, `- barcode`, ...), which runs in listed order.
 - **Parallel/DAG format**: a list of step objects with `name`, `command`, and optional `after`, which defines dependencies explicitly.
+- **Mixed format (supported)**: you can mix strings and step objects in one list; if any dict-style step appears, DAG parsing is used and string steps are treated as `name=command` with no dependencies.
 
 ```yaml
 # Serial
@@ -1643,6 +1644,14 @@ pipeline:
     - name: count
       command: xcount
       after: [index_bc1]
+
+# Mixed (also valid)
+pipeline:
+  steps:
+    - primer
+    - name: barcode_step
+      command: barcode
+      after: [primer]
 ```
 
 **Step fields:**

@@ -252,7 +252,7 @@ CLI_PIPELINE_MANUAL = '''
 Pipeline Execution from YAML Config
 
 The pipeline command executes multi-step workflows from a single YAML config file.
-Supports both sequential and parallel (DAG) execution.
+Supports sequential, parallel (DAG), and mixed string+dict step lists.
 
 Usage:
   op pipeline --config <config.yaml>
@@ -291,6 +291,15 @@ Parallel Pipeline Format (DAG):
         command: final
         after: [add_barcode, rev_primer]  # Waits for both
 
+Mixed Step List (also valid):
+  pipeline:
+    name: "Mixed Pipeline"
+    steps:
+      - barcode
+      - name: add_spacer
+        command: spacer
+        after: [barcode]
+
   fwd_primer:                    # Config section matches step name
     input_data: "variants.csv"
     output_file: "fwd"
@@ -304,7 +313,7 @@ Parallel Pipeline Format (DAG):
     # ...
 
 Step Fields:
-  name      Step identifier (required for parallel pipelines)
+  name      Step identifier (required for dict-style steps)
   command   Oligopool command to run (defaults to name)
   after     List of step names to wait for (optional)
   config    Config section name (defaults to name)
@@ -316,6 +325,8 @@ Execution:
   - --dry-run shows execution levels and parallelism
 
 Notes:
+  - Mixed step lists are valid: if any step is dict-style, DAG parsing is used.
+  - String steps in DAG parsing are normalized as name=command with after=[]
   - Use snake_case for parameter names (e.g., barcode_length)
   - You can use explicit paths OR basename chaining for pipeline inputs
   - Basename chaining resolves prior declared outputs (e.g., input_data: step1)

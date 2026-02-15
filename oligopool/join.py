@@ -386,7 +386,7 @@ def join(
         return (None, stats)
 
     liner.send(
-        ' Verdict: Join Possibly Feasible\n')
+        ' Verdict: Join Feasible\n')
 
     # Write outdf to file
     if not outfile is None:
@@ -417,17 +417,25 @@ def join(
 
     # Joining Statistics
     liner.send('\n[Joining Statistics]\n')
+    stats_col_printlen = ut.get_printlen(
+        value=max(
+            len(stats['vars']['columns_joined']),
+            len(stats['vars']['columns_ignored']),
+            stats['vars']['ambiguous_resolutions']))
     liner.send(
         '     Joining Status  : Successful\n')
     liner.send(
-        '     Columns Joined  : {:,} Column(s)\n'.format(
-            len(stats['vars']['columns_joined'])))
+        '     Columns Joined  : {:{},d} Column(s)\n'.format(
+            len(stats['vars']['columns_joined']),
+            stats_col_printlen))
     liner.send(
-        '     Columns Ignored : {:,} Column(s)\n'.format(
-            len(stats['vars']['columns_ignored'])))
+        '     Columns Ignored : {:{},d} Column(s)\n'.format(
+            len(stats['vars']['columns_ignored']),
+            stats_col_printlen))
     liner.send(
-        ' Ambiguities Resolved: {:,} Column(s)\n'.format(
-            stats['vars']['ambiguous_resolutions']))
+        ' Ambiguities Resolved: {:{},d} Column(s)\n'.format(
+            stats['vars']['ambiguous_resolutions'],
+            stats_col_printlen))
 
     liner.send(
         ' Time Elapsed: {:.2f} sec\n'.format(

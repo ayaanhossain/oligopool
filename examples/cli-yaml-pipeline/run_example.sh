@@ -1,6 +1,6 @@
 #!/bin/bash
 # Run the CLI pipeline examples
-# Usage: ./run_example.sh [design-serial|design|analysis-single|analysis-multi|analysis|analysis-single-run|analysis-multi-run|analysis-run|all-dry|clean]
+# Usage: ./run_example.sh [design-serial|design-parallel|design|analysis-single|analysis-multi|analysis|analysis-single-run|analysis-multi-run|analysis-run|all-dry|clean]
 # Legacy aliases still supported: sequential, both
 
 set -e
@@ -14,6 +14,17 @@ run_sequential() {
     echo ""
     echo "Executing:"
     op pipeline --config mpra_design_serial.yaml
+    echo ""
+}
+
+run_parallel_design() {
+    echo "=== Design: Parallel Branches + Join ==="
+    echo ""
+    echo "Dry run:"
+    op pipeline --config mpra_design_parallel.yaml --dry-run
+    echo ""
+    echo "Executing:"
+    op pipeline --config mpra_design_parallel.yaml
     echo ""
 }
 
@@ -50,6 +61,8 @@ run_all_dry() {
     echo ""
     op pipeline --config mpra_design_serial.yaml --dry-run
     echo ""
+    op pipeline --config mpra_design_parallel.yaml --dry-run
+    echo ""
     op pipeline --config analysis_single.yaml --dry-run
     echo ""
     op pipeline --config analysis_multi.yaml --dry-run
@@ -65,6 +78,10 @@ case "${1:-design}" in
     design-serial|sequential)
         clean
         run_sequential
+        ;;
+    design-parallel)
+        clean
+        run_parallel_design
         ;;
     design|both)
         clean
@@ -100,7 +117,7 @@ case "${1:-design}" in
         clean
         ;;
     *)
-        echo "Usage: $0 [design-serial|design|analysis-single|analysis-multi|analysis|analysis-single-run|analysis-multi-run|analysis-run|all-dry|clean]"
+        echo "Usage: $0 [design-serial|design-parallel|design|analysis-single|analysis-multi|analysis|analysis-single-run|analysis-multi-run|analysis-run|all-dry|clean]"
         echo "Legacy aliases: sequential, both"
         exit 1
         ;;

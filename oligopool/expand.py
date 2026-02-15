@@ -254,11 +254,11 @@ def expand(
     stats['status'] = True
     stats['basis'] = 'solved'
     stats['vars'] = {
-        'input_sequences': num_input_seqs,
+           'input_sequences': num_input_seqs,
         'expanded_sequences': total_expanded,
-        'expansion_factor': round(expansion_factor, 2),
-        'expansion_limited': limit is not None,
-        'ids_mapped': mapdf is not None,
+          'expansion_factor': round(expansion_factor, 2),
+         'expansion_limited': limit is not None,
+                'ids_mapped': mapdf is not None,
     }
 
     # Expansion Statistics

@@ -291,7 +291,9 @@ def join(
     column_name_printlen = max(
         map(len, output_columns)) if output_columns else 1
     inserted_column_set = set(inserted_columns)
-    liner.send(' Joined Column Order:\n')
+    liner.send(
+        ' Joined Column(s): {:,} Column(s)\n'.format(
+            len(output_columns)))
     for col in output_columns:
         if col in inserted_column_set:
             liner.send(

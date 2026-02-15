@@ -6,7 +6,7 @@
 set -e
 cd "$(dirname "$0")"
 
-run_sequential() {
+run_sequential_design() {
     echo "=== Design: Serial Pipeline ==="
     echo ""
     echo "Dry run:"
@@ -77,7 +77,7 @@ clean() {
 case "${1:-design}" in
     design-serial|sequential)
         clean
-        run_sequential
+        run_sequential_design
         ;;
     design-parallel)
         clean
@@ -85,7 +85,7 @@ case "${1:-design}" in
         ;;
     design|both)
         clean
-        run_sequential
+        run_sequential_design
         run_parallel_design
         ;;
     analysis-single)

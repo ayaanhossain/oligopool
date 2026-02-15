@@ -2123,7 +2123,7 @@ Fill missing values in an existing primer column instead of creating a new colum
         action='store_true',
         help=argparse.SUPPRESS)
     opt.add_argument(
-        '--oligo-sets',
+        '--oligo-set',
         type=str,
         default=None,
         nargs='+',
@@ -3490,11 +3490,11 @@ def main(argv=None):
                     verbose=args.verbose)
             case 'primer':
                 primer = _load_api_func('primer')
-                oligo_sets = args.oligo_sets
-                if isinstance(oligo_sets, list):
-                    oligo_sets = _parse_list_str(oligo_sets)
-                    if isinstance(oligo_sets, list) and len(oligo_sets) == 1 and _looks_like_path(oligo_sets[0]):
-                        oligo_sets = oligo_sets[0]
+                oligo_set = args.oligo_set
+                if isinstance(oligo_set, list):
+                    oligo_set = _parse_list_str(oligo_set)
+                    if isinstance(oligo_set, list) and len(oligo_set) == 1 and _looks_like_path(oligo_set[0]):
+                        oligo_set = oligo_set[0]
                 result = primer(
                     input_data=args.input_data,
                     oligo_length_limit=args.oligo_length_limit,
@@ -3508,7 +3508,7 @@ def main(argv=None):
                     left_context_column=args.left_context_column,
                     right_context_column=args.right_context_column,
                     patch_mode=args.patch_mode,
-                    oligo_sets=oligo_sets,
+                    oligo_set=oligo_set,
                     paired_primer_column=args.paired_primer_column,
                     excluded_motifs=_parse_excluded_motifs_arg(args.excluded_motifs),
                     background_directory=_parse_list_str(args.background_directory),

@@ -418,7 +418,7 @@ Output: Left, FwdPrimer, Core
 df, stats = op.primer(..., primer_column='FwdPrimer', primer_type=0)
 ```
 
-Then design the outer primer, telling it to match Tm with the first:
+Then design the outer primer, telling it to match Tm with the first while maintaining favorable thermodynamic coupling:
 
 ```python
 df, stats = op.primer(
@@ -434,7 +434,7 @@ df, stats = op.primer(
 ```python
 df, stats = op.primer(
     ...,
-    oligo_sets=['SetA', 'SetA', 'SetB', 'SetB'],
+    oligo_set=['SetA', 'SetA', 'SetB', 'SetB'],
 )
 ```
 
@@ -463,10 +463,10 @@ df, stats = op.primer(
 **Stuff to Note:**
 - `maximum_repeat_length` controls non-repetitiveness against `input_data` only; screening against a background requires `background_directory`.
 - If `paired_primer_column` is provided, the paired primer type is inferred and Tm matching is applied within 1 °C.
-- When `oligo_sets` is provided, primers are designed per set and screened for cross-set compatibility; if `paired_primer_column` is also provided, it must be constant within each set.
+- When `oligo_set` is provided, primers are designed per set and screened for cross-set compatibility; if `paired_primer_column` is also provided, it must be constant within each set.
 - `primer_sequence_constraint` is flexible by design; mix fixed and degenerate bases to enforce patterns (for example, GC clamp-like starts such as `'SS' + 'N'*18`).
 - Structural screening is first-class: candidates with strong hairpin/homodimer/heterodimer behavior (including cross-primer dimer risks when relevant) are rejected during optimization.
-- `patch_mode` preserves existing primers; in `oligo_sets` mode, existing per-set primers are reused and only missing sets trigger new primer design.
+- `patch_mode` preserves existing primers; in `oligo_set` mode, existing per-set primers are reused and only missing sets trigger new primer design.
 
 > **API Reference**: See [`primer`](api.md#primer) for complete parameter documentation.
 
@@ -1849,7 +1849,7 @@ If you preprocess YAML with stricter tooling, verify merge-key support there too
 
 ```python
 # Reuse one metadata table across modules
-df, _ = op.primer(..., oligo_sets=metadata_df[['ID', 'OligoSet']])
+df, _ = op.primer(..., oligo_set=metadata_df[['ID', 'OligoSet']])
 df, _ = op.spacer(..., spacer_length=metadata_df[['ID', 'SpacerLength']])
 ```
 

@@ -104,11 +104,11 @@ Goal: design BC2/BC3 so they stay far from previously designed `barcode` columns
   least `minimum_cross_distance` away from every barcode in the union of the
   cross columns.
 
-### Per-set primers (`primer` + `oligo_sets`)
+### Per-set primers (`primer` + `oligo_set`)
 
 Goal: multiplexing / selective amplification with set-specific primers.
 
-- `oligo_sets` (CLI: `--oligo-sets`) groups rows by label; one primer is designed
+- `oligo_set` (CLI: `--oligo-set`) groups rows by label; one primer is designed
   per set and assigned to all rows in that set.
 - Primers are screened for cross-set compatibility (to reduce cross-dimer risk).
 - With `paired_primer_column`, Tm matching is applied within each set and the
@@ -207,7 +207,7 @@ Key rules:
 
 Design Mode:
 - `background`: build a background k-mer DB for screening designed elements.
-- `primer`: design primers (supports paired primers + `oligo_sets` multiplexing).
+- `primer`: design primers (supports paired primers + `oligo_set` multiplexing).
 - `motif`: insert motifs or design constant anchors (`motif_type='constant'`).
 - `barcode`: design Hamming-separated barcodes (supports cross-set constraints).
 - `spacer`: fill length (supports per-ID lengths; can auto-fill).

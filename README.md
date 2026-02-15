@@ -204,7 +204,7 @@ COMMANDS Available:
 
     merge       collapse contiguous columns
     revcomp     reverse-complement a column range
-    join        join two tables on ID
+    join        join two oligo pool tables on ID
 
     lenstat     compute length stats and free space
     verify      detect length, motif, and background conflicts
@@ -236,11 +236,12 @@ For detailed CLI behavior (output basenames, suffixing, type aliases, sequence-c
 
 ### YAML Pipelines
 
-YAML pipelines support both serial execution (design chains) and parallel DAG execution (analysis DAGs):
+Define entire workflows in a single YAML config file and execute with one command:
 ```bash
 $ op pipeline --config pipeline.yaml
 $ op pipeline --config pipeline.yaml --dry-run  # validate first
 ```
+Pipelines support sequential or parallel DAG execution, where independent steps run concurrently.
 
 Example (single design output, serial chain):
 ```yaml
@@ -262,7 +263,7 @@ primer:
 Example (parallel DAG, best fit for analysis):
 ```yaml
 pipeline:
-  name: "Analysis DAG"
+  name: "Counting DAG (Parallel)"
   steps:
     - name: index_bc1
       command: index

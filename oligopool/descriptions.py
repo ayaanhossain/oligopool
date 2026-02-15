@@ -47,7 +47,7 @@ CLI_DESCRIPTIONS = {
     'spacer': 'neutral spacers to meet length targets',
     'background': 'build k-mer background database',
     'merge': 'collapse contiguous columns',
-    'join': 'join two tables on ID',
+    'join': 'join two oligo pool tables on ID',
     'revcomp': 'reverse-complement a column range',
     'final': 'finalize into synthesis-ready oligos',
     # Assembly Mode

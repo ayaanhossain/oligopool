@@ -5,6 +5,7 @@
 4. Breaking (Analysis outputs): `xcount` count matrix header renamed to singular `CombinatorialCount` (previously `CombinatorialCounts`).
 5. Docs: documented `join` in `docs/docs.md` + `docs/api.md`, updated agent guide (`docs/agent-skills.md`), and added concise per-module output/column-order behavior sketches (including explicit `verify` output columns and count-matrix headers).
 6. Examples: added a runnable parallel-branch design example (`examples/cli-yaml-pipeline/mpra_design_parallel.yaml`) and updated the CLI YAML pipeline README/runner to include `design-parallel` and `design` targets.
+7. Breaking (Primer API/CLI): renamed per-set grouping parameter from `oligo_sets` to `oligo_set` (CLI flag `--oligo-set`).
 
 2026.02.09
 1. Docs: added Composability section to `docs/docs.md` with worked Python examples for design composition, constraint composition, analysis composition, degenerate recipes, application templates (MPRA, CRISPR, ribozyme dual-barcode readout), and cheat sheet.
@@ -177,7 +178,7 @@
 10. CLI/Docs: minor help text refinements (main menu footer, motif help includes anchors).
 11. Added `verify` module (stats-only QC) and CLI subcommand for constraint/architecture checks.
 12. Verify/Lenstat: refactored shared length-stat formatting and improved `verify` reporting (module-style verdicts, aligned fields, and actionable column/motif summaries).
-13. Primer module: added per-set primer design via `oligo_sets` (cross-set dimer checks + per-set Tm pairing) and CLI flag `--oligo-sets`.
+13. Primer module: added per-set primer design via `oligo_set` (cross-set dimer checks + per-set Tm pairing) and CLI flag `--oligo-set`.
 14. Element modules: added Patch Mode (`patch_mode` / `--patch-mode`) for barcode/primer/motif/spacer, including reuse of existing per-set primers.
 15. Validation/CLI: small robustness fixes for Patch Mode fills (context concatenation tolerates missing values; Notes epilog handles nested bullets).
 16. Bugfix: Patch Mode context extraction now slices to missing rows before edge parsing (avoids list/boolean indexing crash in barcode/motif/spacer).

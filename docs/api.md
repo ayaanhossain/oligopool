@@ -163,7 +163,7 @@ df, stats = op.primer(
     left_context_column=None,      # str | None
     right_context_column=None,     # str | None
     patch_mode=False,              # bool
-    oligo_sets=None,               # list | str | pd.DataFrame | None
+    oligo_set=None,                # list | str | pd.DataFrame | None
     paired_primer_column=None,     # str | None
     excluded_motifs=None,          # list | str | dict | pd.DataFrame | None
     background_directory=None,     # str | list | None
@@ -189,7 +189,7 @@ df, stats = op.primer(
 - `left_context_column` (str | None, default=None): Column for left DNA context
 - `right_context_column` (str | None, default=None): Column for right DNA context
 - `patch_mode` (bool, default=False): Fill only missing values (`None`/`NaN`/empty/`'-'`)
-- `oligo_sets` (list | str | DataFrame | None, default=None): Per-row grouping labels for set-specific primers (list, CSV, or DataFrame with `ID` + `OligoSet`)
+- `oligo_set` (list | str | DataFrame | None, default=None): Per-row grouping labels for set-specific primers (list, CSV, or DataFrame with `ID` + `OligoSet`)
 - `paired_primer_column` (str | None, default=None): Column of paired primer for Tm matching (within 1 °C)
 - `excluded_motifs` (list | str | dict | DataFrame | None, default=None): Motifs to exclude. Accepts a list, CSV/FASTA path, DataFrame with `Exmotif` column, comma-string, or multiple sources. Strict ATGC only (no IUPAC codes, no dashes).
 - `background_directory` (str | list | None, default=None): Background k-mer DB(s) from `background()` (screened against ALL specified DBs)
@@ -204,8 +204,8 @@ df, stats = op.primer(
 - Strong hairpin/homodimer/heterodimer/cross-dimer candidates are rejected during optimization
 - `maximum_repeat_length` screens against `input_data` only; for genome-wide screening, build a background DB with `background()` and pass via `background_directory`
 - Chained primer design: design one primer, then design its partner by passing `paired_primer_column`
-- With `oligo_sets`: primers are designed per set with cross-set dimer screening; if `paired_primer_column` is provided, Tm matching is applied per set
-- Patch mode with `oligo_sets`: existing per-set primers are reused; only missing sets trigger new design
+- With `oligo_set`: primers are designed per set with cross-set dimer screening; if `paired_primer_column` is provided, Tm matching is applied per set
+- Patch mode with `oligo_set`: existing per-set primers are reused; only missing sets trigger new design
 
 **CLI Equivalent**:
 ```bash

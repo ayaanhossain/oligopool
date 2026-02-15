@@ -243,9 +243,10 @@ Note: `'-'` is not meaningful biological context - avoid using placeholder-only 
 
 [^ Back to TOC](#table-of-contents)
 
-Many `*_type` parameters accept either integer codes or descriptive strings (case-insensitive), e.g.
-`barcode_type='terminus'`, `primer_type='forward'`, `motif_type='anchor'`, `pack_type='merge'`,
-`mapping_type='sensitive'`. See the [API Reference](api.md) for the full alias list.
+Many categorical selector parameters accept either integer codes or descriptive strings (case-insensitive).
+This includes most `*_type` and `*_policy` parameters, e.g. `barcode_type='terminus'`,
+`primer_type='forward'`, `motif_type='anchor'`, `pack_type='merge'`, `mapping_type='sensitive'`,
+and `join_policy='left'`. See the [API Reference](api.md) for the full alias list.
 
 ### Context Columns and Edge Effects
 

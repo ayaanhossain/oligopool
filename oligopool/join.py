@@ -13,16 +13,18 @@ from typing import Tuple
 def join(
     input_data:str|pd.DataFrame,
     other_data:str|pd.DataFrame,
+    oligo_length_limit:int,
     join_policy:int|str,
     output_file:str|None=None,
     verbose:bool=True) -> Tuple[pd.DataFrame, dict]:
     '''
-    Join two oligo tables on ID and add new columns from the second table into the first.
-    Useful for recombining branch outputs into a single design table.
+    Join two oligo tables on `ID` and insert new columns from `other_data` into the `input_data` column order.
+    Useful for recombining parallel branch outputs into a single design table.
 
     Required Parameters:
         - `input_data` (`str` / `pd.DataFrame`): Path to a CSV file or DataFrame with annotated oligo pool variants.
         - `other_data` (`str` / `pd.DataFrame`): Path to a second CSV file or DataFrame with the same IDs as `input_data`.
+        - `oligo_length_limit` (`int`): Maximum allowed oligo length (>= 4).
         - `join_policy` (`int` / `str`): Ambiguity policy for column insertion:
             `0`/`left` chooses the left-most valid placement, `1`/`right` chooses the right-most.
 
@@ -37,9 +39,9 @@ def join(
 
     Notes:
         - Both inputs must contain a unique 'ID' column; all other columns must be non-empty DNA strings.
-        - `input_data` and `other_data` must contain exactly the same IDs (order may differ).
-        - Overlapping non-ID column names from `other_data` are ignored (backbone from `input_data` is preserved).
-        - Only non-overlapping columns from `other_data` are inserted into `input_data` order.
+        - `input_data` and `other_data` must contain exactly the same `ID` set (order may differ).
+        - Any shared non-ID column must match exactly between the two inputs; mismatches are treated as infeasible.
+        - New columns from `other_data` are inserted near their nearest shared anchors; `join_policy` resolves ambiguities.
     '''
 
     # Preserve return style when the caller intentionally used ID as index.
@@ -48,6 +50,7 @@ def join(
     # Argument Aliasing
     indata     = input_data
     otherdata  = other_data
+    oligolimit = oligo_length_limit
     joinpolicy = join_policy
     outfile    = output_file
     verbose    = verbose
@@ -83,8 +86,9 @@ def join(
 
     # ID-set matching is part of Other Data validity/reporting.
     if indata_valid and otherdata_valid:
-        other_ids_match = len(indf.index) == len(otherdf.index) and \
-                          sorted(indf.index) == sorted(otherdf.index)
+        other_ids_match = (len(indf.index) == len(otherdf.index)) and \
+                          indf.index.difference(otherdf.index).empty and \
+                          otherdf.index.difference(indf.index).empty
         if other_ids_match:
             otherdf = otherdf.reindex(indf.index)
             liner.send(
@@ -102,6 +106,17 @@ def join(
             '  Other Data  : {} w/ {:,} Record(s)\n'.format(
                 otherdata_name,
                 len(otherdf.index)))
+
+    # Full oligolimit Validation
+    oligolimit_valid = vp.get_numeric_validity(
+        numeric=oligolimit,
+        numeric_field=' Oligo Limit  ',
+        numeric_pre_desc=' At most ',
+        numeric_post_desc=' Base Pair(s)',
+        minval=4,
+        maxval=float('inf'),
+        precheck=False,
+        liner=liner)
 
     # Full joinpolicy Validation
     (joinpolicy,
@@ -130,6 +145,7 @@ def join(
     if not all([
         indata_valid,
         otherdata_valid,
+        oligolimit_valid,
         joinpolicy_valid,
         outfile_valid,
         ]):
@@ -145,24 +161,98 @@ def join(
         ut.remove_file,
         outfile)
 
+    outdf = None
+    stats = None
+    warns = {}
+
+    # Adjust Numeric Paramters
+    oligolimit = round(oligolimit)
+
     # Show Update
-    liner.send('\n[Step 1: Computing Join]\n')
+    liner.send('\n[Step 1: Checking Join Compatibility]\n')
+    st0 = tt.time()
+
+    # Identify shared (overlapping) columns (ID is the index and excluded here).
+    shared_columns = [
+        col for col in indf.columns.to_list()
+            if col in otherdf.columns
+    ]
+
+    mismatched_columns = []
+    for col in shared_columns:
+        if not indf[col].equals(otherdf[col]):
+            mismatched_columns.append(col)
+
+    liner.send(
+        ' Shared Column(s): {:,} Column(s)\n'.format(
+            len(shared_columns)))
+
+    # Compatibility verdict (treat mismatches as infeasible, not an argument error).
+    parsestatus = len(mismatched_columns) == 0
+
+    if not parsestatus:
+        example_mismatch_column = mismatched_columns[0]
+        mismatch_mask = indf[example_mismatch_column] != otherdf[example_mismatch_column]
+        examples = ut.get_row_examples(
+            df=indf,
+            invalid_mask=mismatch_mask,
+            id_col='ID',
+            limit=5)
+        example_note = ut.format_row_examples(
+            examples,
+            label='Mismatching ID examples')
+
+        liner.send(
+            ' Mismatched Column(s): {:,} Column(s) [INFEASIBLE] (example: \'{}\'){}\n'.format(
+                len(mismatched_columns),
+                example_mismatch_column,
+                example_note))
+        liner.send(
+            ' Time Elapsed: {:.2f} sec\n'.format(
+                tt.time()-st0))
+        liner.send(
+            ' Verdict: Join Infeasible due to Shared Column Mismatch\n')
+
+        # Prepare stats
+        stats = {
+            'status'  : False,
+            'basis'   : 'infeasible',
+            'step'    : 1,
+            'step_name': 'checking-join-compatibility',
+            'vars'    : {
+                'oligo_limit': oligolimit,
+                'join_policy': joinpolicy,
+                'shared_columns': tuple(shared_columns),
+                'mismatched_columns': tuple(mismatched_columns),
+                'example_mismatch_column': example_mismatch_column,
+                'example_ids': tuple(examples),
+                },
+            'warns'   : warns}
+
+        # Return results
+        liner.close()
+        stats = ut.stamp_stats(
+            stats=stats,
+            module='join',
+            input_rows=input_rows,
+            output_rows=0)
+        return (outdf, stats)
+
+    liner.send(
+        ' Mismatched Column(s): 0 Column(s)\n')
+    liner.send(
+        ' Time Elapsed: {:.2f} sec\n'.format(
+            tt.time()-st0))
+    liner.send(
+        ' Verdict: Join Possibly Feasible\n')
+
+    liner.send('\n[Step 2: Computing Join]\n')
+    st0 = tt.time()
 
     # Compute New DataFrame
     outdf = indf.copy()
     output_columns = outdf.columns.to_list()
     source_columns = otherdf.columns.to_list()
-    liner.send(
-        '  Input Column(s): {:,} Column(s)\n'.format(
-            len(output_columns)))
-    for col in output_columns:
-        liner.send('    - {}\n'.format(col))
-
-    liner.send(
-        '  Other Column(s): {:,} Column(s)\n'.format(
-            len(source_columns)))
-    for col in source_columns:
-        liner.send('    - {}\n'.format(col))
 
     inserted_columns = []
     ignored_columns = []
@@ -188,17 +278,92 @@ def join(
         if was_ambiguous:
             ambiguous_resolutions += 1
 
-    liner.send(
-        ' Output Column(s): {:,} Column(s)\n'.format(
-            len(output_columns)))
-    for col in output_columns:
-        liner.send('    - {}\n'.format(col))
-
     # Show Update
     liner.send(' Join Completed\n')
     liner.send(
         ' Time Elapsed: {:.2f} sec\n'.format(
-            tt.time()-t0))
+            tt.time()-st0))
+
+    liner.send('\n[Step 3: Parsing Oligo Limit]\n')
+    st0 = tt.time()
+
+    variantlens = ut.get_variantlens(indf=outdf)
+    minoligolen = int(variantlens.min())
+    maxoligolen = int(variantlens.max())
+    overflow_mask = variantlens > oligolimit
+    overflow_count = int(overflow_mask.sum())
+
+    if minoligolen == maxoligolen:
+        liner.send(
+            ' Joined Oligo Length: {:,} Base Pair(s)\n'.format(
+                minoligolen))
+    else:
+        liner.send(
+            ' Joined Oligo Length: {:,} to {:,} Base Pair(s)\n'.format(
+                minoligolen,
+                maxoligolen))
+
+    liner.send(
+        ' Maximum Oligo Length: {:,} Base Pair(s)\n'.format(
+            oligolimit))
+
+    if overflow_count > 0:
+        examples = ut.get_row_examples(
+            df=outdf,
+            invalid_mask=overflow_mask,
+            id_col='ID',
+            limit=5)
+        example_note = ut.format_row_examples(
+            examples,
+            label='Overflowing ID examples')
+        liner.send(
+            ' Overflowing Oligos  : {:,} Variant(s) [INFEASIBLE]{}\n'.format(
+                overflow_count,
+                example_note))
+    else:
+        liner.send(
+            ' Overflowing Oligos  : 0 Variant(s)\n')
+
+    liner.send(
+        ' Time Elapsed: {:.2f} sec\n'.format(
+            tt.time()-st0))
+
+    if overflow_count > 0:
+        liner.send(
+            ' Verdict: Join Infeasible due to Oligo Limit Constraints\n')
+
+        # Prepare stats
+        stats = {
+            'status'  : False,
+            'basis'   : 'infeasible',
+            'step'    : 3,
+            'step_name': 'parsing-oligo-limit',
+            'vars'    : {
+                'oligo_limit': oligolimit,
+                'limit_overflow': True,
+                'min_oligo_len': minoligolen,
+                'max_oligo_len': maxoligolen,
+                'overflow_count': overflow_count,
+                'example_ids': tuple(examples),
+                'shared_columns': tuple(shared_columns),
+                'columns_joined': inserted_columns,
+                'columns_ignored': ignored_columns,
+                'ambiguous_resolutions': ambiguous_resolutions,
+                'join_policy': joinpolicy,
+                },
+            'warns'   : warns}
+
+        # Return results
+        liner.close()
+        stats = ut.stamp_stats(
+            stats=stats,
+            module='join',
+            input_rows=input_rows,
+            output_rows=0)
+        return (None, stats)
+
+    liner.send(
+        ' Verdict: Join Possibly Feasible\n')
 
     # Write outdf to file
     if not outfile is None:
@@ -211,26 +376,48 @@ def join(
     stats = {
         'status'  : True,
         'basis'   : 'solved',
-        'step'    : 1,
-        'step_name': 'computing-join',
+        'step'    : 3,
+        'step_name': 'parsing-oligo-limit',
         'vars'    : {
+            'oligo_limit': oligolimit,
+            'limit_overflow': False,
+            'min_oligo_len': minoligolen,
+            'max_oligo_len': maxoligolen,
+            'overflow_count': 0,
+            'shared_columns': tuple(shared_columns),
             'columns_joined': inserted_columns,
             'columns_ignored': ignored_columns,
             'ambiguous_resolutions': ambiguous_resolutions,
             'join_policy': joinpolicy,
             },
-        'warns'   : {}}
+        'warns'   : warns}
 
     # Joining Statistics
     liner.send('\n[Joining Statistics]\n')
     liner.send(
-        f'        Join Status  : Successful\n')
+        '     Join Status     : Successful\n')
     liner.send(
-        f'     Columns Joined  : {len(inserted_columns)}\n')
+        ' Joined Oligo Length : {:,}{} Base Pair(s)\n'.format(
+            stats['vars']['min_oligo_len'],
+            ['', ' to {:,}'.format(stats['vars']['max_oligo_len'])][
+                stats['vars']['min_oligo_len'] != stats['vars']['max_oligo_len']
+            ]))
     liner.send(
-        f'     Columns Ignored : {len(ignored_columns)}\n')
+        ' Maximum Oligo Length: {:,} Base Pair(s)\n'.format(
+            stats['vars']['oligo_limit']))
     liner.send(
-        f' Ambiguities Resolved: {ambiguous_resolutions}\n')
+        '  Shared Column(s)   : {:,} Column(s)\n'.format(
+            len(stats['vars']['shared_columns'])))
+    liner.send(
+        '  Columns Joined     : {:,} Column(s)\n'.format(
+            len(stats['vars']['columns_joined'])))
+    liner.send(
+        '  Columns Ignored    : {:,} Column(s)\n'.format(
+            len(stats['vars']['columns_ignored'])))
+    liner.send(
+        ' Ambiguities Resolved: {:,} Case(s)\n'.format(
+            stats['vars']['ambiguous_resolutions']))
+
     liner.send(
         ' Time Elapsed: {:.2f} sec\n'.format(
             tt.time()-t0))

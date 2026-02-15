@@ -261,15 +261,15 @@ def compress(
     stats['status'] = True
     stats['basis'] = 'solved'
     stats['vars'] = {
-        'input_variants': total_input_variants,
+           'input_variants': total_input_variants,
         'degenerate_oligos': total_degenerate_oligos,
         'compression_ratio': round(compression_ratio, 2),
-        'length_groups': {
+            'length_groups': {
             k: len(set(v['sequences']))
             for k, v in length_groups.items()},
-        'min_degeneracy': min_degeneracy,
-        'max_degeneracy': max_degeneracy,
-        'mean_degeneracy': round(mean_degeneracy, 2),
+           'min_degeneracy': min_degeneracy,
+           'max_degeneracy': max_degeneracy,
+          'mean_degeneracy': round(mean_degeneracy, 2),
     }
 
     # Compression Statistics

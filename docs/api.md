@@ -535,6 +535,7 @@ df, stats = op.join(
     # Required
     input_data,                    # str | pd.DataFrame
     other_data,                    # str | pd.DataFrame
+    oligo_length_limit,            # int
     join_policy,                   # int | str
 
     # Optional
@@ -547,6 +548,7 @@ df, stats = op.join(
 
 - `input_data` (str | DataFrame): Backbone CSV/DataFrame with `ID` + DNA sequence columns
 - `other_data` (str | DataFrame): Second CSV/DataFrame with the same `ID` set as `input_data`
+- `oligo_length_limit` (int): Maximum allowed oligo length for the joined design (>= 4)
 - `join_policy` (int | str): Ambiguity policy for intelligent insertion: `0`/`'left'` (left-biased), `1`/`'right'` (right-biased). Also accepts: `'l'`, `'r'`
 
 **Optional Parameters**
@@ -558,8 +560,9 @@ df, stats = op.join(
 
 **Notes**:
 - `ID` sets must match exactly across both inputs (order can differ)
-- Overlapping non-`ID` column names from `other_data` are ignored
+- Overlapping non-`ID` column names from `other_data` must match `input_data` exactly; they are verified then ignored
 - Only new columns from `other_data` are inserted into the backbone order
+- Post-join QC: if any joined oligo exceeds `oligo_length_limit`, `join` returns infeasible stats and no output table
 - `join` never creates or drops rows; mismatched IDs are an error
 
 **Example (parallel branches → join)**:
@@ -570,6 +573,7 @@ Use `join` after two independent design branches to reconcile their outputs back
 op join \
     --input-data backbone.csv \
     --other-data branch.csv \
+    --oligo-length-limit 200 \
     --join-policy left \
     --output-file joined
 ```

@@ -123,9 +123,12 @@ after a YAML CLI DAG fan-out).
 
 - `join` requires the exact same `ID` set in `input_data` and `other_data` (row order
   may differ); it never creates or drops rows.
-- Column order is preserved from `input_data` (backbone). Only new, non-overlapping
-  columns from `other_data` are inserted into that order.
+- Column order is preserved from `input_data` (backbone). Any overlapping non-`ID` columns
+  in `other_data` must match exactly (verified then ignored); only new columns are inserted
+  into that order.
 - If insertion placement is ambiguous, `join_policy` resolves it (`left` vs `right`).
+- `oligo_length_limit` is required; if any joined oligo exceeds this limit, `join` returns
+  infeasible stats and no output table.
 
 ### Split outputs (`split`)
 
@@ -276,6 +279,7 @@ Note: `'-'` is a conventional placeholder value; Patch Mode treats `'-'` as miss
 | Auto-fill to target length | `spacer(spacer_length=None)` - auto-computes per-row fill |
 | Compound element (mixed fixed/variable) | chain `motif`/`barcode`/`primer`/`spacer` sub-regions → `merge`/`revcomp` → repeat |
 | Flip a region's orientation | `revcomp(left_context_column=..., right_context_column=...)` |
+| Recombine parallel branch outputs | parallel branches (YAML DAG fan-out) → `join` → `verify` |
 | Long constructs / assembly | `split(separate_outputs=True)` → `pad` (per `SplitN`) → `final` (per fragment) |
 | Mid-pipeline length check | `lenstat` → adjust element lengths → rerun |
 | Inspect artifacts quickly | `inspect(background/index/pack)` before reuse |

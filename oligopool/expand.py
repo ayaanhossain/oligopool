@@ -164,9 +164,9 @@ def expand(
             'step'    : 1,
             'step_name': 'parsing-sequences',
             'vars'    : {
-                'input_sequences': num_input_seqs,
+                    'input_sequences': num_input_seqs,
                 'estimated_expansion': int(total_estimated),
-                'expansion_limit': int(limit),
+                    'expansion_limit': int(limit),
             },
             'warns'   : {},
         }

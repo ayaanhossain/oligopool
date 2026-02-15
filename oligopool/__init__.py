@@ -13,6 +13,7 @@ __api__ = [
     'pad',
     'merge',
     'revcomp',
+    'join',
     'lenstat',
     'verify',
     'inspect',
@@ -36,7 +37,7 @@ __all__ = ['__author__', '__version__']
 # Setup
 __author__ = 'Ayaan Hossain'
 
-__version__ = '2026.02.08'
+__version__ = '2026.02.15'
 
 _LAZY_ATTRS = {
     # Design Mode functions
@@ -47,6 +48,7 @@ _LAZY_ATTRS = {
     'background': ('.background', 'background'),
     'merge': ('.merge', 'merge'),
     'revcomp': ('.revcomp', 'revcomp'),
+    'join': ('.join', 'join'),
     'lenstat': ('.lenstat', 'lenstat'),
     'verify': ('.verify', 'verify'),
     'inspect': ('.inspect', 'inspect'),
@@ -99,6 +101,7 @@ Design Mode - build synthesis-ready oligo architectures
     background  {_PKG_DESC["background"]}
     merge       {_PKG_DESC["merge"]}
     revcomp     {_PKG_DESC["revcomp"]}
+    join        {_PKG_DESC["join"]}
     final       {_PKG_DESC["final"]}
 
 Assembly Mode - fragment long oligos for assembly

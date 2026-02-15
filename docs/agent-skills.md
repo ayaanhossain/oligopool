@@ -115,6 +115,17 @@ Goal: multiplexing / selective amplification with set-specific primers.
 - With `patch_mode=True`, existing per-set primers are reused; only missing
   rows/sets trigger new design.
 
+### Rejoining branch outputs (`join`)
+
+Goal: recombine two independent design branches back into one table (most commonly
+after a YAML CLI DAG fan-out).
+
+- `join` requires the exact same `ID` set in `input_data` and `other_data` (order may differ);
+  it never creates or drops rows.
+- Column order is preserved from `input_data` (backbone). Only new, non-overlapping
+  columns from `other_data` are inserted into that order.
+- If insertion placement is ambiguous, `join_policy` resolves it (`left` vs `right`).
+
 ### Split outputs (`split`)
 
 Goal: avoid "one giant CSV with Split1..SplitN columns" when you actually need
@@ -125,14 +136,6 @@ separate pools per fragment.
   ...).
 - Even-numbered split fragments are auto-`revcomp`ed for assembly workflows.
 - `pad` is typically run **once per split fragment**.
-
-### Rejoining branch outputs (`join`)
-
-Goal: recombine two independent design branches back into one table (most commonly after a YAML CLI DAG fan-out).
-
-- `join` requires the exact same `ID` set in `input_data` and `other_data` (order may differ); it never creates or drops rows.
-- Column order is preserved from `input_data` (backbone). Only new, non-overlapping columns from `other_data` are inserted into that order.
-- If insertion placement is ambiguous, `join_policy` resolves it (`left` vs `right`).
 
 ### Type IIS compatibility (`pad`)
 
@@ -191,7 +194,8 @@ Key rules:
 - CLI flags override config values.
 - Pipeline configs can express sequential steps and parallel groups; see
   `docs/docs.md` examples for the supported schema.
-- Recommended pattern: keep design workflows mostly serial; use parallel DAGs primarily for analysis (`index`/`pack`/`acount`/`xcount` branches).
+- Recommended pattern: keep design workflows mostly serial; use parallel DAGs
+  primarily for analysis (`index`/`pack`/`acount`/`xcount` branches).
 - Pipeline shorthand is supported: downstream `input_data` can reference
   a prior step `output_file` basename; explicit existing paths are preserved.
 - If the same basename is produced by multiple steps, that alias is treated as

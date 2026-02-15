@@ -1008,6 +1008,59 @@ def get_df_concat(df):
         axis=1).str.replace(
             '-', '').values)
 
+def get_anchor_insert_index(column, source_columns, target_columns, policy):
+    '''
+    Resolve insertion index for a new column from a source column-order into a target column-order
+    using nearest shared anchors (columns that exist in both lists). Internal use only.
+
+    The target order is treated as the backbone. If placement is ambiguous, `policy` chooses the
+    left-most (0) or right-most (1) valid insertion index.
+
+    :: column
+       type - string
+       desc - column name in source_columns to insert into target_columns
+    :: source_columns
+       type - list
+       desc - ordered list of source column names
+    :: target_columns
+       type - list
+       desc - ordered list of target/backbone column names
+    :: policy
+       type - int
+       desc - ambiguity resolution policy: 0=left-biased, 1=right-biased
+    '''
+
+    src_idx = source_columns.index(column)
+
+    left_anchor = None
+    for idx in range(src_idx - 1, -1, -1):
+        candidate = source_columns[idx]
+        if candidate in target_columns:
+            left_anchor = candidate
+            break
+
+    right_anchor = None
+    for idx in range(src_idx + 1, len(source_columns)):
+        candidate = source_columns[idx]
+        if candidate in target_columns:
+            right_anchor = candidate
+            break
+
+    left_idx = 0 if left_anchor is None else target_columns.index(left_anchor) + 1
+    right_idx = len(target_columns) if right_anchor is None else target_columns.index(right_anchor)
+
+    if left_idx > right_idx:
+        raise RuntimeError(
+            "Unable to place column '{}' due to inconsistent anchor ordering.".format(
+                column))
+
+    if left_idx == right_idx:
+        return (left_idx, False, left_anchor, right_anchor)
+
+    if policy == 0:
+        return (left_idx, True, left_anchor, right_anchor)
+    return (right_idx, True, left_anchor, right_anchor)
+
 def get_missing_mask(series, allow_dash=False):
     '''
     Return a boolean mask of missing values in a

@@ -242,6 +242,23 @@ $ op pipeline --config pipeline.yaml
 $ op pipeline --config pipeline.yaml --dry-run  # validate first
 ```
 
+Example (single design output, serial chain):
+```yaml
+pipeline:
+  name: "MPRA Design (Serial)"
+  steps:
+    - primer
+    - barcode
+    - spacer
+    - final
+
+primer:
+  input_data: "variants.csv"
+  output_file: "01_primer"
+  primer_type: forward
+  # ...
+```
+
 Why this matters:
 - It keeps long runs readable and diffable (and easy to rerun).
 - It supports both serial design chains and parallel DAG execution for analysis.

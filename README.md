@@ -277,8 +277,7 @@ pipeline:
 # (Configs for index/pack/xcount omitted here for brevity.)
 ```
 
-Working examples live in `examples/cli-yaml-pipeline`; full pipeline rules live in [Config Files](docs/docs.md#config-files).
-If parallel branches must recombine into one table, use `join` to rejoin on `ID`.
+Working examples live in `examples/cli-yaml-pipeline`; full pipeline rules live in [Config Files](docs/docs.md#config-files); use `join` to recombine parallel branch outputs on `ID`.
 
 <a id="citation"></a>
 ## 📖 Citation

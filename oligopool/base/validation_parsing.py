@@ -70,6 +70,15 @@ TYPE_REGISTRIES = {
         'display': {0: 'Fast / Near-Exact', 1: 'Slow / Sensitive'},
         'canonical': ['fast', 'sensitive'],
     },
+    'join_policy': {
+        'aliases': {
+            0: 0, 1: 1,
+            'left': 0, 'l': 0,
+            'right': 1, 'r': 1,
+        },
+        'display': {0: 'Left-Biased', 1: 'Right-Biased'},
+        'canonical': ['left', 'right'],
+    },
 }
 
 

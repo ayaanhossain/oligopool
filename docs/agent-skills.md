@@ -24,7 +24,7 @@ and then module docstrings (`help(op.<module>)` in Python or `op manual <COMMAND
 ## Surface Area
 
 Five modes (library + CLI):
-- Design Mode: `background`, `primer`, `motif`, `barcode`, `spacer`, `merge`, `revcomp`, `final`.
+- Design Mode: `background`, `primer`, `motif`, `barcode`, `spacer`, `merge`, `revcomp`, `join`, `final`.
 - Assembly Mode: `split`, `pad` (for synthesis limits / post-synthesis assembly).
 - Degenerate Mode: `compress`, `expand` (cost optimization via IUPAC-degenerate oligos, selection-based discovery workflows).
 - Analysis Mode: `index`, `pack`, `acount`, `xcount` (counting from sequencing reads).
@@ -81,6 +81,7 @@ Five modes (library + CLI):
 - `compress`: `(mapping_df, synthesis_df, stats_dict)` (two DataFrames)
 - `split`: returns either `(df, stats)` or `([df_Split1, df_Split2, ...], stats)`
   depending on `separate_outputs` (CLI defaults to separate outputs enabled).
+- `join`: `(out_df, stats_dict)`; joins two tables on `ID` and inserts only new columns from `other_data` into the `input_data` column order (useful for recombining parallel branches).
 
 ## Special Contracts
 
@@ -124,6 +125,14 @@ separate pools per fragment.
   ...).
 - Even-numbered split fragments are auto-`revcomp`ed for assembly workflows.
 - `pad` is typically run **once per split fragment**.
+
+### Rejoining branch outputs (`join`)
+
+Goal: recombine two independent design branches back into one table (most commonly after a YAML CLI DAG fan-out).
+
+- `join` requires the exact same `ID` set in `input_data` and `other_data` (order may differ); it never creates or drops rows.
+- Column order is preserved from `input_data` (backbone). Only new, non-overlapping columns from `other_data` are inserted into that order.
+- If insertion placement is ambiguous, `join_policy` resolves it (`left` vs `right`).
 
 ### Type IIS compatibility (`pad`)
 
@@ -198,6 +207,7 @@ Design Mode:
 - `barcode`: design Hamming-separated barcodes (supports cross-set constraints).
 - `spacer`: fill length (supports per-ID lengths; can auto-fill).
 - `merge`/`revcomp`: mid-pipeline architecture maneuvers.
+- `merge`/`revcomp`/`join`: mid-pipeline architecture maneuvers (within-table collapse/reorder, or cross-table recombination).
 - `final`: concatenate into synthesis-ready `CompleteOligo` (+ length).
 
 Assembly Mode:

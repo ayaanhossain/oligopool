@@ -4,7 +4,7 @@
     </a>
 </h1>
 
-<h4><p align="center">Version: 2026.02.15</p></h4>
+<h4><p align="center">Version: 2026.02.16</p></h4>
 
 <p align="center">
   <a href="#features" style="text-decoration: none !important;">✨ Features</a> -
@@ -84,7 +84,7 @@ Successful installation will look like this.
 $ python
 >>> import oligopool as op
 >>> op.__version__
-'2026.02.15'
+'2026.02.16'
 >>>
 ```
 
@@ -177,7 +177,7 @@ Run `op` with no arguments to see the command list, and run `op COMMAND` to see 
 ```bash
 $ op
 
-oligopool v2026.02.15
+oligopool v2026.02.16
 by ah
 
 Oligopool Calculator is a suite of algorithms for
@@ -232,7 +232,7 @@ $ op complete --install          # auto-detect shell (restart your shell)
 $ op complete --install bash     # or: zsh|fish
 ```
 
-For detailed CLI behavior (output basenames, suffixing, type aliases, sequence-constraint shorthand, and split output defaults), see the [CLI-Specific Notes](docs/docs.md#cli-specific-notes).
+For detailed CLI behavior (output basenames, suffixing, type aliases, sequence-constraint shorthand, and split output defaults), see the [CLI-Specific Notes](https://github.com/ayaanhossain/oligopool/blob/master/docs/docs.md#cli-specific-notes).
 
 ### YAML Pipelines
 
@@ -278,7 +278,7 @@ pipeline:
 # (Configs for index/pack/xcount omitted here for brevity.)
 ```
 
-Working examples live in `examples/cli-yaml-pipeline`. Full pipeline rules live in [Config Files](docs/docs.md#config-files).
+Working examples live in `examples/cli-yaml-pipeline`. Full pipeline rules live in [Config Files](https://github.com/ayaanhossain/oligopool/blob/master/docs/docs.md#config-files).
 
 <a id="citation"></a>
 ## 📖 Citation

@@ -24,6 +24,9 @@ op pipeline --config mpra_design_serial.yaml
 # Validate parallel-branch design config (dry run)
 op pipeline --config mpra_design_parallel.yaml --dry-run
 
+# Execute the parallel-branch design pipeline
+op pipeline --config mpra_design_parallel.yaml
+
 # Validate analysis DAG config
 op pipeline --config analysis_single.yaml --dry-run
 
@@ -80,6 +83,10 @@ recombine with `join` into a single annotated table for downstream steps:
 ```
 primer -> { barcode_a, barcode_b } -> join -> spacer -> final
 ```
+
+Notes:
+- Parallel branches write separate intermediate CSVs; `join` recombines them into one design table (same `ID` set required).
+- The pipeline still produces a single final output table at the end (from the `final` step).
 
 ## Analysis Pipeline
 

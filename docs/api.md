@@ -1098,7 +1098,7 @@ counts_df, stats = op.acount(
 - Failed-reads CSV columns: `FailureReason`, `R1`, `R2`, `ReadCount`, `DiagnosticDetails`
 - `verbose` (bool, default=True): Print progress output
 
-**Returns**: `(counts_DataFrame, stats_dict)` - output contains `<indexname>.ID`, `BarcodeCounts`, `AssociationCounts`
+**Returns**: `(counts_DataFrame, stats_dict)` - output contains `<indexname>.ID`, `BarcodeCount`, `AssociationCount`
 
 **Notes**:
 - Use `acount` when you need to verify barcode-variant coupling (requires associates in index)
@@ -1190,7 +1190,7 @@ counts_df, stats = op.xcount(
 - Failed-reads CSV columns: `FailureReason`, `R1`, `R2`, `ReadCount`, `DiagnosticDetails`
 - `verbose` (bool, default=True): Print progress output
 
-**Returns**: `(counts_DataFrame, stats_dict)` - output contains one `<indexname>.ID` column per index, plus `CombinatorialCounts`. Missing barcodes shown as `'-'`
+**Returns**: `(counts_DataFrame, stats_dict)` - output contains one `<indexname>.ID` column per index, plus `CombinatorialCount`. Missing barcodes shown as `'-'`
 
 **Notes**:
 - Use `xcount` for barcode-only counting without associate verification

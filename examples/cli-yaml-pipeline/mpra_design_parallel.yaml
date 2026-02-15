@@ -1,0 +1,90 @@
+# MPRA Library Design Pipeline (Parallel Branches + Join)
+# Run with: op pipeline --config mpra_design_parallel.yaml
+# Dry run:  op pipeline --config mpra_design_parallel.yaml --dry-run
+#
+# This example is intentionally "mostly serial" with one parallel fan-out:
+# two independent barcode branches are designed from the same backbone, then
+# recombined with `join` into a single design table for downstream steps.
+
+pipeline:
+  name: "MPRA Library Design (Parallel Branches + Join)"
+  steps:
+    - name: primer
+      command: primer
+    - name: barcode_a
+      command: barcode
+      after: [primer]
+    - name: barcode_b
+      command: barcode
+      after: [primer]
+    - name: rejoin
+      command: join
+      after: [barcode_a, barcode_b]
+    - name: spacer
+      command: spacer
+      after: [rejoin]
+    - name: final
+      command: final
+      after: [spacer]
+
+# Step 1: Add a forward primer (creates "FwdPrimer")
+primer:
+  input_data: "variants.csv"
+  output_file: "01_primer"
+  oligo_length_limit: 100
+  primer_sequence_constraint: "NNNNNNNNNNNNNNNNNNNN"  # 20 bp
+  primer_type: forward
+  primer_column: "FwdPrimer"
+  minimum_melting_temperature: 52
+  maximum_melting_temperature: 58
+  maximum_repeat_length: 8
+  right_context_column: "Promoter"
+  random_seed: 42
+
+# Step 2a/2b: Design two barcodes that are independent (no cross-set constraints).
+# If you need BC1/BC2 to be cross-talk free, design sequentially with cross-set options.
+barcode_a:
+  input_data: "01_primer"
+  output_file: "02_barcode_a"
+  oligo_length_limit: 100
+  barcode_length: 10
+  minimum_hamming_distance: 3
+  maximum_repeat_length: 8
+  barcode_column: "BC_A"
+  barcode_type: terminus
+  left_context_column: "Promoter"
+  random_seed: 42
+
+barcode_b:
+  input_data: "01_primer"
+  output_file: "02_barcode_b"
+  oligo_length_limit: 100
+  barcode_length: 10
+  minimum_hamming_distance: 3
+  maximum_repeat_length: 8
+  barcode_column: "BC_B"
+  barcode_type: terminus
+  left_context_column: "FwdPrimer"
+  random_seed: 42
+
+# Step 3: Recombine both barcode branches into one annotated design table.
+rejoin:
+  input_data: "02_barcode_a"
+  other_data: "02_barcode_b"
+  join_policy: left
+  output_file: "03_rejoined"
+
+# Step 4: Add spacer to hit length limit.
+spacer:
+  input_data: "03_rejoined"
+  output_file: "04_spacer"
+  oligo_length_limit: 100
+  maximum_repeat_length: 8
+  spacer_column: "Spacer"
+  left_context_column: "BC_A"
+  random_seed: 42
+
+# Step 5: Finalize for synthesis.
+final:
+  input_data: "04_spacer"
+  output_file: "05_final"

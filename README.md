@@ -236,49 +236,19 @@ For detailed CLI behavior (output basenames, suffixing, type aliases, sequence-c
 
 ### YAML Pipelines
 
-Define entire workflows in a single YAML config file and execute with one command:
+Run documented, repeatable workflows from a single YAML file:
 ```bash
 $ op pipeline --config pipeline.yaml
 $ op pipeline --config pipeline.yaml --dry-run  # validate first
 ```
 
-Pipelines support **sequential** or **parallel DAG** execution. For a single design output, use a serial chain:
-```yaml
-# pipeline.yaml
-pipeline:
-  name: "MPRA Library"
-  steps:
-    - primer
-    - barcode
-    - spacer
-    - final
-    ...
+Why this matters:
+- It keeps long runs readable and diffable (and easy to rerun).
+- It supports both serial design chains and parallel DAG execution for analysis.
+- When you do use parallel branches that must recombine into one table, use `join` to rejoin on `ID`.
 
-# See examples/cli-yaml-pipeline/mpra_design_serial.yaml for a complete runnable file.
-```
-
-For explicit parallelism, use the DAG step format. Parallel branches produce separate CSVs, and `join` is the
-recombiner when you want to rejoin branches back into a single design table:
-
-```yaml
-# Parallel branches (rare for design; common for analysis)
-pipeline:
-  steps:
-    - name: barcode_a
-      command: barcode
-    - name: barcode_b
-      command: barcode
-    - name: rejoin
-      command: join
-      after: [barcode_a, barcode_b]
-    ...
-
-# See examples/cli-yaml-pipeline/mpra_design_parallel.yaml for a complete runnable file.
-```
-
-Use `--config` with any command to load parameters from YAML (CLI args override config values). See [`examples/cli-yaml-pipeline`](https://github.com/ayaanhossain/oligopool/tree/master/examples/cli-yaml-pipeline) for complete working examples.
-
-For full pipeline rules (alias resolution, path precedence, DAG tips, and output suffix behavior), see [Config Files](docs/docs.md#config-files).
+Working examples live in `examples/cli-yaml-pipeline`, and full pipeline rules (alias resolution, path precedence,
+DAG tips, and output suffix behavior) live in [Config Files](docs/docs.md#config-files).
 
 <a id="citation"></a>
 ## 📖 Citation

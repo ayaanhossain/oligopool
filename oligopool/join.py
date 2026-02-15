@@ -183,9 +183,15 @@ def join(
         if not indf[col].equals(otherdf[col]):
             mismatched_columns.append(col)
 
+    col_printlen = ut.get_printlen(
+        value=max(
+            len(shared_columns),
+            len(mismatched_columns)))
+
     liner.send(
-        '     Shared Column(s): {:,} Column(s)\n'.format(
-            len(shared_columns)))
+        '     Shared Column(s): {:{},d} Column(s)\n'.format(
+            len(shared_columns),
+            col_printlen))
 
     # Compatibility verdict (treat mismatches as infeasible, not an argument error).
     parsestatus = len(mismatched_columns) == 0
@@ -203,8 +209,9 @@ def join(
             label='Mismatching ID examples')
 
         liner.send(
-            ' Mismatched Column(s): {:,} Column(s) [INFEASIBLE] (example: \'{}\'){}\n'.format(
+            ' Mismatched Column(s): {:{},d} Column(s) [INFEASIBLE] (example: \'{}\'){}\n'.format(
                 len(mismatched_columns),
+                col_printlen,
                 example_mismatch_column,
                 example_note))
         liner.send(
@@ -239,7 +246,9 @@ def join(
         return (outdf, stats)
 
     liner.send(
-        ' Mismatched Column(s): 0 Column(s)\n')
+        ' Mismatched Column(s): {:{},d} Column(s)\n'.format(
+            0,
+            col_printlen))
     liner.send(
         ' Time Elapsed: {:.2f} sec\n'.format(
             tt.time()-st0))
@@ -287,25 +296,36 @@ def join(
     liner.send('\n[Step 3: Parsing Oligo Limit]\n')
     st0 = tt.time()
 
-    variantlens = ut.get_variantlens(indf=outdf)
-    minoligolen = int(variantlens.min())
-    maxoligolen = int(variantlens.max())
-    overflow_mask = variantlens > oligolimit
+    variantlens    = ut.get_variantlens(indf=outdf)
+    minoligolen    = int(variantlens.min())
+    maxoligolen    = int(variantlens.max())
+    overflow_mask  = variantlens > oligolimit
     overflow_count = int(overflow_mask.sum())
+    oligo_printlen = ut.get_printlen(
+        value=max(
+            minoligolen,
+            maxoligolen,
+            oligolimit))
+    overflow_printlen = ut.get_printlen(
+        value=overflow_count)
+
+    liner.send(
+        ' Maximum Oligo Length: {:{},d} Base Pair(s)\n'.format(
+            oligolimit,
+            oligo_printlen))
 
     if minoligolen == maxoligolen:
         liner.send(
-            '  Joined Oligo Length: {:,} Base Pair(s)\n'.format(
-                minoligolen))
+            '  Joined Oligo Length: {:{},d} Base Pair(s)\n'.format(
+                minoligolen,
+                oligo_printlen))
     else:
         liner.send(
-            '  Joined Oligo Length: {:,} to {:,} Base Pair(s)\n'.format(
+            '  Joined Oligo Length: {:{},d} to {:{},d} Base Pair(s)\n'.format(
                 minoligolen,
-                maxoligolen))
-
-    liner.send(
-        ' Maximum Oligo Length: {:,} Base Pair(s)\n'.format(
-            oligolimit))
+                oligo_printlen,
+                maxoligolen,
+                oligo_printlen))
 
     if overflow_count > 0:
         examples = ut.get_row_examples(
@@ -317,12 +337,15 @@ def join(
             examples,
             label='Overflowing ID examples')
         liner.send(
-            '   Overflowing Oligos: {:,} Variant(s) [INFEASIBLE]{}\n'.format(
+            '   Overflowing Oligos: {:{},d} Variant(s) [INFEASIBLE]{}\n'.format(
                 overflow_count,
+                overflow_printlen,
                 example_note))
     else:
         liner.send(
-            '   Overflowing Oligos: 0 Variant(s)\n')
+            '   Overflowing Oligos: {:{},d} Variant(s)\n'.format(
+                0,
+                overflow_printlen))
 
     liner.send(
         ' Time Elapsed: {:.2f} sec\n'.format(

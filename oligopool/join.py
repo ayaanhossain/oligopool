@@ -105,7 +105,7 @@ def join(
     (indf,
     indata_valid) = vp.get_parsed_indata_info(
         indata=indata,
-        indata_field='  Input Data   ',
+        indata_field='  Input Data  ',
         required_fields=('ID',),
         precheck=False,
         liner=liner)
@@ -116,7 +116,7 @@ def join(
     otherdata_name,
     otherdata_valid) = vp.get_parsed_indata_info(
         indata=otherdata,
-        indata_field='  Other Data   ',
+        indata_field='  Other Data  ',
         required_fields=('ID',),
         precheck=True,
         liner=liner)
@@ -128,18 +128,18 @@ def join(
         if other_ids_match:
             otherdf = otherdf.reindex(indf.index)
             liner.send(
-                '  Other Data   : {} w/ {:,} Record(s)\n'.format(
+                '  Other Data  : {} w/ {:,} Record(s)\n'.format(
                     otherdata_name,
                     len(otherdf.index)))
         else:
             liner.send(
-                '  Other Data   : {} w/ {:,} Record(s) [COLUMN=\'ID\' DOES NOT MATCH INPUT DATA]\n'.format(
+                '  Other Data  : {} w/ {:,} Record(s) [COLUMN=\'ID\' DOES NOT MATCH INPUT DATA]\n'.format(
                     otherdata_name,
                     len(otherdf.index)))
         otherdata_valid = otherdata_valid and other_ids_match
     elif otherdata_valid:
         liner.send(
-            '  Other Data   : {} w/ {:,} Record(s)\n'.format(
+            '  Other Data  : {} w/ {:,} Record(s)\n'.format(
                 otherdata_name,
                 len(otherdf.index)))
 
@@ -157,7 +157,7 @@ def join(
     outfile_valid = vp.get_outdf_validity(
         outdf=outfile,
         outdf_suffix='.oligopool.join.csv',
-        outdf_field=' Output File   ',
+        outdf_field=' Output File  ',
         liner=liner)
 
     # Adjust outfile Suffix
@@ -193,13 +193,13 @@ def join(
     output_columns = outdf.columns.to_list()
     source_columns = otherdf.columns.to_list()
     liner.send(
-        ' Input Column(s): {:,} Column(s)\n'.format(
+        '  Input Column(s): {:,} Column(s)\n'.format(
             len(output_columns)))
     for col in output_columns:
         liner.send('    - {}\n'.format(col))
 
     liner.send(
-        ' Other Column(s): {:,} Column(s)\n'.format(
+        '  Other Column(s): {:,} Column(s)\n'.format(
             len(source_columns)))
     for col in source_columns:
         liner.send('    - {}\n'.format(col))
@@ -264,11 +264,11 @@ def join(
     # Joining Statistics
     liner.send('\n[Joining Statistics]\n')
     liner.send(
-        '     Join Status: Successful\n')
+        f'        Join Status  : Successful\n')
     liner.send(
-        f'  Columns Joined: {len(inserted_columns)}\n')
+        f'     Columns Joined  : {len(inserted_columns)}\n')
     liner.send(
-        f' Columns Ignored: {len(ignored_columns)}\n')
+        f'     Columns Ignored : {len(ignored_columns)}\n')
     liner.send(
         f' Ambiguities Resolved: {ambiguous_resolutions}\n')
     liner.send(

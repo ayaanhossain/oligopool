@@ -66,7 +66,7 @@ Five modes (library + CLI):
 - `background_directory`: screen designed elements against one or more background
   k-mer DB(s) created by `background()` (single path or list of paths; supported
   by multiple Design/QC modules).
-- `*_type` parameters usually accept either ints or descriptive strings
+- `*_type` and `*_policy` parameters usually accept either ints or descriptive strings
   (case-insensitive; often fuzzy-matched). See `docs/api.md` for each module's
   accepted values.
 - `random_seed`: reproducibility for stochastic modules (see `docs/api.md` for
@@ -81,7 +81,8 @@ Five modes (library + CLI):
 - `compress`: `(mapping_df, synthesis_df, stats_dict)` (two DataFrames)
 - `split`: returns either `(df, stats)` or `([df_Split1, df_Split2, ...], stats)`
   depending on `separate_outputs` (CLI defaults to separate outputs enabled).
-- `join`: `(out_df, stats_dict)`; joins two tables on `ID` and inserts only new columns from `other_data` into the `input_data` column order (useful for recombining parallel branches).
+- `join`: `(out_df, stats_dict)`; joins two tables on `ID` and inserts new columns
+   from `other_data` in resolved order, for recombining parallel design branches.
 
 ## Special Contracts
 
@@ -120,8 +121,8 @@ Goal: multiplexing / selective amplification with set-specific primers.
 Goal: recombine two independent design branches back into one table (most commonly
 after a YAML CLI DAG fan-out).
 
-- `join` requires the exact same `ID` set in `input_data` and `other_data` (order may differ);
-  it never creates or drops rows.
+- `join` requires the exact same `ID` set in `input_data` and `other_data` (row order
+  may differ); it never creates or drops rows.
 - Column order is preserved from `input_data` (backbone). Only new, non-overlapping
   columns from `other_data` are inserted into that order.
 - If insertion placement is ambiguous, `join_policy` resolves it (`left` vs `right`).
@@ -210,7 +211,7 @@ Design Mode:
 - `motif`: insert motifs or design constant anchors (`motif_type='constant'`).
 - `barcode`: design Hamming-separated barcodes (supports cross-set constraints).
 - `spacer`: fill length (supports per-ID lengths; can auto-fill).
-- `merge`/`revcomp`/`join`: mid-pipeline architecture maneuvers (within-table collapse/reorder, or cross-table recombination).
+- `merge`/`revcomp`/`join`: mid-pipeline architecture maneuvers.
 - `final`: concatenate into synthesis-ready `CompleteOligo` (+ length).
 
 Assembly Mode:

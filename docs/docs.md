@@ -332,6 +332,13 @@ df, stats = op.barcode(
 )
 ```
 
+**Column placement behavior sketch:**
+```text
+Input:  Left, Core, Right
+barcode(..., barcode_column='BC', left_context_column='Left', right_context_column='Core')
+Output: Left, BC, Core, Right
+```
+
 **Excluded motifs** let you ban restriction sites, repetitive sequences, or anything else you don't want appearing in your barcodes.
 
 The simplest approach is to pass a list:
@@ -395,6 +402,13 @@ df, stats = op.primer(
     primer_column='FwdPrimer',
     right_context_column='Gene',
 )
+```
+
+**Column placement behavior sketch:**
+```text
+Input:  Left, Core
+primer(..., primer_column='FwdPrimer', right_context_column='Core')
+Output: Left, FwdPrimer, Core
 ```
 
 **Paired primer design** ensures your forward and reverse primers have matched Tm (within 1 °C). Design the inner primer first:
@@ -492,6 +506,13 @@ df, stats = op.motif(
 )
 ```
 
+**Column placement behavior sketch:**
+```text
+Input:  Left, Core
+motif(..., motif_column='Anchor', left_context_column='Left')
+Output: Left, Anchor, Core
+```
+
 **Why anchors matter**: When you index barcodes later, you need constant flanking sequences to locate them in reads. Design anchors with `motif_type=1` *before* designing barcodes.
 
 **Stuff to Note:**
@@ -523,6 +544,13 @@ df, stats = op.spacer(
     spacer_length=15,
     left_context_column='Gene',
 )
+```
+
+**Column placement behavior sketch:**
+```text
+Input:  Left, Core
+spacer(..., spacer_column='Spacer', left_context_column='Left')
+Output: Left, Spacer, Core
 ```
 
 Want spacers to auto-fill whatever space remains? Leave `spacer_length` as `None`:
@@ -769,6 +797,13 @@ split_df, stats = op.split(
 
 Output contains `Split1`, `Split2`, ... columns with fragments ready for assembly.
 
+**Output columns behavior sketch:**
+```text
+Input:  (annotated design table)
+split()
+Output: ID, Split1, Split2, ...   (annotation columns are dropped)
+```
+
 **Key concept: Each column = one oligo pool to synthesize**
 
 When `split` returns `Split1`, `Split2`, `Split3` columns, you will **order three separate oligo pools** from your synthesis vendor (one per column). After synthesis, you combine those fragments via overlap-based assembly (Gibson, overlap-extension PCR, etc.) to reconstruct the full-length oligo.
@@ -810,6 +845,13 @@ final2_df, _ = op.final(input_data=pad2_df, output_file='synthesis_split2')
 final3_df, _ = op.final(input_data=pad3_df, output_file='synthesis_split3')
 
 # You now have 3 CSV files to send to your synthesis vendor
+```
+
+**Output columns behavior sketch:**
+```text
+Input:  ID, Split1, Split2, ... (from split)
+pad(split_column='Split1')
+Output: ID, 5primeSpacer, ForwardPrimer, Split1, ReversePrimer, 3primeSpacer
 ```
 
 **Stuff to Note:**
@@ -875,6 +917,13 @@ print(f"Compressed {stats['vars']['input_variants']} variants "
       f"({stats['vars']['compression_ratio']}x compression)")
 ```
 
+**Output columns behavior sketch:**
+```text
+compress()
+mapping_df:   ID, Sequence, DegenerateID
+synthesis_df: DegenerateID, DegenerateSeq, Degeneracy, OligoLength
+```
+
 **Stuff to Note:**
 - Input must be concrete DNA (A/T/G/C only, no degenerate codes)
 - All non-ID columns are concatenated (left-to-right) to form the full sequence
@@ -905,6 +954,12 @@ expanded_df, stats = op.expand(
 original_seqs = set(df['Sequence'])
 expanded_seqs = set(expanded_df['ExpandedSeq'])
 assert original_seqs == expanded_seqs, "Lossless guarantee violated!"
+```
+
+**Output columns behavior sketch:**
+```text
+expand()
+Output: ExpandedSeq, OligoLength   (+ ID and optionally DegenerateID if mapping_file is provided)
 ```
 
 **Stuff to Note:**
@@ -1024,6 +1079,12 @@ df, stats = op.acount(
 )
 ```
 
+**Output columns behavior sketch:**
+```text
+acount()
+Output: count matrix as a CSV (rows = IDs; columns depend on mapping_type)
+```
+
 **Stuff to Note:**
 - Reads with unresolved associates are excluded from the counts (that's the point of `acount`).
 - `callback` is Python-only; the CLI always runs with `callback=None`.
@@ -1061,6 +1122,12 @@ df, stats = op.xcount(
     count_file='combo_counts',
     mapping_type=1,
 )
+```
+
+**Output columns behavior sketch:**
+```text
+xcount()
+Output: count matrix as a CSV (combinations across indices; missing barcodes use '-' gaps)
 ```
 
 Output includes all observed combinations. Reads missing a barcode show `'-'` for that position.
@@ -1137,6 +1204,12 @@ df, stats = op.verify(
     excluded_motifs=['GAATTC', 'GGATCC'],  # Restriction sites to flag
     output_file='verify_results',
 )
+```
+
+**Output columns behavior sketch:**
+```text
+verify()
+Output: per-row conflict flags + *Details columns (ID preserved)
 ```
 
 **Checks:**

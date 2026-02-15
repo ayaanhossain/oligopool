@@ -40,6 +40,7 @@ Welcome to the `Oligopool Calculator` docs. Whether you're designing your first 
   - [`background`](#background) - K-mer screening database
   - [`merge`](#merge) - Collapse columns
   - [`revcomp`](#revcomp) - Reverse complement
+  - [`join`](#join) - Join two tables
   - [`final`](#final) - Finalize for synthesis
 - [Assembly Mode](#assembly-mode)
   - [`split`](#split) - Fragment long oligos
@@ -613,6 +614,13 @@ df, stats = op.merge(
 )
 ```
 
+**Column order behavior sketch:**
+```text
+Input:  A, B, C, D
+merge(B..C -> X)
+Output: A, X, D
+```
+
 **Stuff to Note:**
 - `left_context_column` and `right_context_column` do not need to be adjacent; `merge` collapses the full inclusive range.
 - If you omit the bounds, `merge` collapses the first → last sequence columns.
@@ -638,12 +646,58 @@ df, stats = op.revcomp(
 )
 ```
 
+**Column order behavior sketch:**
+```text
+Input:  A, B, C, D
+revcomp(B..C)
+Output: A, C', B', D   (sequences are reverse-complemented; order is reversed)
+```
+
 **Stuff to Note:**
 - `left_context_column` and `right_context_column` do not need to be adjacent; `revcomp` acts on the full inclusive range.
 - If you omit the bounds, `revcomp` reverse-complements the first → last sequence columns and reverses their order.
 - Useful mid-pipeline when you design in "readout orientation" but must synthesize in the opposite orientation (and for sanity-checking `split` fragment orientation).
 
 > **API Reference**: See [`revcomp`](api.md#revcomp) for complete parameter documentation.
+
+---
+
+### `join`
+
+[^ Back to TOC](#table-of-contents)
+
+**What it does**: Joins two DataFrames/CSVs on `ID`, keeps `input_data` column order as backbone, and inserts only new columns from `other_data`.
+
+**When to use it**: Recombining parallel design branches (for example, from a YAML CLI DAG) back into one design table, or reconciling two independently designed DataFrames.
+
+```python
+df, stats = op.join(
+    input_data=df_backbone,
+    other_data=df_branch,
+    join_policy='left',                # or 1 / 'right'
+)
+```
+
+**Column order behavior sketch:**
+```text
+Input: A, B, C, D, E
+Other: A, B, X, D, E
+
+join_policy='left'  -> A, B, X, C, D, E
+join_policy='right' -> A, B, C, X, D, E
+```
+
+Another common pattern: if `Input` has `Left, Core, Right` and `Other` has `Left, Spacer, Core, Right`,
+then `Spacer` is inserted between `Left` and `Core` (this is unambiguous, so `join_policy` does not matter).
+
+**Stuff to Note:**
+- `join` is an inter-table operation (contrast with `merge`/`revcomp`, which operate within one DataFrame).
+- `input_data` and `other_data` must contain the same `ID` set; `join` never creates or drops rows (ID mismatches are an error).
+- Overlapping non-`ID` column names from `other_data` are ignored; backbone columns are preserved (only new columns can be inserted).
+- New columns from `other_data` are inserted near their nearest shared anchors; `join_policy` resolves ambiguous placements: `0`/`left` is left-biased, `1`/`right` is right-biased.
+- For a CLI/YAML example, see [Parallel Pipeline Execution](#parallel-pipeline-execution) in the Config Files section.
+
+> **API Reference**: See [`join`](api.md#join) for complete parameter documentation.
 
 ---
 
@@ -661,6 +715,13 @@ final_df, stats = op.final(
     output_file='synthesis_ready',
 )
 # Output contains 'CompleteOligo' and 'OligoLength' columns
+```
+
+**Output columns behavior sketch:**
+```text
+Input:  A, B, C
+final()
+Output: CompleteOligo, OligoLength   (ID is preserved)
 ```
 
 **Stuff to Note:**
@@ -1511,9 +1572,9 @@ pipeline:
 - `config`: Config section name to use (defaults to `name`)
 
 **Execution model:**
-- Steps with no `after` dependencies form level 1 (eligible to run concurrently)
+- Steps with no `after` dependencies form level 1 (eligible to run concurrently).
 - Each subsequent level waits for dependencies, and independent steps are grouped automatically for concurrent execution.
-- `--dry-run` shows execution levels and parallelism
+- `--dry-run` shows execution levels and parallelism.
 
 ```yaml
 # analysis_multi.yaml
@@ -1544,6 +1605,67 @@ On real execution, level 1 builds shared index artifacts once and packs each sam
 For runnable DAG examples, see:
 - `examples/cli-yaml-pipeline/analysis_multi.yaml` (index once, then per-sample `pack → (xcount and/or acount)` branches)
 - `examples/cli-yaml-pipeline/analysis_single.yaml` (same pattern reduced to one sample)
+
+**Rare parallel design branches with `join`:**
+
+Most Design Mode workflows are sequential, because element constraints tend to couple steps. If two design steps are truly independent (they depend only on already-fixed context and do not depend on each other), you can run them as parallel branches and then recombine their outputs with `join`.
+
+```yaml
+pipeline:
+  name: "Parallel Branch Join (Design)"
+  steps:
+    - name: branch_a
+      command: barcode
+    - name: branch_b
+      command: barcode
+    - name: rejoin
+      command: join
+      after: [branch_a, branch_b]
+    - name: spacer
+      command: spacer
+      after: [rejoin]
+    - name: final
+      command: final
+      after: [spacer]
+
+common_design: &common_design
+  input_data: "variants.csv"
+  oligo_length_limit: 200
+  maximum_repeat_length: 8
+  random_seed: 42
+
+branch_a:
+  <<: *common_design
+  output_file: "bc_a"
+  barcode_column: "BC_A"
+  # ... barcode params (length, distance, context, motifs, backgrounds)
+
+branch_b:
+  <<: *common_design
+  output_file: "bc_b"
+  barcode_column: "BC_B"
+  # ... barcode params
+
+rejoin:
+  input_data: "bc_a"          # resolves to bc_a.oligopool.barcode.csv
+  other_data: "bc_b"          # resolves to bc_b.oligopool.barcode.csv
+  join_policy: left           # 0/left or 1/right
+  output_file: "bc_ab"
+
+spacer:
+  input_data: "bc_ab"
+  output_file: "bc_ab_spacer"
+  oligo_length_limit: 200
+  maximum_repeat_length: 8
+  spacer_column: "Spacer"
+  left_context_column: "BC_A"
+
+final:
+  input_data: "bc_ab_spacer"
+  output_file: "bc_ab_final"
+```
+
+For a runnable branch+join example, see `examples/cli-yaml-pipeline/mpra_design_parallel.yaml`.
 
 ### Dry Run Validation
 

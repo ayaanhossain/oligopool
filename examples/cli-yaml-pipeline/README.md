@@ -36,6 +36,7 @@ You can also use the helper runner with explicit design vs analysis targets:
 ```bash
 ./run_example.sh design-serial
 ./run_example.sh design-parallel
+./run_example.sh design
 ./run_example.sh analysis-single
 ./run_example.sh analysis-multi
 ./run_example.sh analysis

@@ -71,6 +71,7 @@ barcode_b:
 rejoin:
   input_data: "02_barcode_a"
   other_data: "02_barcode_b"
+  oligo_length_limit: 100
   join_policy: left
   output_file: "03_rejoined"
 

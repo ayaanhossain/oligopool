@@ -129,8 +129,8 @@ def is_parallel_pipeline(config):
     steps = get_pipeline_steps(config)
     if not steps:
         return False
-    # If first step is a dict, it's parallel format
-    return isinstance(steps[0], dict)
+    # If any step is a dict, treat as parallel format (parse_parallel_steps supports mixed lists).
+    return any(isinstance(step, dict) for step in steps)
 
 def parse_parallel_steps(config):
     '''

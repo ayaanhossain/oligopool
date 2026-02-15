@@ -4,7 +4,7 @@
     </a>
 </h1>
 
-<h4><p align="center">Version: 2026.02.08</p></h4>
+<h4><p align="center">Version: 2026.02.15</p></h4>
 
 <p align="center">
   <a href="#features" style="text-decoration: none !important;">✨ Features</a> -
@@ -84,7 +84,7 @@ Successful installation will look like this.
 $ python
 >>> import oligopool as op
 >>> op.__version__
-'2026.02.08'
+'2026.02.15'
 >>>
 ```
 

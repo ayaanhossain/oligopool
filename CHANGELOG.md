@@ -1,11 +1,12 @@
 2026.02.15
-1. Feature (Design Mode): added `join` to recombine two CSVs/DataFrames on `ID` and reconcile parallel branch outputs back into a single design table (backbone column order preserved; only new columns from `other_data` are inserted; ambiguity resolved via `join_policy`).
+1. Feature (Design Mode): added `join` to recombine two CSVs/DataFrames on `ID` and reconcile parallel branch outputs back into a single design table (backbone column order preserved; overlapping columns must match exactly; only new columns from `other_data` are inserted; ambiguity resolved via `join_policy`; post-join length QC enforced via `oligo_length_limit`).
 2. CLI/Pipeline: added `op join` subcommand and YAML pipeline support for `other_data` basename resolution and `.oligopool.join.csv` output suffixing.
 3. Breaking (Analysis outputs): `acount` count matrix headers renamed to singular `BarcodeCount` and `AssociationCount` (previously `BarcodeCounts`/`AssociationCounts`).
 4. Breaking (Analysis outputs): `xcount` count matrix header renamed to singular `CombinatorialCount` (previously `CombinatorialCounts`).
 5. Docs: documented `join` in `docs/docs.md` + `docs/api.md`, updated agent guide (`docs/agent-skills.md`), and added concise per-module output/column-order behavior sketches (including explicit `verify` output columns and count-matrix headers).
 6. Examples: added a runnable parallel-branch design example (`examples/cli-yaml-pipeline/mpra_design_parallel.yaml`) and updated the CLI YAML pipeline README/runner to include `design-parallel` and `design` targets.
 7. Breaking (Primer API/CLI): renamed per-set grouping parameter from `oligo_sets` to `oligo_set` (CLI flag `--oligo-set`).
+8. Bugfix (Pipeline): DAG pipeline detection now treats any dict-style step as parallel, so mixed string+dict step lists no longer crash.
 
 2026.02.09
 1. Docs: added Composability section to `docs/docs.md` with worked Python examples for design composition, constraint composition, analysis composition, degenerate recipes, application templates (MPRA, CRISPR, ribozyme dual-barcode readout), and cheat sheet.

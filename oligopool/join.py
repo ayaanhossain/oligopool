@@ -288,6 +288,21 @@ def join(
             ambiguous_resolutions += 1
 
     # Show Update
+    column_name_printlen = max(
+        map(len, output_columns)) if output_columns else 1
+    inserted_column_set = set(inserted_columns)
+    liner.send(' Joined Column Order:\n')
+    for col in output_columns:
+        if col in inserted_column_set:
+            liner.send(
+                '    - {:>{}} <-- Inserted\n'.format(
+                    col,
+                    column_name_printlen))
+        else:
+            liner.send(
+                '    - {:>{}}\n'.format(
+                    col,
+                    column_name_printlen))
     liner.send(' Join Completed\n')
     liner.send(
         ' Time Elapsed: {:.2f} sec\n'.format(

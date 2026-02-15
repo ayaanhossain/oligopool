@@ -1083,7 +1083,7 @@ df, stats = op.acount(
 **Output columns behavior sketch:**
 ```text
 acount()
-Output columns: <index_name>.ID, BarcodeCounts, AssociationCounts
+Output columns: <index_name>.ID, BarcodeCount, AssociationCount
 ```
 
 **Stuff to Note:**
@@ -1128,7 +1128,7 @@ df, stats = op.xcount(
 **Output columns behavior sketch:**
 ```text
 xcount()
-Output columns: <index1_name>.ID, <index2_name>.ID, ..., CombinatorialCounts
+Output columns: <index1_name>.ID, <index2_name>.ID, ..., CombinatorialCount
 ```
 
 Output includes all observed combinations. Reads missing a barcode show `'-'` for that position.
@@ -2261,7 +2261,7 @@ counts_df, stats = op.xcount(
     pack_file='experiment',
     count_file='combo_counts',
 )
-# Output: columns bc1_idx.ID, bc2_idx.ID, CombinatorialCounts
+# Output: columns bc1_idx.ID, bc2_idx.ID, CombinatorialCount
 # Reads where one barcode is missing show '-' for that position
 ```
 

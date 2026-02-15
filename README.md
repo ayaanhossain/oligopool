@@ -259,6 +259,24 @@ primer:
   # ...
 ```
 
+Example (parallel DAG, best fit for analysis):
+```yaml
+pipeline:
+  name: "Analysis DAG"
+  steps:
+    - name: index_bc1
+      command: index
+    - name: index_bc2
+      command: index
+    - name: pack_reads
+      command: pack
+    - name: count
+      command: xcount
+      after: [index_bc1, index_bc2, pack_reads]
+
+# (Configs for index/pack/xcount omitted here for brevity.)
+```
+
 Why this matters:
 - It keeps long runs readable and diffable (and easy to rerun).
 - It supports both serial design chains and parallel DAG execution for analysis.

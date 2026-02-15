@@ -17,6 +17,7 @@ PACKAGE_DESCRIPTIONS = {
     'spacer': 'neutral fill to reach target length',
     'background': 'k-mer database for off-target screening',
     'merge': 'collapse columns into single element',
+    'join': 'join two tables on ID with ordered insertion',
     'revcomp': 'reverse complement a column range',
     'final': 'concatenate into synthesis-ready oligos',
     # Assembly Mode
@@ -46,6 +47,7 @@ CLI_DESCRIPTIONS = {
     'spacer': 'neutral spacers to meet length targets',
     'background': 'build k-mer background database',
     'merge': 'collapse contiguous columns',
+    'join': 'join two tables on ID',
     'revcomp': 'reverse-complement a column range',
     'final': 'finalize into synthesis-ready oligos',
     # Assembly Mode

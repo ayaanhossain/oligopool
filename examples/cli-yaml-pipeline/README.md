@@ -6,6 +6,7 @@ This directory contains examples of YAML-based pipeline execution for `oligopool
 
 - `variants.csv` - Sample input data (15 promoter variants)
 - `mpra_design_serial.yaml` - Sequential design pipeline example
+- `mpra_design_parallel.yaml` - Parallel-branch design example with `join`
 - `analysis_single.yaml` - Single-sample analysis DAG example (`index` + `pack` -> `xcount`)
 - `analysis_multi.yaml` - Multi-sample analysis DAG (`index once`, `pack/count per sample`)
 
@@ -20,6 +21,9 @@ op pipeline --config mpra_design_serial.yaml --dry-run
 # Execute the pipeline
 op pipeline --config mpra_design_serial.yaml
 
+# Validate parallel-branch design config (dry run)
+op pipeline --config mpra_design_parallel.yaml --dry-run
+
 # Validate analysis DAG config
 op pipeline --config analysis_single.yaml --dry-run
 
@@ -31,6 +35,7 @@ You can also use the helper runner with explicit design vs analysis targets:
 
 ```bash
 ./run_example.sh design-serial
+./run_example.sh design-parallel
 ./run_example.sh analysis-single
 ./run_example.sh analysis-multi
 ./run_example.sh analysis
@@ -64,6 +69,15 @@ Steps: 4
   [4/4] final ... done
 
 Pipeline completed successfully.
+```
+
+## Parallel-Branch Design Pipeline
+
+`mpra_design_parallel.yaml` shows a rare-but-useful pattern: fan out into independent design branches, then
+recombine with `join` into a single annotated table for downstream steps:
+
+```
+primer -> { barcode_a, barcode_b } -> join -> spacer -> final
 ```
 
 ## Analysis Pipeline

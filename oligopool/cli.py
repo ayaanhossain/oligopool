@@ -72,8 +72,8 @@ COMMAND_TO_API = {
     'split': ('split', 'split'),
     'pad': ('pad', 'pad'),
     'merge': ('merge', 'merge'),
-    'join': ('join', 'join'),
     'revcomp': ('revcomp', 'revcomp'),
+    'join': ('join', 'join'),
     'verify': ('verify', 'verify'),
     'lenstat': ('lenstat', 'lenstat'),
     'inspect': ('inspect', 'inspect'),
@@ -2630,6 +2630,13 @@ Path to backbone input CSV with an ID column and DNA sequence columns.''')
         help='''>>[required string]
 Path to second input CSV with the same IDs as --input-data.''')
     req.add_argument(
+        '--oligo-length-limit',
+        required=True,
+        type=int,
+        metavar='\b',
+        help='''>>[required integer]
+Maximum allowed oligo length for the joined design (>= 4).''')
+    req.add_argument(
         '--join-policy',
         required=True,
         type=_parse_type_param,
@@ -3587,6 +3594,7 @@ def main(argv=None):
                 result = join(
                     input_data=args.input_data,
                     other_data=args.other_data,
+                    oligo_length_limit=args.oligo_length_limit,
                     join_policy=args.join_policy,
                     output_file=args.output_file,
                     verbose=args.verbose)

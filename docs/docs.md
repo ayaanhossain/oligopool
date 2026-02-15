@@ -703,6 +703,7 @@ Output: A, C', B', D   (sequences are reverse-complemented; order is reversed)
 df, stats = op.join(
     input_data=df_backbone,
     other_data=df_branch,
+    oligo_length_limit=200,
     join_policy='left',                # or 1 / 'right'
 )
 ```
@@ -722,8 +723,9 @@ then `Spacer` is inserted between `Left` and `Core` (this is unambiguous, so `jo
 **Stuff to Note:**
 - `join` is an inter-table operation (contrast with `merge`/`revcomp`, which operate within one DataFrame).
 - `input_data` and `other_data` must contain the same `ID` set; `join` never creates or drops rows (ID mismatches are an error).
-- Overlapping non-`ID` column names from `other_data` are ignored; backbone columns are preserved (only new columns can be inserted).
+- Overlapping non-`ID` column names from `other_data` must match `input_data` exactly; they are verified then ignored (backbone is preserved).
 - New columns from `other_data` are inserted near their nearest shared anchors; `join_policy` resolves ambiguous placements: `0`/`left` is left-biased, `1`/`right` is right-biased.
+- Post-join QC: if any joined oligo exceeds `oligo_length_limit`, `join` is infeasible and returns no output table.
 - For a CLI/YAML example, see [Parallel Pipeline Execution](#parallel-pipeline-execution) in the Config Files section.
 
 > **API Reference**: See [`join`](api.md#join) for complete parameter documentation.
@@ -1727,6 +1729,7 @@ branch_b:
 rejoin:
   input_data: "bc_a"          # resolves to bc_a.oligopool.barcode.csv
   other_data: "bc_b"          # resolves to bc_b.oligopool.barcode.csv
+  oligo_length_limit: 200
   join_policy: left           # 0/left or 1/right
   output_file: "bc_ab"
 
@@ -1743,7 +1746,7 @@ final:
   output_file: "bc_ab_final"
 ```
 
-For a runnable branch+join example, see `examples/cli-yaml-pipeline/mpra_design_parallel.yaml`.
+For a runnable branch-then-join example, see `examples/cli-yaml-pipeline/mpra_design_parallel.yaml`.
 
 ### Dry Run Validation
 
@@ -2461,6 +2464,7 @@ At analysis time, build two indexes (`BC_molecule`, `BC_state`) and use `xcount(
 | 17 | Pack once, count many | single `pack` → reuse with different indexes/modes |
 | 18 | Cost-efficient mutagenesis | `compress` → order `synthesis_df` |
 | 19 | Selection without barcodes | `compress` → select → map back via `mapping_df` |
+| 20 | Recombine parallel branch outputs | parallel branches → `join` → `verify` |
 
 ### Stuff to Note
 

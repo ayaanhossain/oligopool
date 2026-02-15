@@ -72,6 +72,7 @@ COMMAND_TO_API = {
     'split': ('split', 'split'),
     'pad': ('pad', 'pad'),
     'merge': ('merge', 'merge'),
+    'join': ('join', 'join'),
     'revcomp': ('revcomp', 'revcomp'),
     'verify': ('verify', 'verify'),
     'lenstat': ('lenstat', 'lenstat'),
@@ -483,7 +484,7 @@ class OligopoolParser(argparse.ArgumentParser):
 
         special_lines = {manual_line, cite_line, pipeline_line, inspect_line, complete_line}
         middle_lines = [line for line in command_lines if line not in special_lines]
-        gap_after = {'spacer', 'background', 'pad', 'revcomp', 'verify', 'final', 'expand'}
+        gap_after = {'spacer', 'background', 'pad', 'join', 'verify', 'final', 'expand'}
         middle_out = []
         for line in middle_lines:
             middle_out.append(line)
@@ -978,6 +979,8 @@ def _apply_step_type_conversions(step_config):
         step_config['primer_type'] = _parse_type_param(step_config['primer_type'])
     if 'motif_type' in step_config:
         step_config['motif_type'] = _parse_type_param(step_config['motif_type'])
+    if 'join_policy' in step_config:
+        step_config['join_policy'] = _parse_type_param(step_config['join_policy'])
     if 'cross_barcode_columns' in step_config:
         step_config['cross_barcode_columns'] = _parse_list_str(step_config['cross_barcode_columns'])
     if 'index_files' in step_config:
@@ -1020,6 +1023,7 @@ def _iter_output_targets_for_command(command, step_config):
         'split': (('output_file', '.oligopool.split.csv'),),
         'pad': (('output_file', '.oligopool.pad.csv'),),
         'merge': (('output_file', '.oligopool.merge.csv'),),
+        'join': (('output_file', '.oligopool.join.csv'),),
         'revcomp': (('output_file', '.oligopool.revcomp.csv'),),
         'verify': (('output_file', '.oligopool.verify.csv'),),
         'final': (('output_file', '.oligopool.final.csv'),),
@@ -1128,6 +1132,8 @@ def _get_pipeline_resolvable_input_keys(command):
     Internal use only.
     '''
     keys = {'input_data'}
+    if command == 'join':
+        keys.add('other_data')
     if command == 'index':
         keys.update({'barcode_data', 'associate_data'})
     if command == 'expand':
@@ -2597,6 +2603,51 @@ Right boundary column for merging; defaults to last column if omitted.''')
     _add_common_options(parser, opt)
     return parser
 
+def _add_join(cmdpar):
+    '''Register the join subcommand parser.'''
+    parser = cmdpar.add_parser(
+        'join',
+        help=_CLI_DESC['join'],
+        description='Join two oligo tables by ID and write an output CSV.',
+        epilog=_notes_epilog('join'),
+        usage=argparse.SUPPRESS,
+        formatter_class=OligopoolFormatter,
+        add_help=False)
+    req = parser.add_argument_group('Required Arguments')
+    opt = parser.add_argument_group('Optional Arguments')
+    req.add_argument(
+        '--input-data',
+        required=True,
+        type=str,
+        metavar='\b',
+        help='''>>[required string]
+Path to backbone input CSV with an ID column and DNA sequence columns.''')
+    req.add_argument(
+        '--other-data',
+        required=True,
+        type=str,
+        metavar='\b',
+        help='''>>[required string]
+Path to second input CSV with the same IDs as --input-data.''')
+    req.add_argument(
+        '--join-policy',
+        required=True,
+        type=_parse_type_param,
+        metavar='\b',
+        help='''>>[required int/string]
+Ambiguity resolution policy for intelligent column insertion:
+0 or 'left' = left-biased, 1 or 'right' = right-biased.
+Aliases: 'l', 'r'.''')
+    req.add_argument(
+        '--output-file',
+        required=True,
+        type=str,
+        metavar='\b',
+        help='''>>[required string]
+Output CSV filename. A ".oligopool.join.csv" suffix is added if missing.''')
+    _add_common_options(parser, opt)
+    return parser
+
 def _add_revcomp(cmdpar):
     '''Register the revcomp subcommand parser.'''
     parser = cmdpar.add_parser(
@@ -3321,6 +3372,7 @@ def _get_parsers():
     _add_pad(cmdpar)
     _add_merge(cmdpar)
     _add_revcomp(cmdpar)
+    _add_join(cmdpar)
     _add_lenstat(cmdpar)
     _add_verify(cmdpar)
     _add_final(cmdpar)
@@ -3529,6 +3581,14 @@ def main(argv=None):
                     output_file=args.output_file,
                     left_context_column=args.left_context_column,
                     right_context_column=args.right_context_column,
+                    verbose=args.verbose)
+            case 'join':
+                join = _load_api_func('join')
+                result = join(
+                    input_data=args.input_data,
+                    other_data=args.other_data,
+                    join_policy=args.join_policy,
+                    output_file=args.output_file,
                     verbose=args.verbose)
             case 'revcomp':
                 revcomp = _load_api_func('revcomp')

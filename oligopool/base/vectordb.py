@@ -12,7 +12,7 @@ from . import utils as ut
 
 class vectorDB:
     '''
-    LevelDB based scalable on disk vectorDB for k-mer storage.
+    ShareDB based scalable on disk vectorDB for k-mer storage.
     '''
 
     def __init__(self, path, maximum_repeat_length):
@@ -44,7 +44,7 @@ class vectorDB:
         if not self.PATH.endswith('vectorDB.ShareDB'):
             self.PATH += 'vectorDB.ShareDB'
 
-        # Create/Open LevelDB object
+        # Create/Open ShareDB object
         self.DB = ShareDB(
             path=self.PATH,
             map_size=None)

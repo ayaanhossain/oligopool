@@ -37,7 +37,7 @@ __all__ = ['__author__', '__version__']
 # Setup
 __author__ = 'Ayaan Hossain'
 
-__version__ = '2026.02.16'
+__version__ = '2026.02.17'
 
 _LAZY_ATTRS = {
     # Design Mode functions
@@ -124,7 +124,7 @@ QC Mode - validate and inspect outputs
     inspect     {_PKG_DESC["inspect"]}
 
 Advanced
-    vectorDB    LevelDB k-mer storage
+    vectorDB    ShareDB k-mer storage
     Scry        1-NN barcode classifier
 
 Usage

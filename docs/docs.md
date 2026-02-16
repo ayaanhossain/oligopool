@@ -2498,7 +2498,7 @@ For power users who want to peek under the hood:
 
 [^ Back to TOC](#table-of-contents)
 
-LevelDB-based k-mer storage. Created by `background()`, but you can access it directly.
+ShareDB-based k-mer storage. Created by `background()`, but you can access it directly.
 
 Open or create a database:
 

@@ -1579,7 +1579,8 @@ def get_parsed_column_info(
     iscontext,
     typecontext,
     liner,
-    allow_existing=False):
+    allow_existing=False,
+    skip_cols=None):
     '''
     Determine if col is a valid column in/for df
     depending on col_type. Internal use only.
@@ -1625,6 +1626,11 @@ def get_parsed_column_info(
        type - boolean
        desc - if True, allow output
               column to already exist
+    :: skip_cols
+       type - list / None
+       desc - column names to ignore when
+              computing adjacency and
+              extracting context slices
     '''
 
     col_field = _normalize_field(col_field)
@@ -1732,18 +1738,29 @@ def get_parsed_column_info(
                     col,
                     adjcol))
 
-        # adjcol more than adjval away?
-        elif adj_idx - col_idx != adjval:
-            liner.send(
-                '{}: {} \'{}\' [COLUMN \'{}\' NON-ADJACENT]\n'.format(
-                    col_field,
-                    col_desc,
-                    col,
-                    adjcol))
-
-        # All conditions met!
         else:
-            col_is_adjacent = True
+            # Compute effective adjacency, skipping over specified columns
+            effective_adj_idx = adj_idx
+            effective_col_idx = col_idx
+            if skip_cols:
+                # Recompute indices in a column list that excludes skip_cols
+                remaining_cols = [c for c in df.columns if c not in skip_cols]
+                if col in remaining_cols and adjcol in remaining_cols:
+                    effective_col_idx = remaining_cols.index(col)
+                    effective_adj_idx = remaining_cols.index(adjcol)
+
+            # adjcol more than adjval away?
+            if effective_adj_idx - effective_col_idx != adjval:
+                liner.send(
+                    '{}: {} \'{}\' [COLUMN \'{}\' NON-ADJACENT]\n'.format(
+                        col_field,
+                        col_desc,
+                        col,
+                        adjcol))
+
+            # All conditions met!
+            else:
+                col_is_adjacent = True
 
     else:
         col_is_adjacent = True
@@ -1786,6 +1803,10 @@ def get_parsed_column_info(
                     parsedcol = df.loc[:, :col]
                 else:                # Right Context
                     parsedcol = df.loc[:, col:]
+                # Drop skip_cols from context slice (e.g., barcode column in patch_mode)
+                if skip_cols:
+                    parsedcol = parsedcol.drop(
+                        columns=[c for c in skip_cols if c in parsedcol.columns])
                 # Robust to allowed missing values in output columns (Patch Mode fills):
                 # treat NaN/None as empty during context concatenation.
                 parsedcol = parsedcol.fillna('')
@@ -2262,7 +2283,7 @@ def get_parsed_exseqs_info(
     # Return Results
     return (exseqs, df_valid)
 
-def _get_exmotif_source_label(source, idx):
+def get_exmotif_source_label(source, idx):
     '''
     Generate a display label for an exmotif source.
     Internal use only.
@@ -2402,7 +2423,7 @@ def get_parsed_exmotifs(
 
         # Build single exmotif_inputs entry
         if isinstance(exmotifs, str):
-            label = _get_exmotif_source_label(
+            label = get_exmotif_source_label(
                 source=exmotifs, idx=1)
         elif isinstance(exmotifs, pd.DataFrame):
             label = 'DataFrame'
@@ -2450,7 +2471,7 @@ def get_parsed_exmotifs(
                         exmotifs_field, m))
                 return (None, False, None)
 
-        label = name if name else _get_exmotif_source_label(
+        label = name if name else get_exmotif_source_label(
             source=sources[0][1], idx=1)
         exmotif_inputs = [{
             'name':        name,
@@ -2479,7 +2500,7 @@ def get_parsed_exmotifs(
     for idx, (name, source) in enumerate(sources, 1):
 
         # Determine label BEFORE pre-processing
-        label = name if name else _get_exmotif_source_label(
+        label = name if name else get_exmotif_source_label(
             source=source, idx=idx)
 
         # Pre-process comma-strings within each source

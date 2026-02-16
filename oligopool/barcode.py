@@ -227,6 +227,11 @@ def barcode(
     leftcontextname  = leftcontext
     rightcontextname = rightcontext
 
+    # Normalize crosscols input early so skip_cols handling treats
+    # string and list forms equivalently during context parsing.
+    if isinstance(cross_cols, str):
+        cross_cols = [cross_cols]
+
     # Build skip_cols for adjacency: skip over the barcode column (and any
     # cross-barcode columns) when checking whether left/right contexts are
     # adjacent — these designed columns may sit between the contexts in the
@@ -279,10 +284,6 @@ def barcode(
         liner=liner,
         flag_on=patch_mode_on,
         flag_valid=patch_mode_valid)
-
-    # Normalize crosscols input
-    if isinstance(cross_cols, str):
-        cross_cols = [cross_cols]
 
     # Full crosscols Parsing and Validation
     (cross_cols,

@@ -4,7 +4,7 @@
     </a>
 </h1>
 
-<h4><p align="center">Version: 2026.02.16</p></h4>
+<h4><p align="center">Version: 2026.02.17</p></h4>
 
 <p align="center">
   <a href="#features" style="text-decoration: none !important;">✨ Features</a> -
@@ -84,7 +84,7 @@ Successful installation will look like this.
 $ python
 >>> import oligopool as op
 >>> op.__version__
-'2026.02.16'
+'2026.02.17'
 >>>
 ```
 
@@ -177,7 +177,7 @@ Run `op` with no arguments to see the command list, and run `op COMMAND` to see 
 ```bash
 $ op
 
-oligopool v2026.02.16
+oligopool v2026.02.17
 by ah
 
 Oligopool Calculator is a suite of algorithms for

@@ -1589,8 +1589,8 @@ v3,TTAACCGGTTAACCGG
 | `.oligopool.split.csv` | `split` | Split-fragment library |
 | `.oligopool.pad.csv` | `pad` | Padded fragment library |
 | `.oligopool.merge.csv` | `merge` | Merged element library |
-| `.oligopool.join.csv` | `join` | Joined element library |
 | `.oligopool.revcomp.csv` | `revcomp` | Reverse-complemented library |
+| `.oligopool.join.csv` | `join` | Joined element library |
 | `.oligopool.final.csv` | `final` | Synthesis-ready library |
 | `.oligopool.verify.csv` | `verify` | Verification report table |
 | `.oligopool.expand.csv` | `expand` | Expanded concrete-sequence library |

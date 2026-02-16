@@ -145,7 +145,7 @@ $ python
         inspect     inspect background/index/pack artifacts
 
     Advanced
-        vectorDB    LevelDB k-mer storage
+        vectorDB    ShareDB k-mer storage
         Scry        1-NN barcode classifier
 
     Usage

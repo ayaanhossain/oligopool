@@ -50,7 +50,7 @@ Five modes (library + CLI):
 ## Core Data Contract
 
 - `input_data` is either a CSV path or a `pd.DataFrame`.
-- A unique `ID` column is required across the library (primary key).
+- A unique column named `ID` is required (primary key); this exact column name is enforced.
 - Sequence columns are DNA strings by default (A/T/G/C). Some workflows may
   introduce IUPAC-degenerate columns (notably Degenerate Mode); check
   `docs/api.md` for each module's accepted alphabet.

@@ -201,6 +201,12 @@ def motif(
     leftcontextname  = leftcontext
     rightcontextname = rightcontext
 
+    # Build skip_cols: skip over the motif column when checking adjacency
+    _skip = set()
+    if motifcol and isinstance(motifcol, str) and motifcol in indf.columns:
+        _skip.add(motifcol)
+    _skip_cols = list(_skip) if _skip else None
+
     # Full leftcontext Parsing and Validation
     (leftcontext,
     leftcontext_valid) = vp.get_parsed_column_info(
@@ -213,9 +219,10 @@ def motif(
         adjval=+1,
         iscontext=True,
         typecontext=0,
-        liner=liner)
+        liner=liner,
+        skip_cols=_skip_cols)
 
-    # Full leftcontext Parsing and Validation
+    # Full rightcontext Parsing and Validation
     (rightcontext,
     rightcontext_valid) = vp.get_parsed_column_info(
         col=rightcontext,
@@ -227,7 +234,8 @@ def motif(
         adjval=-1,
         iscontext=True,
         typecontext=1,
-        liner=liner)
+        liner=liner,
+        skip_cols=_skip_cols)
 
     # Patch mode parsing (printed after context args; evaluated earlier for indata handling)
     vp.get_parsed_flag_info(

@@ -235,6 +235,12 @@ def primer(
     leftcontextname  = leftcontext
     rightcontextname = rightcontext
 
+    # Build skip_cols: skip over the primer column when checking adjacency
+    _skip = set()
+    if primercol and isinstance(primercol, str) and primercol in indf.columns:
+        _skip.add(primercol)
+    _skip_cols = list(_skip) if _skip else None
+
     # Full leftcontext Parsing and Validation
     (leftcontext,
     leftcontext_valid) = vp.get_parsed_column_info(
@@ -247,9 +253,10 @@ def primer(
         adjval=+1,
         iscontext=True,
         typecontext=0,
-        liner=liner)
+        liner=liner,
+        skip_cols=_skip_cols)
 
-    # Full leftcontext Parsing and Validation
+    # Full rightcontext Parsing and Validation
     (rightcontext,
     rightcontext_valid) = vp.get_parsed_column_info(
         col=rightcontext,
@@ -261,7 +268,8 @@ def primer(
         adjval=-1,
         iscontext=True,
         typecontext=1,
-        liner=liner)
+        liner=liner,
+        skip_cols=_skip_cols)
 
     # Patch mode parsing (printed after context args; evaluated earlier for indata handling)
     vp.get_parsed_flag_info(

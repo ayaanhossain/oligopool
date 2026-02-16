@@ -227,6 +227,19 @@ def barcode(
     leftcontextname  = leftcontext
     rightcontextname = rightcontext
 
+    # Build skip_cols for adjacency: skip over the barcode column (and any
+    # cross-barcode columns) when checking whether left/right contexts are
+    # adjacent — these designed columns may sit between the contexts in the
+    # user's DataFrame without breaking the physical oligo layout.
+    _skip = set()
+    if barcodecol and isinstance(barcodecol, str) and barcodecol in indf.columns:
+        _skip.add(barcodecol)
+    if isinstance(cross_cols, list):
+        for _cc in cross_cols:
+            if isinstance(_cc, str) and _cc in indf.columns:
+                _skip.add(_cc)
+    _skip_cols = list(_skip) if _skip else None
+
     # Full leftcontext Parsing and Validation
     (leftcontext,
     leftcontext_valid) = vp.get_parsed_column_info(
@@ -239,9 +252,10 @@ def barcode(
         adjval=+1,
         iscontext=True,
         typecontext=0,
-        liner=liner)
+        liner=liner,
+        skip_cols=_skip_cols)
 
-    # Full leftcontext Parsing and Validation
+    # Full rightcontext Parsing and Validation
     (rightcontext,
     rightcontext_valid) = vp.get_parsed_column_info(
         col=rightcontext,
@@ -253,7 +267,8 @@ def barcode(
         adjval=-1,
         iscontext=True,
         typecontext=1,
-        liner=liner)
+        liner=liner,
+        skip_cols=_skip_cols)
 
     # Patch mode parsing (printed after context args; evaluated earlier for indata handling)
     vp.get_parsed_flag_info(

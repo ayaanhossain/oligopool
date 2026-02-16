@@ -1406,7 +1406,7 @@ op inspect --target reads.oligopool.pack --stats-json --quiet
 
 [^ Back to TOC](#table-of-contents)
 
-**Purpose**: LevelDB-based k-mer storage. Created by `background()`, accessible directly for custom workflows.
+**Purpose**: ShareDB-based k-mer storage. Created by `background()`, accessible directly for custom workflows.
 
 **Constructor**:
 ```python

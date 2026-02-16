@@ -20,6 +20,9 @@ Agent policy: start with this guide, then explore only the minimum additional do
 `docs/api.md` for exact signatures/allowed values,
 `docs/docs.md` for workflows,
 and then module docstrings (`help(op.<module>)` in Python or `op manual <COMMAND>` in CLI) for runtime truth.
+Use the example notebook strategically when the task needs experimental context (for example assay framing,
+callback usage patterns, end-to-end interpretation, or practical tool-use intuition), rather than as default
+reading for every request.
 
 ## Surface Area
 

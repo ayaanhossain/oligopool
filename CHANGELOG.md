@@ -5,6 +5,7 @@
 4. Docs/Examples: reran `examples/OligopoolCalculatorInAction.ipynb` for `v2026.02.16`.
 5. Docs/Examples: updated notebook execution date metadata in `examples/OligopoolCalculatorInAction.ipynb`.
 6. Docs/Examples: updated the Conclusion section in `examples/OligopoolCalculatorInAction.ipynb`.
+7. Docs (`docs/api.md`): corrected output-artifact table ordering so `.oligopool.revcomp.csv` and `.oligopool.join.csv` appear in the intended sequence.
 
 2026.02.15
 1. Feature (Design Mode): added `join` to recombine two CSVs/DataFrames on `ID` and reconcile parallel branch outputs back into a single design table (backbone column order preserved; overlapping columns must match exactly; only new columns from `other_data` are inserted; ambiguity resolved via `join_policy`; post-join length QC enforced via `oligo_length_limit`).

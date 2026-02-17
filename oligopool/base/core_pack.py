@@ -1438,7 +1438,7 @@ def pack_aggregator(
         filepath=mpath)
 
     # Clear Line
-    liner.send(' \r')
+    liner.send(' ')
 
     # Enqueue Pack Path and Done!
     packqueue.put(mpath)

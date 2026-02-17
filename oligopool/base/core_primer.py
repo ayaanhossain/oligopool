@@ -211,7 +211,7 @@ def get_parsed_sequence_constraint(
         seqconstr=primerseq)
 
     # Design Space Analysis
-    liner.send(' Computing Design Space ...\r')
+    liner.send(' Computing Design Space ...')
 
     dspace = 1
     for nt in primerseq:
@@ -234,7 +234,7 @@ def get_parsed_sequence_constraint(
                 sntn))
 
     # Exmotifs Analysis
-    liner.send(' Computing Motif Conflicts ...\r')
+    liner.send(' Computing Motif Conflicts ...')
 
     motif_ok, excludedmotifs = ut.get_exmotif_conflict(
         seq=primerseq,
@@ -285,7 +285,7 @@ def get_parsed_sequence_constraint(
             ' Found 0 Excluded Motif(s)\n')
 
     # Region Analysis
-    liner.send(' Computing Constant Regions ...\r')
+    liner.send(' Computing Constant Regions ...')
 
     # Compute Constant Regions
     regions = ut.get_constant_regions(
@@ -297,7 +297,7 @@ def get_parsed_sequence_constraint(
                        max(map(len, regions)) + 1)
 
     # Internal Repeat Analysis
-    liner.send(' Computing Internal Repeat Conflicts ...\r')
+    liner.send(' Computing Internal Repeat Conflicts ...')
 
     # Compute Internal Repeats
     (repeat_ok,
@@ -325,7 +325,7 @@ def get_parsed_sequence_constraint(
             ' Found 0 Internal Repeat(s)\n')
 
     # Palindrome Analysis
-    liner.send(' Computing Palindrome Conflicts ...\r')
+    liner.send(' Computing Palindrome Conflicts ...')
 
     # Update Warning Entry
     warn['vars'] = {'palindrome_embedded': set()}
@@ -361,7 +361,7 @@ def get_parsed_sequence_constraint(
 
     # Maximum Paired Repeat Analysis
     if not pairedprimer is None:
-        liner.send(' Computing Paired Repeat Conflicts ...\r')
+        liner.send(' Computing Paired Repeat Conflicts ...')
 
         (repeat_ok,
         pairedrepeats) = get_paired_repeat_conflicts(
@@ -480,7 +480,7 @@ def get_primer_tmelt_bounds(
     posmaxTm = float('-inf')
 
     # Estimate Tm Range
-    liner.send(' Estimating Feasible Melting Temperature Range ...\r')
+    liner.send(' Estimating Feasible Melting Temperature Range ...')
 
     # Estimate Minimum Feasible Tm
     for _ in range(100 * len(primerseq)):
@@ -491,7 +491,7 @@ def get_primer_tmelt_bounds(
         posminTm = min(posminTm, ut.get_tmelt(
             seq=minprimer))
         liner.send(
-            ' Estimated Minimum Tm: {:.2f} °C\r'.format(
+            ' Estimated Minimum Tm: {:.2f} °C'.format(
                 posminTm))
 
     # Estimate Maximum Feasible Tm
@@ -503,7 +503,7 @@ def get_primer_tmelt_bounds(
         posmaxTm = max(posmaxTm, ut.get_tmelt(
             seq=maxprimer))
         liner.send(
-            ' Estimated Maximum Tm: {:.2f} °C\r'.format(
+            ' Estimated Maximum Tm: {:.2f} °C'.format(
                 posmaxTm))
 
     # Show Update
@@ -752,7 +752,7 @@ def get_parsed_splitcol(
                                     # available on terminii
 
     # Show Update
-    liner.send(' Analyzing Split Fragments ...\r')
+    liner.send(' Analyzing Split Fragments ...')
 
     # Compute Properties
     fragments = set(splitcol)

@@ -7,12 +7,9 @@
 6. Style (Validation): `get_parsed_cross_barcode_info` now materializes any iterable `crosscols` input early via `hasattr(__iter__)`, matching the `get_parsed_exmotifs` pattern; downstream `isinstance` checks simplified to `list`.
 7. Docs: updated stale `LevelDB` references to `ShareDB` across `__init__.py`, `README.md`, `docs/docs.md`, `docs/api.md`, and `vectordb.py`.
 8. Docs (`docs/agent-skills.md`): clarified that the `ID` column is a literal required column name, not a conceptual description.
-9. Style (Liner): `liner_engine` pipe-mode filter now keys on `\r` presence (suppress) instead of `\n` presence (pass); all ephemeral `liner.send()` progress messages across core modules tagged with trailing `\r` so pipe-mode consumers see only persistent output.
+9. Fix (Liner): `liner_engine` pipe mode now buffers the last ephemeral line and flushes it with `\n` when a `|*` retention tag arrives, so pipe consumers see the retained line just as TTY users do; made `barcode.py` "Preparing" progress lines ephemeral (removed stale `\n`).
 10. Style (Motif): fixed stale comments in `motif.py` — "Step 2 Warning" → "Step 3 Warning", "Parse primerseq" → "Parse motifseq".
 11. Style (Barcode): deferred Existing Set Size and Cross Set Size printouts so both right-align via shared `plen`; colons already aligned at the same column.
-12. Fix (Liner): changed three concrete-finding `liner.send()` calls from ephemeral (`\r`) to persistent (`\n`): Left/Right Context prefix/suffix prevention counts in `utils.py` and Index Unique Count in `core_split.py`.
-13. Fix (Liner): pipe-mode branch now appends `\n` to persistent output that lacks a trailing newline, ensuring each line is flushed individually.
-14. Fix (Motif): added missing `\r` to ephemeral per-variant spacer allowance print in `core_motif.py` so it is properly tagged for TTY overwrite and pipe-mode suppression.
 
 2026.02.16
 1. Chore: version bump to `v2026.02.16`.

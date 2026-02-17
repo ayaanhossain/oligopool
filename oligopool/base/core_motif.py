@@ -247,7 +247,7 @@ def get_extracted_spacerlen(
 
         # Show Update
         liner.send(
-            ' Variant {:>{}}: Allows {:,} Base Pair Spacer'.format(
+            ' Variant {:>{}}: Allows {:,} Base Pair Spacer\r'.format(
                 str(indf.index[idx]),
                 plen,
                 spacerlen[idx]))

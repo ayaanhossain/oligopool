@@ -10,6 +10,7 @@
 9. Style (Liner): `liner_engine` pipe-mode filter now keys on `\r` presence (suppress) instead of `\n` presence (pass); all ephemeral `liner.send()` progress messages across core modules tagged with trailing `\r` so pipe-mode consumers see only persistent output.
 10. Style (Motif): fixed stale comments in `motif.py` — "Step 2 Warning" → "Step 3 Warning", "Parse primerseq" → "Parse motifseq".
 11. Style (Barcode): deferred Existing Set Size and Cross Set Size printouts so both right-align via shared `plen`; colons already aligned at the same column.
+12. Fix (Liner): changed three concrete-finding `liner.send()` calls from ephemeral (`\r`) to persistent (`\n`): Left/Right Context prefix/suffix prevention counts in `utils.py` and Index Unique Count in `core_split.py`.
 
 2026.02.16
 1. Chore: version bump to `v2026.02.16`.

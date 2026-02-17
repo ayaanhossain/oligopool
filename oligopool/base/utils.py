@@ -2596,7 +2596,7 @@ def get_parsed_edgeeffects(
 
             # Show Update
             liner.send(
-                '  Left Context {:{},d}: {:.>{}} Prevents {:,} Prefix(es)\r'.format(
+                '  Left Context {:{},d}: {:.>{}} Prevents {:,} Prefix(es)\n'.format(
                     len(prefixdict),
                     plen,
                     lcseq,
@@ -2676,7 +2676,7 @@ def get_parsed_edgeeffects(
 
             # Show Update
             liner.send(
-                ' Right Context {:{},d}: {:.<{}} Prevents {:,} Suffix(es)\r'.format(
+                ' Right Context {:{},d}: {:.<{}} Prevents {:,} Suffix(es)\n'.format(
                     len(suffixdict),
                     plen,
                     rcseq,

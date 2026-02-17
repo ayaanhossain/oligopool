@@ -297,7 +297,7 @@ def join(
     for col in output_columns:
         if col in inserted_column_set:
             liner.send(
-                '    - {:>{}} <-- Inserted\n'.format(
+                '   - {:>{}} <-- Inserted\n'.format(
                     col,
                     column_name_printlen))
         else:

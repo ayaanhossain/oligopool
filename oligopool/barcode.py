@@ -800,10 +800,6 @@ def barcode(
             crosscols=[barcodecol],
             barcodelen=barcodelen,
             minhdist=minhdist)
-        liner.send(
-            ' Existing Set Size: {:,} Unique Barcode(s)\n'.format(
-                existing_set_size))
-
     # Cross-set constraints setup (if enabled)
     cross_store_plus = None
     cross_contigsize = None
@@ -821,9 +817,19 @@ def barcode(
             barcodelen=barcodelen,
             minhdist=cross_mind)
         stats['vars']['cross_set_size'] = cross_set_size
-        liner.send(
-            '    Cross Set Size: {:,} Unique Barcode(s)\n'.format(
-                cross_set_size))
+
+    # Report set sizes (deferred so plen aligns both)
+    if existing_set_size or cross_set_size:
+        plen_set = ut.get_printlen(
+            value=max(existing_set_size, cross_set_size))
+        if existing_set_size:
+            liner.send(
+                ' Existing Set Size: {:{},d} Unique Barcode(s)\n'.format(
+                    existing_set_size, plen_set))
+        if cross_set_size:
+            liner.send(
+                '    Cross Set Size: {:{},d} Unique Barcode(s)\n'.format(
+                    cross_set_size, plen_set))
 
     # Design Barcodes
     (codes,

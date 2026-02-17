@@ -3,8 +3,9 @@
 2. Bugfix (Design Mode): context-column adjacency check and context-sequence extraction now skip over previously-designed output columns (`barcode_column`, `spacer_column`, `motif_column`, `primer_column`, and `cross_barcode_columns`) so that multi-step design pipelines no longer falsely reject adjacent context columns or contaminate flanking-sequence concatenation when a designed column sits between the left and right contexts in the DataFrame.
 3. Bugfix (Barcode): moved `cross_cols` string-to-list normalization before `skip_cols` construction so a single-string `cross_cols` is no longer iterated character-by-character when building the adjacency skip set.
 4. Style: unified `isinstance` guard in `barcode.py` skip-cols construction to match `motif.py`, `spacer.py`, and `primer.py`; added missing `skip_cols` docstring entry to `get_parsed_column_info`.
-5. Docs: updated stale `LevelDB` references to `ShareDB` across `__init__.py`, `README.md`, `docs/docs.md`, `docs/api.md`, and `vectordb.py`.
-6. Docs (`docs/agent-skills.md`): clarified that the `ID` column is a literal required column name, not a conceptual description.
+5. Style (Barcode): `cross_cols` skip-set guard now uses `hasattr(__iter__)` iterable detection (matching `get_parsed_exmotifs` pattern) instead of `isinstance(list, tuple)`.
+6. Docs: updated stale `LevelDB` references to `ShareDB` across `__init__.py`, `README.md`, `docs/docs.md`, `docs/api.md`, and `vectordb.py`.
+7. Docs (`docs/agent-skills.md`): clarified that the `ID` column is a literal required column name, not a conceptual description.
 
 2026.02.16
 1. Chore: version bump to `v2026.02.16`.

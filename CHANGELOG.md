@@ -12,6 +12,7 @@
 11. Style (Barcode): deferred Existing Set Size and Cross Set Size printouts so both right-align via shared `plen`; colons already aligned at the same column.
 12. Fix (Liner): changed three concrete-finding `liner.send()` calls from ephemeral (`\r`) to persistent (`\n`): Left/Right Context prefix/suffix prevention counts in `utils.py` and Index Unique Count in `core_split.py`.
 13. Fix (Liner): pipe-mode branch now appends `\n` to persistent output that lacks a trailing newline, ensuring each line is flushed individually.
+14. Fix (Motif): added missing `\r` to ephemeral per-variant spacer allowance print in `core_motif.py` so it is properly tagged for TTY overwrite and pipe-mode suppression.
 
 2026.02.16
 1. Chore: version bump to `v2026.02.16`.

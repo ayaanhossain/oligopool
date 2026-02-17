@@ -791,7 +791,7 @@ def barcode(
        barcodecol_exists and \
        existing_mask is not None and \
        existing_mask.any():
-        liner.send(' Preparing Existing Barcodes ...\r')
+        liner.send(' Preparing Existing Barcodes ...')
         (existing_store_plus,
         existing_set_size,
         existing_contigsize,
@@ -807,7 +807,7 @@ def barcode(
     cross_set_size = 0
 
     if not cross_cols is None:
-        liner.send(' Preparing Cross Barcodes ...\r')
+        liner.send(' Preparing Cross Barcodes ...')
         (cross_store_plus,
         cross_set_size,
         cross_contigsize,

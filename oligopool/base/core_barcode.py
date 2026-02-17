@@ -247,7 +247,7 @@ def show_update(
     else:
         design = barcodeseq
 
-    liner.send(' Candidate {:{},d}: Barcode {} is {}{}\r'.format(
+    liner.send(' Candidate {:{},d}: Barcode {} is {}{}'.format(
         count,
         plen,
         design,
@@ -841,7 +841,7 @@ def get_distro(
         value=count)
 
     # Show Update
-    liner.send(' Selecting Samples ...\r')
+    liner.send(' Selecting Samples ...')
 
     # Select Samples
     if threshold < count:
@@ -865,14 +865,14 @@ def get_distro(
 
         # Show Update
         liner.send(
-            ' Candidate {:{},d}: Pairwise Distance >= {:,} Mismatches\r'.format(
+            ' Candidate {:{},d}: Pairwise Distance >= {:,} Mismatches'.format(
                 idxsample[idx]+1, plen, hdist))
 
         # Add to Distribution
         hammingdistro[hdist] += 1
 
     # Normalize Distribution
-    liner.send('|* Normalizing Distribution ...\r')
+    liner.send('|* Normalizing Distribution ...')
     normhammingdistro = []
     for hdist in hammingdistro:
         percentage = (100. * hammingdistro[hdist]) / threshold

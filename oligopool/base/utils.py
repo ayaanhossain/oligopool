@@ -541,6 +541,7 @@ def liner_engine(online=True):
                 # Pipe Mode: suppress ephemeral lines (contain \r);
                 # treat everything else as persistent output
                 elif not '\r' in printstr:
+                    printstr = printstr + '\n' if not printstr.endswith('\n') else printstr
                     sys.stdout.write(printstr)
                     sys.stdout.flush()
 

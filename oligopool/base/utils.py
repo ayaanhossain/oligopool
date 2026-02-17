@@ -531,10 +531,11 @@ def liner_engine(online=True):
                     sys.stdout.write('\r' + ' '*clrlen)
                     sys.stdout.write('\r' + printstr)
                     # Only track length after last newline for proper clearing
-                    if '\n' in printstr:
-                        clrlen = len(printstr.rsplit('\n', 1)[-1])
+                    cleanstr = printstr.rstrip('\r')
+                    if '\n' in cleanstr:
+                        clrlen = len(cleanstr.rsplit('\n', 1)[-1])
                     else:
-                        clrlen = len(printstr)
+                        clrlen = len(cleanstr)
                     sys.stdout.flush()
 
                 # Pipe Mode: suppress ephemeral lines (contain \r);

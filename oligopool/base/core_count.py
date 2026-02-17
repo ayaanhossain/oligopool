@@ -228,7 +228,7 @@ def get_parsed_callback(
     t0 = tt.time()
 
     # Show Update
-    liner.send(' Loading Read Generators ...')
+    liner.send(' Loading Read Generators ...\r')
 
     # Get Meta Information
     (packzero,
@@ -349,7 +349,7 @@ def pack_loader(
     t0 = tt.time()
 
     # Show Update
-    liner.send(' Loading Read Packs ...')
+    liner.send(' Loading Read Packs ...\r')
 
     # Open Archive
     archive = ut.get_archive(
@@ -1066,7 +1066,7 @@ def get_failed_inputs(
 
     # Show Update
     liner.send(
-        ' Emptying Pack Queue ...')
+        ' Emptying Pack Queue ...\r')
 
     # Consume Pack Queue
     for item in packqueue.multiget():
@@ -1074,7 +1074,7 @@ def get_failed_inputs(
 
     # Show Update
     liner.send(
-        ' Extracting Failed Input(s) ...')
+        ' Extracting Failed Input(s) ...\r')
 
     # Aggregate Callback Dumps
     failedinputs = []
@@ -1163,7 +1163,7 @@ def count_aggregator(
         # Show Updates
         if prodactive and \
            prodactive.value() == 0:
-            liner.send(' Aggregating: {}'.format(fname))
+            liner.send(' Aggregating: {}\r'.format(fname))
 
         # Update Batch
         while countlist:
@@ -1226,7 +1226,7 @@ def write_count(
     t0 = tt.time()
 
     # Show Update
-    liner.send(' Loading IDs ...')
+    liner.send(' Loading IDs ...\r')
 
     # Load IDdicts
     for indexfile in indexfiles:
@@ -1250,7 +1250,7 @@ def write_count(
         indexfile.close()
 
     # Show Update
-    liner.send(' Writing Count Matrix ...')
+    liner.send(' Writing Count Matrix ...\r')
 
     # Define CountDB file
     countdb = '{}/countdb'.format(
@@ -1312,7 +1312,7 @@ def write_count(
             entrycount))
 
     # Read Back the CSV
-    liner.send(' Reading Count Matrix ...')
+    liner.send(' Reading Count Matrix ...\r')
     df = pd.read_csv(countfile)
 
     # Show Time Elapsed
@@ -2554,7 +2554,7 @@ def write_failed_reads(samples, seen_counts, filepath, liner):
     t0 = tt.time()
 
     # Show Update
-    liner.send(' Writing Failed Reads ...')
+    liner.send(' Writing Failed Reads ...\r')
 
     # Count total rows
     total_rows = sum(len(cat_samples) for cat_samples in samples.values())

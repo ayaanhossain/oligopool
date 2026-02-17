@@ -537,10 +537,9 @@ def liner_engine(online=True):
                         clrlen = len(printstr)
                     sys.stdout.flush()
 
-                # Pipe Mode: only emit persistent lines (contain \n)
-                # to avoid flooding non-TTY consumers with ephemeral
-                # carriage-return progress updates
-                elif '\n' in printstr:
+                # Pipe Mode: suppress ephemeral lines (contain \r);
+                # treat everything else as persistent output
+                elif not '\r' in printstr:
                     sys.stdout.write(printstr)
                     sys.stdout.flush()
 
@@ -1564,7 +1563,7 @@ def get_parsed_oligolimit(
     t0 = tt.time()
 
     # Compute Variant Lengths
-    liner.send(' Parsing Variant Lengths ...')
+    liner.send(' Parsing Variant Lengths ...\r')
 
     if variantlens is None:
         variantlens = get_variantlens(indf=indf)
@@ -1730,14 +1729,14 @@ def get_parsed_oligopool_repeats(
         maxreplen+1))
 
     # Extract Repeats
-    liner.send(' Extracting Repeats ...')
+    liner.send(' Extracting Repeats ...\r')
 
     for idx,oligo in enumerate(get_df_concat(df=df)):
 
         # Show Update
         if (idx+1) % 1000 == 0:
             liner.send(
-                ' Extracting Repeats: Processed {:,} Sequences'.format(
+                ' Extracting Repeats: Processed {:,} Sequences\r'.format(
                     idx+1))
 
         # Store Repeats
@@ -1931,7 +1930,7 @@ def get_parsed_exmotifs(
     t0 = tt.time()
 
     # Sort Enque all motifs by length
-    liner.send(' Sorting and Enqueing Excluded Motif(s) ...')
+    liner.send(' Sorting and Enqueing Excluded Motif(s) ...\r')
 
     exmotifs = sorted(exmotifs, key=len)
     dq = typer(exmotifs)
@@ -1940,7 +1939,7 @@ def get_parsed_exmotifs(
         len(exmotifs)))
 
     # Check motif feasibility
-    liner.send(' Computing Excluded Motif Length Distribution ...')
+    liner.send(' Computing Excluded Motif Length Distribution ...\r')
 
     # Compute length distribution
     cr = cx.Counter(len(m) for m in dq)
@@ -1981,14 +1980,14 @@ def get_parsed_exmotifs(
        (not rightcontext is None):
 
         # Show Update
-        liner.send(' Left Partitioning Excluded Motif(s) ...')
+        liner.send(' Left Partitioning Excluded Motif(s) ...\r')
 
         # Right Partition exmotifs
         leftpartition = get_exmotif_partition(
             exmotifs=exmotifs)
 
         # Show Update
-        liner.send(' Right Partitioning Excluded Motif(s) ...')
+        liner.send(' Right Partitioning Excluded Motif(s) ...\r')
 
         # Right Partition exmotifs
         rightpartition = get_inverted_exmotif_partition(
@@ -2001,14 +2000,14 @@ def get_parsed_exmotifs(
 
         # Detect Potentially Blocked Left Exmotifs
         if not leftcontext is None:
-            liner.send(' Detecting Blocked Excluded Motif Prefix(es) ...')
+            liner.send(' Detecting Blocked Excluded Motif Prefix(es) ...\r')
             for prefix,suffixes in leftpartition.items():
                 if is_right_blocked(suffixes=suffixes):
                     warn['vars']['exmotif_prefix_group'].add(prefix)
 
         # Detect Potentially Blocked Right Exmotifs
         if not rightcontext is None:
-            liner.send(' Detecting Blocked Excluded Motif Suffix(es) ...')
+            liner.send(' Detecting Blocked Excluded Motif Suffix(es) ...\r')
             for suffix,prefixes in rightpartition.items():
                 if is_left_blocked(prefixes=prefixes):
                     warn['vars']['exmotif_suffix_group'].add(suffix)
@@ -2530,7 +2529,7 @@ def get_parsed_edgeeffects(
     if leftcontext:
 
         # Show Updates
-        liner.send(' Parsing Left Context ...')
+        liner.send(' Parsing Left Context ...\r')
 
         # Define Prefix Dict
         prefixdict = cx.defaultdict(lambda: cx.defaultdict(set))
@@ -2596,7 +2595,7 @@ def get_parsed_edgeeffects(
 
             # Show Update
             liner.send(
-                '  Left Context {:{},d}: {:.>{}} Prevents {:,} Prefix(es)'.format(
+                '  Left Context {:{},d}: {:.>{}} Prevents {:,} Prefix(es)\r'.format(
                     len(prefixdict),
                     plen,
                     lcseq,
@@ -2610,7 +2609,7 @@ def get_parsed_edgeeffects(
     if rightcontext:
 
         # Show Updates
-        liner.send(' Parsing Right Context ...')
+        liner.send(' Parsing Right Context ...\r')
 
         # Define Suffix Dict
         suffixdict = cx.defaultdict(lambda: cx.defaultdict(set))
@@ -2676,7 +2675,7 @@ def get_parsed_edgeeffects(
 
             # Show Update
             liner.send(
-                ' Right Context {:{},d}: {:.<{}} Prevents {:,} Suffix(es)'.format(
+                ' Right Context {:{},d}: {:.<{}} Prevents {:,} Suffix(es)\r'.format(
                     len(suffixdict),
                     plen,
                     rcseq,
@@ -2690,7 +2689,7 @@ def get_parsed_edgeeffects(
     if merge:
 
         # Show Update
-        liner.send(' Merging Forbidden Prefixes ...')
+        liner.send(' Merging Forbidden Prefixes ...\r')
 
         # Merge prefixdict
         if not prefixdict is None:
@@ -2733,7 +2732,7 @@ def get_parsed_edgeeffects(
                         sorted(_prefixdict[k], key=len))
 
         # Show Update
-        liner.send(' Merging Forbidden Suffixes ...')
+        liner.send(' Merging Forbidden Suffixes ...\r')
 
         # Merge suffixdict
         if not suffixdict is None:

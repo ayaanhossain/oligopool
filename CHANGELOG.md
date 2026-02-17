@@ -7,6 +7,8 @@
 6. Style (Validation): `get_parsed_cross_barcode_info` now materializes any iterable `crosscols` input early via `hasattr(__iter__)`, matching the `get_parsed_exmotifs` pattern; downstream `isinstance` checks simplified to `list`.
 7. Docs: updated stale `LevelDB` references to `ShareDB` across `__init__.py`, `README.md`, `docs/docs.md`, `docs/api.md`, and `vectordb.py`.
 8. Docs (`docs/agent-skills.md`): clarified that the `ID` column is a literal required column name, not a conceptual description.
+9. Style (Liner): `liner_engine` pipe-mode filter now keys on `\r` presence (suppress) instead of `\n` presence (pass); all ephemeral `liner.send()` progress messages across core modules tagged with trailing `\r` so pipe-mode consumers see only persistent output.
+10. Style (Motif): fixed stale comments in `motif.py` — "Step 2 Warning" → "Step 3 Warning", "Parse primerseq" → "Parse motifseq".
 
 2026.02.16
 1. Chore: version bump to `v2026.02.16`.

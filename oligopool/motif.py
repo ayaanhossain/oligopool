@@ -592,13 +592,13 @@ def motif(
     # Parsing Sequence Constraint Feasibility
     liner.send('\n[Step 3: Parsing Motif Sequence]\n')
 
-    # Update Step 2 Warning
+    # Update Step 3 Warning
     warns[3] = {
         'warn_count': 0,
         'step_name' : 'parsing-motif-sequence',
         'vars': None}
 
-    # Parse primerseq
+    # Parse motifseq
     (optrequired,
     homology,
     fixedbaseindex,

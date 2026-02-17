@@ -42,7 +42,7 @@ def get_parsed_sequence_constraint(
     homology = ut.get_homology(motifseq) # Initially, for Maker
 
     # Design Space Analysis
-    liner.send(' Computing Design Space ...')
+    liner.send(' Computing Design Space ...\r')
 
     dspace = 1
     for nt in motifseq:
@@ -62,7 +62,7 @@ def get_parsed_sequence_constraint(
 
     # Exmotifs Analysis
     if dspace > 1 and not exmotifs is None:
-        liner.send(' Computing Motif Conflicts ...')
+        liner.send(' Computing Motif Conflicts ...\r')
 
         # Compute Excluded Motif Conflicts
         motif_ok, excludedmotifs = ut.get_exmotif_conflict(
@@ -109,7 +109,7 @@ def get_parsed_sequence_constraint(
                 ' Found 0 Excluded Motif(s)\n')
 
     # Region Analysis
-    liner.send(' Computing Constant Regions ...')
+    liner.send(' Computing Constant Regions ...\r')
 
     # Compute Constant Regions
     regions = ut.get_constant_regions(
@@ -227,7 +227,7 @@ def get_extracted_spacerlen(
     t0 = tt.time()
 
     # Compute Variant Lengths
-    liner.send(' Parsing Variant Lengths ...')
+    liner.send(' Parsing Variant Lengths ...\r')
 
     variantlens = ut.get_variantlens(indf)
 

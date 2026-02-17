@@ -32,7 +32,7 @@ def get_parsed_barcodes(
     t0 = tt.time()
 
     # Parse Barcode Feasibility
-    liner.send(' Parsing Barcodes ...')
+    liner.send(' Parsing Barcodes ...\r')
 
     # Build ID Dictionary
     IDdict = dict(enumerate(bardf.index))
@@ -174,7 +174,7 @@ def get_parsed_constants(
     t0 = tt.time()
 
     # Parse Anchor Constant Feasibility
-    liner.send(' Parsing Constants ...')
+    liner.send(' Parsing Constants ...\r')
 
     constantscount = 0
     constantsuniq  = None
@@ -332,7 +332,7 @@ def get_extracted_associates(
     t0 = tt.time()
 
     # Extract Associates
-    liner.send(' Parsing Associates ...')
+    liner.send(' Parsing Associates ...\r')
 
     associatedict  = dict(enumerate(associates))
     associatecount = ut.get_unique_count(
@@ -590,7 +590,7 @@ def index_engine(
     }
 
     # Compute Barcode Set t-value
-    liner.send(' Inferring Barcode t-value ...')
+    liner.send(' Inferring Barcode t-value ...\r')
     barcodetval = infer_tvalue(
         elementlen=barcodelen,
         maximum=2)
@@ -600,7 +600,7 @@ def index_engine(
     metamap['barcodetval'] = barcodetval
 
     # Compute Barcode Set k-value
-    liner.send(' Inferring Barcode k-value ...')
+    liner.send(' Inferring Barcode k-value ...\r')
     barcodekval = infer_kvalue(
         elementlen=barcodelen,
         tvalue=barcodetval,
@@ -612,7 +612,7 @@ def index_engine(
 
     # Compute Associate Set t-value
     if associatedict:
-        liner.send(' Inferring Associate t-value ...')
+        liner.send(' Inferring Associate t-value ...\r')
         (associatetvaldict,
         mintval,
         maxtval) = get_associate_tvalues(
@@ -693,7 +693,7 @@ def index_engine(
         metamap['asxtval'] = None
 
     # Save and Delete ID Dict
-    liner.send(' Writing ID Map ...')
+    liner.send(' Writing ID Map ...\r')
     opath = indexdir+'ID.map'
     ut.savedict(
         dobj=IDdict,
@@ -703,7 +703,7 @@ def index_engine(
     liner.send(' Writing        ID Map  : Done\n')
 
     # Save and Delete metamap
-    liner.send(' Writing Meta Map ...')
+    liner.send(' Writing Meta Map ...\r')
     opath = indexdir+'meta.map'
     ut.savedict(
         dobj=metamap,
@@ -713,7 +713,7 @@ def index_engine(
     liner.send(' Writing      Meta Map  : Done\n')
 
     # Train Barcode Model
-    liner.send(' Training Barcode Model ...')
+    liner.send(' Training Barcode Model ...\r')
     X,Y = split_map(
         maptosplit=barcodedict)
     t0  = tt.time()
@@ -737,7 +737,7 @@ def index_engine(
 
     # Update Associate Dictionary
     if associatedict:
-        liner.send(' Updating Associate Map ...')
+        liner.send(' Updating Associate Map ...\r')
         for k in associatedict:
             associatedict[k] = (
                 associatedict[k],
@@ -745,7 +745,7 @@ def index_engine(
 
     # Save and Delete associatedict
     if associatedict:
-        liner.send(' Writing Associate Map ...')
+        liner.send(' Writing Associate Map ...\r')
         opath = indexdir+'associate.map'
         ut.savedict(
             dobj=associatedict,

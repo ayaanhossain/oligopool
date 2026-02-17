@@ -39,7 +39,7 @@ def get_parsed_splitlimit(indf, splitlimit, liner):
     splitcond  = False
 
     # Finalize Oligopool
-    liner.send(' Finalizing Oligopool ...')
+    liner.send(' Finalizing Oligopool ...\r')
     seqlist = ut.get_df_concat(df=indf)
 
     # _seqlist = []
@@ -51,7 +51,7 @@ def get_parsed_splitlimit(indf, splitlimit, liner):
     # seqlist = _seqlist
 
     # Compute Variant Lengths
-    liner.send(' Computing Variant Lengths ...')
+    liner.send(' Computing Variant Lengths ...\r')
 
     oligolen = list(map(len, seqlist))
     minoligolen = min(oligolen)
@@ -275,7 +275,7 @@ def get_entvec(seqmat, maxoligolen, liner):
     t0  = tt.time()
 
     # Show Update
-    liner.send(' Computing Count Vector ...')
+    liner.send(' Computing Count Vector ...\r')
 
     # Setup Data Structures
     d = np.zeros(
@@ -294,7 +294,7 @@ def get_entvec(seqmat, maxoligolen, liner):
         # Update Data Structure and Show Updates
         p[:m.shape[0]] = m # Absorb Local
 
-        liner.send(' Index {} Unique Count: {}'.format(
+        liner.send(' Index {} Unique Count: {}\r'.format(
             idx, p))
 
         d[:, idx] += p     # Update Global
@@ -307,7 +307,7 @@ def get_entvec(seqmat, maxoligolen, liner):
     liner.send('   Count Vector: Normalized\n')
 
     # Show Updates
-    liner.send(' Computing Entropy Vector ...')
+    liner.send(' Computing Entropy Vector ...\r')
 
     # Compute Entropy Vector
     entvec = cx.deque(np.abs(
@@ -498,7 +498,7 @@ def get_varcont(entvec, minhdist, spanlen, liner):
     '''
 
     # Extract varcont
-    liner.send(' Extracting Variable Contigs ...')
+    liner.send(' Extracting Variable Contigs ...\r')
     t0 = tt.time()
     varcont = get_base_varcont(
         entvec=entvec)
@@ -508,7 +508,7 @@ def get_varcont(entvec, minhdist, spanlen, liner):
             varcontcount))
 
     # Merge varcont
-    liner.send('   Merging Variable Contigs ...')
+    liner.send('   Merging Variable Contigs ...\r')
     t0 = tt.time()
     varcont = get_merged_varcont(
         varcont=varcont,
@@ -519,7 +519,7 @@ def get_varcont(entvec, minhdist, spanlen, liner):
             mergedcontcount))
 
     # Filter varcont
-    liner.send(' Filtering Variable Contigs ...')
+    liner.send(' Filtering Variable Contigs ...\r')
     t0 = tt.time()
     varcont = get_filtered_varcont(
         varcont=varcont,
@@ -1160,7 +1160,7 @@ def split_engine(
             t0 = tt.time()
 
             # Get Splitpoints for Current Fragment
-            liner.send('    Finding Splittable Regions ...')
+            liner.send('    Finding Splittable Regions ...\r')
             spq = get_splitqueue(
                 varcont=varcont,
                 fstart=fstart,

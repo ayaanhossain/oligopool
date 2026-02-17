@@ -294,7 +294,7 @@ def get_entvec(seqmat, maxoligolen, liner):
         # Update Data Structure and Show Updates
         p[:m.shape[0]] = m # Absorb Local
 
-        liner.send(' Index {} Unique Count: {}\r'.format(
+        liner.send(' Index {} Unique Count: {}\n'.format(
             idx, p))
 
         d[:, idx] += p     # Update Global

@@ -1868,9 +1868,12 @@ def get_parsed_cross_barcode_info(
     # For barcodes, accept only strict ATGC (no gaps / no degeneracy).
     barcode_alpha = set('ATGC')
 
-    # Normalize crosscols input
+    # Normalize crosscols input: materialize any iterable early
+    # so downstream checks (emptiness, all-str) work uniformly.
     if isinstance(crosscols, str):
         crosscols = [crosscols]
+    elif crosscols is not None and hasattr(crosscols, '__iter__'):
+        crosscols = list(crosscols)
 
     # Cross mode disabled
     if crosscols is None and mindist is None:
@@ -1889,7 +1892,7 @@ def get_parsed_cross_barcode_info(
                 '{}: None Specified [MISSING CROSS BARCODE COLUMNS]\n'.format(
                     crosscols_field))
         else:
-            if not isinstance(crosscols, (list, tuple)):
+            if not isinstance(crosscols, list):
                 liner.send(
                     '{}: {} [INPUT TYPE IS INVALID]\n'.format(
                         crosscols_field,
@@ -1916,8 +1919,8 @@ def get_parsed_cross_barcode_info(
                         mindist))
         return (None, None, False)
 
-    # Type check: crosscols must be a list/tuple of strings
-    if not isinstance(crosscols, (list, tuple)) or not crosscols:
+    # Type check: crosscols must be a non-empty list of strings
+    if not isinstance(crosscols, list) or not crosscols:
         liner.send(
             '{}: {} [INPUT TYPE IS INVALID]\n'.format(
                 crosscols_field,
@@ -1938,8 +1941,6 @@ def get_parsed_cross_barcode_info(
                 mindist_field,
                 mindist))
         return (None, None, False)
-
-    crosscols = list(crosscols)
 
     # Output column conflict?
     if outcol in crosscols:

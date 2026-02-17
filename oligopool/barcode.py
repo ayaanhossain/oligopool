@@ -228,7 +228,7 @@ def barcode(
     rightcontextname = rightcontext
 
     # Normalize crosscols input early so skip_cols handling treats
-    # string and list forms equivalently during context parsing.
+    # string and iterable forms equivalently during context parsing.
     if isinstance(cross_cols, str):
         cross_cols = [cross_cols]
 
@@ -239,7 +239,7 @@ def barcode(
     _skip = set()
     if barcodecol and isinstance(barcodecol, str) and barcodecol in indf.columns:
         _skip.add(barcodecol)
-    if isinstance(cross_cols, list):
+    if hasattr(cross_cols, '__iter__') and not isinstance(cross_cols, str):
         for _cc in cross_cols:
             if isinstance(_cc, str) and _cc in indf.columns:
                 _skip.add(_cc)

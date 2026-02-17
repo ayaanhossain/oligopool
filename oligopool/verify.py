@@ -180,7 +180,7 @@ def verify(
     # Report DNA columns
     liner.send(' DNA Column(s): {} Column(s)\n'.format(len(dna_columns)))
     for col in dna_columns:
-        liner.send('    - {}\n'.format(col))
+        liner.send('   - {}\n'.format(col))
 
     if used_complete_oligo:
         liner.send(' Complete Oligo : Present (using directly)\n')

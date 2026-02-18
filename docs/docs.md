@@ -1359,7 +1359,7 @@ Run QC, save your annotated design, and finalize for synthesis:
 
 ```python
 verify_df, verify_stats = op.verify(input_data=df, oligo_length_limit=200)
-print(f"Conflicts: {verify_stats['vars']['any_conflict']}")
+print(f"Conflicts: {verify_stats['vars']['any_conflict_count']}")
 
 df.to_csv('library_design.csv', index=False)  # Keep this for indexing later!
 final_df, _ = op.final(input_data=df, output_file='library_for_synthesis')
@@ -2196,7 +2196,7 @@ verify_df, verify_stats = op.verify(
     excluded_motifs=cut_sites,
     background_directory=bg_dir,
 )
-print(f"Any conflicts? {verify_stats['vars']['any_conflict']}")
+print(f"Any conflicts? {verify_stats['vars']['any_conflict_count']}")
 ```
 
 **Why reverse complements matter**: `excluded_motifs` does literal substring matching on the designed oligo sequence (strict ATGC only). If your downstream construct is double-stranded (e.g., cloning) and you want to avoid a restriction site regardless of which strand/orientation it appears on, include the motif **and its reverse complement** for each non-palindromic site (e.g., BsmBI: `CGTCTC` + `GAGACG`). For palindromic sites (EcoRI `GAATTC`, BamHI `GGATCC`), the reverse complement is identical, so listing it once is enough.

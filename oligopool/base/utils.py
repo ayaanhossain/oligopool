@@ -394,7 +394,7 @@ class FailureSampler:
            type - integer
            desc - read frequency/count
         :: diagnostic
-           type - string
+           type - dict / None
            desc - diagnostic information specific to failure type
         '''
         if category not in self.categories:

@@ -64,8 +64,11 @@ def acount(
             constants must be adjacent and present completely.
         - If an anchor appears multiple times, the best-scoring one is used; ties with multiple barcodes rejected.
         - Failed reads sampling collects representative samples from each failure category for diagnostics.
-            Categories: phix_match, low_complexity, anchor_missing, barcode_absent, barcode_ambiguous,
-            associate_prefix_missing, associate_mismatch, callback_false, incalculable.
+            Categories: phix_match, low_complexity, anchor_missing, barcode_prefix_missing,
+            barcode_suffix_missing, barcode_absent, barcode_ambiguous, associate_prefix_missing,
+            associate_suffix_missing, associate_mismatch, callback_false, incalculable.
+        - Failed-reads CSV columns: `FailureReason`, `R1`, `R2`, `ReadCount`, `DiagnosticDetails`
+            (`DiagnosticDetails` is a JSON-serialized dict; parse with `json.loads()`).
     '''
 
     # Alias Arguments

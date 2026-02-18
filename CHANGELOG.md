@@ -28,6 +28,7 @@
 27. Docs (`docs/api.md`): documented `DiagnosticDetails` field schemas for all `acount`/`xcount` failure categories; merged redundant category lists with schema blocks; added `vars` dict conventions section and two-granularities contract.
 28. Docs: minor module docstring clarifications — backtick-formatted `NaN` in patch-mode notes, expanded `barcode_type` alias list, added `expand` parallelization note and `join` length-limit behavior note.
 29. Bugfix (Stats): `excluded_motif_encounter_counter` in stats `vars` is now converted from `collections.Counter` to plain `dict` before stamping, ensuring clean JSON round-trips.
+30. Docs/Examples: reran `examples/OligopoolCalculatorInAction.ipynb` to reflect structured diagnostics, detail key renames, and Counter-to-dict fix (entries 24–29).
 
 2026.02.17
 1. Chore: version bump to `v2026.02.17`.

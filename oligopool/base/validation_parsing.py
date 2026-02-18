@@ -1012,10 +1012,13 @@ def get_parsed_verify_indata_info(
        desc - dynamic printing
 
     Returns:
-        (df, data_name, dna_columns, valid)
+        (df, data_name, dna_columns, constituent_columns, valid)
         - df: parsed DataFrame (ID as index) or None
         - data_name: 'DataFrame' or filename
-        - dna_columns: list of DNA column names found
+        - dna_columns: list of DNA column names to scan
+          (either ['CompleteOligo'] or the constituent columns)
+        - constituent_columns: list of DNA column names
+          excluding CompleteOligo (may be empty)
         - valid: True if validation passed
     '''
 
@@ -1030,47 +1033,53 @@ def get_parsed_verify_indata_info(
 
     # If base validation failed, return early
     if not base_valid:
-        return (df, data_name, [], False)
+        return (df, data_name, [], [], False)
 
     # Detect DNA columns
-    dna_columns = []
-    used_complete_oligo = False
+    has_complete_oligo = False
+    constituent_columns = []
 
-    # Check for CompleteOligo first
+    # Check for CompleteOligo
     if 'CompleteOligo' in df.columns:
-        # Validate CompleteOligo contains DNA
         series = df['CompleteOligo']
         if series.map(lambda x: isinstance(x, str)).all():
             upper = series.str.upper()
             is_dna = upper.map(lambda x: ut.is_DNA(seq=x, dna_alpha=ut.dna_alpha))
             if is_dna.all():
-                dna_columns = ['CompleteOligo']
-                used_complete_oligo = True
+                has_complete_oligo = True
 
-    # If no CompleteOligo, scan all columns
-    if not used_complete_oligo:
-        for col in df.columns:
-            series = df[col]
-            # Skip non-string columns
-            if not series.map(lambda x: isinstance(x, str)).all():
-                continue
-            # Check if all values are pure ATGC (plus gaps)
-            upper = series.str.upper()
-            is_dna = upper.map(lambda x: ut.is_DNA(seq=x, dna_alpha=ut.dna_alpha))
-            if is_dna.all():
-                dna_columns.append(col)
+    # Always scan for constituent DNA columns (excluding CompleteOligo)
+    for col in df.columns:
+        if col == 'CompleteOligo':
+            continue
+        series = df[col]
+        # Skip non-string columns
+        if not series.map(lambda x: isinstance(x, str)).all():
+            continue
+        # Check if all values are pure ATGC (plus gaps)
+        upper = series.str.upper()
+        is_dna = upper.map(lambda x: ut.is_DNA(seq=x, dna_alpha=ut.dna_alpha))
+        if is_dna.all():
+            constituent_columns.append(col)
+
+    # dna_columns determines what verify scans:
+    # CompleteOligo takes priority when present
+    if has_complete_oligo:
+        dna_columns = ['CompleteOligo']
+    else:
+        dna_columns = list(constituent_columns)
 
     # Validate at least one DNA column found
-    if not dna_columns:
+    if not has_complete_oligo and not constituent_columns:
         liner.send(
             '{}: {} w/ {:,} Record(s) [NO DNA COLUMNS DETECTED]\n'.format(
                 data_field,
                 data_name,
                 len(df.index)))
-        return (df, data_name, [], False)
+        return (df, data_name, [], [], False)
 
     # All validation passed
-    return (df, data_name, dna_columns, True)
+    return (df, data_name, dna_columns, constituent_columns, True)
 
 def get_parsed_indata_info(
     indata,

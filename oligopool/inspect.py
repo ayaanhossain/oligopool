@@ -47,7 +47,7 @@ def inspect(
         'basis'    : 'infeasible',
         'step'     : 1,
         'step_name': 'inspecting-artifact',
-        'vars'     : None,
+        'vars'     : {},
         'warns'    : {},
     }
 

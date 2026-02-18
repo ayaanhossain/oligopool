@@ -311,12 +311,12 @@ def index(
             'step'    : 1,
             'step_name': 'parsing-barcode-data',
             'vars'    : {
-                        'duplicates': duplicates,
-                     'barcode_count': barcodecount,
-                  ' barcodes_unique': barcodesuniq,
-                   'min_barcode_len': minbarcodelen,
-                   'max_barcode_len': maxbarcodelen,
-                'barcode_len_unique': barcodelenuniq},
+                'duplicates'        : duplicates,
+                'barcode_count'     : barcodecount,
+                'barcodes_unique'   : barcodesuniq,
+                'min_barcode_length': minbarcodelen,
+                'max_barcode_length': maxbarcodelen,
+                'barcode_length_unique_count': barcodelenuniq},
             'warns'   : warns}
         stats = ut.stamp_stats(
             stats=stats,
@@ -358,12 +358,12 @@ def index(
             'step_name': 'parsing-barcode-constants',
             'vars'    : {
                 'constants_extracted': constantsextracted,
-                   'constants_unique': constantsuniq,
-                     'long_constants': longconstants,
-                     'prefix_unique': prefixuniq,
-                     'suffix_unique': suffixuniq,
-                        'prefix_len': prefixlen,
-                        'suffix_len': suffixlen},
+                'constants_unique'   : constantsuniq,
+                'long_constants': longconstants,
+                'prefix_unique' : prefixuniq,
+                'suffix_unique' : suffixuniq,
+                'prefix_length' : prefixlen,
+                'suffix_length' : suffixlen},
             'warns'   : warns}
         stats = ut.stamp_stats(
             stats=stats,
@@ -385,7 +385,7 @@ def index(
         warns[3] = {
             'warn_count': 0,
             'step_name' : 'parsing-associate-data',
-            'vars': None}
+            'vars': {}}
 
         # Extract associatedata
         associatedict = ci.get_extracted_associates(
@@ -425,12 +425,12 @@ def index(
                 'step_name': 'parsing-associate-constants',
                 'vars'    : {
                     'constants_extracted': constantsextracted,
-                       'constants_unique': constantsuniq,
-                         'long_constants': longconstants,
-                          'prefix_unique': prefixuniq,
-                          'suffix_unique': suffixuniq,
-                             'prefix_len': prefixlen,
-                             'suffix_len': suffixlen},
+                    'constants_unique'   : constantsuniq,
+                    'long_constants': longconstants,
+                    'prefix_unique' : prefixuniq,
+                    'suffix_unique' : suffixuniq,
+                    'prefix_length' : prefixlen,
+                    'suffix_length' : suffixlen},
                 'warns'   : warns}
             stats = ut.stamp_stats(
                 stats=stats,
@@ -470,7 +470,7 @@ def index(
         'basis'   : 'solved',
         'step'    : 5,
         'step_name': 'computing-index',
-        'vars'    : None,
+        'vars'    : {},
         'warns'   : warns}
 
     # Compute Index Objects

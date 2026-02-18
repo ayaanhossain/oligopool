@@ -966,7 +966,7 @@ def aggregate_stats(
     TmDenom = np.zeros(len(overlap))
     HDDenom = np.zeros(len(overlap))
     edges   = min(10, max(1, 10**6 / len(seqlist)))
-    stats['vars']['split_lens'] = [float('inf') for _ in range(len(split))]
+    stats['vars']['split_lengths'] = [float('inf') for _ in range(len(split))]
 
     plen = ut.get_printlen(value=len(overlap))
     qlen = ut.get_printlen(value=len(seqlist))
@@ -978,9 +978,9 @@ def aggregate_stats(
         seq = seqlist[jdx]
         for idx in range(len(split)):
             splitseq = seq[split[idx][0]:split[idx][1]]
-            stats['vars']['split_lens'][idx] = min(
+            stats['vars']['split_lengths'][idx] = min(
                 len(splitseq),
-                stats['vars']['split_lens'][idx])
+                stats['vars']['split_lengths'][idx])
             if idx % 2 == 1:
                 splitseq = ut.get_revcomp(
                     seq=splitseq)
@@ -1027,11 +1027,11 @@ def aggregate_stats(
                 plen))
 
     # Average Statistics
-    stats['vars']['num_splits']    = len(split)
-    stats['vars']['overlap_lens']  = [y-x for x,y in overlap]
-    stats['vars']['mean_Tm_distro'] = list(map(
+    stats['vars']['split_count'] = len(split)
+    stats['vars']['overlap_lengths'] = [y-x for x,y in overlap]
+    stats['vars']['mean_melting_temperature_distribution'] = list(map(
         int, np.round(overlapTmtotals / TmDenom)))
-    stats['vars']['mean_distance_distro'] = list(map(
+    stats['vars']['mean_distance_distribution'] = list(map(
         int, np.round(overlapHDtotals / HDDenom)))
 
     # Show Time Elapsed
@@ -1232,13 +1232,13 @@ def split_engine(
     else:
         if state == 0:
             # Update Stats
-            stats['vars']['infeasible_contigs'] = True
+            stats['vars']['has_infeasible_contigs'] = True
 
             liner.send(
                 '\n  Solution Status: Unsolved due to Infeasible Variable Contigs\n')
         else:
             # Update Stats
-            stats['vars']['uneven_splits'] = True
+            stats['vars']['has_uneven_splits'] = True
 
             liner.send(
                 '\n  Solution Status: Unsolved due to Uneven Number of Splits\n')

@@ -1085,8 +1085,8 @@ def barcode_engine(
                     tt.time() - t0))
 
             # No Solution
-            stats['vars']['space_exhausted'] = True
-            stats['vars']['orphan_oligo'] = sorted(contextarray)
+            stats['vars']['is_search_space_exhausted'] = True
+            stats['vars']['orphan_oligo_ids'] = sorted(contextarray)
             return (None,
                 None,
                 stats)
@@ -1115,7 +1115,7 @@ def barcode_engine(
                 coocache=existing_coocache)
 
             if not existing_ok:
-                stats['vars']['existing_distance_fail'] += 1
+                stats['vars']['existing_distance_failure_count'] += 1
                 continue
 
         # Cross-set constraint?
@@ -1134,7 +1134,7 @@ def barcode_engine(
                 coocache=cross_coocache)
 
             if not cross_ok:
-                stats['vars']['cross_distance_fail'] += 1
+                stats['vars']['cross_distance_failure_count'] += 1
                 continue
 
         # Check Objectives
@@ -1220,16 +1220,15 @@ def barcode_engine(
 
             # Update Fail Counts
             if optstate == 1:
-                stats['vars']['distance_fail'] += 1
+                stats['vars']['distance_failure_count'] += 1
             if optstate == 2:
-                stats['vars']['exmotif_fail']  += 1
+                stats['vars']['excluded_motif_failure_count'] += 1
             if optstate == 3:
-                stats['vars']['edge_fail']     += sum(
-                    emcounter.values())
+                stats['vars']['edge_effect_failure_count'] += sum(emcounter.values())
             if optstate == 4:
-                stats['vars']['repeat_fail']   += 1
+                stats['vars']['repeat_failure_count'] += 1
             if optstate == 5:
-                stats['vars']['type_fail']     += 1
+                stats['vars']['type_failure_count'] += 1
             if optstate == 6:
                 pass
 
@@ -1239,9 +1238,9 @@ def barcode_engine(
 
             # Record Context Failure Motifs
             if not emcounter is None:
-                stats['vars']['exmotif_counter'] += emcounter
+                stats['vars']['excluded_motif_encounter_counter'] += emcounter
             if bgfails:
-                stats['vars']['background_fail'] += bgfails
+                stats['vars']['background_failure_count'] += bgfails
 
         # Verbiage Book-keeping
         if verbiage_reach >= verbiage_target:
@@ -1280,7 +1279,7 @@ def barcode_engine(
                 liner=liner)
 
             # Return Solution
-            stats['vars']['orphan_oligo'] = sorted(contextarray)
+            stats['vars']['orphan_oligo_ids'] = sorted(contextarray)
             return (codes,
                 store,
                 stats)
@@ -1295,8 +1294,8 @@ def barcode_engine(
                         tt.time() - t0))
 
                 # No Solution
-                stats['vars']['trial_exhausted'] = True
-                stats['vars']['orphan_oligo'] = sorted(contextarray)
+                stats['vars']['is_search_trial_exhausted'] = True
+                stats['vars']['orphan_oligo_ids'] = sorted(contextarray)
                 return (None,
                     None,
                     stats)

@@ -446,21 +446,21 @@ def barcode(
             'step'    : 0,
             'step_name': 'no-missing-barcodes',
             'vars'    : {
-                  'target_count': 0,
-                 'barcode_count': 0,
-                 'orphan_oligo': [],
-                     'type_fail': 0,
-                 'distance_fail': 0,
-           'existing_distance_fail': 0,
-           'cross_distance_fail': 0,
-                   'repeat_fail': 0,
-              'background_fail': 0,
-                  'exmotif_fail': 0,
-                     'edge_fail': 0,
-               'distance_distro': None,
-               'exmotif_counter': cx.Counter(),
-               'space_exhausted': False,
-               'trial_exhausted': False,
+                'target_count'                    : 0,
+                'barcode_count'                   : 0,
+                'orphan_oligo_ids'                : [],
+                'type_failure_count'              : 0,
+                'distance_failure_count'          : 0,
+                'existing_distance_failure_count' : 0,
+                'cross_distance_failure_count'    : 0,
+                'repeat_failure_count'            : 0,
+                'background_failure_count'        : 0,
+                'excluded_motif_failure_count'    : 0,
+                'edge_effect_failure_count'       : 0,
+                'distance_distribution'           : None,
+                'excluded_motif_encounter_counter': cx.Counter(),
+                'is_search_space_exhausted'       : False,
+                'is_search_trial_exhausted'       : False,
             },
             'warns'   : warns}
         stats['random_seed'] = random_seed
@@ -530,14 +530,14 @@ def barcode(
             'step'    : 1,
             'step_name': 'parsing-oligo-limit',
             'vars'    : {
-                    'oligo_limit': oligolimit,
-                 'limit_overflow': True,
-                  'min_oligo_len': minoligolen,
-                  'max_oligo_len': maxoligolen,
-                'min_element_len': minelementlen,
-                'max_element_len': maxelementlen,
-                'min_space_avail': minspaceavail,
-                'max_space_avail': maxspaceavail},
+                'oligo_length_limit': oligolimit,
+                'has_limit_overflow': True,
+                'min_oligo_length'  : minoligolen,
+                'max_oligo_length'  : maxoligolen,
+                'min_element_length': minelementlen,
+                'max_element_length': maxelementlen,
+                'min_space_avail'   : minspaceavail,
+                'max_space_avail'   : maxspaceavail},
             'warns'   : warns}
         stats['random_seed'] = random_seed
         stats = ut.stamp_stats(
@@ -571,9 +571,9 @@ def barcode(
             'step'    : 2,
             'step_name': 'parsing-barcode-length',
             'vars'    : {
-                 'barcode_len': barcodelen,
-                'design_space': designspace,
-                'target_count': targetcount},
+                'barcode_length': barcodelen,
+                'design_space'  : designspace,
+                'target_count'  : targetcount},
             'warns'   : warns}
         stats['random_seed'] = random_seed
         stats = ut.stamp_stats(
@@ -598,7 +598,7 @@ def barcode(
         warns[3] = {
             'warn_count': 0,
             'step_name' : 'parsing-excluded-motifs',
-            'vars': None}
+            'vars': {}}
 
         # Parse exmotifs
         (parsestatus,
@@ -628,9 +628,9 @@ def barcode(
                 'step'    : 3,
                 'step_name': 'parsing-excluded-motifs',
                 'vars'    : {
-                     'prob_lens': problens,
-                    'prob_count': tuple(list(
-                        4**pl for pl in problens))},
+                    'problem_lengths' : problens,
+                    'problematic_sequence_counts': tuple(list(4**pl for pl in problens))
+                },
                 'warns'   : warns}
             stats['random_seed'] = random_seed
             stats = ut.stamp_stats(
@@ -731,8 +731,8 @@ def barcode(
             'vars'  : {
                 'source_context': sourcecontext,
                 'kmer_space'    : kmerspace,
-                'fill_count'    : fillcount,
-                'free_count'    : freecount},
+                'filled_kmer_count'    : fillcount,
+                'remaining_kmer_count' : freecount},
             'warns' : warns}
         stats['random_seed'] = random_seed
         stats = ut.stamp_stats(
@@ -755,21 +755,21 @@ def barcode(
         'step'    : 6,
         'step_name': 'computing-barcodes',
         'vars'    : {
-                     'target_count': targetcount,  # Required Number of Barcodes
-                    'barcode_count': 0,            # Barcode Design Count
-                     'orphan_oligo': None,         # Orphan Oligo Indexes
-                        'type_fail': 0,            # Barcode Type Failure Count
-                    'distance_fail': 0,            # Hamming Distance Fail Count
-           'existing_distance_fail': 0,        # Existing Barcode Distance Fail Count
-              'cross_distance_fail': 0,        # Cross Distance Fail Count
-                      'repeat_fail': 0,            # Repeat Fail Count
-                  'background_fail': 0,            # Background Fail Count
-                     'exmotif_fail': 0,            # Exmotif Elimination Fail Count
-                        'edge_fail': 0,            # Edge Effect Fail Count
-                  'distance_distro': None,         # Hamming Distance Distribution
-                  'exmotif_counter': cx.Counter(), # Exmotif Encounter Counter
-                  'space_exhausted': False,        # Space Exhausted Bool
-                  'trial_exhausted': False,        # Trial Exhausted Bool
+            'target_count'                    : targetcount,  # Required Number of Barcodes
+            'barcode_count'                   : 0,            # Barcode Design Count
+            'orphan_oligo_ids'                : None,         # Orphan Oligo Indexes
+            'type_failure_count'              : 0,            # Barcode Type Failure Count
+            'distance_failure_count'          : 0,            # Hamming Distance Fail Count
+            'existing_distance_failure_count' : 0,            # Existing Barcode Distance Fail Count
+            'cross_distance_failure_count'    : 0,            # Cross Distance Fail Count
+            'repeat_failure_count'            : 0,            # Repeat Fail Count
+            'background_failure_count'        : 0,            # Background Fail Count
+            'excluded_motif_failure_count'    : 0,            # Exmotif Elimination Fail Count
+            'edge_effect_failure_count'       : 0,            # Edge Effect Fail Count
+            'distance_distribution'           : None,         # Hamming Distance Distribution
+            'excluded_motif_encounter_counter': cx.Counter(), # Exmotif Encounter Counter
+            'is_search_space_exhausted'       : False,        # Space Exhausted Bool
+            'is_search_trial_exhausted'       : False,        # Trial Exhausted Bool
             },
         'warns'   : warns}
     stats['random_seed'] = random_seed
@@ -866,7 +866,7 @@ def barcode(
         liner.send('\n[Step 7: Computing Distance Distribution]\n')
 
         # Compute Hamming Distance Distribution
-        stats['vars']['distance_distro'] = cb.get_distro(
+        stats['vars']['distance_distribution'] = cb.get_distro(
             store=store,
             liner=liner,
             rng=rng)
@@ -925,21 +925,21 @@ def barcode(
                 B=targetcount)))
     liner.send(
         '     Orphan Oligo    : {:{},d} Entries\n'.format(
-            len(stats['vars']['orphan_oligo']),
+            len(stats['vars']['orphan_oligo_ids']),
             plen))
 
     # Success Relevant Stats
     if stats['status']:
-        if stats['vars']['distance_distro']:
+        if stats['vars']['distance_distribution']:
 
             dlen = ut.get_printlen(
                 value=max(map(
                     lambda x: x[1],
-                    stats['vars']['distance_distro'])))
+                    stats['vars']['distance_distribution'])))
 
             liner.send(' Pair-wise Distance Distribution\n')
 
-            for percentage,distance in stats['vars']['distance_distro']:
+            for percentage,distance in stats['vars']['distance_distribution']:
                 liner.send(
                     '   - {:6.2f} % Barcode(s) w/ Distance >= {:{},d} Mismatch(es)\n'.format(
                         percentage,
@@ -949,102 +949,102 @@ def barcode(
     # Failure Relavant Stats
     else:
         maxval = max(stats['vars'][field] for field in (
-            'distance_fail',
-            'existing_distance_fail',
-            'cross_distance_fail',
-            'repeat_fail',
-            'background_fail',
-            'exmotif_fail',
-            'edge_fail'))
+            'distance_failure_count',
+            'existing_distance_failure_count',
+            'cross_distance_failure_count',
+            'repeat_failure_count',
+            'background_failure_count',
+            'excluded_motif_failure_count',
+            'edge_effect_failure_count'))
 
         sntn, plen = ut.get_notelen(
             printlen=ut.get_printlen(
                 value=maxval))
 
-        total_conflicts = stats['vars']['distance_fail']       + \
-                          stats['vars']['existing_distance_fail'] + \
-                          stats['vars']['cross_distance_fail'] + \
-                          stats['vars']['repeat_fail']         + \
-                          stats['vars']['background_fail']     + \
-                          stats['vars']['exmotif_fail']        + \
-                          stats['vars']['edge_fail']
+        total_conflicts = stats['vars']['distance_failure_count']       + \
+                          stats['vars']['existing_distance_failure_count'] + \
+                          stats['vars']['cross_distance_failure_count'] + \
+                          stats['vars']['repeat_failure_count']         + \
+                          stats['vars']['background_failure_count']     + \
+                          stats['vars']['excluded_motif_failure_count']        + \
+                          stats['vars']['edge_effect_failure_count']
         liner.send(
             '   Distance Conflicts: {:{},{}} Event(s) ({:6.2f} %)\n'.format(
-                stats['vars']['distance_fail'],
+                stats['vars']['distance_failure_count'],
                 plen,
                 sntn,
                 ut.safediv(
-                    A=stats['vars']['distance_fail'] * 100.,
+                    A=stats['vars']['distance_failure_count'] * 100.,
                     B=total_conflicts)))
         if patch_mode_on and \
            existing_mask is not None and \
            existing_mask.any():
             liner.send(
                 '   Existing Conflicts: {:{},{}} Event(s) ({:6.2f} %)\n'.format(
-                    stats['vars']['existing_distance_fail'],
+                    stats['vars']['existing_distance_failure_count'],
                     plen,
                     sntn,
                     ut.safediv(
-                        A=stats['vars']['existing_distance_fail'] * 100.,
+                        A=stats['vars']['existing_distance_failure_count'] * 100.,
                         B=total_conflicts)))
         if not cross_cols is None:
             liner.send(
                 '      Cross Conflicts: {:{},{}} Event(s) ({:6.2f} %)\n'.format(
-                    stats['vars']['cross_distance_fail'],
+                    stats['vars']['cross_distance_failure_count'],
                     plen,
                     sntn,
                     ut.safediv(
-                        A=stats['vars']['cross_distance_fail'] * 100.,
+                        A=stats['vars']['cross_distance_failure_count'] * 100.,
                         B=total_conflicts)))
         liner.send(
             '     Repeat Conflicts: {:{},{}} Event(s) ({:6.2f} %)\n'.format(
-                stats['vars']['repeat_fail'],
+                stats['vars']['repeat_failure_count'],
                 plen,
                 sntn,
                 ut.safediv(
-                    A=stats['vars']['repeat_fail'] * 100.,
+                    A=stats['vars']['repeat_failure_count'] * 100.,
                     B=total_conflicts)))
         liner.send(
             ' Background Conflicts: {:{},{}} Event(s) ({:6.2f} %)\n'.format(
-                stats['vars']['background_fail'],
+                stats['vars']['background_failure_count'],
                 plen,
                 sntn,
                 ut.safediv(
-                    A=stats['vars']['background_fail'] * 100.,
+                    A=stats['vars']['background_failure_count'] * 100.,
                     B=total_conflicts)))
         liner.send(
             '    Exmotif Conflicts: {:{},{}} Event(s) ({:6.2f} %)\n'.format(
-                stats['vars']['exmotif_fail'],
+                stats['vars']['excluded_motif_failure_count'],
                 plen,
                 sntn,
                 ut.safediv(
-                    A=stats['vars']['exmotif_fail'] * 100.,
+                    A=stats['vars']['excluded_motif_failure_count'] * 100.,
                     B=total_conflicts)))
         liner.send(
             '       Edge Conflicts: {:{},{}} Event(s) ({:6.2f} %)\n'.format(
-                stats['vars']['edge_fail'],
+                stats['vars']['edge_effect_failure_count'],
                 plen,
                 sntn,
                 ut.safediv(
-                    A=stats['vars']['edge_fail'] * 100.,
+                    A=stats['vars']['edge_effect_failure_count'] * 100.,
                     B=total_conflicts)))
-        liner.send(f'      Space Exhausted: {stats["vars"]["space_exhausted"]}\n')
-        liner.send(f'      Trial Exhausted: {stats["vars"]["trial_exhausted"]}\n')
+        liner.send(f'      Space Exhausted: {stats["vars"]["is_search_space_exhausted"]}\n')
+        liner.send(f'      Trial Exhausted: {stats["vars"]["is_search_trial_exhausted"]}\n')
 
         # Enumerate Motif-wise Fail Counts
-        if stats['vars']['exmotif_counter']:
+        if stats['vars']['excluded_motif_encounter_counter']:
 
             qlen = max(len(motif) \
-                for motif in stats['vars']['exmotif_counter'].keys()) + 2
+                for motif in stats['vars']['excluded_motif_encounter_counter'].keys()) + 2
 
             sntn, vlen = ut.get_notelen(
                 printlen=ut.get_printlen(
                     value=max(
-                        stats['vars']['exmotif_counter'].values())))
+                        stats['vars']['excluded_motif_encounter_counter'].values())))
 
             liner.send('   Exmotif-wise Conflict Distribution\n')
 
-            for exmotif,count in stats['vars']['exmotif_counter'].most_common():
+            for exmotif,count in stats['vars']['excluded_motif_encounter_counter'].most_common():
                 exmotif = '\'{}\''.format(exmotif)
                 liner.send(
                     '     - Motif {:>{}} Triggered {:{},{}} Event(s)\n'.format(

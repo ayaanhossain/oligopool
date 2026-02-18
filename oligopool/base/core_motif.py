@@ -76,7 +76,7 @@ def get_parsed_sequence_constraint(
         if not motif_ok:
 
             # Update Warning Entry
-            warn['vars'] = {'exmotif_embedded': set()}
+            warn['vars'] = {'excluded_motif_embedded': set()}
 
             # Compute Embedded Motif Indices
             # to be Ignored Downstream
@@ -94,7 +94,7 @@ def get_parsed_sequence_constraint(
 
             # Record Warnings
             warn['warn_count'] = len(excludedmotifs)
-            warn['vars']['exmotif_embedded'].update(excludedmotifs)
+            warn['vars']['excluded_motif_embedded'].update(excludedmotifs)
             homology = max(homology,
                            max(map(len, excludedmotifs)) + 1)
 
@@ -573,7 +573,7 @@ def motif_objectives(
             liner=liner)
 
         # Update Stats
-        stats['vars']['repeat_fail'] += 1
+        stats['vars']['repeat_failure_count'] += 1
 
         # Return Traceback
         return False, traceloc
@@ -601,7 +601,7 @@ def motif_objectives(
                 liner=liner)
 
             # Update Stats
-            stats['vars']['background_fail'] += 1
+            stats['vars']['background_failure_count'] += 1
 
             # Return Traceback
             return False, max(0, len(motif) - 1)
@@ -628,8 +628,8 @@ def motif_objectives(
             liner=liner)
 
         # Update Stats
-        stats['vars']['exmotif_fail'] += 1
-        stats['vars']['exmotif_counter'][exmotif] += 1
+        stats['vars']['excluded_motif_failure_count'] += 1
+        stats['vars']['excluded_motif_encounter_counter'][exmotif] += 1
 
         # Return Traceback
         return False, max(0, len(motif)-1)
@@ -660,8 +660,8 @@ def motif_objectives(
             liner=liner)
 
         # Update Stats
-        stats['vars']['edge_fail'] += len(dxmotifs)
-        stats['vars']['exmotif_counter'].update(dxmotifs)
+        stats['vars']['edge_effect_failure_count'] += len(dxmotifs)
+        stats['vars']['excluded_motif_encounter_counter'].update(dxmotifs)
 
         # Return Traceback
         return False, traceloc
@@ -832,10 +832,10 @@ def extra_assign_motif(
 
             # Record Failure Stats
             if not obj1:
-                stats['vars']['repeat_fail'] += 1
+                stats['vars']['repeat_failure_count'] += 1
             if not obj3:
-                stats['vars']['edge_fail'] += len(dxmotifs)
-                stats['vars']['exmotif_counter'].update(dxmotifs)
+                stats['vars']['edge_effect_failure_count'] += len(dxmotifs)
+                stats['vars']['excluded_motif_encounter_counter'].update(dxmotifs)
 
             # Try Again Later
             contextarray.append(aidx)
@@ -1116,7 +1116,7 @@ def motif_engine(
             liner=liner)
 
         # Return Results
-        stats['vars']['orphan_oligo'] = sorted(contextarray)
+        stats['vars']['orphan_oligo_ids'] = sorted(contextarray)
         return (motifs, stats)
 
     # Design Unsuccessful
@@ -1131,7 +1131,7 @@ def motif_engine(
             tt.time()-t0))
 
         # Return Results
-        stats['vars']['orphan_oligo'] = sorted(contextarray)
+        stats['vars']['orphan_oligo_ids'] = sorted(contextarray)
         return (None, stats)
 
 def spacer_engine(
@@ -1415,7 +1415,7 @@ def spacer_engine(
             liner=liner)
 
         # Return Results
-        stats['vars']['orphan_oligo'] = sorted(contextset)
+        stats['vars']['orphan_oligo_ids'] = sorted(contextset)
         return (spacers, stats)
 
     # Design Unsuccessful
@@ -1430,5 +1430,5 @@ def spacer_engine(
             tt.time()-t0))
 
         # Return Results
-        stats['vars']['orphan_oligo'] = sorted(contextset)
+        stats['vars']['orphan_oligo_ids'] = sorted(contextset)
         return (None, stats)

@@ -436,7 +436,7 @@ def exoneration_procedure(
         k=phiXkval):
 
         if kmer in phiXspec:
-            cctrs['phiXreads'] += exofreq
+            cctrs['phix_reads'] += exofreq
             exonerated = True
             matched_kmer = kmer
             break
@@ -1521,7 +1521,7 @@ def acount_engine(
     cctrs = {
         'previousreads'  : previousreads.value(),
         'analyzedreads'  : 0,
-        'phiXreads'      : 0,
+        'phix_reads'     : 0,
         'lowcomplexreads': 0,
         'misassocreads'  : 0,
         'falsereads'     : 0,
@@ -1854,7 +1854,7 @@ def acount_engine(
     # Update Read Counting Book-keeping
     previousreads.increment(incr=cctrs['analyzedreads'])
     analyzedreads.increment(incr=cctrs['analyzedreads'])
-    phiXreads.increment(incr=cctrs['phiXreads'])
+    phiXreads.increment(incr=cctrs['phix_reads'])
     lowcomplexreads.increment(incr=cctrs['lowcomplexreads'])
     misassocreads.increment(incr=cctrs['misassocreads'])
     falsereads.increment(incr=cctrs['falsereads'])
@@ -2071,7 +2071,7 @@ def xcount_engine(
     cctrs = {
         'previousreads'  : previousreads.value(),
         'analyzedreads'  : 0,
-        'phiXreads'      : 0,
+        'phix_reads'     : 0,
         'lowcomplexreads': 0,
         'falsereads'     : 0,
         'incalcreads'    : 0,
@@ -2383,7 +2383,7 @@ def xcount_engine(
     # Update Read Counting Book-keeping
     previousreads.increment(incr=cctrs['analyzedreads'])
     analyzedreads.increment(incr=cctrs['analyzedreads'])
-    phiXreads.increment(incr=cctrs['phiXreads'])
+    phiXreads.increment(incr=cctrs['phix_reads'])
     lowcomplexreads.increment(incr=cctrs['lowcomplexreads'])
     falsereads.increment(incr=cctrs['falsereads'])
     incalcreads.increment(incr=cctrs['incalcreads'])

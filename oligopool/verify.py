@@ -18,7 +18,7 @@ def verify(
     background_directory:str|list|None=None,
     verbose:bool=True) -> Tuple[pd.DataFrame, dict]:
     '''
-    Verify an oligo pool for length, excluded motif emergence, and background k-mer conflicts.
+    Verify an oligo pool for integrity, length, excluded motif emergence, and background k-mer conflicts.
     Returns a DataFrame with per-row conflict flags and details.
 
     Required Parameters:
@@ -42,6 +42,7 @@ def verify(
         - If `CompleteOligo` column exists, it is used directly; otherwise, all concrete DNA columns
             (ATGC only) are concatenated left-to-right.
         - IUPAC/degenerate columns are skipped silently during DNA column detection.
+        - Integrity conflict: `CompleteOligo` vs constituent mismatch or `OligoLength` vs actual mismatch.
         - Length conflict: oligo length exceeds `oligo_length_limit`.
         - Exmotif conflict: motif count exceeds library-wide minimum (baseline).
             `excluded_motifs`: one or more sources (list/dict), merged; strict ATGC only; CSV/DataFrame requires 'Exmotif';
@@ -50,6 +51,12 @@ def verify(
         - Conflict details are stored as dicts in the DataFrame; when written to CSV, they are
             serialized as JSON strings (parse back with `json.loads()` for any `*Details` column; currently
             the `*ConflictDetails` columns).
+        - When constituent DNA columns are present alongside `CompleteOligo`, conflict positions are
+            attributed to their originating column. The `columns` key in `ExmotifConflictDetails` and
+            `BackgroundConflictDetails`, and the `column_lengths` key in `LengthConflictDetails`, provide
+            this attribution. Rows with a `CompleteOligo`-vs-constituent mismatch attribute exmotif/background
+            hits to `CompleteOligo` instead of constituent columns. Stats include `excluded_motif_column_conflicts`
+            and `background_column_conflicts` dicts keyed by column name.
     '''
 
     # Preserve return style when the caller intentionally used ID as index.
@@ -76,6 +83,7 @@ def verify(
     (indf,
     data_name,
     dna_columns,
+    constituent_columns,
     indata_valid) = vp.get_parsed_verify_indata_info(
         data=indata,
         data_field='      Input Data    ',
@@ -177,21 +185,31 @@ def verify(
     # Check if CompleteOligo was detected
     used_complete_oligo = (dna_columns == ['CompleteOligo'])
 
-    # Report DNA columns
-    liner.send(' DNA Column(s): {} Column(s)\n'.format(len(dna_columns)))
-    for col in dna_columns:
+    # Column list for position attribution:
+    # - Scenario A (CompleteOligo + constituents): use constituent columns
+    # - Scenario B (CompleteOligo only): use ['CompleteOligo'] as single column
+    # - Scenario C (no CompleteOligo): use constituent columns (same as dna_columns)
+    attribution_columns = constituent_columns if constituent_columns else ['CompleteOligo']
+
+    # Report all DNA columns
+    all_dna_columns = list(constituent_columns)
+    if used_complete_oligo:
+        all_dna_columns.append('CompleteOligo')
+    liner.send(' DNA Column(s): {} Column(s)\n'.format(len(all_dna_columns)))
+    for col in all_dna_columns:
         liner.send('   - {}\n'.format(col))
 
-    if used_complete_oligo:
-        liner.send(' Complete Oligo : Present (using directly)\n')
-    else:
-        liner.send(' Complete Oligo : Not Present (concatenating above)\n')
+    # Padded row count width for progress lines
+    num_rows = len(indf)
+    plen = ut.get_printlen(value=num_rows)
 
     # Step 2: Build concatenated oligos
     oligo_sequences = []
     oligo_lengths = []
 
-    for idx in range(len(indf)):
+    for idx in range(num_rows):
+        if (idx + 1) % 1000 == 0 or idx + 1 == num_rows:
+            liner.send('     Oligos Constructed: Scanned {:>{},} Variant(s)'.format(idx + 1, plen))
         if used_complete_oligo:
             oligo = str(indf['CompleteOligo'].iloc[idx]).replace('-', '').upper()
         else:
@@ -199,38 +217,107 @@ def verify(
             oligo = ''.join(parts)
         oligo_sequences.append(oligo)
         oligo_lengths.append(len(oligo))
+    liner.send('     Oligos Constructed: Scanned {:>{},} Variant(s)\n'.format(num_rows, plen))
+
+    # Consistency check: CompleteOligo vs constituents (Scenario A only)
+    complete_oligo_conflicts = [False] * num_rows
+    if used_complete_oligo and constituent_columns:
+        for idx in range(num_rows):
+            if (idx + 1) % 1000 == 0 or idx + 1 == num_rows:
+                liner.send(' CompleteOligo Verified: Scanned {:>{},} Variant(s)'.format(idx + 1, plen))
+            concat = ''.join(
+                str(indf[col].iloc[idx]).replace('-', '').upper()
+                for col in constituent_columns)
+            if oligo_sequences[idx] != concat:
+                complete_oligo_conflicts[idx] = True
+        liner.send(' CompleteOligo Verified: Scanned {:>{},} Variant(s)\n'.format(num_rows, plen))
+
+    # OligoLength check (all scenarios, when column present)
+    oligo_length_conflicts = [False] * num_rows
+    oligo_length_series = None
+    if 'OligoLength' in indf.columns:
+        oligo_length_series = pd.to_numeric(indf['OligoLength'], errors='coerce')
+        if oligo_length_series.notna().all():
+            for idx in range(num_rows):
+                if (idx + 1) % 1000 == 0 or idx + 1 == num_rows:
+                    liner.send('   OligoLength Verified: Scanned {:>{},} Variant(s)'.format(idx + 1, plen))
+                expected = int(oligo_length_series.iloc[idx])
+                actual = oligo_lengths[idx]
+                if expected != actual:
+                    oligo_length_conflicts[idx] = True
+            liner.send('   OligoLength Verified: Scanned {:>{},} Variant(s)\n'.format(num_rows, plen))
+
+    # Build per-row integrity conflict data
+    integrity_conflicts = []
+    integrity_details = []
+    for idx in range(num_rows):
+        co = complete_oligo_conflicts[idx]
+        ol = oligo_length_conflicts[idx]
+        if co or ol:
+            integrity_conflicts.append(True)
+            integrity_details.append({
+                'complete_oligo_conflict': co,
+                'oligo_length_conflict': ol,
+                'expected_oligo_length': int(oligo_length_series.iloc[idx]) if ol else None,
+                'actual_oligo_length': oligo_lengths[idx] if ol else None,
+            })
+        else:
+            integrity_conflicts.append(False)
+            integrity_details.append(None)
+
+    integrity_conflict_count = sum(integrity_conflicts)
+    complete_oligo_conflict_count = sum(complete_oligo_conflicts)
+    oligo_length_conflict_count = sum(oligo_length_conflicts)
 
     min_oligo_len = min(oligo_lengths)
     max_oligo_len = max(oligo_lengths)
 
-    if min_oligo_len == max_oligo_len:
-        liner.send('    Oligo Length: {:,} Base Pair(s)\n'.format(min_oligo_len))
-    else:
-        liner.send('    Oligo Length: {:,} to {:,} Base Pair(s)\n'.format(
-            min_oligo_len, max_oligo_len))
+    # Precompute per-row column boundaries for attribution
+    row_boundaries = []
+    for idx in range(num_rows):
+        if (idx + 1) % 1000 == 0 or idx + 1 == num_rows:
+            liner.send('     Bounds Constructed: Scanned {:>{},} Variant(s)'.format(idx + 1, plen))
+        row_boundaries.append(
+            ut.get_column_boundaries(idx, attribution_columns, indf))
+    liner.send('     Bounds Constructed: Scanned {:>{},} Variant(s)\n'.format(num_rows, plen))
+
+    # Override boundaries for rows with CompleteOligo integrity conflicts
+    # (constituent boundaries are unreliable when CompleteOligo != concat)
+    for idx in range(num_rows):
+        if complete_oligo_conflicts[idx]:
+            row_boundaries[idx] = [('CompleteOligo', 0, oligo_lengths[idx])]
 
     # Step 3: Conflict Detection
     # 3a. Length Conflict Detection
     length_conflicts = []
     length_details = []
 
-    for length in oligo_lengths:
+    for idx, length in enumerate(oligo_lengths):
+        if (idx + 1) % 1000 == 0 or idx + 1 == num_rows:
+            liner.send('    Lengths Evaluated  : Scanned {:>{},} Variant(s)'.format(idx + 1, plen))
         if length > oligolimit:
             length_conflicts.append(True)
+            # Build column_lengths from boundaries
+            column_lengths = {}
+            for col_name, start, end in row_boundaries[idx]:
+                column_lengths[col_name] = end - start
             length_details.append({
-                'length': length,
-                'limit': oligolimit,
-                'overflow': length - oligolimit
+                'oligo_length': length,
+                'length_limit': oligolimit,
+                'excess_bp': length - oligolimit,
+                'column_lengths': column_lengths
             })
         else:
             length_conflicts.append(False)
             length_details.append(None)
+    liner.send('    Lengths Evaluated  : Scanned {:>{},} Variant(s)\n'.format(num_rows, plen))
 
     # 3b. Exmotif Emergence Detection
     exmotif_conflicts = []
     exmotif_details = []
     baselines = {}
     emergence_summary = {}
+    excluded_motif_column_conflicts = None
 
     if exmotifs:
         # Pre-compute baselines
@@ -239,26 +326,34 @@ def verify(
             baselines[motif] = min(counts) if counts else 0
 
         # Per-row detection
-        for oligo in oligo_sequences:
-            row_details = {}
+        for row_idx, oligo in enumerate(oligo_sequences):
+            if (row_idx + 1) % 1000 == 0 or row_idx + 1 == num_rows:
+                liner.send('   Exmotifs Evaluated  : Scanned {:>{},} Variant(s)'.format(row_idx + 1, plen))
+            row_details = []
+            boundaries = row_boundaries[row_idx]
             for motif in exmotifs:
                 count = oligo.count(motif)
                 if count > baselines[motif]:
                     # Find all positions
                     positions = []
+                    columns = []
                     start = 0
                     while True:
                         pos = oligo.find(motif, start)
                         if pos < 0:
                             break
                         positions.append(pos)
-                        start = pos + 1
-                    row_details[motif] = {
-                        'count': count,
-                        'baseline': baselines[motif],
-                        'emergence': count - baselines[motif],
-                        'positions': positions
-                    }
+                        columns.append(ut.get_boundary_column(pos, boundaries))
+                        # Non-overlapping semantics (match str.count()).
+                        start = pos + len(motif)
+                    row_details.append({
+                        'motif': motif,
+                        'occurrences': count,
+                        'library_baseline': baselines[motif],
+                        'excess_occurrences': count - baselines[motif],
+                        'positions': positions,
+                        'columns': columns
+                    })
             if row_details:
                 exmotif_conflicts.append(True)
                 exmotif_details.append(row_details)
@@ -268,14 +363,31 @@ def verify(
 
         # Build emergence summary for stats
         for motif in exmotifs:
-            emergent_rows = sum(1 for d in exmotif_details if d and motif in d)
+            emergent_rows = sum(
+                1 for d in exmotif_details
+                if d and any(e['motif'] == motif for e in d))
             max_emergence = max(
-                (d[motif]['emergence'] for d in exmotif_details if d and motif in d),
+                (e['excess_occurrences'] for d in exmotif_details
+                 if d for e in d if e['motif'] == motif),
                 default=0)
             emergence_summary[motif] = {
-                'rows': emergent_rows,
-                'max': max_emergence
+                'emergent_row_count': emergent_rows,
+                'max_excess_occurrences': max_emergence
             }
+
+        # Compute excluded_motif_column_conflicts: per-column count of oligos with exmotif hits
+        excluded_motif_column_conflicts = {col: 0 for col in attribution_columns}
+        for detail in exmotif_details:
+            if detail is None:
+                continue
+            # Collect all columns hit across all motifs in this row
+            cols_hit = set()
+            for entry in detail:
+                cols_hit.update(entry['columns'])
+            for col in cols_hit:
+                if col in excluded_motif_column_conflicts:
+                    excluded_motif_column_conflicts[col] += 1
+        liner.send('   Exmotifs Evaluated  : Scanned {:>{},} Variant(s)\n'.format(num_rows, plen))
     else:
         exmotif_conflicts = [False] * len(oligo_sequences)
         exmotif_details = [None] * len(oligo_sequences)
@@ -283,15 +395,20 @@ def verify(
     # 3c. Background K-mer Conflict Detection
     background_conflicts = []
     background_details = []
+    background_column_conflicts = None
 
     if backgrounds:
-        for oligo in oligo_sequences:
+        for row_idx, oligo in enumerate(oligo_sequences):
+            if (row_idx + 1) % 1000 == 0 or row_idx + 1 == num_rows:
+                liner.send(' Background Evaluated  : Scanned {:>{},} Variant(s)'.format(row_idx + 1, plen))
             row_details = {
-                'matching_kmers': [],
-                'kmer_count': 0,
-                'first_match_position': None
+                'kmers': [],
+                'positions': [],
+                'columns': [],
+                'match_count': 0
             }
             has_conflict = False
+            boundaries = row_boundaries[row_idx]
 
             for bg in backgrounds:
                 K = bg.K
@@ -301,10 +418,11 @@ def verify(
                     kmer = oligo[i:i+K]
                     if kmer in bg:
                         has_conflict = True
-                        row_details['matching_kmers'].append(kmer)
-                        if row_details['first_match_position'] is None:
-                            row_details['first_match_position'] = i
-                        row_details['kmer_count'] += 1
+                        row_details['kmers'].append(kmer)
+                        row_details['positions'].append(i)
+                        row_details['columns'].append(
+                            ut.get_boundary_column(i, boundaries))
+                        row_details['match_count'] += 1
 
             if has_conflict:
                 background_conflicts.append(True)
@@ -312,37 +430,69 @@ def verify(
             else:
                 background_conflicts.append(False)
                 background_details.append(None)
+
+        # Compute background_column_conflicts
+        background_column_conflicts = {col: 0 for col in attribution_columns}
+        for detail in background_details:
+            if detail is None:
+                continue
+            cols_hit = set(detail['columns'])
+            for col in cols_hit:
+                if col in background_column_conflicts:
+                    background_column_conflicts[col] += 1
+        liner.send(' Background Evaluated  : Scanned {:>{},} Variant(s)\n'.format(num_rows, plen))
     else:
         background_conflicts = [False] * len(oligo_sequences)
         background_details = [None] * len(oligo_sequences)
 
     # Build HasAnyConflicts
     has_any_conflicts = [
-        l or e or b
-        for l, e, b in zip(length_conflicts, exmotif_conflicts, background_conflicts)
+        l or e or b or i
+        for l, e, b, i in zip(length_conflicts, exmotif_conflicts,
+                              background_conflicts, integrity_conflicts)
     ]
 
     # Step 4: Build Output DataFrame (index from indf, ID column added at return)
     outdf = pd.DataFrame(index=indf.index)
     outdf['CompleteOligo'] = oligo_sequences
     outdf['OligoLength'] = oligo_lengths
+    outdf['HasIntegrityConflict'] = integrity_conflicts
     outdf['HasLengthConflict'] = length_conflicts
     outdf['HasExmotifConflict'] = exmotif_conflicts
     outdf['HasBackgroundConflict'] = background_conflicts
     outdf['HasAnyConflicts'] = has_any_conflicts
+    outdf['IntegrityConflictDetails'] = integrity_details
     outdf['LengthConflictDetails'] = length_details
     outdf['ExmotifConflictDetails'] = exmotif_details
     outdf['BackgroundConflictDetails'] = background_details
 
-    liner.send(' Scanning Completed\n')
     liner.send(' Time Elapsed: {:.2f} sec\n'.format(tt.time() - t0))
 
     # Step 5: Build Stats & Write Output
     length_conflict_count = sum(length_conflicts)
-    exmotif_conflict_count = sum(exmotif_conflicts)
+    excluded_motif_conflict_count = sum(exmotif_conflicts)
     background_conflict_count = sum(background_conflicts)
     any_conflict_count = sum(has_any_conflicts)
     clean_count = len(outdf) - any_conflict_count
+    total_count = len(outdf)
+
+    # Compute any_column_conflicts: per-column count of rows with any
+    # position-level conflict (exmotif or background) in that column
+    any_column_conflicts = None
+    if excluded_motif_column_conflicts is not None or background_column_conflicts is not None:
+        any_column_conflicts = {col: 0 for col in attribution_columns}
+        for row_idx in range(num_rows):
+            cols_hit = set()
+            ex_detail = exmotif_details[row_idx]
+            if ex_detail:
+                for entry in ex_detail:
+                    cols_hit.update(entry['columns'])
+            bg_detail = background_details[row_idx]
+            if bg_detail:
+                cols_hit.update(bg_detail['columns'])
+            for col in cols_hit:
+                if col in any_column_conflicts:
+                    any_column_conflicts[col] += 1
 
     stats = {
         'status': any_conflict_count == 0,
@@ -350,21 +500,28 @@ def verify(
         'step': 1,
         'step_name': 'scanning-oligo-pool',
         'vars': {
-                    'total_count': len(outdf),
-                    'dna_columns': dna_columns,
-                 'complete_oligo': used_complete_oligo,
-                    'oligo_limit': oligolimit,
-                  'min_oligo_len': min_oligo_len,
-                  'max_oligo_len': max_oligo_len,
-                'length_conflict': length_conflict_count,
-               'exmotif_conflict': exmotif_conflict_count,
-            'background_conflict': background_conflict_count,
-                   'any_conflict': any_conflict_count,
-                    'clean_count': clean_count,
-                'excluded_motifs': list(exmotifs) if exmotifs else None,
-                'motif_baselines': baselines if baselines else None,
-                'motif_emergence': emergence_summary if emergence_summary else None,
-                   'background_k': [bg.K for bg in backgrounds] if backgrounds else None,
+            'total_count':                   total_count,
+            'dna_columns':                   dna_columns,
+            'has_complete_oligo':            used_complete_oligo,
+            'constituent_columns':           constituent_columns if constituent_columns else None,
+            'length_limit':                  oligolimit,
+            'min_oligo_length':              min_oligo_len,
+            'max_oligo_length':              max_oligo_len,
+            'integrity_conflict_count':      integrity_conflict_count,
+            'complete_oligo_conflict_count': complete_oligo_conflict_count,
+            'oligo_length_conflict_count':   oligo_length_conflict_count,
+            'length_conflict_count':         length_conflict_count,
+            'excluded_motif_conflict_count':        excluded_motif_conflict_count,
+            'background_conflict_count':     background_conflict_count,
+            'any_conflict_count':            any_conflict_count,
+            'clean_count':                   clean_count,
+            'excluded_motifs':               list(exmotifs) if exmotifs else None,
+            'library_baselines':             baselines if baselines else None,
+            'motif_emergence':               emergence_summary if emergence_summary else None,
+            'background_kmer_lengths':       [bg.K for bg in backgrounds] if backgrounds else None,
+            'excluded_motif_column_conflicts':      excluded_motif_column_conflicts,
+            'background_column_conflicts':   background_column_conflicts,
+            'any_column_conflicts':          any_column_conflicts,
         },
         'warns': warns
     }
@@ -378,7 +535,7 @@ def verify(
     if outfile is not None:
         # Serialize dict columns as JSON strings for CSV
         csv_df = outdf.copy()
-        for col in ['LengthConflictDetails', 'ExmotifConflictDetails', 'BackgroundConflictDetails']:
+        for col in ['IntegrityConflictDetails', 'LengthConflictDetails', 'ExmotifConflictDetails', 'BackgroundConflictDetails']:
             csv_df[col] = csv_df[col].apply(lambda x: json.dumps(x) if x is not None else None)
         # Add ID column for CSV output
         csv_df = ut.get_df_with_id_column(csv_df)
@@ -387,27 +544,37 @@ def verify(
     # Verification Statistics
     liner.send('\n[Verification Statistics]\n')
 
-    total_count = len(outdf)
-    plen = ut.get_printlen(value=total_count)
-
     verify_status = 'Successful' if any_conflict_count == 0 else 'Conflicts Detected'
-    liner.send('     Verify Status   : {}\n'.format(verify_status))
-    liner.send('      Total Count    : {:{},d} Row(s)\n'.format(total_count, plen))
-    liner.send('     Length Conflicts: {:{},d} Row(s) ({:6.2f} %)\n'.format(
+    liner.send('      Verify Status   : {}\n'.format(verify_status))
+    liner.send('       Total Count    : {:{},d} Variant(s)\n'.format(total_count, plen))
+    liner.send('   Integrity Conflicts: {:{},d} Variant(s) ({:6.2f} %)\n'.format(
+        integrity_conflict_count, plen,
+        ut.safediv(A=integrity_conflict_count * 100., B=total_count)))
+    liner.send('      Length Conflicts: {:{},d} Variant(s) ({:6.2f} %)\n'.format(
         length_conflict_count, plen,
         ut.safediv(A=length_conflict_count * 100., B=total_count)))
-    liner.send('    Exmotif Conflicts: {:{},d} Row(s) ({:6.2f} %)\n'.format(
-        exmotif_conflict_count, plen,
-        ut.safediv(A=exmotif_conflict_count * 100., B=total_count)))
-    liner.send(' Background Conflicts: {:{},d} Row(s) ({:6.2f} %)\n'.format(
+    liner.send('     Exmotif Conflicts: {:{},d} Variant(s) ({:6.2f} %)\n'.format(
+        excluded_motif_conflict_count, plen,
+        ut.safediv(A=excluded_motif_conflict_count * 100., B=total_count)))
+    liner.send('  Background Conflicts: {:{},d} Variant(s) ({:6.2f} %)\n'.format(
         background_conflict_count, plen,
         ut.safediv(A=background_conflict_count * 100., B=total_count)))
-    liner.send('        Any Conflicts: {:{},d} Row(s) ({:6.2f} %)\n'.format(
+    liner.send('         Any Conflicts: {:{},d} Variant(s) ({:6.2f} %)\n'.format(
         any_conflict_count, plen,
         ut.safediv(A=any_conflict_count * 100., B=total_count)))
-    liner.send('      Clean Count    : {:{},d} Row(s) ({:6.2f} %)\n'.format(
+    liner.send('       Clean Count    : {:{},d} Variant(s) ({:6.2f} %)\n'.format(
         clean_count, plen,
         ut.safediv(A=clean_count * 100., B=total_count)))
+
+    # Column-wise conflict breakdown (any = exmotif or background)
+    if any_column_conflicts is not None and any_conflict_count > 0:
+        liner.send(' Column-wise Conflicts:\n')
+        ac_len = max(len(c) for c in attribution_columns)
+        for col in attribution_columns:
+            count = any_column_conflicts[col]
+            liner.send('   - {:>{}} {:{},d} Variant(s) ({:6.2f} %)\n'.format(
+                col, ac_len, count, plen,
+                ut.safediv(A=count * 100., B=total_count)))
 
     # Show Time Elapsed
     liner.send(' Time Elapsed: {:.2f} sec\n'.format(tt.time() - t0))

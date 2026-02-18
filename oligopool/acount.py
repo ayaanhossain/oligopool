@@ -344,15 +344,15 @@ def acount(
         'step'    : 3,
         'step_name': 'counting-read-packs',
         'vars'    : {
-               'callback_error': False,
-                'failed_inputs': None,
-               'analyzed_reads': int(analyzedreads.value()),
-                   'phiX_reads': int(phiXreads.value()),
-            'low_complex_reads': int(lowcomplexreads.value()),
-              'mis_assoc_reads': int(misassocreads.value()),
-               'callback_false': int(falsereads.value()),
-                 'incalc_reads': int(incalcreads.value()),
-             'experiment_reads': int(experimentreads.value())},
+            'has_callback_error'  : False,
+            'failed_inputs'       : None,
+            'analyzed_reads'      : int(analyzedreads.value()),
+            'phix_reads'          : int(phiXreads.value()),
+            'low_complex_reads'   : int(lowcomplexreads.value()),
+            'misassociated_reads' : int(misassocreads.value()),
+            'callback_false_reads': int(falsereads.value()),
+            'incalculable_reads'  : int(incalcreads.value()),
+            'experiment_reads'    : int(experimentreads.value())},
         'warns'   : warns}
 
     # Engine Timer
@@ -514,7 +514,7 @@ def acount(
             ' Callback Function Erroneous\n')
         ut.remove_file(
             filepath=countfile)
-        stats['vars']['callback_error'] = True
+        stats['vars']['has_callback_error'] = True
         stats['vars']['failed_inputs']  = failedinputs
 
     # Handle Unmapped Reads
@@ -568,13 +568,13 @@ def acount(
         stats['step_name'] = 'writing-failed-reads'
 
     # Update Stats
-    stats['vars']['analyzed_reads']    = int(analyzedreads.value())
-    stats['vars']['phiX_reads']        = int(phiXreads.value())
-    stats['vars']['low_complex_reads'] = int(lowcomplexreads.value())
-    stats['vars']['mis_assoc_reads']   = int(misassocreads.value())
-    stats['vars']['callback_false']    = int(falsereads.value())
-    stats['vars']['incalc_reads']      = int(incalcreads.value())
-    stats['vars']['experiment_reads']  = int(experimentreads.value())
+    stats['vars']['analyzed_reads']       = int(analyzedreads.value())
+    stats['vars']['phix_reads']           = int(phiXreads.value())
+    stats['vars']['low_complex_reads']    = int(lowcomplexreads.value())
+    stats['vars']['misassociated_reads']  = int(misassocreads.value())
+    stats['vars']['callback_false_reads'] = int(falsereads.value())
+    stats['vars']['incalculable_reads']   = int(incalcreads.value())
+    stats['vars']['experiment_reads']     = int(experimentreads.value())
 
     # Counting Status
     if stats['status']:

@@ -126,8 +126,8 @@ def final(
         'step'    : 1,
         'step_name': 'finalizing-oligopool',
         'vars'    : {
-            'min_oligo_len': minoligolen,
-            'max_oligo_len': maxoligolen},
+            'min_oligo_length': minoligolen,
+            'max_oligo_length': maxoligolen},
         'warns'   : {}}
 
     # Finalization Statistics
@@ -135,8 +135,8 @@ def final(
 
     plen = ut.get_printlen(
         value=max(stats['vars'][field] for field in (
-            'min_oligo_len',
-            'max_oligo_len')))
+            'min_oligo_length',
+            'max_oligo_length')))
 
     liner.send(
         ' Final Status: Successful\n')
@@ -144,14 +144,14 @@ def final(
     if minoligolen == maxoligolen:
         liner.send(
             ' Oligo Length: {:{},d} Base Pair(s)\n'.format(
-                stats['vars']['min_oligo_len'],
+                stats['vars']['min_oligo_length'],
                 plen))
     else:
         liner.send(
             ' Oligo Length: {:{},d} to {:{},d} Base Pair(s)\n'.format(
-                stats['vars']['min_oligo_len'],
+                stats['vars']['min_oligo_length'],
                 plen,
-                stats['vars']['max_oligo_len'],
+                stats['vars']['max_oligo_length'],
                 plen))
 
     # Show Time Elapsed

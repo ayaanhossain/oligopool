@@ -247,7 +247,7 @@ def get_parsed_sequence_constraint(
     if not motif_ok:
 
         # Update Warning Entry
-        warn['vars'] = {'exmotif_embedded': set()}
+        warn['vars'] = {'excluded_motif_embedded': set()}
 
         # Compute Embedded Motif Indices
         # to be Ignored Downstream
@@ -269,7 +269,7 @@ def get_parsed_sequence_constraint(
 
         # Record Warnings
         warn['warn_count'] += len(excludedmotifs)
-        warn['vars']['exmotif_embedded'].update(excludedmotifs)
+        warn['vars']['excluded_motif_embedded'].update(excludedmotifs)
         suboptimal = True
 
         # Show Excluded Motifs
@@ -328,7 +328,7 @@ def get_parsed_sequence_constraint(
     liner.send(' Computing Palindrome Conflicts ...')
 
     # Update Warning Entry
-    warn['vars'] = {'palindrome_embedded': set()}
+    warn['vars'] = {'embedded_palindromes': set()}
 
     # Compute Panlindrome
     palindrome_ok, palindromeembedded = get_palindrome_conflicts(
@@ -344,7 +344,7 @@ def get_parsed_sequence_constraint(
 
         # Record Warnings
         warn['warn_count'] += len(palindromeembedded)
-        warn['vars']['palindrome_embedded'].update(palindromeembedded)
+        warn['vars']['embedded_palindromes'].update(palindromeembedded)
         suboptimal = True
 
         # Show Palindromes
@@ -1683,7 +1683,7 @@ def primer_objectives(
             liner=liner)
 
         # Update Stats
-        stats['vars']['background_fail'] += 1
+        stats['vars']['background_failure_count'] += 1
 
         # Return Traceback
         return False, traceloc
@@ -1709,7 +1709,7 @@ def primer_objectives(
             liner=liner)
 
         # Update Stats
-        stats['vars']['repeat_fail'] += 1
+        stats['vars']['repeat_failure_count'] += 1
 
         # Return Traceback
         return False, traceloc
@@ -1734,7 +1734,7 @@ def primer_objectives(
             liner=liner)
 
         # Update Stats
-        stats['vars']['repeat_fail'] += 1
+        stats['vars']['repeat_failure_count'] += 1
 
         # Return Traceback
         return False, traceloc
@@ -1759,8 +1759,8 @@ def primer_objectives(
             liner=liner)
 
         # Update Stats
-        stats['vars']['exmotif_fail'] += 1
-        stats['vars']['exmotif_counter'][exmotif] += 1
+        stats['vars']['excluded_motif_failure_count'] += 1
+        stats['vars']['excluded_motif_encounter_counter'][exmotif] += 1
 
         # Return Traceback
         return False, max(
@@ -1789,8 +1789,8 @@ def primer_objectives(
             liner=liner)
 
         # Update Stats
-        stats['vars']['edge_fail'] += len(dxmotifs)
-        stats['vars']['exmotif_counter'].update(dxmotifs)
+        stats['vars']['edge_effect_failure_count'] += len(dxmotifs)
+        stats['vars']['excluded_motif_encounter_counter'].update(dxmotifs)
 
         # Return Traceback
         return False, traceloc
@@ -1834,7 +1834,7 @@ def primer_objectives(
                 fixedbaseindex=fixedbaseindex)
 
             # Update Stats
-            stats['vars']['Tm_fail'] += 1
+            stats['vars']['melting_temperature_failure_count'] += 1
 
             # Return Traceback
             return False, traceloc
@@ -1866,7 +1866,7 @@ def primer_objectives(
                 liner=liner)
 
             # Update Stats
-            stats['vars']['homodimer_fail'] += 1
+            stats['vars']['homodimer_failure_count'] += 1
 
             # Return Traceback
             return False, traceloc
@@ -1894,7 +1894,7 @@ def primer_objectives(
                 liner=liner)
 
             # Update Stats
-            stats['vars']['heterodimer_fail'] += 1
+            stats['vars']['heterodimer_failure_count'] += 1
 
             # Return Traceback
             return False, traceloc
@@ -1924,7 +1924,7 @@ def primer_objectives(
                         liner=liner)
 
                     # Update Stats
-                    stats['vars']['crossdimer_fail'] += 1
+                    stats['vars']['cross_dimer_failure_count'] += 1
 
                     # Return Traceback
                     return False, traceloc
@@ -2173,25 +2173,25 @@ def primer_engine(
             seq=primer) if primertype == 1 else primer
 
         # Update Tm
-        stats['vars']['primer_Tm'] = ut.get_tmelt(
+        stats['vars']['primer_melting_temperature'] = ut.get_tmelt(
             seq=cprimer)
 
         # Update GC Percentage
-        stats['vars']['primer_GC'] = (cprimer.count('G') + cprimer.count('C')) / (len(cprimer) * 0.01)
+        stats['vars']['primer_guanine_cytosine_content'] = (cprimer.count('G') + cprimer.count('C')) / (len(cprimer) * 0.01)
 
         # Update Hairpin Free Energy
-        stats['vars']['hairpin_MFE'] = folder.evaluate_mfe(
+        stats['vars']['hairpin_minimum_free_energy'] = folder.evaluate_mfe(
             seq=cprimer,
             dg=True)[-1]
 
         # Update Heterodimer Free Energy
-        stats['vars']['homodimer_MFE'] = folder.evaluate_mfe_dimer(
+        stats['vars']['homodimer_minimum_free_energy'] = folder.evaluate_mfe_dimer(
             seq1=cprimer,
             seq2=cprimer)[-1]
 
         # Update Homodimer Free Energy
         if not pairedprimer is None:
-            stats['vars']['heterodimer_MFE'] = folder.evaluate_mfe_dimer(
+            stats['vars']['heterodimer_minimum_free_energy'] = folder.evaluate_mfe_dimer(
                 seq1=cprimer,
                 seq2=pairedprimer)[-1]
 

@@ -1196,7 +1196,7 @@ stats = op.lenstat(
 
 [^ Back to TOC](#table-of-contents)
 
-**What it does**: Detects length, motif emergence, and background k-mer conflicts in your oligo pool.
+**What it does**: Detects integrity, length, motif emergence, and background k-mer conflicts in your oligo pool.
 
 **When to use it**: QC check after design, before ordering synthesis.
 
@@ -1214,21 +1214,22 @@ df, stats = op.verify(
 verify()
 Output columns:
   - CompleteOligo, OligoLength
-  - HasLengthConflict, HasExmotifConflict, HasBackgroundConflict, HasAnyConflicts
-  - LengthConflictDetails, ExmotifConflictDetails, BackgroundConflictDetails
+  - HasIntegrityConflict, HasLengthConflict, HasExmotifConflict, HasBackgroundConflict, HasAnyConflicts
+  - IntegrityConflictDetails, LengthConflictDetails, ExmotifConflictDetails, BackgroundConflictDetails
 
-(When written to CSV, the *Details columns are JSON-serialized dicts; parse them back with json.loads().)
+(When written to CSV, the *Details columns are JSON-serialized values; parse them back with json.loads().)
 ```
 
 **Checks:**
+- **Integrity conflicts**: `CompleteOligo` vs constituent column mismatch or `OligoLength` vs actual length mismatch
 - **Length conflicts**: Oligos exceeding `oligo_length_limit`
 - **Excluded motif conflicts**: Motif emergence (count exceeds library-wide baseline)
 - **Background conflicts**: K-mer matches in background DB(s)
 
 **Output DataFrame columns:**
-- `HasLengthConflict`, `HasExmotifConflict`, `HasBackgroundConflict`: Boolean flags
-- `HasAnyConflicts`: Combined OR of above
-- `LengthConflictDetails`, `ExmotifConflictDetails`, `BackgroundConflictDetails`: Dict with violation details (or None)
+- `HasIntegrityConflict`, `HasLengthConflict`, `HasExmotifConflict`, `HasBackgroundConflict`: Boolean flags
+- `HasAnyConflicts`: Combined OR of all four flags
+- `IntegrityConflictDetails`, `LengthConflictDetails`, `ExmotifConflictDetails`, `BackgroundConflictDetails`: Dict with violation details (or None)
 
 **How columns are concatenated:**
 - Uses `CompleteOligo` if present; otherwise concatenates all **pure ATGC columns** left-to-right
@@ -1242,7 +1243,7 @@ import pandas as pd
 
 df = pd.read_csv('verify_results.oligopool.verify.csv')
 # Parse JSON-serialized dicts in the *Details columns
-for col in ['LengthConflictDetails', 'ExmotifConflictDetails', 'BackgroundConflictDetails']:
+for col in ['IntegrityConflictDetails', 'LengthConflictDetails', 'ExmotifConflictDetails', 'BackgroundConflictDetails']:
     df[col] = df[col].apply(lambda x: json.loads(x) if pd.notna(x) else None)
 ```
 
@@ -1251,6 +1252,7 @@ for col in ['LengthConflictDetails', 'ExmotifConflictDetails', 'BackgroundConfli
 - `oligo_length_limit` is mandatory for `verify`.
 - Motif **emergence** = count exceeds library-wide minimum; flagged even if baseline >= 1.
 - Motif matching is literal substring matching; IUPAC bases are not expanded as wildcards.
+- Rows with a `CompleteOligo`-vs-constituent mismatch attribute exmotif/background hits to `CompleteOligo` instead of constituent columns.
 
 > **API Reference**: See [`verify`](api.md#verify) for complete parameter documentation.
 

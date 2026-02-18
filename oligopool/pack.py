@@ -339,16 +339,16 @@ def pack(
         'step'    : 2,
         'step_name': 'computing-read-packs',
         'vars'    : {
-             'meta_agg_count': 0,
-               'r1_truncated': False,
-               'r2_truncated': False,
-                  'pack_size': packsize,
-                 'pack_count': int(packsbuilt.value()),
-              'scanned_reads': int(scannedreads.value()),
+            'meta_aggregate_count': 0,
+            'has_read_1_truncated': False,
+            'has_read_2_truncated': False,
+            'pack_size'      : packsize,
+            'pack_count'     : int(packsbuilt.value()),
+            'scanned_reads'  : int(scannedreads.value()),
             'ambiguous_reads': int(ambiguousreads.value()),
-                'short_reads': int(shortreads.value()),
-             'survived_reads': int(survivedreads.value()),
-               'packed_reads': int(packedreads.value())},
+            'short_reads'    : int(shortreads.value()),
+            'survived_reads' : int(survivedreads.value()),
+            'packed_reads'   : int(packedreads.value())},
         'warns'   : warns}
 
     # Engine Timer
@@ -511,13 +511,13 @@ def pack(
             ' R1 File Truncated or Incompatible with R2 File\n')
         ut.remove_file(
             filepath=packfile)
-        stats['vars']['r1_truncated'] = True
+        stats['vars']['has_read_1_truncated'] = True
     elif r2truncfile.is_set():
         liner.send(
             ' R2 File Truncated or Incompatible with R1 File\n')
         ut.remove_file(
             filepath=packfile)
-        stats['vars']['r2_truncated'] = True
+        stats['vars']['has_read_2_truncated'] = True
 
     # Packing Successful
     else:
@@ -538,7 +538,7 @@ def pack(
         # Update Stats
         stats['step'] = 3
         stats['step_name'] = 'aggregating-meta-packs'
-        stats['vars']['meta_agg_count'] = len(metaqueue)
+        stats['vars']['meta_aggregate_count'] = len(metaqueue)
 
         # Aggregation Timer
         at = tt.time()

@@ -3131,12 +3131,14 @@ def stamp_exmotif_stats(stats, exmotif_inputs):
     '''
 
     stats['vars']['excluded_motif_inputs'] = exmotif_inputs
-    if exmotif_inputs and \
-       stats['vars'].get('excluded_motif_encounter_counter'):
-        stats['vars']['excluded_motif_encounter_counter_by_input'] = \
-            get_excluded_motif_encounter_counter_by_input(
-                excluded_motif_encounter_counter=stats['vars']['excluded_motif_encounter_counter'],
-                exmotif_inputs=exmotif_inputs)
+    if stats['vars'].get('excluded_motif_encounter_counter'):
+        stats['vars']['excluded_motif_encounter_counter'] = \
+            dict(stats['vars']['excluded_motif_encounter_counter'])
+        if exmotif_inputs:
+            stats['vars']['excluded_motif_encounter_counter_by_input'] = \
+                get_excluded_motif_encounter_counter_by_input(
+                    excluded_motif_encounter_counter=stats['vars']['excluded_motif_encounter_counter'],
+                    exmotif_inputs=exmotif_inputs)
 
 def get_comp(seq):
     '''

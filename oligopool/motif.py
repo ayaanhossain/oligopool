@@ -72,7 +72,7 @@ def motif(
         - For constant anchors, use `motif_type=1` (e.g., barcode prefix/suffix anchors for indexing) and tune
             `maximum_repeat_length` to control distinctness from context; anchors are typically designed before barcode.
         - Patch mode (`patch_mode=True`) preserves existing values in `motif_column` and fills only missing values
-            (`None`/NaN/empty/`'-'`). With `motif_type=1`, a compatible existing anchor is reused for new rows.
+            (`None`/`NaN`/empty/`'-'`). With `motif_type=1`, a compatible existing anchor is reused for new rows.
     '''
 
     # Preserve return style when the caller intentionally used ID as index.

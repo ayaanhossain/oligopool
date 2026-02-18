@@ -42,6 +42,7 @@ def join(
         - `input_data` and `other_data` must contain exactly the same `ID` set (order may differ).
         - Any shared non-ID column must match exactly between the two inputs; mismatches are treated as infeasible.
         - New columns from `other_data` are inserted near their nearest shared anchors; `join_policy` resolves ambiguities.
+        - If any joined oligo exceeds `oligo_length_limit`, `join` returns infeasible stats and no output.
     '''
 
     # Preserve return style when the caller intentionally used ID as index.

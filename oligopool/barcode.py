@@ -68,7 +68,7 @@ def barcode(
             Column names must be unique and exclude `barcode_column`.
         - `barcode_type`:
             0 or 'terminus' = fast terminus optimized, 1 or 'spectrum' = slow spectrum optimized
-            (aliases: 'term', 'spec').
+            (aliases: 'term', 't', 'fast', 'spec', 's', 'slow').
         - Terminus optimization targets distinctive 5'/3' ends; spectrum optimization targets k-mer saturation.
         - At least one of `left_context_column` or `right_context_column` must be specified.
         - `excluded_motifs`: one or more sources (list/dict), merged; strict ATGC only; CSV/DataFrame requires 'Exmotif';
@@ -81,7 +81,7 @@ def barcode(
             together; each new barcode must be >= `minimum_cross_distance` mismatches away from every strict-ATGC
             barcode in the union of sequences across `cross_barcode_columns` (length must equal `barcode_length`).
         - Patch mode (`patch_mode=True`) preserves existing values in `barcode_column` and fills only missing values
-            (`None`/NaN/empty/`'-'`); existing values must already be strict ATGC of length `barcode_length`.
+            (`None`/`NaN`/empty/`'-'`); existing values must already be strict ATGC of length `barcode_length`.
     '''
 
     # Preserve return style when the caller intentionally used ID as index.

@@ -19,7 +19,9 @@
 18. Breaking (Stats): normalized remaining boolean stats keys to explicit prefixes: `limit_overflow`→`has_limit_overflow`, `callback_error`→`has_callback_error`, and `read_1_truncated`/`read_2_truncated`→`has_read_1_truncated`/`has_read_2_truncated`.
 19. Breaking (Stats): normalized mixed-case Type IIS stats keys in pad module to lowercase snake_case: `typeIIS_motif`→`type_iis_motif`, `typeIIS_reverse_complement_motif`→`type_iis_reverse_complement_motif`, `internal_typeIIS_sites`→`internal_type_iis_sites`, `typeIIS_free`→`type_iis_free`.
 20. Docs (`docs/api.md`): updated stats-key naming guidance to prefer expanded lowercase terms (instead of preserving acronym-style keys).
-21. Docs: fixed stale `any_conflict` refs → `any_conflict_count` in `docs/docs.md`; updated `cross_barcode_columns` type from `str | list | None` to `str | iterable[str] | None` in `docs/api.md`.
+21. Docs: fixed stale `any_conflict` refs → `any_conflict_count` in `docs/docs.md`.
+22. Docs: documented that column-conflict dicts may include `CompleteOligo` on integrity-mismatch runs in `docs/api.md` and `docs/docs.md`; reverted `cross_barcode_columns` type sig back to `str | list | None` in `docs/api.md`.
+23. Docs/Examples: reran `examples/OligopoolCalculatorInAction.ipynb` for v2026.02.18.
 
 2026.02.17
 1. Chore: version bump to `v2026.02.17`.

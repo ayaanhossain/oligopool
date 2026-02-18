@@ -1253,6 +1253,7 @@ for col in ['IntegrityConflictDetails', 'LengthConflictDetails', 'ExmotifConflic
 - Motif **emergence** = count exceeds library-wide minimum; flagged even if baseline >= 1.
 - Motif matching is literal substring matching; IUPAC bases are not expanded as wildcards.
 - Rows with a `CompleteOligo`-vs-constituent mismatch attribute exmotif/background hits to `CompleteOligo` instead of constituent columns.
+- In those mismatch runs, column-conflict stats (`excluded_motif_column_conflicts`, `background_column_conflicts`, `any_column_conflicts`) may include `CompleteOligo` alongside constituent column keys.
 
 > **API Reference**: See [`verify`](api.md#verify) for complete parameter documentation.
 

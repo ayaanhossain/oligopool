@@ -82,7 +82,7 @@ df, stats = op.barcode(
     left_context_column=None,      # str | None
     right_context_column=None,     # str | None
     patch_mode=False,              # bool
-    cross_barcode_columns=None,    # str | iterable[str] | None
+    cross_barcode_columns=None,    # str | list | None
     minimum_cross_distance=None,   # int | None
     excluded_motifs=None,          # list | str | dict | pd.DataFrame | None
     background_directory=None,     # str | list | None
@@ -107,7 +107,7 @@ df, stats = op.barcode(
 - `left_context_column` (str | None, default=None): Column for left DNA context
 - `right_context_column` (str | None, default=None): Column for right DNA context
 - `patch_mode` (bool, default=False): Fill only missing values (`None`/`NaN`/empty/`'-'`); existing values must be valid ATGC of length `barcode_length`
-- `cross_barcode_columns` (str | iterable[str] | None, default=None): Existing barcode column(s) for cross-set separation
+- `cross_barcode_columns` (str | list | None, default=None): Existing barcode column(s) for cross-set separation
 - `minimum_cross_distance` (int | None, default=None): Min Hamming distance to cross set (requires `cross_barcode_columns`)
 - `excluded_motifs` (list | str | dict | DataFrame | None, default=None): Motifs to exclude. Accepts a list, CSV/FASTA path, DataFrame with `Exmotif` column, comma-string, or multiple sources (list of sources or `{name: source}` dict). Motifs must be strict ATGC only (no IUPAC codes, no dashes).
 - `background_directory` (str | list | None, default=None): Background k-mer DB(s) from `background()` (screened against ALL specified DBs; junction-aware when context columns are provided)
@@ -1333,6 +1333,7 @@ df, stats = op.verify(
 - Conflict details are JSON-serializable Python objects in the returned DataFrame; serialized as JSON strings in CSV output
 - **Reading CSV back**: Parse JSON for all `*Details` columns (currently the `*ConflictDetails` columns; e.g., loop over columns ending in `Details` and apply `json.loads`).
 - **Integrity override**: Rows with a `CompleteOligo`-vs-constituent mismatch attribute exmotif/background hits to `CompleteOligo` instead of constituent columns.
+- In those mismatch runs, `excluded_motif_column_conflicts`, `background_column_conflicts`, and `any_column_conflicts` may include `CompleteOligo` in addition to constituent column keys.
 
 **CLI Equivalent**:
 ```bash

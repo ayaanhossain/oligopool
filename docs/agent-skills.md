@@ -17,7 +17,7 @@ parameter-by-parameter reference and `docs/docs.md` for tutorials/examples.
 - Docker notes [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/docker-notes.md)]
 
 Agent policy: start with this guide, then explore only the minimum additional docs needed for the task:
-`docs/api.md` for exact signatures/allowed values,
+`docs/api.md` for exact signatures, allowed values and output schemas,
 `docs/docs.md` for workflows,
 and then module docstrings (`help(op.<module>)` in Python or `op manual <COMMAND>` in CLI) for runtime truth.
 Use the example notebook strategically when the task needs experimental context (for example assay framing,
@@ -86,6 +86,10 @@ Five modes (library + CLI):
   depending on `separate_outputs` (CLI defaults to separate outputs enabled).
 - `join`: `(out_df, stats_dict)`; joins two tables on `ID` and inserts new columns
    from `other_data` in resolved order, for recombining parallel design branches.
+
+Two granularities:
+- `stats` is aggregate (pass/fail decisions and summary reporting).
+- Returned DataFrames / output files are per-row (drilldown details; may include structured payload columns, for example JSON-serialized `*Details` columns in `verify` outputs or per-category diagnostics in optional failed-reads outputs from counting).
 
 ## Special Contracts
 

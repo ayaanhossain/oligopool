@@ -89,7 +89,7 @@ def primer(
             compatibility; if `paired_primer_column` is provided, it must be constant within each set and
             pairing/Tm matching is applied per set.
         - Patch mode (`patch_mode=True`) preserves existing values in `primer_column` and fills only missing values
-            (`None`/NaN/empty/`'-'`). With `oligo_set`, existing per-set primers are reused and missing-only sets
+            (`None`/`NaN`/empty/`'-'`). With `oligo_set`, existing per-set primers are reused and missing-only sets
             trigger new per-set primer design.
     '''
 

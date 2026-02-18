@@ -45,6 +45,7 @@ def expand(
         - If `mapping_file` is a string path/basename, `.oligopool.compress.mapping.csv` is appended if missing.
         - Expansion can be exponential (e.g., 10 N's = 4^10 sequences); use `expansion_limit`
             as a safety cap when working with highly degenerate sequences.
+        - Expansion is parallelized across CPU cores when supported (falls back to serial otherwise).
     '''
 
     # Argument Aliasing

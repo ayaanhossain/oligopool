@@ -69,7 +69,7 @@ def spacer(
         - Auto-sized spacers (`spacer_length=None`): rows at the limit get `'-'`; rows exceeding the limit are
             infeasible.
         - Patch mode (`patch_mode=True`) preserves existing values in `spacer_column` and fills only missing values
-            (`None`/NaN/empty/`'-'`); some rows may still get `'-'` if no spacer can fit under `oligo_length_limit`.
+            (`None`/`NaN`/empty/`'-'`); some rows may still get `'-'` if no spacer can fit under `oligo_length_limit`.
     '''
 
     # Preserve return style when the caller intentionally used ID as index.

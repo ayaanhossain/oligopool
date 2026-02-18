@@ -172,6 +172,10 @@ Every module returns a `stats` dict with:
 - `input_rows`: Number of input rows processed
 - `output_rows`: Number of output rows produced
 
+Think of outputs as two granularities:
+- `stats` is **aggregate**: programmatic pass/fail decisions and summary reporting.
+- The returned DataFrame / output CSV is **per-row**: drill into individual cases (often including structured detail/diagnostic columns; for example JSON-serialized `*Details` columns from `verify` outputs, or `DiagnosticDetails` in optional failed-reads outputs from counting).
+
 When debugging, start with `status`, `basis`, `step`, and `step_name`, then inspect `vars` for the concrete values that drove the decision.
 
 ### Patch Mode: The Secret Weapon
@@ -1229,7 +1233,8 @@ Output columns:
 **Output DataFrame columns:**
 - `HasIntegrityConflict`, `HasLengthConflict`, `HasExmotifConflict`, `HasBackgroundConflict`: Boolean flags
 - `HasAnyConflicts`: Combined OR of all four flags
-- `IntegrityConflictDetails`, `LengthConflictDetails`, `ExmotifConflictDetails`, `BackgroundConflictDetails`: Dict with violation details (or None)
+- `IntegrityConflictDetails`, `LengthConflictDetails`, `BackgroundConflictDetails`: Dict with violation details (or None)
+- `ExmotifConflictDetails`: List[Dict] with per-motif emergence details (or None; **not** a dict keyed by motif)
 
 **How columns are concatenated:**
 - Uses `CompleteOligo` if present; otherwise concatenates all **pure ATGC columns** left-to-right
@@ -2603,7 +2608,7 @@ Useful for building custom counting pipelines or debugging classification issues
 
 **Debugging failed reads**
 - Use `failed_reads_file` to sample discarded reads by failure category (anchor missing, barcode absent, barcode ambiguous, callback rejected, etc.)
-- Inspect the CSV to understand why reads are being filtered out
+- Inspect the CSV to understand why reads are being filtered out; `DiagnosticDetails` values are JSON-serialized — parse with `json.loads()`
 - Common issues: wrong anchors, incorrect read orientation, barcode errors too strict
 
 **Barcode ambiguous failures**

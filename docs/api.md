@@ -93,26 +93,26 @@ df, stats = op.barcode(
 
 **Required Parameters**
 
-- `input_data` (str | DataFrame): CSV path or DataFrame with `ID` column + DNA sequence columns
-- `oligo_length_limit` (int, >=4): Maximum allowed oligo length (bp)
-- `barcode_length` (int, >=4): Length of designed barcodes (bp)
-- `minimum_hamming_distance` (int, >=1): Minimum pairwise Hamming distance within newly designed set
-- `maximum_repeat_length` (int, >=4): Maximum shared repeat length between barcode and context/oligos
-- `barcode_column` (str): Column name to create/overwrite (or patch-fill when `patch_mode=True`)
+- `input_data` (`str` / `DataFrame`): CSV path or DataFrame with `ID` column + DNA sequence columns
+- `oligo_length_limit` (`int`, >=4): Maximum allowed oligo length (bp)
+- `barcode_length` (`int`, >=4): Length of designed barcodes (bp)
+- `minimum_hamming_distance` (`int`, >=1): Minimum pairwise Hamming distance within newly designed set
+- `maximum_repeat_length` (`int`, >=4): Maximum shared repeat length between barcode and context/oligos
+- `barcode_column` (`str`): Column name to create/overwrite (or patch-fill when `patch_mode=True`)
 
 **Optional Parameters**
 
-- `output_file` (str | None, default=None): Output CSV path (required for CLI)
-- `barcode_type` (int | str, default=0): `0`/`'terminus'`=fast terminus-optimized (targets distinctive 5'/3' ends), `1`/`'spectrum'`=thorough spectrum-optimized (targets k-mer saturation). Also accepts: `'term'`, `'t'`, `'fast'`, `'spec'`, `'s'`, `'slow'`
-- `left_context_column` (str | None, default=None): Column for left DNA context
-- `right_context_column` (str | None, default=None): Column for right DNA context
-- `patch_mode` (bool, default=False): Fill only missing values (`None`/`NaN`/empty/`'-'`); existing values must be valid ATGC of length `barcode_length`
-- `cross_barcode_columns` (str | list | None, default=None): Existing barcode column(s) for cross-set separation
-- `minimum_cross_distance` (int | None, default=None): Min Hamming distance to cross set (requires `cross_barcode_columns`)
-- `excluded_motifs` (list | str | dict | DataFrame | None, default=None): Motifs to exclude. Accepts a list, CSV/FASTA path, DataFrame with `Exmotif` column, comma-string, or multiple sources (list of sources or `{name: source}` dict). Motifs must be strict ATGC only (no IUPAC codes, no dashes).
-- `background_directory` (str | list | None, default=None): Background k-mer DB(s) from `background()` (screened against ALL specified DBs; junction-aware when context columns are provided)
-- `random_seed` (int | None, default=None): RNG seed for reproducibility
-- `verbose` (bool, default=True): Print progress output
+- `output_file` (`str` / `None`, default=`None`): Output CSV path (required for CLI)
+- `barcode_type` (`int` / `str`, default=`0`): `0` / `'terminus'`=fast terminus-optimized (targets distinctive 5'/3' ends), `1` / `'spectrum'`=thorough spectrum-optimized (targets k-mer saturation). Also accepts: `'term'`, `'t'`, `'fast'`, `'spec'`, `'s'`, `'slow'`
+- `left_context_column` (`str` / `None`, default=`None`): Column for left DNA context
+- `right_context_column` (`str` / `None`, default=`None`): Column for right DNA context
+- `patch_mode` (`bool`, default=`False`): Fill only missing values (`None`/`NaN`/`''`/`'-'`); existing values must be valid ATGC of length `barcode_length`
+- `cross_barcode_columns` (`str` / `list` / `None`, default=`None`): Existing barcode column(s) for cross-set separation
+- `minimum_cross_distance` (`int` / `None`, default=`None`): Min Hamming distance to cross set (requires `cross_barcode_columns`)
+- `excluded_motifs` (`list` / `str` / `dict` / `DataFrame` / `None`, default=`None`): Motifs to exclude. Accepts a list, CSV/FASTA path, DataFrame with `Exmotif` column, comma-string, or multiple sources (list of sources or `{name: source}` dict). Motifs must be strict ATGC only (no IUPAC codes, no dashes).
+- `background_directory` (`str` / `list` / `None`, default=`None`): Background k-mer DB(s) from `background()` (screened against ALL specified DBs; junction-aware when context columns are provided)
+- `random_seed` (`int` / `None`, default=`None`): RNG seed for reproducibility
+- `verbose` (`bool`, default=`True`): Print progress output
 
 **Returns**: `(DataFrame, stats_dict)`
 
@@ -175,27 +175,27 @@ df, stats = op.primer(
 
 **Required Parameters**
 
-- `input_data` (str | DataFrame): CSV path or DataFrame with `ID` column + DNA sequence columns
-- `oligo_length_limit` (int, >=4): Maximum allowed oligo length (bp)
-- `primer_sequence_constraint` (str): IUPAC constraint string (e.g., `'SS' + 'N'*18` for GC clamp)
-- `primer_type` (int | str): `0`/`'forward'`=forward, `1`/`'reverse'`=reverse. Also accepts: `'fwd'`, `'f'`, `'rev'`, `'r'`
-- `minimum_melting_temperature` (float, >=25): Minimum primer Tm (°C)
-- `maximum_melting_temperature` (float, <=95): Maximum primer Tm (°C)
-- `maximum_repeat_length` (int, >=6): Maximum shared repeat length between primer and oligos/background
-- `primer_column` (str): Output column name
+- `input_data` (`str` / `DataFrame`): CSV path or DataFrame with `ID` column + DNA sequence columns
+- `oligo_length_limit` (`int`, >=4): Maximum allowed oligo length (bp)
+- `primer_sequence_constraint` (`str`): IUPAC constraint string (e.g., `'SS' + 'N'*18` for GC clamp)
+- `primer_type` (`int` / `str`): `0` / `'forward'`=forward, `1` / `'reverse'`=reverse. Also accepts: `'fwd'`, `'f'`, `'rev'`, `'r'`
+- `minimum_melting_temperature` (`float`, >=25): Minimum primer Tm (°C)
+- `maximum_melting_temperature` (`float`, <=95): Maximum primer Tm (°C)
+- `maximum_repeat_length` (`int`, >=6): Maximum shared repeat length between primer and oligos/background
+- `primer_column` (`str`): Output column name
 
 **Optional Parameters**
 
-- `output_file` (str | None, default=None): Output CSV path (required for CLI)
-- `left_context_column` (str | None, default=None): Column for left DNA context
-- `right_context_column` (str | None, default=None): Column for right DNA context
-- `patch_mode` (bool, default=False): Fill only missing values (`None`/`NaN`/empty/`'-'`)
-- `oligo_set` (list | str | DataFrame | None, default=None): Per-row grouping labels for set-specific primers (list, CSV, or DataFrame with `ID` + `OligoSet`)
-- `paired_primer_column` (str | None, default=None): Column of paired primer for Tm matching (within 1 °C)
-- `excluded_motifs` (list | str | dict | DataFrame | None, default=None): Motifs to exclude. Accepts a list, CSV/FASTA path, DataFrame with `Exmotif` column, comma-string, or multiple sources. Strict ATGC only (no IUPAC codes, no dashes).
-- `background_directory` (str | list | None, default=None): Background k-mer DB(s) from `background()` (screened against ALL specified DBs)
-- `random_seed` (int | None, default=None): RNG seed for reproducibility
-- `verbose` (bool, default=True): Print progress output
+- `output_file` (`str` / `None`, default=`None`): Output CSV path (required for CLI)
+- `left_context_column` (`str` / `None`, default=`None`): Column for left DNA context
+- `right_context_column` (`str` / `None`, default=`None`): Column for right DNA context
+- `patch_mode` (`bool`, default=`False`): Fill only missing values (`None`/`NaN`/`''`/`'-'`)
+- `oligo_set` (`list` / `str` / `DataFrame` / `None`, default=`None`): Per-row grouping labels for set-specific primers (list, CSV, or DataFrame with `ID` + `OligoSet`)
+- `paired_primer_column` (`str` / `None`, default=`None`): Column of paired primer for Tm matching (within 1 °C)
+- `excluded_motifs` (`list` / `str` / `dict` / `DataFrame` / `None`, default=`None`): Motifs to exclude. Accepts a list, CSV/FASTA path, DataFrame with `Exmotif` column, comma-string, or multiple sources. Strict ATGC only (no IUPAC codes, no dashes).
+- `background_directory` (`str` / `list` / `None`, default=`None`): Background k-mer DB(s) from `background()` (screened against ALL specified DBs)
+- `random_seed` (`int` / `None`, default=`None`): RNG seed for reproducibility
+- `verbose` (`bool`, default=`True`): Print progress output
 
 **Returns**: `(DataFrame, stats_dict)`
 
@@ -258,23 +258,23 @@ df, stats = op.motif(
 
 **Required Parameters**
 
-- `input_data` (str | DataFrame): CSV path or DataFrame with `ID` column + DNA sequence columns
-- `oligo_length_limit` (int, >=4): Maximum allowed oligo length (bp)
-- `motif_sequence_constraint` (str): IUPAC constraint string (can be degenerate or constant)
-- `maximum_repeat_length` (int, >=4): Maximum shared repeat length between motif/anchor and oligos
-- `motif_column` (str): Output column name
+- `input_data` (`str` / `DataFrame`): CSV path or DataFrame with `ID` column + DNA sequence columns
+- `oligo_length_limit` (`int`, >=4): Maximum allowed oligo length (bp)
+- `motif_sequence_constraint` (`str`): IUPAC constraint string (can be degenerate or constant)
+- `maximum_repeat_length` (`int`, >=4): Maximum shared repeat length between motif/anchor and oligos
+- `motif_column` (`str`): Output column name
 
 **Optional Parameters**
 
-- `output_file` (str | None, default=None): Output CSV path (required for CLI)
-- `motif_type` (int | str, default=0): `0`/`'variable'`=per-variant motifs (unique per row), `1`/`'constant'`=single motif/anchor shared by all rows. Also accepts: `'var'`, `'per-variant'`, `'non-constant'`, `'const'`, `'anchor'`, `'fixed'`
-- `left_context_column` (str | None, default=None): Column for left DNA context
-- `right_context_column` (str | None, default=None): Column for right DNA context
-- `patch_mode` (bool, default=False): Fill only missing values; for `motif_type=1`, existing anchor (must be unique across all rows) is reused
-- `excluded_motifs` (list | str | dict | DataFrame | None, default=None): Motifs to exclude. Accepts a list, CSV/FASTA path, DataFrame with `Exmotif` column, comma-string, or multiple sources. Strict ATGC only (no IUPAC codes, no dashes).
-- `background_directory` (str | list | None, default=None): Background k-mer DB(s) from `background()` (screened against ALL specified DBs; junction-aware when context columns are provided)
-- `random_seed` (int | None, default=None): RNG seed for reproducibility
-- `verbose` (bool, default=True): Print progress output
+- `output_file` (`str` / `None`, default=`None`): Output CSV path (required for CLI)
+- `motif_type` (`int` / `str`, default=`0`): `0` / `'variable'`=per-variant motifs (unique per row), `1` / `'constant'`=single motif/anchor shared by all rows. Also accepts: `'var'`, `'per-variant'`, `'non-constant'`, `'const'`, `'anchor'`, `'fixed'`
+- `left_context_column` (`str` / `None`, default=`None`): Column for left DNA context
+- `right_context_column` (`str` / `None`, default=`None`): Column for right DNA context
+- `patch_mode` (`bool`, default=`False`): Fill only missing values; for `motif_type=1`, existing anchor (must be unique across all rows) is reused
+- `excluded_motifs` (`list` / `str` / `dict` / `DataFrame` / `None`, default=`None`): Motifs to exclude. Accepts a list, CSV/FASTA path, DataFrame with `Exmotif` column, comma-string, or multiple sources. Strict ATGC only (no IUPAC codes, no dashes).
+- `background_directory` (`str` / `list` / `None`, default=`None`): Background k-mer DB(s) from `background()` (screened against ALL specified DBs; junction-aware when context columns are provided)
+- `random_seed` (`int` / `None`, default=`None`): RNG seed for reproducibility
+- `verbose` (`bool`, default=`True`): Print progress output
 
 **Returns**: `(DataFrame, stats_dict)`
 
@@ -333,22 +333,22 @@ df, stats = op.spacer(
 
 **Required Parameters**
 
-- `input_data` (str | DataFrame): CSV path or DataFrame with `ID` column + DNA sequence columns
-- `oligo_length_limit` (int, >=4): Maximum allowed oligo length (bp)
-- `maximum_repeat_length` (int, >=4): Maximum shared repeat length between spacer and oligos
-- `spacer_column` (str): Output column name
+- `input_data` (`str` / `DataFrame`): CSV path or DataFrame with `ID` column + DNA sequence columns
+- `oligo_length_limit` (`int`, >=4): Maximum allowed oligo length (bp)
+- `maximum_repeat_length` (`int`, >=4): Maximum shared repeat length between spacer and oligos
+- `spacer_column` (`str`): Output column name
 
 **Optional Parameters**
 
-- `output_file` (str | None, default=None): Output CSV path (required for CLI)
-- `spacer_length` (int | list | str | DataFrame | None, default=None): `None`=auto-fill to `oligo_length_limit`, `int`=fixed length, `list`=per-row lengths, DataFrame/CSV with `ID` + `SpacerLength`
-- `left_context_column` (str | None, default=None): Column for left DNA context
-- `right_context_column` (str | None, default=None): Column for right DNA context
-- `patch_mode` (bool, default=False): Fill only missing values (`None`/`NaN`/empty/`'-'`)
-- `excluded_motifs` (list | str | dict | DataFrame | None, default=None): Motifs to exclude. Accepts a list, CSV/FASTA path, DataFrame with `Exmotif` column, comma-string, or multiple sources. Strict ATGC only (no IUPAC codes, no dashes).
-- `background_directory` (str | list | None, default=None): Background k-mer DB(s) from `background()` (screened against ALL specified DBs; junction-aware when context columns are provided)
-- `random_seed` (int | None, default=None): RNG seed for reproducibility
-- `verbose` (bool, default=True): Print progress output
+- `output_file` (`str` / `None`, default=`None`): Output CSV path (required for CLI)
+- `spacer_length` (`int` / `list` / `str` / `DataFrame` / `None`, default=`None`): `None`=auto-fill to `oligo_length_limit`, `int`=fixed length, `list`=per-row lengths, DataFrame/CSV with `ID` + `SpacerLength`
+- `left_context_column` (`str` / `None`, default=`None`): Column for left DNA context
+- `right_context_column` (`str` / `None`, default=`None`): Column for right DNA context
+- `patch_mode` (`bool`, default=`False`): Fill only missing values (`None`/`NaN`/`''`/`'-'`)
+- `excluded_motifs` (`list` / `str` / `dict` / `DataFrame` / `None`, default=`None`): Motifs to exclude. Accepts a list, CSV/FASTA path, DataFrame with `Exmotif` column, comma-string, or multiple sources. Strict ATGC only (no IUPAC codes, no dashes).
+- `background_directory` (`str` / `list` / `None`, default=`None`): Background k-mer DB(s) from `background()` (screened against ALL specified DBs; junction-aware when context columns are provided)
+- `random_seed` (`int` / `None`, default=`None`): RNG seed for reproducibility
+- `verbose` (`bool`, default=`True`): Print progress output
 
 **Returns**: `(DataFrame, stats_dict)`
 
@@ -393,13 +393,13 @@ stats = op.background(
 
 **Required Parameters**
 
-- `input_data` (list | str | DataFrame): Background sequences: list of DNA strings, CSV/DataFrame with `Sequence` column, or FASTA path
-- `maximum_repeat_length` (int, 6-20): Maximum repeat length to screen (k-mer size = `maximum_repeat_length + 1`)
-- `output_directory` (str): Output directory basename (writes `<name>.oligopool.background`)
+- `input_data` (`list` / `str` / `DataFrame`): Background sequences: list of DNA strings, CSV/DataFrame with `Sequence` column, or FASTA path
+- `maximum_repeat_length` (`int`, 6-20): Maximum repeat length to screen (k-mer size = `maximum_repeat_length + 1`)
+- `output_directory` (`str`): Output directory basename (writes `<name>.oligopool.background`)
 
 **Optional Parameters**
 
-- `verbose` (bool, default=True): Print progress output
+- `verbose` (`bool`, default=`True`): Print progress output
 
 **Returns**: `stats_dict` (stats-only, no DataFrame)
 
@@ -443,15 +443,15 @@ df, stats = op.merge(
 
 **Required Parameters**
 
-- `input_data` (str | DataFrame): CSV path or DataFrame with `ID` column + DNA sequence columns
-- `merge_column` (str): Output column name for merged region
+- `input_data` (`str` / `DataFrame`): CSV path or DataFrame with `ID` column + DNA sequence columns
+- `merge_column` (`str`): Output column name for merged region
 
 **Optional Parameters**
 
-- `output_file` (str | None, default=None): Output CSV path (required for CLI)
-- `left_context_column` (str | None, default=None): First column to merge (defaults to first sequence column)
-- `right_context_column` (str | None, default=None): Last column to merge (defaults to last sequence column)
-- `verbose` (bool, default=True): Print progress output
+- `output_file` (`str` / `None`, default=`None`): Output CSV path (required for CLI)
+- `left_context_column` (`str` / `None`, default=`None`): First column to merge (defaults to first sequence column)
+- `right_context_column` (`str` / `None`, default=`None`): Last column to merge (defaults to last sequence column)
+- `verbose` (`bool`, default=`True`): Print progress output
 
 **Returns**: `(DataFrame, stats_dict)` - source columns in range are removed
 
@@ -495,14 +495,14 @@ df, stats = op.revcomp(
 
 **Required Parameters**
 
-- `input_data` (str | DataFrame): CSV path or DataFrame with `ID` column + DNA sequence columns
+- `input_data` (`str` / `DataFrame`): CSV path or DataFrame with `ID` column + DNA sequence columns
 
 **Optional Parameters**
 
-- `output_file` (str | None, default=None): Output CSV path (required for CLI)
-- `left_context_column` (str | None, default=None): First column to revcomp (defaults to first sequence column)
-- `right_context_column` (str | None, default=None): Last column to revcomp (defaults to last sequence column)
-- `verbose` (bool, default=True): Print progress output
+- `output_file` (`str` / `None`, default=`None`): Output CSV path (required for CLI)
+- `left_context_column` (`str` / `None`, default=`None`): First column to revcomp (defaults to first sequence column)
+- `right_context_column` (`str` / `None`, default=`None`): Last column to revcomp (defaults to last sequence column)
+- `verbose` (`bool`, default=`True`): Print progress output
 
 **Returns**: `(DataFrame, stats_dict)`
 
@@ -547,15 +547,15 @@ df, stats = op.join(
 
 **Required Parameters**
 
-- `input_data` (str | DataFrame): Backbone CSV/DataFrame with `ID` + DNA sequence columns
-- `other_data` (str | DataFrame): Second CSV/DataFrame with the same `ID` set as `input_data`
-- `oligo_length_limit` (int): Maximum allowed oligo length for the joined design (>= 4)
-- `join_policy` (int | str): Ambiguity policy for intelligent insertion: `0`/`'left'` (left-biased), `1`/`'right'` (right-biased). Also accepts: `'l'`, `'r'`
+- `input_data` (`str` / `DataFrame`): Backbone CSV/DataFrame with `ID` + DNA sequence columns
+- `other_data` (`str` / `DataFrame`): Second CSV/DataFrame with the same `ID` set as `input_data`
+- `oligo_length_limit` (`int`): Maximum allowed oligo length for the joined design (>= 4)
+- `join_policy` (`int` / `str`): Ambiguity policy for intelligent insertion: `0` / `'left'` (left-biased), `1` / `'right'` (right-biased). Also accepts: `'l'`, `'r'`
 
 **Optional Parameters**
 
-- `output_file` (str | None, default=None): Output CSV path (required for CLI)
-- `verbose` (bool, default=True): Print progress output
+- `output_file` (`str` / `None`, default=`None`): Output CSV path (required for CLI)
+- `verbose` (`bool`, default=`True`): Print progress output
 
 **Returns**: `(DataFrame, stats_dict)`
 
@@ -603,12 +603,12 @@ df, stats = op.final(
 
 **Required Parameters**
 
-- `input_data` (str | DataFrame): CSV path or DataFrame with `ID` column + DNA sequence columns
+- `input_data` (`str` / `DataFrame`): CSV path or DataFrame with `ID` column + DNA sequence columns
 
 **Optional Parameters**
 
-- `output_file` (str | None, default=None): Output CSV path (required for CLI)
-- `verbose` (bool, default=True): Print progress output
+- `output_file` (`str` / `None`, default=`None`): Output CSV path (required for CLI)
+- `verbose` (`bool`, default=`True`): Print progress output
 
 **Returns**: `(DataFrame, stats_dict)` - output contains `ID`, `CompleteOligo`, `OligoLength` only
 
@@ -658,19 +658,19 @@ df, stats = op.split(
 
 **Required Parameters**
 
-- `input_data` (str | DataFrame): CSV path or DataFrame with `ID` column + DNA sequence columns
-- `split_length_limit` (int): Maximum fragment length (bp)
-- `minimum_melting_temperature` (float): Minimum overlap Tm (°C)
-- `minimum_hamming_distance` (int): Minimum pairwise Hamming distance between overlaps
-- `minimum_overlap_length` (int): Minimum overlap length (bp)
-- `maximum_overlap_length` (int): Maximum overlap length (bp)
+- `input_data` (`str` / `DataFrame`): CSV path or DataFrame with `ID` column + DNA sequence columns
+- `split_length_limit` (`int`): Maximum fragment length (bp)
+- `minimum_melting_temperature` (`float`): Minimum overlap Tm (°C)
+- `minimum_hamming_distance` (`int`): Minimum pairwise Hamming distance between overlaps
+- `minimum_overlap_length` (`int`): Minimum overlap length (bp)
+- `maximum_overlap_length` (`int`): Maximum overlap length (bp)
 
 **Optional Parameters**
 
-- `output_file` (str | None, default=None): Output CSV path (required for CLI)
-- `separate_outputs` (bool, default=False): Return list of per-split DataFrames; if `output_file` set, writes `{base}.SplitN.oligopool.split.csv` files
-- `random_seed` (int | None, default=None): RNG seed for reproducibility
-- `verbose` (bool, default=True): Print progress output
+- `output_file` (`str` / `None`, default=`None`): Output CSV path (required for CLI)
+- `separate_outputs` (`bool`, default=`False`): Return list of per-split DataFrames; if `output_file` set, writes `{base}.SplitN.oligopool.split.csv` files
+- `random_seed` (`int` / `None`, default=`None`): RNG seed for reproducibility
+- `verbose` (`bool`, default=`True`): Print progress output
 
 **Returns**:
 - `(DataFrame, stats_dict)` when `separate_outputs=False` (default) - output contains `Split1`, `Split2`, ... columns
@@ -726,19 +726,19 @@ df, stats = op.pad(
 
 **Required Parameters**
 
-- `input_data` (str | DataFrame): Output from `split()` or any DataFrame with fragment column
-- `oligo_length_limit` (int, >=60): Maximum padded fragment length (bp)
-- `split_column` (str): Which fragment column to pad (e.g., `Split1`)
-- `typeIIS_system` (str): Type IIS enzyme name (see [supported list](#type-iis-enzymes))
-- `minimum_melting_temperature` (float, >=25): Minimum pad primer Tm (°C)
-- `maximum_melting_temperature` (float, <=95): Maximum pad primer Tm (°C)
-- `maximum_repeat_length` (int, 6-20): Maximum shared repeat length
+- `input_data` (`str` / `DataFrame`): Output from `split()` or any DataFrame with fragment column
+- `oligo_length_limit` (`int`, >=60): Maximum padded fragment length (bp)
+- `split_column` (`str`): Which fragment column to pad (e.g., `Split1`)
+- `typeIIS_system` (`str`): Type IIS enzyme name (see [supported list](#type-iis-enzymes))
+- `minimum_melting_temperature` (`float`, >=25): Minimum pad primer Tm (°C)
+- `maximum_melting_temperature` (`float`, <=95): Maximum pad primer Tm (°C)
+- `maximum_repeat_length` (`int`, 6-20): Maximum shared repeat length
 
 **Optional Parameters**
 
-- `output_file` (str | None, default=None): Output CSV path (required for CLI)
-- `random_seed` (int | None, default=None): RNG seed for reproducibility
-- `verbose` (bool, default=True): Print progress output
+- `output_file` (`str` / `None`, default=`None`): Output CSV path (required for CLI)
+- `random_seed` (`int` / `None`, default=`None`): RNG seed for reproducibility
+- `verbose` (`bool`, default=`True`): Print progress output
 
 **Returns**: `(DataFrame, stats_dict)` - output contains `5primeSpacer`, `ForwardPrimer`, `<split_column>`, `ReversePrimer`, `3primeSpacer`
 
@@ -795,17 +795,17 @@ mapping_df, synthesis_df, stats = op.compress(
 
 **Required Parameters**
 
-- `input_data` (str | DataFrame): CSV path or DataFrame with `ID` column + DNA sequence columns. All non-ID columns are concatenated as the sequence. Must contain only A/T/G/C (no degenerate codes).
+- `input_data` (`str` / `DataFrame`): CSV path or DataFrame with `ID` column + DNA sequence columns. All non-ID columns are concatenated as the sequence. Must contain only A/T/G/C (no degenerate codes).
 
 **Optional Parameters**
 
-- `mapping_file` (str | None, default=None): Output CSV for variant-to-degenerate mapping
-- `synthesis_file` (str | None, default=None): Output CSV for degenerate oligos ready for synthesis
+- `mapping_file` (`str` / `None`, default=`None`): Output CSV for variant-to-degenerate mapping
+- `synthesis_file` (`str` / `None`, default=`None`): Output CSV for degenerate oligos ready for synthesis
 - Output suffixes (if missing): `mapping_file` → `.oligopool.compress.mapping.csv`, `synthesis_file` → `.oligopool.compress.synthesis.csv`
-- `rollout_simulations` (int, default=100): Monte Carlo simulations per decision (higher = better compression, slower)
-- `rollout_horizon` (int, default=4): Lookahead positions for rollouts
-- `random_seed` (int | None, default=None): RNG seed for reproducibility
-- `verbose` (bool, default=True): Print progress output
+- `rollout_simulations` (`int`, default=`100`): Monte Carlo simulations per decision (higher = better compression, slower)
+- `rollout_horizon` (`int`, default=`4`): Lookahead positions for rollouts
+- `random_seed` (`int` / `None`, default=`None`): RNG seed for reproducibility
+- `verbose` (`bool`, default=`True`): Print progress output
 
 **Returns**: `(mapping_df, synthesis_df, stats_dict)`
 - `mapping_df`: Maps original variant IDs to degenerate oligo IDs (`ID`, `Sequence`, `DegenerateID`)
@@ -854,16 +854,16 @@ df, stats = op.expand(
 
 **Required Parameters**
 
-- `input_data` (str | DataFrame): CSV path or DataFrame with `ID` column (or `DegenerateID` from `compress` output)
-- `sequence_column` (str): Column containing IUPAC-degenerate sequences to expand
+- `input_data` (`str` / `DataFrame`): CSV path or DataFrame with `ID` column (or `DegenerateID` from `compress` output)
+- `sequence_column` (`str`): Column containing IUPAC-degenerate sequences to expand
 
 **Optional Parameters**
 
-- `mapping_file` (str | DataFrame | None, default=None): CSV path or DataFrame with `ID` and `DegenerateID` columns (the `mapping_df` from `compress`); restores original variant IDs in output
+- `mapping_file` (`str` / `DataFrame` / `None`, default=`None`): CSV path or DataFrame with `ID` and `DegenerateID` columns (the `mapping_df` from `compress`); restores original variant IDs in output
 - `mapping_file` is auto-suffixed to `.oligopool.compress.mapping.csv` if missing (so a basename like `degenerate_library` works)
-- `output_file` (str | None, default=None): Output CSV path
-- `expansion_limit` (int | None, default=None): Safety cap for maximum total expanded sequences
-- `verbose` (bool, default=True): Print progress output
+- `output_file` (`str` / `None`, default=`None`): Output CSV path
+- `expansion_limit` (`int` / `None`, default=`None`): Safety cap for maximum total expanded sequences
+- `verbose` (`bool`, default=`True`): Print progress output
 
 **Returns**: `(DataFrame, stats_dict)` - output contains original columns plus `ExpandedSeq` and `OligoLength`; if `mapping_file` provided, includes both `ID` and `DegenerateID` columns
 
@@ -923,29 +923,29 @@ stats = op.index(
 
 **Required Parameters**
 
-- `barcode_data` (str | DataFrame): CSV path or DataFrame with `ID` + barcode column
-- `barcode_column` (str): Barcode column name to index
-- `index_file` (str): Output basename (writes `<name>.oligopool.index`)
+- `barcode_data` (`str` / `DataFrame`): CSV path or DataFrame with `ID` + barcode column
+- `barcode_column` (`str`): Barcode column name to index
+- `index_file` (`str`): Output basename (writes `<name>.oligopool.index`)
 
 **Optional Parameters (Barcode Anchors)**
 
-- `barcode_prefix_column` (str | None, default=None): Column for constant prefix anchor
-- `barcode_suffix_column` (str | None, default=None): Column for constant suffix anchor
-- `barcode_prefix_gap` (int, default=0): Bases between prefix anchor and barcode in read
-- `barcode_suffix_gap` (int, default=0): Bases between barcode and suffix anchor in read
+- `barcode_prefix_column` (`str` / `None`, default=`None`): Column for constant prefix anchor
+- `barcode_suffix_column` (`str` / `None`, default=`None`): Column for constant suffix anchor
+- `barcode_prefix_gap` (`int`, default=`0`): Bases between prefix anchor and barcode in read
+- `barcode_suffix_gap` (`int`, default=`0`): Bases between barcode and suffix anchor in read
 
 **Optional Parameters (Associate Indexing)**
 
-- `associate_data` (str | DataFrame | None, default=None): CSV path or DataFrame with associates (can be same as `barcode_data`)
-- `associate_column` (str | None, default=None): Column for associate elements
-- `associate_prefix_column` (str | None, default=None): Column for constant associate prefix anchor
-- `associate_suffix_column` (str | None, default=None): Column for constant associate suffix anchor
-- `associate_prefix_gap` (int, default=0): Bases between prefix anchor and associate in read
-- `associate_suffix_gap` (int, default=0): Bases between associate and suffix anchor in read
+- `associate_data` (`str` / `DataFrame` / `None`, default=`None`): CSV path or DataFrame with associates (can be same as `barcode_data`)
+- `associate_column` (`str` / `None`, default=`None`): Column for associate elements
+- `associate_prefix_column` (`str` / `None`, default=`None`): Column for constant associate prefix anchor
+- `associate_suffix_column` (`str` / `None`, default=`None`): Column for constant associate suffix anchor
+- `associate_prefix_gap` (`int`, default=`0`): Bases between prefix anchor and associate in read
+- `associate_suffix_gap` (`int`, default=`0`): Bases between associate and suffix anchor in read
 
 **Optional Parameters**
 
-- `verbose` (bool, default=True): Print progress output
+- `verbose` (`bool`, default=`True`): Print progress output
 
 **Returns**: `stats_dict` (stats-only, no DataFrame)
 
@@ -1005,32 +1005,32 @@ stats = op.pack(
 
 **Required Parameters**
 
-- `r1_fastq_file` (str): R1 FastQ path (supports `.gz`)
-- `r1_read_type` (int | str): `0`/`'forward'`=forward, `1`/`'reverse'`=reverse orientation. Also accepts: `'fwd'`, `'f'`, `'rev'`, `'r'`
-- `pack_type` (int | str): `0`/`'concatenate'`=concatenate pairs, `1`/`'merge'`=merge/assemble overlapping pairs. Also accepts: `'concatenated'`, `'concat'`, `'cat'`, `'joined'`, `'join'`, `'merged'`, `'assemble'`, `'assembled'`, `'asm'`
-- `pack_file` (str): Output basename (writes `<name>.oligopool.pack`)
+- `r1_fastq_file` (`str`): R1 FastQ path (supports `.gz`)
+- `r1_read_type` (`int` / `str`): `0` / `'forward'`=forward, `1` / `'reverse'`=reverse orientation. Also accepts: `'fwd'`, `'f'`, `'rev'`, `'r'`
+- `pack_type` (`int` / `str`): `0` / `'concatenate'`=concatenate pairs, `1` / `'merge'`=merge/assemble overlapping pairs. Also accepts: `'concatenated'`, `'concat'`, `'cat'`, `'joined'`, `'join'`, `'merged'`, `'assemble'`, `'assembled'`, `'asm'`
+- `pack_file` (`str`): Output basename (writes `<name>.oligopool.pack`)
 
 **Optional Parameters (R1 Filters)**
 
-- `minimum_r1_read_length` (int, default=1): Minimum R1 read length
-- `minimum_r1_read_quality` (int, default=20): Minimum average R1 Phred score
+- `minimum_r1_read_length` (`int`, default=`1`): Minimum R1 read length
+- `minimum_r1_read_quality` (`int`, default=`20`): Minimum average R1 Phred score
 
 **Optional Parameters (Paired-End)**
 
-- `r2_fastq_file` (str | None, default=None): R2 FastQ path
-- `r2_read_type` (int | str | None, default=None): R2 orientation: `0`/`'forward'` or `1`/`'reverse'`
-- `minimum_r2_read_length` (int | None, default=None): Minimum R2 read length
-- `minimum_r2_read_quality` (int | None, default=None): Minimum average R2 Phred score
+- `r2_fastq_file` (`str` / `None`, default=`None`): R2 FastQ path
+- `r2_read_type` (`int` / `str` / `None`, default=`None`): R2 orientation: `0` / `'forward'` or `1` / `'reverse'`
+- `minimum_r2_read_length` (`int` / `None`, default=`None`): Minimum R2 read length
+- `minimum_r2_read_quality` (`int` / `None`, default=`None`): Minimum average R2 Phred score
 
 **Optional Parameters (Performance)**
 
-- `pack_size` (float, default=3.0): Million unique reads per pack (0.1-5.0)
-- `core_count` (int, default=0): CPU cores (`0`=auto)
-- `memory_limit` (float, default=0.0): GB per core (`0`=auto)
+- `pack_size` (`float`, default=`3.0`): Million unique reads per pack (0.1-5.0)
+- `core_count` (`int`, default=`0`): CPU cores (`0`=auto)
+- `memory_limit` (`float`, default=`0.0`): GB per core (`0`=auto)
 
 **Optional Parameters**
 
-- `verbose` (bool, default=True): Print progress output
+- `verbose` (`bool`, default=`True`): Print progress output
 
 **Returns**: `stats_dict` (stats-only, no DataFrame)
 
@@ -1086,22 +1086,21 @@ counts_df, stats = op.acount(
 
 **Required Parameters**
 
-- `index_file` (str): Index basename or path (reads `<name>.oligopool.index`)
-- `pack_file` (str): Pack basename or path (reads `<name>.oligopool.pack`)
-- `count_file` (str): Output basename (writes `<name>.oligopool.acount.csv`)
+- `index_file` (`str`): Index basename or path (reads `<name>.oligopool.index`)
+- `pack_file` (`str`): Pack basename or path (reads `<name>.oligopool.pack`)
+- `count_file` (`str`): Output basename (writes `<name>.oligopool.acount.csv`)
 
 **Optional Parameters**
 
-- `mapping_type` (int | str, default=0): `0`/`'fast'`=fast/near-exact, `1`/`'sensitive'`=slow/sensitive. Also accepts: `'quick'`, `'near-exact'`, `'sens'`, `'accurate'`, `'slow'`
-- `barcode_errors` (int, default=-1): Max barcode errors (`-1`=auto from index)
-- `associate_errors` (int, default=-1): Max associate errors (`-1`=auto from index)
-- `callback` (callable | None, default=None): Custom read filter function (Python API only)
-- `core_count` (int, default=0): CPU cores (`0`=auto)
-- `memory_limit` (float, default=0.0): GB per core (`0`=auto)
-- `failed_reads_file` (str | None, default=None): Output CSV path for failed read samples (`.oligopool.acount.failedreads.csv` appended if missing). `None` disables sampling.
-- `failed_reads_sample_size` (int, default=1000): Maximum samples per failure category (1-100,000)
-- Failed-reads CSV columns: `FailureReason`, `R1`, `R2`, `ReadCount`, `DiagnosticDetails`
-- `verbose` (bool, default=True): Print progress output
+- `mapping_type` (`int` / `str`, default=`0`): `0` / `'fast'`=fast/near-exact, `1` / `'sensitive'`=slow/sensitive. Also accepts: `'quick'`, `'near-exact'`, `'sens'`, `'accurate'`, `'slow'`
+- `barcode_errors` (`int`, default=`-1`): Max barcode errors (`-1`=auto from index)
+- `associate_errors` (`int`, default=`-1`): Max associate errors (`-1`=auto from index)
+- `callback` (`callable` / `None`, default=`None`): Custom read filter function (Python API only)
+- `core_count` (`int`, default=`0`): CPU cores (`0`=auto)
+- `memory_limit` (`float`, default=`0.0`): GB per core (`0`=auto)
+- `failed_reads_file` (`str` / `None`, default=`None`): Output CSV path for failed read samples (`.oligopool.acount.failedreads.csv` appended if missing). `None` disables sampling.
+- `failed_reads_sample_size` (`int`, default=`1000`): Maximum samples per failure category (1-100,000)
+- `verbose` (`bool`, default=`True`): Print progress output
 
 **Returns**: `(counts_DataFrame, stats_dict)` - output contains `<indexname>.ID`, `BarcodeCount`, `AssociationCount`
 
@@ -1109,16 +1108,46 @@ counts_df, stats = op.acount(
 - Use `acount` when you need to verify barcode-variant coupling (requires associates in index)
 - `mapping_type='sensitive'` is slower but catches more errors
 - Multi-anchor reads: if an anchor appears multiple times, the best-scoring one is used; ties with multiple barcodes are rejected as `barcode_ambiguous`
-- Failed reads sampling collects representative samples from each failure category for diagnostics:
-  - `phix_match`: PhiX contamination detected
-  - `low_complexity`: Low-complexity sequence (mono/di/trinucleotide)
-  - `anchor_missing`: No anchor found in read
-  - `barcode_absent`: Barcode not identified
-  - `barcode_ambiguous`: Multiple anchors yield different barcodes with equal best confidence
-  - `associate_prefix_missing`: Associate prefix/suffix constants not found
-  - `associate_mismatch`: Associate does not match expected variant
-  - `callback_false`: Callback function returned False
-  - `incalculable`: Other uncategorized failures
+- Failed-reads CSV columns: `FailureReason`, `R1`, `R2`, `ReadCount`, `DiagnosticDetails` (JSON-serialized dict; parse with `json.loads()`)
+- `FailureReason` categories and `DiagnosticDetails` schemas:
+  - `phix_match` — PhiX contamination detected; first k-mer (k=30) match
+    - `phix_matched_kmer` (`str`): the matched k-mer sequence
+  - `low_complexity` — low-complexity sequence (mono/di/trinucleotide); nucleotide composition as 0–100 % (2 d.p.)
+    - `A_percent` (`float`): adenine percentage
+    - `T_percent` (`float`): thymine percentage
+    - `G_percent` (`float`): guanine percentage
+    - `C_percent` (`float`): cytosine percentage
+  - `anchor_missing` — anchor constant not found in the read
+    - `expected_anchor` (`str`): anchor sequence searched for
+    - `expected_anchor_tolerance` (`int`): max edit distance allowed
+    - `anchor_role` (`'prefix' | 'suffix'`): whether the anchor flanks the barcode on the left or right
+  - `barcode_prefix_missing` — anchor found but barcode prefix constant absent
+    - `expected_barcode_prefix` (`str`): prefix constant searched for
+    - `expected_barcode_prefix_tolerance` (`int`): max edit distance allowed
+  - `barcode_suffix_missing` — anchor found but barcode suffix constant absent
+    - `expected_barcode_suffix` (`str`): suffix constant searched for
+    - `expected_barcode_suffix_tolerance` (`int`): max edit distance allowed
+  - `barcode_absent` — anchor constants found but no barcode matched the known set
+    - `anchor_hit_count` (`int`): number of anchor positions found in the read
+    - `anchor_best_edit_distance` (`int`): edit distance of the best anchor match
+    - `extracted_barcode_candidate` (`str | null`): trimmed window presented to the classifier; `null` if extraction failed
+  - `barcode_ambiguous` — multiple barcodes tied at best confidence
+    - `anchor_hit_count` (`int`): number of anchor positions found in the read
+    - `tied_barcode_ids` (`list[str]`): IDs of all tied barcodes
+    - `extracted_barcode_candidate` (`str | null`): trimmed window presented to the classifier; `null` if extraction failed
+  - `associate_prefix_missing` — barcode resolved but associate prefix constant absent
+    - `matched_barcode_id` (`str`): the resolved barcode ID
+    - `expected_associate_prefix` (`str`): prefix constant searched for
+  - `associate_suffix_missing` — barcode resolved but associate suffix constant absent
+    - `matched_barcode_id` (`str`): the resolved barcode ID
+    - `expected_associate_suffix` (`str`): suffix constant searched for
+  - `associate_mismatch` — barcode resolved but associate does not match (first 30 bp shown)
+    - `matched_barcode_id` (`str`): the resolved barcode ID
+    - `expected_associate_sequence` (`str`): expected associate sequence (up to 30 bp)
+  - `callback_false` — read rejected by callback
+    - `matched_barcode_id` (`str`): the resolved barcode ID
+  - `incalculable` — other uncategorized failures; `null`
+- Key naming conventions: `expected_*` = sequence/tolerance searched for; `matched_*` = ID/sequence successfully identified; `extracted_*` = window extracted from the read for classification
 
 **Callback Signature** (Python only):
 ```python
@@ -1179,21 +1208,20 @@ counts_df, stats = op.xcount(
 
 **Required Parameters**
 
-- `index_files` (str | list): Single index (string) or multiple (list) for combinatorial counting
-- `pack_file` (str): Pack basename or path (reads `<name>.oligopool.pack`)
-- `count_file` (str): Output basename (writes `<name>.oligopool.xcount.csv`)
+- `index_files` (`str` / `list`): Single index (string) or multiple (list) for combinatorial counting
+- `pack_file` (`str`): Pack basename or path (reads `<name>.oligopool.pack`)
+- `count_file` (`str`): Output basename (writes `<name>.oligopool.xcount.csv`)
 
 **Optional Parameters**
 
-- `mapping_type` (int | str, default=0): `0`/`'fast'`=fast/near-exact, `1`/`'sensitive'`=slow/sensitive. Also accepts: `'quick'`, `'near-exact'`, `'sens'`, `'accurate'`, `'slow'`
-- `barcode_errors` (int, default=-1): Max barcode errors (`-1`=auto from index)
-- `callback` (callable | None, default=None): Custom read filter function (Python API only)
-- `core_count` (int, default=0): CPU cores (`0`=auto)
-- `memory_limit` (float, default=0.0): GB per core (`0`=auto)
-- `failed_reads_file` (str | None, default=None): Output CSV path for failed read samples (`.oligopool.xcount.failedreads.csv` appended if missing). `None` disables sampling.
-- `failed_reads_sample_size` (int, default=1000): Maximum samples per failure category (1-100,000)
-- Failed-reads CSV columns: `FailureReason`, `R1`, `R2`, `ReadCount`, `DiagnosticDetails`
-- `verbose` (bool, default=True): Print progress output
+- `mapping_type` (`int` / `str`, default=`0`): `0` / `'fast'`=fast/near-exact, `1` / `'sensitive'`=slow/sensitive. Also accepts: `'quick'`, `'near-exact'`, `'sens'`, `'accurate'`, `'slow'`
+- `barcode_errors` (`int`, default=`-1`): Max barcode errors (`-1`=auto from index)
+- `callback` (`callable` / `None`, default=`None`): Custom read filter function (Python API only)
+- `core_count` (`int`, default=`0`): CPU cores (`0`=auto)
+- `memory_limit` (`float`, default=`0.0`): GB per core (`0`=auto)
+- `failed_reads_file` (`str` / `None`, default=`None`): Output CSV path for failed read samples (`.oligopool.xcount.failedreads.csv` appended if missing). `None` disables sampling.
+- `failed_reads_sample_size` (`int`, default=`1000`): Maximum samples per failure category (1-100,000)
+- `verbose` (`bool`, default=`True`): Print progress output
 
 **Returns**: `(counts_DataFrame, stats_dict)` - output contains one `<indexname>.ID` column per index, plus `CombinatorialCount`. Missing barcodes shown as `'-'`
 
@@ -1202,14 +1230,40 @@ counts_df, stats = op.xcount(
 - For combinatorial counting (BC1 x BC2), pass multiple indexes as a list
 - Single index: counts each barcode; multiple indexes: counts barcode combinations
 - Multi-anchor reads: if an anchor appears multiple times, the best-scoring one is used; ties with multiple barcodes are rejected as `barcode_ambiguous`
-- Failed reads sampling collects representative samples from each failure category for diagnostics:
-  - `phix_match`: PhiX contamination detected
-  - `low_complexity`: Low-complexity sequence (mono/di/trinucleotide)
-  - `anchor_missing`: No anchor found in read
-  - `barcode_absent`: Barcode not identified
-  - `barcode_ambiguous`: Multiple anchors yield different barcodes with equal best confidence
-  - `callback_false`: Callback function returned False
-  - `incalculable`: Other uncategorized failures
+- Failed-reads CSV columns: `FailureReason`, `R1`, `R2`, `ReadCount`, `DiagnosticDetails` (JSON-serialized dict; parse with `json.loads()`)
+- `FailureReason` categories and `DiagnosticDetails` schemas:
+  - `phix_match` — PhiX contamination detected; first k-mer (k=30) match
+    - `phix_matched_kmer` (`str`): the matched k-mer sequence
+  - `low_complexity` — low-complexity sequence (mono/di/trinucleotide); nucleotide composition as 0–100 % (2 d.p.)
+    - `A_percent` (`float`): adenine percentage
+    - `T_percent` (`float`): thymine percentage
+    - `G_percent` (`float`): guanine percentage
+    - `C_percent` (`float`): cytosine percentage
+  - `anchor_missing` — no anchor found in the read for any index
+    - `per_index_anchor` (`list[str]`): anchor sequence searched for per index
+    - `per_index_anchor_tolerance` (`list[int]`): max edit distance allowed per index
+    - `per_index_anchor_role` (`list['prefix' | 'suffix']`): whether the anchor flanks the barcode on the left or right, per index
+  - `barcode_prefix_missing` — anchor found but barcode prefix constant absent (first failing index)
+    - `expected_barcode_prefix` (`str`): prefix constant searched for
+    - `expected_barcode_prefix_tolerance` (`int`): max edit distance allowed
+  - `barcode_suffix_missing` — anchor found but barcode suffix constant absent (first failing index)
+    - `expected_barcode_suffix` (`str`): suffix constant searched for
+    - `expected_barcode_suffix_tolerance` (`int`): max edit distance allowed
+  - `barcode_absent` — at least one anchor found but no barcode resolved across all indices
+    - `per_index_status` (`list[str]`): per-index outcome; values: `'anchor_missing'` / `'barcode_absent'`
+    - `per_index_anchor_hit_count` (`list[int | null]`): anchor positions found per index; `null` when anchor was absent for that index
+    - `per_index_anchor_best_edit_distance` (`list[int | null]`): best anchor edit distance per index; `null` when anchor was absent for that index
+    - `per_index_extracted_barcode_candidate` (`list[str | null]`): trimmed barcode window per index; `null` when anchor was absent or extraction failed
+  - `barcode_ambiguous` — at least one anchor found and at least one index yielded tied barcode matches
+    - `per_index_status` (`list[str]`): per-index outcome; values: `'anchor_missing'` / `'barcode_absent'` / `'barcode_ambiguous'`
+    - `per_index_anchor_hit_count` (`list[int | null]`): anchor positions found per index; `null` when anchor was absent for that index
+    - `per_index_anchor_best_edit_distance` (`list[int | null]`): best anchor edit distance per index; `null` when anchor was absent for that index
+    - `per_index_extracted_barcode_candidate` (`list[str | null]`): trimmed barcode window per index; `null` when anchor was absent or extraction failed
+    - `per_index_tied_barcode_ids` (`list[list[str] | null]`): tied barcode IDs per index; `null` for indices that were not ambiguous
+  - `callback_false` — read rejected by callback after all barcodes resolved
+    - `per_index_barcode_id` (`list[str | null]`): resolved barcode ID per index; `null` if that index was absent
+  - `incalculable` — other uncategorized failures; `null`
+- Key naming conventions: `expected_*` = sequence/tolerance searched for; `per_index_*` = list aligned to the index order passed to `index_files`; `extracted_*` = window extracted from the read for classification
 
 **CLI Equivalent**:
 ```bash
@@ -1253,12 +1307,12 @@ stats = op.lenstat(
 
 **Required Parameters**
 
-- `input_data` (str | DataFrame): CSV path or DataFrame with `ID` column + DNA sequence columns
-- `oligo_length_limit` (int, >=4): Reference length limit for free space calculation
+- `input_data` (`str` / `DataFrame`): CSV path or DataFrame with `ID` column + DNA sequence columns
+- `oligo_length_limit` (`int`, >=4): Reference length limit for free space calculation
 
 **Optional Parameters**
 
-- `verbose` (bool, default=True): Print progress output
+- `verbose` (`bool`, default=`True`): Print progress output
 
 **Returns**: `stats_dict` (stats-only, no DataFrame, no `output_file`)
 
@@ -1300,15 +1354,15 @@ df, stats = op.verify(
 
 **Required Parameters**
 
-- `input_data` (str | DataFrame): CSV path or DataFrame with `ID` column and at least one DNA column (ATGC only)
-- `oligo_length_limit` (int): Maximum allowed oligo length (>= 4)
+- `input_data` (`str` / `DataFrame`): CSV path or DataFrame with `ID` column and at least one DNA column (ATGC only)
+- `oligo_length_limit` (`int`): Maximum allowed oligo length (>= 4)
 
 **Optional Parameters**
 
-- `output_file` (str | None, default=None): Output CSV path (required for CLI)
-- `excluded_motifs` (list | str | dict | DataFrame | None, default=None): Motifs to check for emergence. Accepts a list, CSV/FASTA path, DataFrame with `Exmotif` column, comma-string, or multiple sources. Strict ATGC only (no IUPAC codes, no dashes).
-- `background_directory` (str | list | None, default=None): Background k-mer DB path(s) from `background()` (checked against all specified DBs)
-- `verbose` (bool, default=True): Print progress output
+- `output_file` (`str` / `None`, default=`None`): Output CSV path (required for CLI)
+- `excluded_motifs` (`list` / `str` / `dict` / `DataFrame` / `None`, default=`None`): Motifs to check for emergence. Accepts a list, CSV/FASTA path, DataFrame with `Exmotif` column, comma-string, or multiple sources. Strict ATGC only (no IUPAC codes, no dashes).
+- `background_directory` (`str` / `list` / `None`, default=`None`): Background k-mer DB path(s) from `background()` (checked against all specified DBs)
+- `verbose` (`bool`, default=`True`): Print progress output
 
 **Returns**: `(DataFrame, stats_dict)` - DataFrame contains per-row conflict flags and details
 
@@ -1316,15 +1370,68 @@ df, stats = op.verify(
 - `ID`: Original row identifier
 - `CompleteOligo`: Concatenated oligo sequence
 - `OligoLength`: Length of CompleteOligo
-- `HasIntegrityConflict`: True if `CompleteOligo` vs constituent mismatch or `OligoLength` vs actual mismatch
-- `HasLengthConflict`: True if length exceeds `oligo_length_limit`
-- `HasExmotifConflict`: True if motif emergence detected (False if `excluded_motifs=None`)
-- `HasBackgroundConflict`: True if k-mer matches background DB (False if `background_directory=None`)
+- `HasIntegrityConflict`: `True` if `CompleteOligo` vs constituent mismatch or `OligoLength` vs actual mismatch
+- `HasLengthConflict`: `True` if length exceeds `oligo_length_limit`
+- `HasExmotifConflict`: `True` if motif emergence detected (`False` if `excluded_motifs=None`)
+- `HasBackgroundConflict`: `True` if k-mer matches background DB (`False` if `background_directory=None`)
 - `HasAnyConflicts`: OR of all four conflict flags
-- `IntegrityConflictDetails`: Dict or None with integrity violation details
-- `LengthConflictDetails`: Dict or None with length violation details
-- `ExmotifConflictDetails`: List[Dict] or None with per-motif emergence details
-- `BackgroundConflictDetails`: Dict or None with background k-mer match details
+- `IntegrityConflictDetails`: Dict or `None` with integrity violation details
+- `LengthConflictDetails`: Dict or `None` with length violation details
+- `ExmotifConflictDetails`: List[Dict] or `None` with per-motif emergence details
+- `BackgroundConflictDetails`: Dict or `None` with background k-mer match details
+
+**Detail column schemas** (JSON-serializable objects in the returned DataFrame; JSON strings in CSV output):
+- `IntegrityConflictDetails` (`dict` / `None`):
+  - `complete_oligo_conflict` (`bool`): `True` when `CompleteOligo` disagrees with the gap-stripped concat of constituent columns
+  - `oligo_length_conflict` (`bool`): `True` when an input `OligoLength` column is present and disagrees with the computed length
+  - `expected_oligo_length` (`int` / `None`): Value from input `OligoLength` when `oligo_length_conflict=True`
+  - `actual_oligo_length` (`int` / `None`): Computed length when `oligo_length_conflict=True`
+- `LengthConflictDetails` (`dict` / `None`):
+  - `oligo_length` (`int`): Computed length of `CompleteOligo` (gap-stripped)
+  - `length_limit` (`int`): The `oligo_length_limit` passed to `verify`
+  - `excess_length` (`int`): `oligo_length - length_limit`
+  - `column_lengths` (`dict[str, int]`): Per-column contribution (gap-stripped lengths) for attribution
+- `ExmotifConflictDetails` (`list[dict]` / `None`): list of emergence entries (one dict per emergent motif; **not** a dict keyed by motif)
+  - `motif` (`str`): Motif string (strict ATGC)
+  - `occurrences` (`int`): Motif count in this oligo (non-overlapping semantics, consistent with Python `str.count`)
+  - `library_baseline` (`int`): Library-wide baseline for this motif (minimum count across all oligos)
+  - `excess_occurrences` (`int`): `occurrences - library_baseline`
+  - `positions` (`list[int]`): 0-based start offsets in `CompleteOligo` (gap-stripped)
+  - `columns` (`list[str]`): Column attribution for each position (same length/order as `positions`)
+- `BackgroundConflictDetails` (`dict` / `None`):
+  - `matched_kmers` (`list[str]`): Background-matched k-mers (length = background DB `K`)
+  - `positions` (`list[int]`): 0-based start offsets for each matched k-mer (gap-stripped)
+  - `columns` (`list[str]`): Column attribution for each position
+  - `match_count` (`int`): Number of matches (`len(matched_kmers) == len(positions) == len(columns) == match_count`)
+  - Note: With multiple background DBs, duplicates can appear if the same k-mer matches multiple DBs.
+
+**Verify `stats['vars']` keys** (module-specific; in addition to the common stats schema):
+
+| Key | Type | Meaning |
+|-----|------|---------|
+| `total_count` | `int` | Total rows scanned |
+| `dna_columns` | `list[str]` | DNA column(s) used to build `CompleteOligo` (`['CompleteOligo']` when present, else constituent columns) |
+| `has_complete_oligo` | `bool` | Whether an input `CompleteOligo` column was used |
+| `constituent_columns` | `list[str] \| None` | DNA columns used for attribution (excludes `CompleteOligo`) |
+| `length_limit` | `int` | The `oligo_length_limit` passed to `verify` |
+| `min_oligo_length` | `int` | Minimum computed oligo length |
+| `max_oligo_length` | `int` | Maximum computed oligo length |
+| `integrity_conflict_count` | `int` | Rows with any integrity conflict |
+| `complete_oligo_conflict_count` | `int` | Rows where `CompleteOligo` mismatches constituent concat (only when both are present) |
+| `oligo_length_conflict_count` | `int` | Rows where an input `OligoLength` mismatches computed length (only when `OligoLength` present and parseable) |
+| `length_conflict_count` | `int` | Rows exceeding `length_limit` |
+| `excluded_motif_conflict_count` | `int` | Rows with motif emergence (0 when `excluded_motifs=None`) |
+| `background_conflict_count` | `int` | Rows with background k-mer hits (0 when `background_directory=None`) |
+| `any_conflict_count` | `int` | Rows with any conflict (OR of all four conflict types) |
+| `clean_count` | `int` | Rows with no conflicts (`total_count - any_conflict_count`) |
+| `excluded_motifs` | `list[str] \| None` | Final merged motif list used for emergence detection |
+| `excluded_motif_inputs` | `list[dict] \| None` | Per-input motif sources (from `excluded_motifs` parsing) |
+| `library_baselines` | `dict[str, int] \| None` | Motif baseline counts (min over library) |
+| `motif_emergence` | `dict[str, dict] \| None` | Per-motif emergence summary: `{'emergent_row_count': int, 'max_excess_occurrences': int}` |
+| `background_kmer_lengths` | `list[int] \| None` | Background DB k-mer lengths (`K`) used for scanning |
+| `excluded_motif_column_conflicts` | `dict[str, int] \| None` | Per-column rows with any exmotif hit in that column |
+| `background_column_conflicts` | `dict[str, int] \| None` | Per-column rows with any background hit in that column |
+| `any_column_conflicts` | `dict[str, int] \| None` | Per-column rows with any exmotif OR background hit in that column |
 
 **Notes**:
 - Uses `CompleteOligo` column if present; otherwise concatenates all pure ATGC columns left-to-right
@@ -1376,12 +1483,12 @@ stats = op.inspect(
 
 **Required Parameters**
 
-- `target` (str): Artifact path (background directory, `.oligopool.index`, or `.oligopool.pack`)
+- `target` (`str`): Artifact path (background directory, `.oligopool.index`, or `.oligopool.pack`)
 
 **Optional Parameters**
 
-- `kind` (str, default=`auto`): `background`, `index`, `pack`, or `auto`
-- `verbose` (bool, default=True): Print progress output
+- `kind` (`str`, default=`'auto'`): `'background'`, `'index'`, `'pack'`, or `'auto'`
+- `verbose` (`bool`, default=`True`): Print progress output
 
 **Returns**: `stats_dict` (stats-only module) - summary is stored under `stats['vars']['meta']` and `stats['vars']['verdict']`
 
@@ -1511,6 +1618,10 @@ label, score = model.predict('ATGCATGC')  # ('bc1', 1.0)
 
 Every module returns a `stats` dict alongside its primary output. This section documents the common schema contract.
 
+Stats and outputs serve different granularity:
+- `stats` is aggregate (pass/fail decisions and summary reporting).
+- Returned DataFrames / output files are per-row (drilldown and detailed; may include structured detail payloads, for example JSON-serialized `*Details` columns in `verify` outputs or per-category diagnostics in optional failed-reads outputs from counting).
+
 #### Common keys
 
 Present in every module's stats dict:
@@ -1549,11 +1660,11 @@ Present in every module's stats dict:
 #### `vars` dict conventions
 
 - Keys use `snake_case`.
-- Length-related keys use `*_length` (not `*_len`).
-- Prefer expanded words over abbreviations for new keys (e.g. `distribution`, `count`, `limit`).
-- Prefer expanded lowercase key terms for new stats keys (for example `melting_temperature`, `guanine_cytosine_content`, `minimum_free_energy`, `phix_reads`).
+- Length-related keys use `*_length`.
+- We use expanded words over abbreviations (e.g. `distribution`, `count`, `limit`).
+- We use expanded lowercase key terms for stats keys (e.g. `melting_temperature`, `guanine_cytosine_content`, `minimum_free_energy`).
 - Counting keys in `acount`/`xcount` use a `_reads` suffix (e.g. `analyzed_reads`, `phix_reads`, `callback_false_reads`).
-- Contents are module-specific; see individual module docs for details.
+- Contents are module- and step-specific; see individual module docs for details.
 
 [^ Back to TOC](#table-of-contents)
 
@@ -1614,7 +1725,7 @@ Present in every module's stats dict:
 
 [^ Back to TOC](#table-of-contents)
 
-Supported enzymes for `pad()` (34 total):
+Supported enzymes for `pad()` (`34 total`):
 
 `AcuI`, `AlwI`, `BbsI`, `BccI`, `BceAI`, `BciVI`, `BcoDI`, `BmrI`, `BpuEI`, `BsaI`, `BseRI`, `BsmAI`, `BsmBI`, `BsmFI`, `BsmI`, `BspCNI`, `BspQI`, `BsrDI`, `BsrI`, `BtgZI`, `BtsCI`, `BtsI`, `BtsIMutI`, `EarI`, `EciI`, `Esp3I`, `FauI`, `HgaI`, `HphI`, `HpyAV`, `MlyI`, `MnlI`, `SapI`, `SfaNI`
 
@@ -1697,7 +1808,7 @@ Python parameters map to CLI flags by converting `snake_case` to `kebab-case`:
 | Python | CLI | Notes |
 |--------|-----|-------|
 | `typeIIS_system` | `--typeiis-system` | camelCase becomes lowercase |
-| `separate_outputs` | `--separate-outputs` / `--no-separate-outputs` | Default inverted: Python=False, CLI=True |
+| `separate_outputs` | `--separate-outputs` / `--no-separate-outputs` | Default inverted: Python=`False`, CLI=`True` |
 | `index_file` | `--index-file` | Used by `index`, `acount` (singular) |
 | `index_files` | `--index-files` | Used by `xcount` (plural, comma/space-separated) |
 

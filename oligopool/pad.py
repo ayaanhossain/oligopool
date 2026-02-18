@@ -235,8 +235,8 @@ def pad(
             'step'    : 1,
             'step_name': 'parsing-split-column',
             'vars'    : {
-                'max_fragment_len': maxfragmentlen,
-                 'max_allowed_len': maxallowedlen},
+             'max_fragment_length': maxfragmentlen,
+              'max_allowed_length': maxallowedlen},
             'warns'   : warns}
         stats['random_seed'] = random_seed
         stats = ut.stamp_stats(
@@ -271,9 +271,9 @@ def pad(
             'step'    : 2,
             'step_name': 'checking-typeIIS-compatibility',
             'vars'    : {
-                'typeIIS_motif': typeIISmotif,
-                'typeIIS_rc_motif': typeIIS_rc,
-                'internal_typeIIS_sites': conflict_count},
+                'type_iis_motif': typeIISmotif,
+                'type_iis_reverse_complement_motif': typeIIS_rc,
+                'internal_type_iis_sites': conflict_count},
             'warns'   : warns}
         stats['random_seed'] = random_seed
         stats = ut.stamp_stats(
@@ -315,9 +315,9 @@ def pad(
             'step'    : 3,
             'step_name': 'parsing-typeIIS-constraint',
             'vars'    : {
-                 'min_pad_len': minpadlen,
-                 'max_pad_len': maxpadlen,
-                'typeIIS_free': typeIISfree},
+              'min_pad_length': minpadlen,
+              'max_pad_length': maxpadlen,
+                'type_iis_free': typeIISfree},
             'warns'   : warns}
         stats['random_seed'] = random_seed
         stats = ut.stamp_stats(
@@ -359,10 +359,10 @@ def pad(
             'step'    : 4,
             'step_name': 'parsing-melting-temperature',
             'vars'    : {
-                'estimated_min_Tm': estimatedminTm,
-                'estimated_max_Tm': estimatedmaxTm,
-                   'higher_min_Tm': higherminTm,
-                    'lower_max_Tm': lowermaxTm},
+                'estimated_minimum_melting_temperature': estimatedminTm,
+                'estimated_maximum_melting_temperature': estimatedmaxTm,
+                'higher_minimum_melting_temperature'   : higherminTm,
+                'lower_maximum_melting_temperature'    : lowermaxTm},
             'warns'   : warns}
         stats['random_seed'] = random_seed
         stats = ut.stamp_stats(
@@ -382,7 +382,7 @@ def pad(
     warns[5] = {
         'warn_count': 0,
         'step_name' : 'parsing-excluded-motifs',
-        'vars': None}
+        'vars': {}}
 
     # Parse exmotifs
     (parsestatus,
@@ -412,8 +412,8 @@ def pad(
             'step'    : 5,
             'step_name': 'parsing-excluded-motifs',
             'vars'    : {
-                 'prob_lens': problens,
-                'prob_count': tuple(list(
+                 'problem_lengths': problens,
+                'problematic_sequence_counts': tuple(list(
                     4**pl for pl in problens))},
             'warns'   : warns}
         stats['random_seed'] = random_seed
@@ -451,7 +451,7 @@ def pad(
     warns[7] = {
         'warn_count': 0,
         'step_name' : 'parsing-forward-pad-edge-effects',
-        'vars': None}
+        'vars': {}}
 
     # Compute Forbidden Prefixes and Suffixes
     (_,
@@ -477,7 +477,7 @@ def pad(
     warns[8] = {
         'warn_count': 0,
         'step_name' : 'parsing-reverse-pad-edge-effects',
-        'vars': None}
+        'vars': {}}
 
     # Compute Forbidden Prefixes and Suffixes
     (prefixdict,
@@ -524,8 +524,8 @@ def pad(
             'vars'    : {
                 'source_context': sourcecontext,
                 'kmer_space'    : kmerspace,
-                'fill_count'    : fillcount,
-                'free_count'    : freecount},
+                'filled_kmer_count'    : fillcount,
+                'remaining_kmer_count' : freecount},
             'warns'   : warns}
         stats['random_seed'] = random_seed
         stats = ut.stamp_stats(
@@ -545,22 +545,22 @@ def pad(
         'step'    : 10,
         'step_name': 'computing-pad',
         'vars'    : {
-                'fwd_pad_primer_Tm': None,        # Forward Pad Melting Temperature
-                'rev_pad_primer_Tm': None,        # Reverse Pad Melting Temperature
-                'fwd_pad_primer_GC': None,        # Forward Pad GC Content
-                'rev_pad_primer_GC': None,        # Reverse Pad GC Content
-              'fwd_pad_hairpin_MFE': None,        # Forward Pad Hairpin Free Energy
-              'rev_pad_hairpin_MFE': None,        # Reverse Pad Hairpin Free Energy
-            'fwd_pad_homodimer_MFE': None,        # Forward Pad Homodimer Free Energy
-            'rev_pad_homodimer_MFE': None,        # Reverse Pad Homodimer Free Energy
-                'heterodimer_MFE': None,          # Heterodimer Free Energy
-                        'Tm_fail': 0,             # Melting Temperature Fail Count
-                    'repeat_fail': 0,             # Repeat Fail Count
-                 'homodimer_fail': 0,             # Homodimer Fail Count
-               'heterodimer_fail': 0,             # Heterodimer Fail Count
-                   'exmotif_fail': 0,             # Exmotif Elimination Fail Count
-                      'edge_fail': 0,             # Edge Effect Fail Count
-                'exmotif_counter': cx.Counter()}, # Exmotif Encounter Counter
+            'forward_pad_primer_melting_temperature'     : None, # Forward Pad Melting Temperature
+            'reverse_pad_primer_melting_temperature'     : None, # Reverse Pad Melting Temperature
+            'forward_pad_primer_guanine_cytosine_content': None, # Forward Pad GC Content
+            'reverse_pad_primer_guanine_cytosine_content': None, # Reverse Pad GC Content
+            'forward_pad_hairpin_minimum_free_energy'    : None, # Forward Pad Hairpin Free Energy
+            'reverse_pad_hairpin_minimum_free_energy'    : None, # Reverse Pad Hairpin Free Energy
+            'forward_pad_homodimer_minimum_free_energy'  : None, # Forward Pad Homodimer Free Energy
+            'reverse_pad_homodimer_minimum_free_energy'  : None, # Reverse Pad Homodimer Free Energy
+            'heterodimer_minimum_free_energy'            : None, # Heterodimer Free Energy
+            'melting_temperature_failure_count'          : 0,    # Melting Temperature Fail Count
+            'repeat_failure_count'                       : 0,    # Repeat Fail Count
+            'homodimer_failure_count'                    : 0,    # Homodimer Fail Count
+            'heterodimer_failure_count'                  : 0,    # Heterodimer Fail Count
+            'excluded_motif_failure_count'               : 0,    # Exmotif Elimination Fail Count
+            'edge_effect_failure_count'                  : 0,    # Edge Effect Fail Count
+            'excluded_motif_encounter_counter': cx.Counter()},   # Exmotif Encounter Counter
         'warns'   : warns}
     stats['random_seed'] = random_seed
 
@@ -576,19 +576,19 @@ def pad(
         'step'    : 10,
         'step_name': 'computing-forward-pad',
         'vars'    : {
-                   'primer_Tm': None,          # Primer Melting Temperature
-                   'primer_GC': None,          # Primer GC Content
-                 'hairpin_MFE': None,          # Primer Hairpin Free Energy
-               'homodimer_MFE': None,          # Homodimer Free Energy
-             'heterodimer_MFE': None,          # Heterodimer Free Energy
-                     'Tm_fail': 0,             # Melting Temperature Fail Count
-                 'repeat_fail': 0,             # Repeat Fail Count
-              'homodimer_fail': 0,             # Homodimer Fail Count
-            'heterodimer_fail': 0,             # Heterodimer Fail Count
-             'crossdimer_fail': 0,             # Cross-primer Dimer Fail Count
-                'exmotif_fail': 0,             # Exmotif Elimination Fail Count
-                   'edge_fail': 0,             # Edge Effect Fail Count
-             'exmotif_counter': cx.Counter()}, # Exmotif Encounter Counter
+            'primer_melting_temperature'       : None,         # Primer Melting Temperature
+            'primer_guanine_cytosine_content'  : None,         # Primer GC Content
+            'hairpin_minimum_free_energy'      : None,         # Primer Hairpin Free Energy
+            'homodimer_minimum_free_energy'    : None,         # Homodimer Free Energy
+            'heterodimer_minimum_free_energy'  : None,         # Heterodimer Free Energy
+            'melting_temperature_failure_count': 0,            # Melting Temperature Fail Count
+            'repeat_failure_count'             : 0,            # Repeat Fail Count
+            'homodimer_failure_count'          : 0,            # Homodimer Fail Count
+            'heterodimer_failure_count'        : 0,            # Heterodimer Fail Count
+            'cross_dimer_failure_count'        : 0,            # Cross-primer Dimer Fail Count
+            'excluded_motif_failure_count'     : 0,            # Exmotif Elimination Fail Count
+            'edge_effect_failure_count'        : 0,            # Edge Effect Fail Count
+            'excluded_motif_encounter_counter': cx.Counter()}, # Exmotif Encounter Counter
         'warns'   : warns}
     fwdstats['random_seed'] = random_seed
 
@@ -633,19 +633,19 @@ def pad(
         'step'    : 11,
         'step_name': 'computing-reverse-pad',
         'vars'    : {
-                   'primer_Tm': None,          # Primer Melting Temperature
-                   'primer_GC': None,          # Primer GC Content
-                 'hairpin_MFE': None,          # Primer Hairpin Free Energy
-               'homodimer_MFE': None,          # Homodimer Free Energy
-             'heterodimer_MFE': None,          # Heterodimer Free Energy
-                     'Tm_fail': 0,             # Melting Temperature Fail Count
-                 'repeat_fail': 0,             # Repeat Fail Count
-              'homodimer_fail': 0,             # Homodimer Fail Count
-            'heterodimer_fail': 0,             # Heterodimer Fail Count
-             'crossdimer_fail': 0,             # Cross-primer Dimer Fail Count
-                'exmotif_fail': 0,             # Exmotif Elimination Fail Count
-                   'edge_fail': 0,             # Edge Effect Fail Count
-             'exmotif_counter': cx.Counter()}, # Exmotif Encounter Counter
+            'primer_melting_temperature'       : None,          # Primer Melting Temperature
+            'primer_guanine_cytosine_content'  : None,          # Primer GC Content
+            'hairpin_minimum_free_energy'      : None,          # Primer Hairpin Free Energy
+            'homodimer_minimum_free_energy'    : None,          # Homodimer Free Energy
+            'heterodimer_minimum_free_energy'  : None,          # Heterodimer Free Energy
+            'melting_temperature_failure_count': 0,             # Melting Temperature Fail Count
+            'repeat_failure_count'             : 0,             # Repeat Fail Count
+            'homodimer_failure_count'          : 0,             # Homodimer Fail Count
+            'heterodimer_failure_count'        : 0,             # Heterodimer Fail Count
+            'cross_dimer_failure_count'        : 0,             # Cross-primer Dimer Fail Count
+            'excluded_motif_failure_count'     : 0,             # Exmotif Elimination Fail Count
+            'edge_effect_failure_count'        : 0,             # Edge Effect Fail Count
+            'excluded_motif_encounter_counter': cx.Counter()},  # Exmotif Encounter Counter
         'warns'   : warns}
     revstats['random_seed'] = random_seed
 
@@ -670,8 +670,8 @@ def pad(
             homology=homology,
             primertype=1,
             fixedbaseindex=ut.get_fixed_base_index(seqconstr=revseq),
-            mintmelt=fwdstats['vars']['primer_Tm']-1,
-            maxtmelt=fwdstats['vars']['primer_Tm']+1,
+            mintmelt=fwdstats['vars']['primer_melting_temperature']-1,
+            maxtmelt=fwdstats['vars']['primer_melting_temperature']+1,
             maxreplen=maxreplen,
             oligorepeats=oligorepeats,
             pairedprimer=fwdpad,
@@ -698,31 +698,31 @@ def pad(
                                                else   revstats['step_name']
 
     # Forward Stats Merge
-    stats['vars']['fwd_pad_primer_Tm']     = fwdstats['vars']['primer_Tm']
-    stats['vars']['fwd_pad_primer_GC']     = fwdstats['vars']['primer_GC']
-    stats['vars']['fwd_pad_hairpin_MFE']   = fwdstats['vars']['hairpin_MFE']
-    stats['vars']['fwd_pad_homodimer_MFE'] = fwdstats['vars']['homodimer_MFE']
-    stats['vars']['Tm_fail']               = fwdstats['vars']['Tm_fail']
-    stats['vars']['repeat_fail']           = fwdstats['vars']['repeat_fail']
-    stats['vars']['homodimer_fail']        = fwdstats['vars']['homodimer_fail']
-    stats['vars']['heterodimer_fail']      = fwdstats['vars']['heterodimer_fail']
-    stats['vars']['exmotif_fail']          = fwdstats['vars']['exmotif_fail']
-    stats['vars']['edge_fail']             = fwdstats['vars']['edge_fail']
-    stats['vars']['exmotif_counter']       = fwdstats['vars']['exmotif_counter']
+    stats['vars']['forward_pad_primer_melting_temperature'] = fwdstats['vars']['primer_melting_temperature']
+    stats['vars']['forward_pad_primer_guanine_cytosine_content'] = fwdstats['vars']['primer_guanine_cytosine_content']
+    stats['vars']['forward_pad_hairpin_minimum_free_energy'] = fwdstats['vars']['hairpin_minimum_free_energy']
+    stats['vars']['forward_pad_homodimer_minimum_free_energy'] = fwdstats['vars']['homodimer_minimum_free_energy']
+    stats['vars']['melting_temperature_failure_count'] = fwdstats['vars']['melting_temperature_failure_count']
+    stats['vars']['repeat_failure_count'] = fwdstats['vars']['repeat_failure_count']
+    stats['vars']['homodimer_failure_count'] = fwdstats['vars']['homodimer_failure_count']
+    stats['vars']['heterodimer_failure_count'] = fwdstats['vars']['heterodimer_failure_count']
+    stats['vars']['excluded_motif_failure_count'] = fwdstats['vars']['excluded_motif_failure_count']
+    stats['vars']['edge_effect_failure_count'] = fwdstats['vars']['edge_effect_failure_count']
+    stats['vars']['excluded_motif_encounter_counter'] = fwdstats['vars']['excluded_motif_encounter_counter']
 
     # Reverse Stats Merge
-    stats['vars']['rev_pad_primer_Tm']     = revstats['vars']['primer_Tm']
-    stats['vars']['rev_pad_primer_GC']     = revstats['vars']['primer_GC']
-    stats['vars']['rev_pad_hairpin_MFE']   = revstats['vars']['hairpin_MFE']
-    stats['vars']['rev_pad_homodimer_MFE'] = revstats['vars']['homodimer_MFE']
-    stats['vars']['heterodimer_MFE']       = revstats['vars']['heterodimer_MFE']
-    stats['vars']['Tm_fail']              += revstats['vars']['Tm_fail']
-    stats['vars']['repeat_fail']          += revstats['vars']['repeat_fail']
-    stats['vars']['homodimer_fail']       += revstats['vars']['homodimer_fail']
-    stats['vars']['heterodimer_fail']     += revstats['vars']['heterodimer_fail']
-    stats['vars']['exmotif_fail']         += revstats['vars']['exmotif_fail']
-    stats['vars']['edge_fail']            += revstats['vars']['edge_fail']
-    stats['vars']['exmotif_counter']      += revstats['vars']['exmotif_counter']
+    stats['vars']['reverse_pad_primer_melting_temperature'] = revstats['vars']['primer_melting_temperature']
+    stats['vars']['reverse_pad_primer_guanine_cytosine_content'] = revstats['vars']['primer_guanine_cytosine_content']
+    stats['vars']['reverse_pad_hairpin_minimum_free_energy'] = revstats['vars']['hairpin_minimum_free_energy']
+    stats['vars']['reverse_pad_homodimer_minimum_free_energy'] = revstats['vars']['homodimer_minimum_free_energy']
+    stats['vars']['heterodimer_minimum_free_energy'] = revstats['vars']['heterodimer_minimum_free_energy']
+    stats['vars']['melting_temperature_failure_count']              += revstats['vars']['melting_temperature_failure_count']
+    stats['vars']['repeat_failure_count'] += revstats['vars']['repeat_failure_count']
+    stats['vars']['homodimer_failure_count'] += revstats['vars']['homodimer_failure_count']
+    stats['vars']['heterodimer_failure_count'] += revstats['vars']['heterodimer_failure_count']
+    stats['vars']['excluded_motif_failure_count'] += revstats['vars']['excluded_motif_failure_count']
+    stats['vars']['edge_effect_failure_count'] += revstats['vars']['edge_effect_failure_count']
+    stats['vars']['excluded_motif_encounter_counter'] += revstats['vars']['excluded_motif_encounter_counter']
 
     # Primer Status
     if stats['status']:
@@ -809,108 +809,108 @@ def pad(
 
         liner.send(
             '     Melting Temperature: {:6.2f} °C and {:6.2f} °C\n'.format(
-                stats['vars']['fwd_pad_primer_Tm'],
-                stats['vars']['rev_pad_primer_Tm']))
+                stats['vars']['forward_pad_primer_melting_temperature'],
+                stats['vars']['reverse_pad_primer_melting_temperature']))
         liner.send(
             '          GC Content    : {:6.2f} %  and {:6.2f} %\n'.format(
-                stats['vars']['fwd_pad_primer_GC'],
-                stats['vars']['rev_pad_primer_GC']))
+                stats['vars']['forward_pad_primer_guanine_cytosine_content'],
+                stats['vars']['reverse_pad_primer_guanine_cytosine_content']))
         liner.send(
             '     Hairpin MFE        : {:6.2f} kcal/mol and {:6.2f} kcal/mol\n'.format(
-                stats['vars']['fwd_pad_hairpin_MFE'],
-                stats['vars']['rev_pad_hairpin_MFE']))
+                stats['vars']['forward_pad_hairpin_minimum_free_energy'],
+                stats['vars']['reverse_pad_hairpin_minimum_free_energy']))
         liner.send(
             '   Homodimer MFE        : {:6.2f} kcal/mol and {:6.2f} kcal/mol\n'.format(
-                stats['vars']['fwd_pad_homodimer_MFE'],
-                stats['vars']['rev_pad_homodimer_MFE']))
+                stats['vars']['forward_pad_homodimer_minimum_free_energy'],
+                stats['vars']['reverse_pad_homodimer_minimum_free_energy']))
         liner.send(
             ' Heterodimer MFE        : {:6.2f} kcal/mol\n'.format(
-                stats['vars']['heterodimer_MFE']))
+                stats['vars']['heterodimer_minimum_free_energy']))
 
     # Failure Relavant Stats
     else:
         maxval = max(stats['vars'][field] for field in (
-            'Tm_fail',
-            'repeat_fail',
-            'homodimer_fail',
-            'heterodimer_fail',
-            'exmotif_fail',
-            'edge_fail'))
+            'melting_temperature_failure_count',
+            'repeat_failure_count',
+            'homodimer_failure_count',
+            'heterodimer_failure_count',
+            'excluded_motif_failure_count',
+            'edge_effect_failure_count'))
 
         sntn, plen = ut.get_notelen(
             printlen=ut.get_printlen(
                 value=maxval))
 
-        total_conflicts = stats['vars']['Tm_fail']        + \
-                          stats['vars']['repeat_fail']      + \
-                          stats['vars']['homodimer_fail']   + \
-                          stats['vars']['heterodimer_fail'] + \
-                          stats['vars']['exmotif_fail']     + \
-                          stats['vars']['edge_fail']
+        total_conflicts = stats['vars']['melting_temperature_failure_count']        + \
+                          stats['vars']['repeat_failure_count']      + \
+                          stats['vars']['homodimer_failure_count']   + \
+                          stats['vars']['heterodimer_failure_count'] + \
+                          stats['vars']['excluded_motif_failure_count']     + \
+                          stats['vars']['edge_effect_failure_count']
 
         liner.send(
             ' Melt. Temp. Conflicts  : {:{},{}} Event(s) ({:6.2f} %)\n'.format(
-                stats['vars']['Tm_fail'],
+                stats['vars']['melting_temperature_failure_count'],
                 plen,
                 sntn,
                 ut.safediv(
-                    A=stats['vars']['Tm_fail'] * 100.,
+                    A=stats['vars']['melting_temperature_failure_count'] * 100.,
                     B=total_conflicts)))
         liner.send(
             '      Repeat Conflicts  : {:{},{}} Event(s) ({:6.2f} %)\n'.format(
-                stats['vars']['repeat_fail'],
+                stats['vars']['repeat_failure_count'],
                 plen,
                 sntn,
                 ut.safediv(
-                    A=stats['vars']['repeat_fail'] * 100.,
+                    A=stats['vars']['repeat_failure_count'] * 100.,
                     B=total_conflicts)))
         liner.send(
             '   Homodimer Conflicts  : {:{},{}} Event(s) ({:6.2f} %)\n'.format(
-                stats['vars']['homodimer_fail'],
+                stats['vars']['homodimer_failure_count'],
                 plen,
                 sntn,
                 ut.safediv(
-                    A=stats['vars']['homodimer_fail'] * 100.,
+                    A=stats['vars']['homodimer_failure_count'] * 100.,
                     B=total_conflicts)))
         liner.send(
             ' Heterodimer Conflicts  : {:{},{}} Event(s) ({:6.2f} %)\n'.format(
-                stats['vars']['heterodimer_fail'],
+                stats['vars']['heterodimer_failure_count'],
                 plen,
                 sntn,
                 ut.safediv(
-                    A=stats['vars']['heterodimer_fail'] * 100.,
+                    A=stats['vars']['heterodimer_failure_count'] * 100.,
                     B=total_conflicts)))
         liner.send(
             '     Exmotif Conflicts  : {:{},{}} Event(s) ({:6.2f} %)\n'.format(
-                stats['vars']['exmotif_fail'],
+                stats['vars']['excluded_motif_failure_count'],
                 plen,
                 sntn,
                 ut.safediv(
-                    A=stats['vars']['exmotif_fail'] * 100.,
+                    A=stats['vars']['excluded_motif_failure_count'] * 100.,
                     B=total_conflicts)))
         liner.send(
             '        Edge Conflicts  : {:{},{}} Event(s) ({:6.2f} %)\n'.format(
-                stats['vars']['edge_fail'],
+                stats['vars']['edge_effect_failure_count'],
                 plen,
                 sntn,
                 ut.safediv(
-                    A=stats['vars']['edge_fail'] * 100.,
+                    A=stats['vars']['edge_effect_failure_count'] * 100.,
                     B=total_conflicts)))
 
         # Enumerate Motif-wise Fail Counts
-        if stats['vars']['exmotif_counter']:
+        if stats['vars']['excluded_motif_encounter_counter']:
 
             qlen = max(len(motif) \
-                for motif in stats['vars']['exmotif_counter'].keys()) + 2
+                for motif in stats['vars']['excluded_motif_encounter_counter'].keys()) + 2
 
             sntn, vlen = ut.get_notelen(
                 printlen=ut.get_printlen(
                     value=max(
-                        stats['vars']['exmotif_counter'].values())))
+                        stats['vars']['excluded_motif_encounter_counter'].values())))
 
             liner.send('   Exmotif-wise Conflict Distribution\n')
 
-            for exmotif,count in stats['vars']['exmotif_counter'].most_common():
+            for exmotif,count in stats['vars']['excluded_motif_encounter_counter'].most_common():
                 exmotif = '\'{}\''.format(exmotif)
                 liner.send(
                     '     - Exmotif {:>{}} Triggered {:{},{}} Event(s)\n'.format(

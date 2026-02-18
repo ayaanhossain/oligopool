@@ -538,20 +538,20 @@ def primer(
             'step'    : 0,
             'step_name': 'no-missing-primers',
             'vars'    : {
-                   'primer_Tm': None,          # Primer Melting Temperature
-                   'primer_GC': None,          # Primer GC Content
-                 'hairpin_MFE': None,          # Primer Hairpin Free Energy
-               'homodimer_MFE': None,          # Homodimer Free Energy
-             'heterodimer_MFE': None,          # Heterodimer Free Energy
-                     'Tm_fail': 0,             # Melting Temperature Fail Count
-                 'repeat_fail': 0,             # Repeat Fail Count
-             'background_fail': 0,             # Background Fail Count
-              'homodimer_fail': 0,             # Homodimer Fail Count
-            'heterodimer_fail': 0,             # Heterodimer Fail Count
-             'crossdimer_fail': 0,             # Cross-primer Dimer Fail Count
-                'exmotif_fail': 0,             # Exmotif Elimination Fail Count
-                   'edge_fail': 0,             # Edge Effect Fail Count
-             'exmotif_counter': cx.Counter()}, # Exmotif Encounter Counter
+                'primer_melting_temperature'       : None,          # Primer Melting Temperature
+                'primer_guanine_cytosine_content'  : None,          # Primer GC Content
+                'hairpin_minimum_free_energy'      : None,          # Primer Hairpin Free Energy
+                'homodimer_minimum_free_energy'    : None,          # Homodimer Free Energy
+                'heterodimer_minimum_free_energy'  : None,          # Heterodimer Free Energy
+                'melting_temperature_failure_count': 0,             # Melting Temperature Fail Count
+                'repeat_failure_count'             : 0,             # Repeat Fail Count
+                'background_failure_count'         : 0,             # Background Fail Count
+                'homodimer_failure_count'          : 0,             # Homodimer Fail Count
+                'heterodimer_failure_count'        : 0,             # Heterodimer Fail Count
+                'cross_dimer_failure_count'        : 0,             # Cross-primer Dimer Fail Count
+                'excluded_motif_failure_count'     : 0,             # Exmotif Elimination Fail Count
+                'edge_effect_failure_count'        : 0,             # Edge Effect Fail Count
+                'excluded_motif_encounter_counter' : cx.Counter()}, # Exmotif Encounter Counter
             'warns'   : warns}
         stats['random_seed'] = random_seed
         if not oligosets is None:
@@ -622,14 +622,14 @@ def primer(
             'step'     : 1,
             'step_name': 'parsing-oligo-limit',
             'vars'     : {
-                    'oligo_limit': oligolimit,
-                 'limit_overflow': True,
-                  'min_oligo_len': minoligolen,
-                  'max_oligo_len': maxoligolen,
-                'min_element_len': minelementlen,
-                'max_element_len': maxelementlen,
-                'min_space_avail': minspaceavail,
-                'max_space_avail': maxspaceavail},
+                    'oligo_length_limit': oligolimit,
+                    'has_limit_overflow': True,
+                    'min_oligo_length'  : minoligolen,
+                    'max_oligo_length'  : maxoligolen,
+                    'min_element_length': minelementlen,
+                    'max_element_length': maxelementlen,
+                    'min_space_avail'   : minspaceavail,
+                    'max_space_avail'   : maxspaceavail},
             'warns'   : warns}
         stats['random_seed'] = random_seed
         stats = ut.stamp_stats(
@@ -652,7 +652,7 @@ def primer(
         warns[2] = {
             'warn_count': 0,
             'step_name': 'parsing-excluded-motifs',
-            'vars': None}
+            'vars': {}}
 
         # Parse exmotifs
         (parsestatus,
@@ -682,8 +682,8 @@ def primer(
                 'step'    : 2,
                 'step_name': 'parsing-excluded-motifs',
                 'vars'    : {
-                     'prob_lens': problens,
-                    'prob_count': tuple(list(
+                    'problem_lengths'            : problens,
+                    'problematic_sequence_counts': tuple(list(
                         4**pl for pl in problens))},
                 'warns'   : warns}
             stats['random_seed'] = random_seed
@@ -713,7 +713,7 @@ def primer(
     warns[3] = {
         'warn_count': 0,
         'step_name' : 'parsing-primer-sequence',
-        'vars': None}
+        'vars': {}}
 
     # Parse primerseq
     (parsestatus,
@@ -745,9 +745,9 @@ def primer(
             'step'    : 3,
             'step_name': 'parsing-primer-sequence',
             'vars'    : {
-                    'design_space': designspace,
+                'design_space'    : designspace,
                 'internal_repeats': internalrepeats,
-                  'paired_repeats': pairedrepeats},
+                'paired_repeats'  : pairedrepeats},
             'warns'   : warns}
         stats['random_seed'] = random_seed
         stats = ut.stamp_stats(
@@ -803,10 +803,10 @@ def primer(
                 'step'    : 4,
                 'step_name': 'parsing-melting-temperature',
                 'vars'    : {
-                    'estimated_min_Tm': estimatedminTm,
-                    'estimated_max_Tm': estimatedmaxTm,
-                       'higher_min_Tm': higherminTm,
-                        'lower_max_Tm': lowermaxTm},
+                    'estimated_minimum_melting_temperature': estimatedminTm,
+                    'estimated_maximum_melting_temperature': estimatedmaxTm,
+                    'higher_minimum_melting_temperature'   : higherminTm,
+                    'lower_maximum_melting_temperature'    : lowermaxTm},
                 'warns'   : warns}
             stats['random_seed'] = random_seed
             stats = ut.stamp_stats(
@@ -866,11 +866,11 @@ def primer(
                     'step'    : 4,
                     'step_name': 'parsing-melting-temperature',
                     'vars'    : {
-                        'estimated_min_Tm': estimatedminTm,
-                        'estimated_max_Tm': estimatedmaxTm,
-                           'higher_min_Tm': higherminTm,
-                            'lower_max_Tm': lowermaxTm,
-                             'failed_set': label},
+                        'estimated_minimum_melting_temperature': estimatedminTm,
+                        'estimated_maximum_melting_temperature': estimatedmaxTm,
+                        'higher_minimum_melting_temperature'   : higherminTm,
+                        'lower_maximum_melting_temperature'    : lowermaxTm,
+                        'failed_set': label},
                     'warns'   : warns}
                 stats['random_seed'] = random_seed
                 stats = ut.stamp_stats(
@@ -942,7 +942,7 @@ def primer(
             warns[6] = {
                 'warn_count': 0,
                 'step_name' : 'parsing-edge-effects',
-                'vars': None}
+                'vars': {}}
 
             # Compute Forbidden Prefixes and Suffixes
             (prefixdict,
@@ -968,7 +968,7 @@ def primer(
             warns[6] = {
                 'warn_count': 0,
                 'step_name' : 'parsing-edge-effects',
-                'vars': None}
+                'vars': {}}
 
             # Compute Forbidden Prefixes and Suffixes per set
             prefixdicts = {}
@@ -992,7 +992,7 @@ def primer(
 
                 setwarn = {
                     'warn_count': 0,
-                    'vars': None}
+                    'vars': {}}
 
                 (prefixdict,
                 suffixdict) = cp.get_parsed_edgeeffects(
@@ -1042,8 +1042,8 @@ def primer(
             'vars'    : {
                 'source_context': sourcecontext,
                 'kmer_space'    : kmerspace,
-                'fill_count'    : fillcount,
-                'free_count'    : freecount},
+                'filled_kmer_count'    : fillcount,
+                'remaining_kmer_count' : freecount},
             'warns'   : warns}
         stats['random_seed'] = random_seed
         stats = ut.stamp_stats(
@@ -1066,20 +1066,20 @@ def primer(
         'step'    : 8,
         'step_name': 'computing-primer',
         'vars'    : {
-                   'primer_Tm': None,          # Primer Melting Temperature
-                   'primer_GC': None,          # Primer GC Content
-                 'hairpin_MFE': None,          # Primer Hairpin Free Energy
-               'homodimer_MFE': None,          # Homodimer Free Energy
-             'heterodimer_MFE': None,          # Heterodimer Free Energy
-                     'Tm_fail': 0,             # Melting Temperature Fail Count
-                 'repeat_fail': 0,             # Repeat Fail Count
-             'background_fail': 0,             # Background Fail Count
-              'homodimer_fail': 0,             # Homodimer Fail Count
-            'heterodimer_fail': 0,             # Heterodimer Fail Count
-             'crossdimer_fail': 0,             # Cross-primer Dimer Fail Count
-                'exmotif_fail': 0,             # Exmotif Elimination Fail Count
-                   'edge_fail': 0,             # Edge Effect Fail Count
-             'exmotif_counter': cx.Counter()}, # Exmotif Encounter Counter
+            'primer_melting_temperature'       : None,          # Primer Melting Temperature
+            'primer_guanine_cytosine_content'  : None,          # Primer GC Content
+            'hairpin_minimum_free_energy'      : None,          # Primer Hairpin Free Energy
+            'homodimer_minimum_free_energy'    : None,          # Homodimer Free Energy
+            'heterodimer_minimum_free_energy'  : None,          # Heterodimer Free Energy
+            'melting_temperature_failure_count': 0,             # Melting Temperature Fail Count
+            'repeat_failure_count'             : 0,             # Repeat Fail Count
+            'background_failure_count'         : 0,             # Background Fail Count
+            'homodimer_failure_count'          : 0,             # Homodimer Fail Count
+            'heterodimer_failure_count'        : 0,             # Heterodimer Fail Count
+            'cross_dimer_failure_count'        : 0,             # Cross-primer Dimer Fail Count
+            'excluded_motif_failure_count'     : 0,             # Exmotif Elimination Fail Count
+            'edge_effect_failure_count'        : 0,             # Edge Effect Fail Count
+            'excluded_motif_encounter_counter' : cx.Counter()}, # Exmotif Encounter Counter
         'warns'   : warns}
     stats['random_seed'] = random_seed
     if not oligosets is None:
@@ -1172,20 +1172,20 @@ def primer(
                 'step'    : 8,
                 'step_name': 'computing-primer',
                 'vars'    : {
-                       'primer_Tm': None,          # Primer Melting Temperature
-                       'primer_GC': None,          # Primer GC Content
-                     'hairpin_MFE': None,          # Primer Hairpin Free Energy
-                   'homodimer_MFE': None,          # Homodimer Free Energy
-                 'heterodimer_MFE': None,          # Heterodimer Free Energy
-                         'Tm_fail': 0,             # Melting Temperature Fail Count
-                     'repeat_fail': 0,             # Repeat Fail Count
-                 'background_fail': 0,             # Background Fail Count
-                  'homodimer_fail': 0,             # Homodimer Fail Count
-                'heterodimer_fail': 0,             # Heterodimer Fail Count
-                 'crossdimer_fail': 0,             # Cross-primer Dimer Fail Count
-                    'exmotif_fail': 0,             # Exmotif Elimination Fail Count
-                       'edge_fail': 0,             # Edge Effect Fail Count
-                 'exmotif_counter': cx.Counter()}, # Exmotif Encounter Counter
+                    'primer_melting_temperature'       : None,          # Primer Melting Temperature
+                    'primer_guanine_cytosine_content'  : None,          # Primer GC Content
+                    'hairpin_minimum_free_energy'      : None,          # Primer Hairpin Free Energy
+                    'homodimer_minimum_free_energy'    : None,          # Homodimer Free Energy
+                    'heterodimer_minimum_free_energy'  : None,          # Heterodimer Free Energy
+                    'melting_temperature_failure_count': 0,             # Melting Temperature Fail Count
+                    'repeat_failure_count'             : 0,             # Repeat Fail Count
+                    'background_failure_count'         : 0,             # Background Fail Count
+                    'homodimer_failure_count'          : 0,             # Homodimer Fail Count
+                    'heterodimer_failure_count'        : 0,             # Heterodimer Fail Count
+                    'cross_dimer_failure_count'        : 0,             # Cross-primer Dimer Fail Count
+                    'excluded_motif_failure_count'     : 0,             # Exmotif Elimination Fail Count
+                    'edge_effect_failure_count'        : 0,             # Edge Effect Fail Count
+                    'excluded_motif_encounter_counter' : cx.Counter()}, # Exmotif Encounter Counter
                 'warns'   : warns}
             setstats['random_seed'] = random_seed
 
@@ -1216,15 +1216,15 @@ def primer(
                 rng=rng)
 
             # Aggregate stats
-            stats['vars']['Tm_fail'] += setstats['vars']['Tm_fail']
-            stats['vars']['repeat_fail'] += setstats['vars']['repeat_fail']
-            stats['vars']['background_fail'] += setstats['vars']['background_fail']
-            stats['vars']['homodimer_fail'] += setstats['vars']['homodimer_fail']
-            stats['vars']['heterodimer_fail'] += setstats['vars']['heterodimer_fail']
-            stats['vars']['crossdimer_fail'] += setstats['vars']['crossdimer_fail']
-            stats['vars']['exmotif_fail'] += setstats['vars']['exmotif_fail']
-            stats['vars']['edge_fail'] += setstats['vars']['edge_fail']
-            stats['vars']['exmotif_counter'] += setstats['vars']['exmotif_counter']
+            stats['vars']['melting_temperature_failure_count'] += setstats['vars']['melting_temperature_failure_count']
+            stats['vars']['repeat_failure_count'] += setstats['vars']['repeat_failure_count']
+            stats['vars']['background_failure_count'] += setstats['vars']['background_failure_count']
+            stats['vars']['homodimer_failure_count'] += setstats['vars']['homodimer_failure_count']
+            stats['vars']['heterodimer_failure_count'] += setstats['vars']['heterodimer_failure_count']
+            stats['vars']['cross_dimer_failure_count'] += setstats['vars']['cross_dimer_failure_count']
+            stats['vars']['excluded_motif_failure_count'] += setstats['vars']['excluded_motif_failure_count']
+            stats['vars']['edge_effect_failure_count'] += setstats['vars']['edge_effect_failure_count']
+            stats['vars']['excluded_motif_encounter_counter'] += setstats['vars']['excluded_motif_encounter_counter']
 
             # Design status
             if setstats['status']:
@@ -1241,11 +1241,11 @@ def primer(
                 stats['vars']['primer_sets'].append({
                     'oligo_set'      : label,
                     'primer'         : setprimer,
-                    'primer_Tm'      : setstats['vars']['primer_Tm'],
-                    'primer_GC'      : setstats['vars']['primer_GC'],
-                    'hairpin_MFE'    : setstats['vars']['hairpin_MFE'],
-                    'homodimer_MFE'  : setstats['vars']['homodimer_MFE'],
-                    'heterodimer_MFE': setstats['vars']['heterodimer_MFE'],
+                    'primer_melting_temperature'     : setstats['vars']['primer_melting_temperature'],
+                    'primer_guanine_cytosine_content': setstats['vars']['primer_guanine_cytosine_content'],
+                    'hairpin_minimum_free_energy'    : setstats['vars']['hairpin_minimum_free_energy'],
+                    'homodimer_minimum_free_energy'  : setstats['vars']['homodimer_minimum_free_energy'],
+                    'heterodimer_minimum_free_energy': setstats['vars']['heterodimer_minimum_free_energy'],
                 })
 
             else:
@@ -1315,21 +1315,21 @@ def primer(
         if oligosets is None:
             liner.send(
                 '     Melting Temperature: {:6.2f} °C\n'.format(
-                    stats['vars']['primer_Tm']))
+                    stats['vars']['primer_melting_temperature']))
             liner.send(
                 '          GC Content    : {:6.2f} %\n'.format(
-                    stats['vars']['primer_GC']))
+                    stats['vars']['primer_guanine_cytosine_content']))
             liner.send(
                 '     Hairpin MFE        : {:6.2f} kcal/mol\n'.format(
-                    stats['vars']['hairpin_MFE']))
+                    stats['vars']['hairpin_minimum_free_energy']))
             liner.send(
                 '   Homodimer MFE        : {:6.2f} kcal/mol\n'.format(
-                    stats['vars']['homodimer_MFE']))
+                    stats['vars']['homodimer_minimum_free_energy']))
 
             if not pairedprimer is None:
                 liner.send(
                     ' Heterodimer MFE        : {:6.2f} kcal/mol\n'.format(
-                        stats['vars']['heterodimer_MFE']))
+                        stats['vars']['heterodimer_minimum_free_energy']))
         else:
             liner.send(
                 '      Primer Sets       : {:,} Set(s)\n'.format(
@@ -1343,120 +1343,120 @@ def primer(
                     'Hairpin {:6.2f} kcal/mol, Homodimer {:6.2f} kcal/mol'
                 ).format(
                     entry['oligo_set'],
-                    entry['primer_Tm'],
-                    entry['primer_GC'],
-                    entry['hairpin_MFE'],
-                    entry['homodimer_MFE'])
+                    entry['primer_melting_temperature'],
+                    entry['primer_guanine_cytosine_content'],
+                    entry['hairpin_minimum_free_energy'],
+                    entry['homodimer_minimum_free_energy'])
                 if not pairedprimer_map is None:
                     line += ', Heterodimer {:6.2f} kcal/mol'.format(
-                        entry['heterodimer_MFE'])
+                        entry['heterodimer_minimum_free_energy'])
                 liner.send('{}\n'.format(line))
 
     # Failure Relavant Stats
     else:
         maxval = max(stats['vars'][field] for field in (
-            'Tm_fail',
-            'repeat_fail',
-            'background_fail',
-            'homodimer_fail',
-            'heterodimer_fail',
-            'crossdimer_fail',
-            'exmotif_fail',
-            'edge_fail'))
+            'melting_temperature_failure_count',
+            'repeat_failure_count',
+            'background_failure_count',
+            'homodimer_failure_count',
+            'heterodimer_failure_count',
+            'cross_dimer_failure_count',
+            'excluded_motif_failure_count',
+            'edge_effect_failure_count'))
 
         sntn, plen = ut.get_notelen(
             printlen=ut.get_printlen(
                 value=maxval))
 
-        total_conflicts = stats['vars']['Tm_fail']          + \
-                          stats['vars']['repeat_fail']      + \
-                          stats['vars']['background_fail']  + \
-                          stats['vars']['homodimer_fail']   + \
-                          stats['vars']['heterodimer_fail'] + \
-                          stats['vars']['crossdimer_fail']  + \
-                          stats['vars']['exmotif_fail']     + \
-                          stats['vars']['edge_fail']
+        total_conflicts = stats['vars']['melting_temperature_failure_count'] + \
+                          stats['vars']['repeat_failure_count']              + \
+                          stats['vars']['background_failure_count']          + \
+                          stats['vars']['homodimer_failure_count']           + \
+                          stats['vars']['heterodimer_failure_count']         + \
+                          stats['vars']['cross_dimer_failure_count']         + \
+                          stats['vars']['excluded_motif_failure_count']      + \
+                          stats['vars']['edge_effect_failure_count']
 
         liner.send(
             ' Melt. Temp. Conflicts  : {:{},{}} Event(s) ({:6.2f} %)\n'.format(
-                stats['vars']['Tm_fail'],
+                stats['vars']['melting_temperature_failure_count'],
                 plen,
                 sntn,
                 ut.safediv(
-                    A=stats['vars']['Tm_fail'] * 100.,
+                    A=stats['vars']['melting_temperature_failure_count'] * 100.,
                     B=total_conflicts)))
         liner.send(
             '      Repeat Conflicts  : {:{},{}} Event(s) ({:6.2f} %)\n'.format(
-                stats['vars']['repeat_fail'],
+                stats['vars']['repeat_failure_count'],
                 plen,
                 sntn,
                 ut.safediv(
-                    A=stats['vars']['repeat_fail'] * 100.,
+                    A=stats['vars']['repeat_failure_count'] * 100.,
                     B=total_conflicts)))
         liner.send(
             '  Background Conflicts  : {:{},{}} Event(s) ({:6.2f} %)\n'.format(
-                stats['vars']['background_fail'],
+                stats['vars']['background_failure_count'],
                 plen,
                 sntn,
                 ut.safediv(
-                    A=stats['vars']['background_fail'] * 100.,
+                    A=stats['vars']['background_failure_count'] * 100.,
                     B=total_conflicts)))
         liner.send(
             '   Homodimer Conflicts  : {:{},{}} Event(s) ({:6.2f} %)\n'.format(
-                stats['vars']['homodimer_fail'],
+                stats['vars']['homodimer_failure_count'],
                 plen,
                 sntn,
                 ut.safediv(
-                    A=stats['vars']['homodimer_fail'] * 100.,
+                    A=stats['vars']['homodimer_failure_count'] * 100.,
                     B=total_conflicts)))
         liner.send(
             ' Heterodimer Conflicts  : {:{},{}} Event(s) ({:6.2f} %)\n'.format(
-                stats['vars']['heterodimer_fail'],
+                stats['vars']['heterodimer_failure_count'],
                 plen,
                 sntn,
                 ut.safediv(
-                    A=stats['vars']['heterodimer_fail'] * 100.,
+                    A=stats['vars']['heterodimer_failure_count'] * 100.,
                     B=total_conflicts)))
         if not oligosets is None:
             liner.send(
                 ' Crossdimer Conflicts  : {:{},{}} Event(s) ({:6.2f} %)\n'.format(
-                    stats['vars']['crossdimer_fail'],
+                    stats['vars']['cross_dimer_failure_count'],
                     plen,
                     sntn,
                     ut.safediv(
-                        A=stats['vars']['crossdimer_fail'] * 100.,
+                        A=stats['vars']['cross_dimer_failure_count'] * 100.,
                         B=total_conflicts)))
         liner.send(
             '     Exmotif Conflicts  : {:{},{}} Event(s) ({:6.2f} %)\n'.format(
-                stats['vars']['exmotif_fail'],
+                stats['vars']['excluded_motif_failure_count'],
                 plen,
                 sntn,
                 ut.safediv(
-                    A=stats['vars']['exmotif_fail'] * 100.,
+                    A=stats['vars']['excluded_motif_failure_count'] * 100.,
                     B=total_conflicts)))
         liner.send(
             '        Edge Conflicts  : {:{},{}} Event(s) ({:6.2f} %)\n'.format(
-                stats['vars']['edge_fail'],
+                stats['vars']['edge_effect_failure_count'],
                 plen,
                 sntn,
                 ut.safediv(
-                    A=stats['vars']['edge_fail'] * 100.,
+                    A=stats['vars']['edge_effect_failure_count'] * 100.,
                     B=total_conflicts)))
 
         # Enumerate Motif-wise Fail Counts
-        if stats['vars']['exmotif_counter']:
+        if stats['vars']['excluded_motif_encounter_counter']:
 
             qlen = max(len(motif) \
-                for motif in stats['vars']['exmotif_counter'].keys()) + 2
+                for motif in stats['vars']['excluded_motif_encounter_counter'].keys()) + 2
 
             sntn, vlen = ut.get_notelen(
                 printlen=ut.get_printlen(
                     value=max(
-                        stats['vars']['exmotif_counter'].values())))
+                        stats['vars']['excluded_motif_encounter_counter'].values())))
 
             liner.send('   Exmotif-wise Conflict Distribution\n')
 
-            for exmotif,count in stats['vars']['exmotif_counter'].most_common():
+            for exmotif,count in stats['vars']['excluded_motif_encounter_counter'].most_common():
                 exmotif = '\'{}\''.format(exmotif)
                 liner.send(
                     '     - Exmotif {:>{}} Triggered {:{},{}} Event(s)\n'.format(

@@ -232,15 +232,15 @@ def split(
             'basis'   : 'infeasible',
             'step'    : 1,
             'step_name': 'parsing-split-limit',
-            'vars'    : {
-                    'split_limit': splitlimit,
-                'oligo_underflow': oligounderflow,
-                   'uneven_split': unevensplit,
-                  'min_oligo_len': minoligolen,
-                  'max_oligo_len': maxoligolen,
-                'min_split_count': minsplitcount,
-                'max_split_count': maxsplitcount,},
-            'warns'   : warns}
+	            'vars'    : {
+                    'split_limit'     : splitlimit,
+                    'oligo_underflow' : oligounderflow,
+                    'uneven_split'    : unevensplit,
+                    'min_oligo_length': minoligolen,
+                    'max_oligo_length': maxoligolen,
+                    'min_split_count' : minsplitcount,
+                    'max_split_count' : maxsplitcount,},
+	            'warns'   : warns}
         stats['random_seed'] = random_seed
         stats['separate_outputs'] = separate
         stats = ut.stamp_stats(
@@ -303,8 +303,8 @@ def split(
             'step_name': 'parsing-variable-contig',
             'vars'    : {
                 'variable_contig_count': varcontcount,
-                  'merged_contig_count': mergedcontcount,
-                  'filter_contig_count': filtercontcount},
+                'merged_contig_count'  : mergedcontcount,
+                'filtered_contig_count': filtercontcount},
             'warns'   : warns}
         stats['random_seed'] = random_seed
         stats['separate_outputs'] = separate
@@ -328,13 +328,13 @@ def split(
         'step'    : 8,
         'step_name': 'computing-split',
         'vars'    : {
-                      'num_splits': 0,   # Total Number of Splits
-                      'split_lens': [],  # Split Oligo Lengths
-                    'overlap_lens': [],  # Split Overlap Lengths
-                  'mean_Tm_distro': [],  # Mean Tm of Each Split
-            'mean_distance_distro': [],  # Mean HDist of Each Split
-              'infeasible_contigs': False,  # Infeasible Contigs Flag
-                   'uneven_splits': False}, # Uneven Splits Flag
+            'split_count'    : 0,   # Total Number of Splits
+            'split_lengths'  : [],  # Split Oligo Lengths
+            'overlap_lengths': [],  # Split Overlap Lengths
+            'mean_melting_temperature_distribution': [],  # Mean Tm of Each Split
+            'mean_distance_distribution': [],     # Mean HDist of Each Split
+            'has_infeasible_contigs'    : False,  # Infeasible Contigs Flag
+            'has_uneven_splits'         : False}, # Uneven Splits Flag
         'warns'   : warns}
     stats['random_seed'] = random_seed
     stats['separate_outputs'] = separate
@@ -415,11 +415,11 @@ def split(
     if stats['status']:
 
         maxval = max(max(min(stats['vars'][field]) for field in (
-            'split_lens',
-            'overlap_lens',
-            'mean_Tm_distro',
-            'mean_distance_distro')),
-            stats['vars']['num_splits'])
+            'split_lengths',
+            'overlap_lengths',
+            'mean_melting_temperature_distribution',
+            'mean_distance_distribution')),
+            stats['vars']['split_count'])
 
         sntn, plen = ut.get_notelen(
             printlen=ut.get_printlen(
@@ -427,45 +427,45 @@ def split(
 
         liner.send(
             '     No. of Splits  : {:{},d} Fragments per Variant\n'.format(
-                stats['vars']['num_splits'],
+                stats['vars']['split_count'],
                 plen))
         liner.send(
             '      Split Length  : {:{},d} {}Base Pair(s)\n'.format(
-                min(stats['vars']['split_lens']),
+                min(stats['vars']['split_lengths']),
                 plen,
-                ['', 'to {:,d} '.format(max(stats['vars']['split_lens']))][
-                    max(stats['vars']['split_lens']) != min(stats['vars']['split_lens'])
+                ['', 'to {:,d} '.format(max(stats['vars']['split_lengths']))][
+                    max(stats['vars']['split_lengths']) != min(stats['vars']['split_lengths'])
                 ]))
         liner.send(
             '    Overlap Length  : {:{},d} {}Base Pair(s)\n'.format(
-                min(stats['vars']['overlap_lens']),
+                min(stats['vars']['overlap_lengths']),
                 plen,
-                ['', 'to {:,d} '.format(max(stats['vars']['overlap_lens']))][
-                    max(stats['vars']['overlap_lens']) != min(stats['vars']['overlap_lens'])
+                ['', 'to {:,d} '.format(max(stats['vars']['overlap_lengths']))][
+                    max(stats['vars']['overlap_lengths']) != min(stats['vars']['overlap_lengths'])
                 ]))
         liner.send(
             '    Overlap Tm      : {:{},d} {}°C\n'.format(
-                min(stats['vars']['mean_Tm_distro']),
+                min(stats['vars']['mean_melting_temperature_distribution']),
                 plen,
-                ['', 'to {:,d} '.format(max(stats['vars']['mean_Tm_distro']))][
-                    max(stats['vars']['mean_Tm_distro']) != min(stats['vars']['mean_Tm_distro'])
+                ['', 'to {:,d} '.format(max(stats['vars']['mean_melting_temperature_distribution']))][
+                    max(stats['vars']['mean_melting_temperature_distribution']) != min(stats['vars']['mean_melting_temperature_distribution'])
                 ]))
         liner.send(
             '    Overlap Distance: {:{},d} {}Mismatch(es)\n'.format(
-               min(stats['vars']['mean_distance_distro']),
+               min(stats['vars']['mean_distance_distribution']),
                 plen,
-                ['', 'to {:,d} '.format(max(stats['vars']['mean_distance_distro']))][
-                    max(stats['vars']['mean_distance_distro']) != min(stats['vars']['mean_distance_distro'])
+                ['', 'to {:,d} '.format(max(stats['vars']['mean_distance_distribution']))][
+                    max(stats['vars']['mean_distance_distribution']) != min(stats['vars']['mean_distance_distribution'])
                 ]))
 
     # Failure Relavant Stats
     else:
         liner.send(
             ' Infeasible Contigs : {}\n'.format(
-                ['No', 'Yes'][stats['vars']['infeasible_contigs']]))
+                ['No', 'Yes'][stats['vars']['has_infeasible_contigs']]))
         liner.send(
             '      Unven Split   : {}\n'.format(
-                ['No', 'Yes'][stats['vars']['uneven_splits']]))
+                ['No', 'Yes'][stats['vars']['has_uneven_splits']]))
 
     # Show Time Elapsed
     liner.send(

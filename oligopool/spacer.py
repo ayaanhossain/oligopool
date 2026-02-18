@@ -379,14 +379,14 @@ def spacer(
             'step'    : 0,
             'step_name': 'no-missing-spacers',
             'vars'    : {
-               'target_count': 0,
-                'spacer_count': 0,
-               'orphan_oligo': [],
-                'repeat_fail': 0,
-            'background_fail': 0,
-               'exmotif_fail': 0,
-                  'edge_fail': 0,
-            'exmotif_counter': cx.Counter()},
+                'target_count'                : 0,
+                'spacer_count'                : 0,
+                'orphan_oligo_ids'            : [],
+                'repeat_failure_count'        : 0,
+                'background_failure_count'    : 0,
+                'excluded_motif_failure_count': 0,
+                'edge_effect_failure_count'   : 0,
+                'excluded_motif_encounter_counter': cx.Counter()},
             'warns'   : warns}
         stats['random_seed'] = random_seed
 
@@ -467,14 +467,14 @@ def spacer(
             'step'    : 2,
             'step_name': 'parsing-oligo-limit',
             'vars'    : {
-                    'oligo_limit': oligolimit,
-                 'limit_overflow': True,
-                  'min_oligo_len': minoligolen,
-                  'max_oligo_len': maxoligolen,
-                'min_element_len': minelementlen,
-                'max_element_len': maxelementlen,
-                'min_space_avail': minspaceavail,
-                'max_space_avail': maxspaceavail},
+                'oligo_length_limit': oligolimit,
+                'has_limit_overflow': True,
+                'min_oligo_length'  : minoligolen,
+                'max_oligo_length'  : maxoligolen,
+                'min_element_length': minelementlen,
+                'max_element_length': maxelementlen,
+                'min_space_avail'   : minspaceavail,
+                'max_space_avail'   : maxspaceavail},
             'warns'   : warns}
         stats['random_seed'] = random_seed
         stats = ut.stamp_stats(
@@ -505,7 +505,7 @@ def spacer(
         warns[4] = {
             'warn_count': 0,
             'step_name' : 'parsing-excluded-motifs',
-            'vars': None}
+            'vars': {}}
 
         # Parse exmotifs
         (parsestatus,
@@ -535,8 +535,8 @@ def spacer(
                 'step'    : 4,
                 'step_name': 'parsing-excluded-motifs',
                 'vars'    : {
-                     'prob_lens': problens,
-                    'prob_count': tuple(list(
+                    'problem_lengths': problens,
+                    'problematic_sequence_counts': tuple(list(
                         4**pl for pl in problens))},
                 'warns'   : warns}
             stats['random_seed'] = random_seed
@@ -594,7 +594,7 @@ def spacer(
             warns[6] = {
                 'warn_count': 0,
                 'step_name' : 'parsing-edge-effects',
-                'vars': None}
+                'vars': {}}
 
             # Compute Forbidden Prefixes and Suffixes
             (prefixdict,
@@ -688,8 +688,8 @@ def spacer(
             'vars'  : {
                 'source_context': sourcecontext,
                 'kmer_space'    : kmerspace,
-                'fill_count'    : fillcount,
-                'free_count'    : freecount},
+                'filled_kmer_count'    : fillcount,
+                'remaining_kmer_count' : freecount},
             'warns' : warns}
         stats['random_seed'] = random_seed
         stats = ut.stamp_stats(
@@ -712,14 +712,14 @@ def spacer(
         'step'    : 8,
         'step_name': 'computing-spacers',
         'vars'    : {
-               'target_count': targetcount,   # Required Number of Spacers
-                'spacer_count': 0,             # Spacer Design Count
-               'orphan_oligo': None,          # Orphan Oligo Indexes
-                'repeat_fail': 0,             # Repeat Fail Count
-            'background_fail': 0,             # Background Fail Count
-               'exmotif_fail': 0,             # Exmotif Elimination Fail Count
-                  'edge_fail': 0,             # Edge Effect Fail Count
-            'exmotif_counter': cx.Counter()}, # Exmotif Encounter Counter
+            'target_count'                    : targetcount,   # Required Number of Spacers
+            'spacer_count'                    : 0,             # Spacer Design Count
+            'orphan_oligo_ids'                : None,          # Orphan Oligo Indexes
+            'repeat_failure_count'            : 0,             # Repeat Fail Count
+            'background_failure_count'        : 0,             # Background Fail Count
+            'excluded_motif_failure_count'    : 0,             # Exmotif Elimination Fail Count
+            'edge_effect_failure_count'       : 0,             # Edge Effect Fail Count
+            'excluded_motif_encounter_counter': cx.Counter()}, # Exmotif Encounter Counter
         'warns'   : warns}
     stats['random_seed'] = random_seed
 
@@ -800,73 +800,73 @@ def spacer(
                 B=targetcount)))
     liner.send(
         '     Orphan Oligo    : {:{},d} Entries\n'.format(
-            len(stats['vars']['orphan_oligo']),
+            len(stats['vars']['orphan_oligo_ids']),
             plen))
 
     # Failure Relavant Stats
     if not stats['status']:
         maxval = max(stats['vars'][field] for field in (
-            'repeat_fail',
-            'background_fail',
-            'exmotif_fail',
-            'edge_fail'))
+            'repeat_failure_count',
+            'background_failure_count',
+            'excluded_motif_failure_count',
+            'edge_effect_failure_count'))
 
         sntn, plen = ut.get_notelen(
             printlen=ut.get_printlen(
                 value=maxval))
 
-        total_conflicts = stats['vars']['repeat_fail']     + \
-                          stats['vars']['background_fail'] + \
-                          stats['vars']['exmotif_fail']    + \
-                          stats['vars']['edge_fail']
+        total_conflicts = stats['vars']['repeat_failure_count']     + \
+                          stats['vars']['background_failure_count'] + \
+                          stats['vars']['excluded_motif_failure_count'] + \
+                          stats['vars']['edge_effect_failure_count']
 
         liner.send(
             '     Repeat Conflicts: {:{},{}} Event(s) ({:6.2f} %)\n'.format(
-                stats['vars']['repeat_fail'],
+                stats['vars']['repeat_failure_count'],
                 plen,
                 sntn,
                 ut.safediv(
-                    A=stats['vars']['repeat_fail'] * 100.,
+                    A=stats['vars']['repeat_failure_count'] * 100.,
                     B=total_conflicts)))
         liner.send(
             ' Background Conflicts: {:{},{}} Event(s) ({:6.2f} %)\n'.format(
-                stats['vars']['background_fail'],
+                stats['vars']['background_failure_count'],
                 plen,
                 sntn,
                 ut.safediv(
-                    A=stats['vars']['background_fail'] * 100.,
+                    A=stats['vars']['background_failure_count'] * 100.,
                     B=total_conflicts)))
         liner.send(
             '    Exmotif Conflicts: {:{},{}} Event(s) ({:6.2f} %)\n'.format(
-                stats['vars']['exmotif_fail'],
+                stats['vars']['excluded_motif_failure_count'],
                 plen,
                 sntn,
                 ut.safediv(
-                    A=stats['vars']['exmotif_fail'] * 100.,
+                    A=stats['vars']['excluded_motif_failure_count'] * 100.,
                     B=total_conflicts)))
         liner.send(
             '       Edge Conflicts: {:{},{}} Event(s) ({:6.2f} %)\n'.format(
-                stats['vars']['edge_fail'],
+                stats['vars']['edge_effect_failure_count'],
                 plen,
                 sntn,
                 ut.safediv(
-                    A=stats['vars']['edge_fail'] * 100.,
+                    A=stats['vars']['edge_effect_failure_count'] * 100.,
                     B=total_conflicts)))
 
         # Enumerate Motif-wise Fail Counts
-        if stats['vars']['exmotif_counter']:
+        if stats['vars']['excluded_motif_encounter_counter']:
 
             qlen = max(len(motif) \
-                for motif in stats['vars']['exmotif_counter'].keys()) + 2
+                for motif in stats['vars']['excluded_motif_encounter_counter'].keys()) + 2
 
             sntn, vlen = ut.get_notelen(
                 printlen=ut.get_printlen(
                     value=max(
-                        stats['vars']['exmotif_counter'].values())))
+                        stats['vars']['excluded_motif_encounter_counter'].values())))
 
             liner.send('   Exmotif-wise Conflict Distribution\n')
 
-            for exmotif,count in stats['vars']['exmotif_counter'].most_common():
+            for exmotif,count in stats['vars']['excluded_motif_encounter_counter'].most_common():
                 exmotif = '\'{}\''.format(exmotif)
                 liner.send(
                     '     - Motif {:>{}} Triggered {:{},{}} Event(s)\n'.format(

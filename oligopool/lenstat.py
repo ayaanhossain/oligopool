@@ -115,10 +115,10 @@ def lenstat(
         'step'    : 1,
         'step_name': 'computing-length-statistics',
         'vars'    : {
-                   'len_stat': ut.get_lenstat_dict(intstats=intstats),  # Store Element-wise Length Stats
-                'oligo_limit': oligolimit,            # Specified Oligo Limit
-            'min_space_avail': minspaceavail,         # Minimum Space Available
-            'max_space_avail': maxspaceavail},        # Maximum Space Available
+            'length_stats'      : ut.get_lenstat_dict(intstats=intstats),  # Store element-wise length stats
+            'oligo_length_limit': oligolimit,            # Specified Oligo Limit
+            'min_space_avail'   : minspaceavail,         # Minimum Space Available
+            'max_space_avail'   : maxspaceavail},        # Maximum Space Available
         'warns'   : warns}
 
     # Show Free Space Available

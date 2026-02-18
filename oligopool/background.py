@@ -115,9 +115,9 @@ def background(
         'step'    : 1,
         'step_name': 'computing-background',
         'vars'    : {
-            'kmer_space': 0,  # kmer Space
-            'fill_count': 0,  # kmer Fill Count
-            'left_count': 0}, # kmer Left Count
+            'kmer_space'          : 0,  # kmer Space
+            'filled_kmer_count'   : 0,  # kmer Fill Count
+            'remaining_kmer_count': 0}, # kmer Left Count
         'warns'   : {}}
 
     # Start Timer
@@ -143,8 +143,8 @@ def background(
     plen = ut.get_printlen(
         value=max(stats['vars'][field] for field in (
             'kmer_space',
-            'fill_count',
-            'left_count')))
+            'filled_kmer_count',
+            'remaining_kmer_count')))
 
     sntn = 'e' if plen > 15 else 'd'
 
@@ -159,21 +159,21 @@ def background(
             maxreplen+1))
     liner.send(
         '       Fill Count : {:{},{}} Unique {:,}-mers ({:6.2f} %)\n'.format(
-            stats['vars']['fill_count'],
+            stats['vars']['filled_kmer_count'],
             plen,
             sntn,
             maxreplen+1,
             ut.safediv(
-                A=stats['vars']['fill_count'] * 100.,
+                A=stats['vars']['filled_kmer_count'] * 100.,
                 B=stats['vars']['kmer_space'])))
     liner.send(
         '       Left Count : {:{},{}} Unique {:,}-mers ({:6.2f} %)\n'.format(
-            stats['vars']['left_count'],
+            stats['vars']['remaining_kmer_count'],
             plen,
             sntn,
             maxreplen+1,
             ut.safediv(
-                A=stats['vars']['left_count'] * 100.,
+                A=stats['vars']['remaining_kmer_count'] * 100.,
                 B=stats['vars']['kmer_space'])))
 
     liner.send(' Time Elapsed: {:.2f} sec\n'.format(tt.time()-t0))

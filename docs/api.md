@@ -48,6 +48,7 @@ Complete parameter reference for all `oligopool` modules.
 - [`Scry`](#scry) - Barcode classifier
 
 **Appendix**
+- [Stats Dict Schema](#stats-dict-schema)
 - [IUPAC Codes](#iupac-codes)
 - [Common Restriction Sites](#common-restriction-sites)
 - [Type IIS Enzymes](#type-iis-enzymes)
@@ -1280,7 +1281,7 @@ op lenstat \
 
 [^ Back to TOC](#table-of-contents)
 
-**Purpose**: Verify oligo pool for length, motif emergence, and background k-mer conflicts.
+**Purpose**: Verify oligo pool for integrity, length, motif emergence, and background k-mer conflicts.
 
 **Signature**:
 ```python
@@ -1315,18 +1316,23 @@ df, stats = op.verify(
 - `ID`: Original row identifier
 - `CompleteOligo`: Concatenated oligo sequence
 - `OligoLength`: Length of CompleteOligo
+- `HasIntegrityConflict`: True if `CompleteOligo` vs constituent mismatch or `OligoLength` vs actual mismatch
 - `HasLengthConflict`: True if length exceeds `oligo_length_limit`
 - `HasExmotifConflict`: True if motif emergence detected (False if `excluded_motifs=None`)
 - `HasBackgroundConflict`: True if k-mer matches background DB (False if `background_directory=None`)
-- `HasAnyConflicts`: OR of above three flags
-- `LengthConflictDetails`, `ExmotifConflictDetails`, `BackgroundConflictDetails`: Dict or None with violation details
+- `HasAnyConflicts`: OR of all four conflict flags
+- `IntegrityConflictDetails`: Dict or None with integrity violation details
+- `LengthConflictDetails`: Dict or None with length violation details
+- `ExmotifConflictDetails`: List[Dict] or None with per-motif emergence details
+- `BackgroundConflictDetails`: Dict or None with background k-mer match details
 
 **Notes**:
 - Uses `CompleteOligo` column if present; otherwise concatenates all pure ATGC columns left-to-right
 - IUPAC/degenerate columns are skipped silently during DNA column detection
 - **Emergence**: A motif has emergence when its count exceeds the library-wide minimum (baseline)
-- Conflict details are Python dicts in the returned DataFrame; serialized as JSON strings in CSV output
+- Conflict details are JSON-serializable Python objects in the returned DataFrame; serialized as JSON strings in CSV output
 - **Reading CSV back**: Parse JSON for all `*Details` columns (currently the `*ConflictDetails` columns; e.g., loop over columns ending in `Details` and apply `json.loads`).
+- **Integrity override**: Rows with a `CompleteOligo`-vs-constituent mismatch attribute exmotif/background hits to `CompleteOligo` instead of constituent columns.
 
 **CLI Equivalent**:
 ```bash
@@ -1497,6 +1503,60 @@ label, score = model.predict('ATGCATGC')  # ('bc1', 1.0)
 ---
 
 ## Appendix
+
+### Stats Dict Schema
+
+[^ Back to TOC](#table-of-contents)
+
+Every module returns a `stats` dict alongside its primary output. This section documents the common schema contract.
+
+#### Common keys
+
+Present in every module's stats dict:
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `status` | `bool` | `True` if the operation succeeded |
+| `basis` | `str` | Outcome category (see vocabulary below) |
+| `step` | `int` | Step number reached during execution |
+| `step_name` | `str` | Lowercase-hyphenated step label (e.g. `'parsing-input-data'`) |
+| `vars` | `dict` | Module-specific variables; always a dict (never `None`) |
+| `warns` | `dict` | Warnings emitted during execution |
+| `module` | `str` | Module name (e.g. `'barcode'`, `'verify'`) |
+| `input_rows` | `int` | Number of input rows processed |
+| `output_rows` | `int` | Number of output rows produced |
+
+#### Optional keys
+
+| Key | Type | Modules |
+|-----|------|---------|
+| `random_seed` | `int` \| `None` | Design modules (`barcode`, `primer`, `motif`, `spacer`), assembly (`split`, `pad`), degenerate (`compress`) |
+| `separate_outputs` | `bool` | `split` only: whether fragment outputs were written to separate files |
+
+#### `basis` vocabulary
+
+| Value | Meaning |
+|-------|---------|
+| `'solved'` | Design/computation completed successfully |
+| `'complete'` | Patch mode: all rows already filled, nothing to do |
+| `'unsolved'` | Design did not converge within constraints |
+| `'infeasible'` | Parameter validation failed before execution |
+| `'verified'` | `verify` only: no conflicts detected |
+| `'conflicts'` | `verify` only: one or more conflicts detected |
+| `'corrupted'` | `inspect` only: artifact file is corrupt or unreadable |
+
+#### `vars` dict conventions
+
+- Keys use `snake_case`.
+- Length-related keys use `*_length` (not `*_len`).
+- Prefer expanded words over abbreviations for new keys (e.g. `distribution`, `count`, `limit`).
+- Prefer expanded lowercase key terms for new stats keys (for example `melting_temperature`, `guanine_cytosine_content`, `minimum_free_energy`, `phix_reads`).
+- Counting keys in `acount`/`xcount` use a `_reads` suffix (e.g. `analyzed_reads`, `phix_reads`, `callback_false_reads`).
+- Contents are module-specific; see individual module docs for details.
+
+[^ Back to TOC](#table-of-contents)
+
+---
 
 ### IUPAC Codes
 

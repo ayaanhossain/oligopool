@@ -363,10 +363,10 @@ def get_extracted_associates(
     if not associateuniq:
         warn['warn_count'] += len(duplicates)
         warn['vars'] = {
-              'expectedcount': expcount,
-             'associatecount': associatecount,
-            'associateunique': associateuniq,
-                 'duplicates': duplicates}
+            'expected_count': expcount,
+            'associate_count': associatecount,
+            'associates_unique': associateuniq,
+            'duplicates': duplicates}
 
     # Show Time Elapsed
     liner.send(

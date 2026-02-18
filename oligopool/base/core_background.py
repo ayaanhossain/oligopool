@@ -150,8 +150,8 @@ def background_engine(
     stats['status'] = (left_count * 1.) / kmer_space > .01
     stats['basis']  = 'solved' if stats['status'] else 'infeasible'
     stats['vars']['kmer_space'] = kmer_space
-    stats['vars']['fill_count'] = fill_count
-    stats['vars']['left_count'] = left_count
+    stats['vars']['filled_kmer_count'] = fill_count
+    stats['vars']['remaining_kmer_count'] = left_count
 
     # If Successful Update and Close DB
     if stats['status']:

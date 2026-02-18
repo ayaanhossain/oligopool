@@ -330,14 +330,14 @@ def xcount(
         'step'    : 3,
         'step_name': 'counting-read-packs',
         'vars'    : {
-            'callback_error': False,
-             'failed_inputs': None,
-                  'analyzed_reads': int(analyzedreads.value()),
-                      'phiX_reads': int(phiXreads.value()),
-               'low_complex_reads': int(lowcomplexreads.value()),
+            'has_callback_error'  : False,
+            'failed_inputs'       : None,
+            'analyzed_reads'      : int(analyzedreads.value()),
+            'phix_reads'          : int(phiXreads.value()),
+            'low_complex_reads'   : int(lowcomplexreads.value()),
             'callback_false_reads': int(falsereads.value()),
-                    'incalc_reads': int(incalcreads.value()),
-                'experiment_reads': int(experimentreads.value())},
+            'incalculable_reads'  : int(incalcreads.value()),
+            'experiment_reads'    : int(experimentreads.value())},
         'warns'   : warns}
 
     # Engine Timer
@@ -495,7 +495,7 @@ def xcount(
             ' Callback Function Erroneous\n')
         ut.remove_file(
             filepath=countfile)
-        stats['vars']['callback_error'] = True
+        stats['vars']['has_callback_error'] = True
         stats['vars']['failed_inputs']  = failedinputs
 
     # Handle Unmapped Reads
@@ -549,10 +549,10 @@ def xcount(
 
     # Update Stats
     stats['vars']['analyzed_reads']       = int(analyzedreads.value())
-    stats['vars']['phiX_reads']           = int(phiXreads.value())
+    stats['vars']['phix_reads']           = int(phiXreads.value())
     stats['vars']['low_complex_reads']    = int(lowcomplexreads.value())
     stats['vars']['callback_false_reads'] = int(falsereads.value())
-    stats['vars']['incalc_reads']         = int(incalcreads.value())
+    stats['vars']['incalculable_reads']   = int(incalcreads.value())
     stats['vars']['experiment_reads']     = int(experimentreads.value())
 
     # Counting Status

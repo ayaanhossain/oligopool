@@ -37,7 +37,7 @@ __all__ = ['__author__', '__version__']
 # Setup
 __author__ = 'Ayaan Hossain'
 
-__version__ = '2026.02.17'
+__version__ = '2026.02.18'
 
 _LAZY_ATTRS = {
     # Design Mode functions

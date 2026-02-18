@@ -261,15 +261,13 @@ def compress(
     stats['status'] = True
     stats['basis'] = 'solved'
     stats['vars'] = {
-           'input_variants': total_input_variants,
+        'input_variants'   : total_input_variants,
         'degenerate_oligos': total_degenerate_oligos,
         'compression_ratio': round(compression_ratio, 2),
-            'length_groups': {
-            k: len(set(v['sequences']))
-            for k, v in length_groups.items()},
-           'min_degeneracy': min_degeneracy,
-           'max_degeneracy': max_degeneracy,
-          'mean_degeneracy': round(mean_degeneracy, 2),
+        'length_groups'    : {k: len(set(v['sequences'])) for k, v in length_groups.items()},
+        'min_degeneracy'   : min_degeneracy,
+        'max_degeneracy'   : max_degeneracy,
+        'mean_degeneracy'  : round(mean_degeneracy, 2),
     }
 
     # Compression Statistics
@@ -303,12 +301,12 @@ def compress(
     liner.close()
 
     # Stamp stats
+    stats['random_seed'] = random_seed
     stats = ut.stamp_stats(
         stats=stats,
         module='compress',
         input_rows=input_rows,
         output_rows=len(synthesis_df))
-    stats['random_seed'] = random_seed
 
     mapping_df_return = mapping_df
     if (mapping_df is not None) and id_from_index:

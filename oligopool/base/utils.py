@@ -819,16 +819,16 @@ def get_lenstat_dict(intstats):
     for _, v in intstats.items():
         overflow = v[5]
         if overflow == 'N/A':
-            limit_overflow = None
+            has_limit_overflow = None
         else:
-            limit_overflow = overflow == 'Yes'
+            has_limit_overflow = overflow == 'Yes'
 
         out[v[0]] = {
-            'min_element_len':  int(v[1]),
-            'max_element_len':  int(v[2]),
-            'min_oligo_len':    int(v[3]),
-            'max_oligo_len':    int(v[4]),
-            'limit_overflow':   limit_overflow}
+            'min_element_length':  int(v[1]),
+            'max_element_length':  int(v[2]),
+            'min_oligo_length':    int(v[3]),
+            'max_oligo_length':    int(v[4]),
+            'has_limit_overflow':   has_limit_overflow}
 
     return out
 
@@ -1239,6 +1239,56 @@ def update_df(indf, lcname, rcname, out, outcol):
         loc=insidx,
         column=outcol,
         value=out)
+
+def get_column_boundaries(row_idx, columns, df):
+    '''
+    Compute column boundaries for a single row.
+    Returns [(col_name, start, end), ...] where
+    start/end are character offsets into the
+    concatenated (gap-stripped, uppercased) oligo.
+    Internal use only.
+
+    :: row_idx
+       type - integer
+       desc - row position in DataFrame
+    :: columns
+       type - list
+       desc - ordered column names to measure
+    :: df
+       type - pd.DataFrame
+       desc - DataFrame with ID index
+    '''
+
+    boundaries = []
+    offset = 0
+    for col in columns:
+        val = str(df[col].iloc[row_idx]).replace('-', '').upper()
+        length = len(val)
+        boundaries.append((col, offset, offset + length))
+        offset += length
+    return boundaries
+
+def get_boundary_column(pos, boundaries):
+    '''
+    Map a flat character position to its enclosing
+    column name using precomputed boundaries.
+    Internal use only.
+
+    :: pos
+       type - integer
+       desc - zero-based character offset into
+              concatenated oligo
+    :: boundaries
+       type - list
+       desc - [(col_name, start, end), ...] from
+              get_column_boundaries
+    '''
+
+    for col_name, start, end in boundaries:
+        if start <= pos < end:
+            return col_name
+    # Fallback: position beyond all boundaries
+    return boundaries[-1][0] if boundaries else None
 
 
 # --= Oligo Functions =--
@@ -2001,26 +2051,26 @@ def get_parsed_exmotifs(
 
         # Setup Warning Variables
         warn['vars'] = {
-            'exmotif_prefix_group': set(),
-            'exmotif_suffix_group': set()}
+            'excluded_motif_prefix_group': set(),
+            'excluded_motif_suffix_group': set()}
 
         # Detect Potentially Blocked Left Exmotifs
         if not leftcontext is None:
             liner.send(' Detecting Blocked Excluded Motif Prefix(es) ...')
             for prefix,suffixes in leftpartition.items():
                 if is_right_blocked(suffixes=suffixes):
-                    warn['vars']['exmotif_prefix_group'].add(prefix)
+                    warn['vars']['excluded_motif_prefix_group'].add(prefix)
 
         # Detect Potentially Blocked Right Exmotifs
         if not rightcontext is None:
             liner.send(' Detecting Blocked Excluded Motif Suffix(es) ...')
             for suffix,prefixes in rightpartition.items():
                 if is_left_blocked(prefixes=prefixes):
-                    warn['vars']['exmotif_suffix_group'].add(suffix)
+                    warn['vars']['excluded_motif_suffix_group'].add(suffix)
 
         # Update Warning Counts
-        warn['warn_count'] += len(warn['vars']['exmotif_prefix_group'])
-        warn['warn_count'] += len(warn['vars']['exmotif_suffix_group'])
+        warn['warn_count'] += len(warn['vars']['excluded_motif_prefix_group'])
+        warn['warn_count'] += len(warn['vars']['excluded_motif_suffix_group'])
 
         # Show Blocked Motifs
         if warn['warn_count']:
@@ -2029,11 +2079,11 @@ def get_parsed_exmotifs(
                     warn['warn_count']))
             plen = max(map(
                 len,
-                warn['vars']['exmotif_prefix_group'] | \
-                warn['vars']['exmotif_suffix_group'])) + 2 + 1
+                warn['vars']['excluded_motif_prefix_group'] | \
+                warn['vars']['excluded_motif_suffix_group'])) + 2 + 1
 
             # Show Prefix Updates
-            for prefix in sorted(warn['vars']['exmotif_prefix_group'], key=len):
+            for prefix in sorted(warn['vars']['excluded_motif_prefix_group'], key=len):
                 prefix = '\'' + prefix + '.'*(plen-len(prefix)-2) + '\''
                 liner.send(
                     '   - Motif(s) starting with {:<{}} [WARNING] (Prefix Prevents All 4 Bases After It)\n'.format(
@@ -2041,7 +2091,7 @@ def get_parsed_exmotifs(
                         plen))
 
             # Show Suffix Updates
-            for suffix in sorted(warn['vars']['exmotif_suffix_group'], key=len):
+            for suffix in sorted(warn['vars']['excluded_motif_suffix_group'], key=len):
                 suffix = '\'' + '.'*(plen-len(suffix)-2) + suffix + '\''
                 liner.send(
                     '   - Motif(s)   ending with {:>{}} [WARNING] (Suffix Prevents All 4 Bases Before It)\n'.format(
@@ -2049,12 +2099,12 @@ def get_parsed_exmotifs(
                         plen))
 
             # Finalize Left Partition Warning
-            if not warn['vars']['exmotif_prefix_group']:
-                warn['vars']['exmotif_prefix_group'] = None
+            if not warn['vars']['excluded_motif_prefix_group']:
+                warn['vars']['excluded_motif_prefix_group'] = None
 
             # Finalize Left Partition Warning
-            if not warn['vars']['exmotif_suffix_group']:
-                warn['vars']['exmotif_suffix_group'] = None
+            if not warn['vars']['excluded_motif_suffix_group']:
+                warn['vars']['excluded_motif_suffix_group'] = None
 
     # No Partition Required
     else:
@@ -3029,7 +3079,7 @@ def is_strict_DNA(seq):
         return True
     return False
 
-def get_exmotif_counter_by_input(exmotif_counter, exmotif_inputs):
+def get_excluded_motif_encounter_counter_by_input(excluded_motif_encounter_counter, exmotif_inputs):
     '''
     Derive per-input attribution from a motif counter.
     Maps each encountered motif back to its originating
@@ -3037,7 +3087,7 @@ def get_exmotif_counter_by_input(exmotif_counter, exmotif_inputs):
     contributes to all of them (multi-membership).
     Internal use only.
 
-    :: exmotif_counter
+    :: excluded_motif_encounter_counter
        type - collections.Counter
        desc - motif encounter counter from engine
     :: exmotif_inputs
@@ -3056,7 +3106,7 @@ def get_exmotif_counter_by_input(exmotif_counter, exmotif_inputs):
 
     # Sum counter entries per input
     counter_by_input = {}
-    for motif, count in exmotif_counter.items():
+    for motif, count in excluded_motif_encounter_counter.items():
         for key in motif_to_inputs.get(motif, []):
             counter_by_input[key] = \
                 counter_by_input.get(key, 0) + count
@@ -3067,8 +3117,8 @@ def stamp_exmotif_stats(stats, exmotif_inputs):
     '''
     Add excluded-motif attribution fields to a
     stats dict. Sets excluded_motif_inputs and,
-    if exmotif_counter is present, derives
-    exmotif_counter_by_input.
+    if excluded_motif_encounter_counter is present, derives
+    excluded_motif_encounter_counter_by_input.
     Internal use only.
 
     :: stats
@@ -3082,10 +3132,10 @@ def stamp_exmotif_stats(stats, exmotif_inputs):
 
     stats['vars']['excluded_motif_inputs'] = exmotif_inputs
     if exmotif_inputs and \
-       stats['vars'].get('exmotif_counter'):
-        stats['vars']['exmotif_counter_by_input'] = \
-            get_exmotif_counter_by_input(
-                exmotif_counter=stats['vars']['exmotif_counter'],
+       stats['vars'].get('excluded_motif_encounter_counter'):
+        stats['vars']['excluded_motif_encounter_counter_by_input'] = \
+            get_excluded_motif_encounter_counter_by_input(
+                excluded_motif_encounter_counter=stats['vars']['excluded_motif_encounter_counter'],
                 exmotif_inputs=exmotif_inputs)
 
 def get_comp(seq):

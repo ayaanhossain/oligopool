@@ -22,9 +22,12 @@ ACOUNT_FAILURE_CATEGORIES = (
     'phix_match',
     'low_complexity',
     'anchor_missing',
+    'barcode_prefix_missing',
+    'barcode_suffix_missing',
     'barcode_absent',
     'barcode_ambiguous',
     'associate_prefix_missing',
+    'associate_suffix_missing',
     'associate_mismatch',
     'callback_false',
     'incalculable',
@@ -34,6 +37,8 @@ XCOUNT_FAILURE_CATEGORIES = (
     'phix_match',
     'low_complexity',
     'anchor_missing',
+    'barcode_prefix_missing',
+    'barcode_suffix_missing',
     'barcode_absent',
     'barcode_ambiguous',
     'callback_false',
@@ -389,7 +394,8 @@ def exoneration_procedure(
     cctrs,
     sampler=None,
     r1=None,
-    r2=None):
+    r2=None,
+    anchor_diagnostic=None):
     '''
     Determine exoneration for given
     read and update core counters.
@@ -422,6 +428,9 @@ def exoneration_procedure(
     :: r2
        type - string / None
        desc - read 2 for failure sampling
+    :: anchor_diagnostic
+       type - dict / None
+       desc - diagnostic info for anchor_missing
     '''
 
     # Note: exoread is R1 extracted from (r1, r2) tuple in count engines
@@ -448,7 +457,7 @@ def exoneration_procedure(
             r1=r1 if r1 else exoread,
             r2=r2,
             freq=exofreq,
-            diagnostic='kmer={}'.format(matched_kmer))
+            diagnostic={'phix_matched_kmer': matched_kmer})
         return
 
     # Nucleotide Composition
@@ -456,6 +465,7 @@ def exoneration_procedure(
     tcount = exoread.count('T')
     gcount = exoread.count('G')
     ccount = exoread.count('C')
+    rlen   = len(exoread) or 1
 
     # Dinucleotide Match?
     if not exonerated:
@@ -475,8 +485,11 @@ def exoneration_procedure(
                     r1=r1 if r1 else exoread,
                     r2=r2,
                     freq=exofreq,
-                    diagnostic='A={};T={};G={};C={}'.format(
-                        acount, tcount, gcount, ccount))
+                    diagnostic={
+                        'A_percent': round(100.0 * acount / rlen, 2),
+                        'T_percent': round(100.0 * tcount / rlen, 2),
+                        'G_percent': round(100.0 * gcount / rlen, 2),
+                        'C_percent': round(100.0 * ccount / rlen, 2)})
             return
 
     # Mononucleotide Match?
@@ -495,8 +508,11 @@ def exoneration_procedure(
                     r1=r1 if r1 else exoread,
                     r2=r2,
                     freq=exofreq,
-                    diagnostic='A={};T={};G={};C={}'.format(
-                        acount, tcount, gcount, ccount))
+                    diagnostic={
+                        'A_percent': round(100.0 * acount / rlen, 2),
+                        'T_percent': round(100.0 * tcount / rlen, 2),
+                        'G_percent': round(100.0 * gcount / rlen, 2),
+                        'C_percent': round(100.0 * ccount / rlen, 2)})
             return
 
     # Trinucleotide Match?
@@ -515,8 +531,11 @@ def exoneration_procedure(
                     r1=r1 if r1 else exoread,
                     r2=r2,
                     freq=exofreq,
-                    diagnostic='A={};T={};G={};C={}'.format(
-                        acount, tcount, gcount, ccount))
+                    diagnostic={
+                        'A_percent': round(100.0 * acount / rlen, 2),
+                        'T_percent': round(100.0 * tcount / rlen, 2),
+                        'G_percent': round(100.0 * gcount / rlen, 2),
+                        'C_percent': round(100.0 * ccount / rlen, 2)})
             return
 
     # Uncategorized Discard
@@ -528,7 +547,7 @@ def exoneration_procedure(
                 r1=r1 if r1 else exoread,
                 r2=r2,
                 freq=exofreq,
-                diagnostic='')
+                diagnostic=anchor_diagnostic)
 
 def get_anchored_read_candidates(
     read,
@@ -675,6 +694,34 @@ def get_anchored_read_candidates(
 
     return cands
 
+def get_barcode_candidate(
+    ancread,
+    metamap):
+    '''
+    Extract and return the barcode candidate window
+    from an anchored read segment without classifying
+    it. Returns None on trim failure or empty window.
+    Internal use only.
+
+    :: ancread
+       type - string
+       desc - anchored read segment to extract
+              barcode candidate from
+    :: metamap
+       type - dict
+       desc - dictionary containing index meta
+              information (trimpolicy, barcodeprefix,
+              barcodesuffix, barcodelen, etc.)
+    '''
+
+    window, status = get_barcode_index(
+        barcoderead=ancread,
+        metamap=metamap,
+        model=None)
+    if status != 'success':
+        return None
+    return window or None
+
 def get_best_barcode_from_candidates(
     read,
     metamap,
@@ -702,38 +749,52 @@ def get_best_barcode_from_candidates(
 
     # No Anchors Found!
     if not cands:
-        return None, 'anchor_absent'
+        return None, 'anchor_missing', None
 
     # Filter to Best Anchor Score
     bestscore = min(c[1] for c in cands)
     bestcands = [c for c in cands if c[1] == bestscore]
 
     # Classify Barcode at Each Position
-    bcresults = []
+    bcresults     = []
+    fail_statuses = []
     for ancread, _, __ in bestcands:
-        result = get_barcode_index(
+        barcode_result, get_status = get_barcode_index(
             barcoderead=ancread,
             metamap=metamap,
             model=model)
 
-        # Valid Result?
-        if result is not None:
-            # Extract Index and Confidence
-            if isinstance(result, tuple):
-                bcidx, conf = result
-            else:
-                bcidx = result
-                conf  = 1.0
+        # Trim or gap failure
+        if get_status != 'success':
+            fail_statuses.append(get_status)
+            continue
 
-            # Store Valid Barcode
-            if bcidx is not None:
-                if conf is None:
-                    conf = 1.0
-                bcresults.append((bcidx, conf))
+        # Extract Index and Confidence
+        if isinstance(barcode_result, tuple):
+            bcidx, conf = barcode_result
+        else:
+            bcidx = barcode_result
+            conf  = 1.0
+
+        # Store Valid Barcode
+        if bcidx is not None:
+            if conf is None:
+                conf = 1.0
+            bcresults.append((bcidx, conf))
+        else:
+            fail_statuses.append('barcode_unclassifiable')
 
     # No Barcodes Found!
     if not bcresults:
-        return None, 'barcode_absent'
+        best_ancread  = bestcands[0][0] if bestcands else None
+        candidate     = get_barcode_candidate(best_ancread, metamap) if best_ancread else None
+        trim_failures = [s for s in fail_statuses
+                         if s in ('prefix_missing', 'suffix_missing')]
+        primary_status = trim_failures[0] if trim_failures else 'barcode_absent'
+        return None, primary_status, {
+            'anchor_hit_count':            len(bestcands),
+            'anchor_best_edit_distance':   bestscore,
+            'extracted_barcode_candidate': candidate}
 
     # Find Best Scry Score
     bestconf = max(r[1] for r in bcresults)
@@ -742,10 +803,15 @@ def get_best_barcode_from_candidates(
     # Check for Ambiguity
     uniqueids = set(r[0] for r in bestbcs)
     if len(uniqueids) > 1:
-        return None, 'barcode_ambiguous'
+        best_ancread = bestcands[0][0] if bestcands else None
+        candidate    = get_barcode_candidate(best_ancread, metamap) if best_ancread else None
+        return None, 'barcode_ambiguous', {
+            'anchor_hit_count':            len(bestcands),
+            'tied_indices':                list(uniqueids),
+            'extracted_barcode_candidate': candidate}
 
     # Unique Best Barcode Found!
-    return bestbcs[0][0], 'success'
+    return bestbcs[0][0], 'success', None
 
 def get_trimmed_read(
     read,
@@ -869,7 +935,7 @@ def get_barcode_index(
             constval=metamap['bpxtval'])
         # Trim was Unsuccessful
         if (trimpolicy == 1) and (pxtrimstatus is False):
-            return None
+            return None, 'prefix_missing'
 
     # Suffix Trim
     if trimpolicy >= 1.5:
@@ -881,7 +947,7 @@ def get_barcode_index(
             constval=metamap['bsxtval'])
         # Trim was Unsuccessful
         if (trimpolicy == 2) and (sxtrimstatus is False):
-            return None
+            return None, 'suffix_missing'
 
     # Policy Trim
     if trimpolicy == 1:
@@ -891,7 +957,9 @@ def get_barcode_index(
     if trimpolicy == 1.5:
         trimstatus = pxtrimstatus and sxtrimstatus
         if not trimstatus:
-            return None
+            if not pxtrimstatus:
+                return None, 'prefix_missing'
+            return None, 'suffix_missing'
 
     # Gap Trim
     if metamap['barcodegapped']:
@@ -906,11 +974,12 @@ def get_barcode_index(
             barcoderead = barcoderead[:-postgap]
         # Nothing Remains after Gap Trim
         if not barcoderead:
-            return None
+            return None, 'barcode_absent'
 
-    # Compute Barcode Index
-    return model.predict(
-        x=barcoderead)[0]
+    # Return Trimmed Window or Classify
+    if model is None:
+        return barcoderead, 'success'
+    return model.predict(x=barcoderead)[0], 'success'
 
 def is_associate_match(
     associate,
@@ -1002,7 +1071,7 @@ def get_associate_match(
 
     # Associate Prefix Absent
     if not trimstatus:
-        return False, 0
+        return False, 0, 'prefix'
 
     # Trim Associate Suffix
     associateread, trimstatus = get_trimmed_read(
@@ -1013,7 +1082,7 @@ def get_associate_match(
 
     # Associate Suffix Absent
     if not trimstatus:
-        return False, 0
+        return False, 0, 'suffix'
 
     # Gap Trim
     if metamap.get('associategapped'):
@@ -1028,7 +1097,7 @@ def get_associate_match(
             associateread = associateread[:-postgap]
         # Nothing Remains after Gap Trim
         if not associateread:
-            return False, 0
+            return False, 0, 'suffix'
 
     # Match Associate
     associate, associatetval = associatedict[index]
@@ -1041,7 +1110,7 @@ def get_associate_match(
         associate=associate,
         associateread=associateread,
         associatetval=associatetval),
-        1)
+        1, None)
 
 def get_failed_inputs(
     packqueue,
@@ -1571,10 +1640,11 @@ def acount_engine(
                 packname))
 
         # Book-keeping Variables
-        exoread   = None
-        exofreq   = None
-        exo_r1    = None  # Track r1 for failure sampling
-        exo_r2    = None  # Track r2 for failure sampling
+        exoread       = None
+        exofreq       = None
+        exo_r1        = None  # Track r1 for failure sampling
+        exo_r2        = None  # Track r2 for failure sampling
+        exo_anchor_diag = None  # Anchor diagnostic for exoneration
         readcount = 0
 
         verbiagereach  = 0
@@ -1606,13 +1676,15 @@ def acount_engine(
                     cctrs=cctrs,
                     sampler=sampler,
                     r1=exo_r1,
-                    r2=exo_r2)
+                    r2=exo_r2,
+                    anchor_diagnostic=exo_anchor_diag)
 
                 # Clear for Next Exoneration
-                exoread = None
-                exofreq = None
-                exo_r1  = None
-                exo_r2  = None
+                exoread         = None
+                exofreq         = None
+                exo_r1          = None
+                exo_r2          = None
+                exo_anchor_diag = None
 
             # Time to Show Update?
             if verbiagereach >= verbiagetarget:
@@ -1648,26 +1720,48 @@ def acount_engine(
             readcount     += 1
 
             # Try multi-anchor barcode detection on R1 first
-            (index, barcode_status) = get_best_barcode_from_candidates(
+            (index, barcode_status, diag_info) = get_best_barcode_from_candidates(
                 read=r1,
                 metamap=metamap,
                 model=model)
 
             # If R1 failed and R2 exists, try R2
             if index is None and r2 is not None:
-                (index, barcode_status) = get_best_barcode_from_candidates(
+                (index, barcode_status, diag_info) = get_best_barcode_from_candidates(
                     read=r2,
                     metamap=metamap,
                     model=model)
 
             # Handle failure cases
             if index is None:
-                if barcode_status == 'anchor_absent':
+                if barcode_status == 'anchor_missing':
                     # Anchor missing - set up exoneration
                     exoread = r1
                     exofreq = freq
                     exo_r1  = r1
                     exo_r2  = r2
+                    exo_anchor_diag = {
+                        'expected_anchor':           metamap['anchor'],
+                        'expected_anchor_tolerance': metamap['anchortval'],
+                        'anchor_role':               'prefix' if metamap['trimpolicy'] <= 1.5 else 'suffix'}
+                elif barcode_status == 'prefix_missing':
+                    cctrs['incalcreads'] += freq
+                    if sampler is not None:
+                        sampler.add_sample(
+                            category='barcode_prefix_missing',
+                            r1=r1, r2=r2, freq=freq,
+                            diagnostic={
+                                'expected_barcode_prefix':           metamap['barcodeprefix'],
+                                'expected_barcode_prefix_tolerance': metamap['bpxtval']})
+                elif barcode_status == 'suffix_missing':
+                    cctrs['incalcreads'] += freq
+                    if sampler is not None:
+                        sampler.add_sample(
+                            category='barcode_suffix_missing',
+                            r1=r1, r2=r2, freq=freq,
+                            diagnostic={
+                                'expected_barcode_suffix':           metamap['barcodesuffix'],
+                                'expected_barcode_suffix_tolerance': metamap['bsxtval']})
                 elif barcode_status == 'barcode_absent':
                     # Barcode not found at any anchor position
                     cctrs['incalcreads'] += freq
@@ -1675,7 +1769,10 @@ def acount_engine(
                         sampler.add_sample(
                             category='barcode_absent',
                             r1=r1, r2=r2, freq=freq,
-                            diagnostic='no_valid_barcode_at_any_anchor')
+                            diagnostic={
+                                'anchor_hit_count':            diag_info['anchor_hit_count'] if diag_info else None,
+                                'anchor_best_edit_distance':   diag_info['anchor_best_edit_distance'] if diag_info else None,
+                                'extracted_barcode_candidate': diag_info['extracted_barcode_candidate'] if diag_info else None})
                 elif barcode_status == 'barcode_ambiguous':
                     # Multiple anchors yielded different barcodes with same confidence
                     cctrs['incalcreads'] += freq
@@ -1683,11 +1780,14 @@ def acount_engine(
                         sampler.add_sample(
                             category='barcode_ambiguous',
                             r1=r1, r2=r2, freq=freq,
-                            diagnostic='multiple_barcodes_same_confidence')
+                            diagnostic={
+                                'anchor_hit_count':            diag_info['anchor_hit_count'] if diag_info else None,
+                                'tied_barcode_ids':            [IDdict[i] for i in diag_info['tied_indices']] if diag_info else None,
+                                'extracted_barcode_candidate': diag_info['extracted_barcode_candidate'] if diag_info else None})
                 continue
 
             # Compute Associate Match - try both reads
-            associatematch, basalmatch = get_associate_match(
+            associatematch, basalmatch, basal_reason = get_associate_match(
                 associateread=r1,
                 associateerrors=associateerrors,
                 associatedict=associatedict,
@@ -1696,7 +1796,7 @@ def acount_engine(
 
             # If R1 failed and R2 exists, try R2
             if not associatematch and r2 is not None:
-                associatematch_r2, basalmatch_r2 = get_associate_match(
+                associatematch_r2, basalmatch_r2, reason_r2 = get_associate_match(
                     associateread=r2,
                     associateerrors=associateerrors,
                     associatedict=associatedict,
@@ -1705,7 +1805,8 @@ def acount_engine(
                 if associatematch_r2:
                     associatematch = True
                 if basalmatch_r2:
-                    basalmatch = True
+                    basalmatch     = True
+                    basal_reason   = reason_r2
 
             # Associate Absent / Incorrect
             if not associatematch:
@@ -1714,10 +1815,20 @@ def acount_engine(
                 if not basalmatch:
                     cctrs['incalcreads'] += freq
                     if sampler is not None:
-                        sampler.add_sample(
-                            category='associate_prefix_missing',
-                            r1=r1, r2=r2, freq=freq,
-                            diagnostic='barcode_id={}'.format(IDdict[index]))
+                        if basal_reason == 'prefix':
+                            sampler.add_sample(
+                                category='associate_prefix_missing',
+                                r1=r1, r2=r2, freq=freq,
+                                diagnostic={
+                                    'matched_barcode_id':        IDdict[index],
+                                    'expected_associate_prefix': metamap['associateprefix']})
+                        else:
+                            sampler.add_sample(
+                                category='associate_suffix_missing',
+                                r1=r1, r2=r2, freq=freq,
+                                diagnostic={
+                                    'matched_barcode_id':        IDdict[index],
+                                    'expected_associate_suffix': metamap['associatesuffix']})
                     continue
                 # Associate Mismatches with Reference
                 else:
@@ -1727,9 +1838,9 @@ def acount_engine(
                         sampler.add_sample(
                             category='associate_mismatch',
                             r1=r1, r2=r2, freq=freq,
-                            diagnostic='barcode_id={};expected_assoc={}'.format(
-                                IDdict[index],
-                                expected_assoc[:30] if len(expected_assoc) > 30 else expected_assoc))
+                            diagnostic={
+                                'matched_barcode_id':          IDdict[index],
+                                'expected_associate_sequence': expected_assoc[:30] if len(expected_assoc) > 30 else expected_assoc})
 
             # Compute Callback Evaluation
             if associatematch and (not callback is None):
@@ -1773,7 +1884,7 @@ def acount_engine(
                             sampler.add_sample(
                                 category='callback_false',
                                 r1=r1, r2=r2, freq=freq,
-                                diagnostic='barcode_id={}'.format(IDdict[index]))
+                                diagnostic={'matched_barcode_id': IDdict[index]})
                         continue
 
             # Tally Read Counts
@@ -2021,6 +2132,7 @@ def xcount_engine(
     # Aggregate Index Files
     models   = []
     metamaps = []
+    IDdicts  = []
     numindex = len(indexfiles)
     for indexfile in indexfiles:
 
@@ -2052,6 +2164,7 @@ def xcount_engine(
         # Append Index Objects
         models.append(model)
         metamaps.append(metamap)
+        IDdicts.append(IDdict)
 
     # Define PhiX Spectrum
     phiXkval = 30
@@ -2120,10 +2233,11 @@ def xcount_engine(
                 packname))
 
         # Book-keeping Variables
-        exoread   = None
-        exofreq   = None
-        exo_r1    = None  # Track r1 for failure sampling
-        exo_r2    = None  # Track r2 for failure sampling
+        exoread         = None
+        exofreq         = None
+        exo_r1          = None  # Track r1 for failure sampling
+        exo_r2          = None  # Track r2 for failure sampling
+        exo_anchor_diag = None   # Anchor diagnostic for exoneration
         readcount = 0
 
         verbiagereach  = 0
@@ -2155,13 +2269,15 @@ def xcount_engine(
                     cctrs=cctrs,
                     sampler=sampler,
                     r1=exo_r1,
-                    r2=exo_r2)
+                    r2=exo_r2,
+                    anchor_diagnostic=exo_anchor_diag)
 
                 # Clear for Next Exoneration
-                exoread = None
-                exofreq = None
-                exo_r1  = None
-                exo_r2  = None
+                exoread         = None
+                exofreq         = None
+                exo_r1          = None
+                exo_r2          = None
+                exo_anchor_diag = None
 
             # Time to Show Update?
             if verbiagereach >= verbiagetarget:
@@ -2201,38 +2317,73 @@ def xcount_engine(
             partialanc = False
             partialmap = False
             has_ambiguous = False
+            per_index_status                         = []
+            per_index_anchor_hit_count               = []
+            per_index_anchor_best_edit_distance      = []
+            per_index_extracted_barcode_candidate    = []
+            per_index_tied_barcode_ids               = []
+            first_trim_failure_status  = None
+            first_trim_failure_idx     = None
+            first_trim_failure_diag    = None
             for idx in range(numindex):
 
                 # Try multi-anchor barcode detection on R1 first
-                (index, barcode_status) = get_best_barcode_from_candidates(
+                (index, barcode_status, diag_info) = get_best_barcode_from_candidates(
                     read=r1,
                     metamap=metamaps[idx],
                     model=models[idx])
 
                 # If R1 failed and R2 exists, try R2
                 if index is None and r2 is not None:
-                    (index, barcode_status) = get_best_barcode_from_candidates(
+                    (index, barcode_status, diag_info) = get_best_barcode_from_candidates(
                         read=r2,
                         metamap=metamaps[idx],
                         model=models[idx])
 
+                # Collect per-index barcode candidate and anchor quality
+                bc_candidate = diag_info.get('extracted_barcode_candidate') if diag_info else None
+                per_index_extracted_barcode_candidate.append(bc_candidate)
+                per_index_anchor_hit_count.append(
+                    diag_info.get('anchor_hit_count') if diag_info else None)
+                per_index_anchor_best_edit_distance.append(
+                    diag_info.get('anchor_best_edit_distance') if diag_info else None)
+
+                # Collect per-index tied barcode IDs (only for barcode_ambiguous)
+                if barcode_status == 'barcode_ambiguous' and diag_info and diag_info.get('tied_indices'):
+                    tied_ids = [IDdicts[idx][i] for i in diag_info['tied_indices']]
+                else:
+                    tied_ids = None
+                per_index_tied_barcode_ids.append(tied_ids)
+
                 # Handle result
                 if index is None:
-                    if barcode_status == 'anchor_absent':
+                    if barcode_status == 'anchor_missing':
                         indextuple.append('-')
+                        per_index_status.append('anchor_missing')
+                    elif barcode_status in ('prefix_missing', 'suffix_missing'):
+                        partialanc = True
+                        if first_trim_failure_status is None:
+                            first_trim_failure_status = barcode_status
+                            first_trim_failure_idx    = idx
+                            first_trim_failure_diag   = diag_info
+                        indextuple.append('-')
+                        per_index_status.append(barcode_status)
                     elif barcode_status == 'barcode_absent':
                         partialanc = True  # Anchor was found, just no valid barcode
                         indextuple.append('-')
+                        per_index_status.append('barcode_absent')
                     elif barcode_status == 'barcode_ambiguous':
                         partialanc = True  # Anchor was found
                         has_ambiguous = True
                         indextuple.append('-')
+                        per_index_status.append('barcode_ambiguous')
                     continue
 
                 # Found a Barcode!
                 partialanc = True
                 partialmap = True
                 indextuple.append(index)
+                per_index_status.append('ok')
 
             # All Anchors Absent
             if not partialanc:
@@ -2240,23 +2391,51 @@ def xcount_engine(
                 exofreq = freq
                 exo_r1  = r1  # Track for failure sampling
                 exo_r2  = r2
+                exo_anchor_diag = {
+                    'per_index_anchor':           [m['anchor'] for m in metamaps],
+                    'per_index_anchor_tolerance': [m['anchortval'] for m in metamaps],
+                    'per_index_anchor_role':      ['prefix' if m['trimpolicy'] <= 1.5 else 'suffix' for m in metamaps]}
                 continue
 
             # All Barcodes Absent (but anchors were found)
             if not partialmap:
                 cctrs['incalcreads'] += freq
                 if sampler is not None:
-                    # Use barcode_ambiguous category if any index had ambiguity
-                    if has_ambiguous:
+                    if first_trim_failure_status == 'prefix_missing':
+                        fail_mm = metamaps[first_trim_failure_idx]
+                        sampler.add_sample(
+                            category='barcode_prefix_missing',
+                            r1=r1, r2=r2, freq=freq,
+                            diagnostic={
+                                'expected_barcode_prefix':           fail_mm['barcodeprefix'],
+                                'expected_barcode_prefix_tolerance': fail_mm['bpxtval']})
+                    elif first_trim_failure_status == 'suffix_missing':
+                        fail_mm = metamaps[first_trim_failure_idx]
+                        sampler.add_sample(
+                            category='barcode_suffix_missing',
+                            r1=r1, r2=r2, freq=freq,
+                            diagnostic={
+                                'expected_barcode_suffix':           fail_mm['barcodesuffix'],
+                                'expected_barcode_suffix_tolerance': fail_mm['bsxtval']})
+                    elif has_ambiguous:
                         sampler.add_sample(
                             category='barcode_ambiguous',
                             r1=r1, r2=r2, freq=freq,
-                            diagnostic='at_least_one_index_ambiguous')
+                            diagnostic={
+                                'per_index_status':                      per_index_status,
+                                'per_index_anchor_hit_count':            per_index_anchor_hit_count,
+                                'per_index_anchor_best_edit_distance':   per_index_anchor_best_edit_distance,
+                                'per_index_extracted_barcode_candidate': per_index_extracted_barcode_candidate,
+                                'per_index_tied_barcode_ids':            per_index_tied_barcode_ids})
                     else:
                         sampler.add_sample(
                             category='barcode_absent',
                             r1=r1, r2=r2, freq=freq,
-                            diagnostic='')
+                            diagnostic={
+                                'per_index_status':                      per_index_status,
+                                'per_index_anchor_hit_count':            per_index_anchor_hit_count,
+                                'per_index_anchor_best_edit_distance':   per_index_anchor_best_edit_distance,
+                                'per_index_extracted_barcode_candidate': per_index_extracted_barcode_candidate})
                 continue
 
             # Convert Tuples to Indexes
@@ -2269,7 +2448,8 @@ def xcount_engine(
                     evaluation = callback(
                         r1=r1,
                         r2=r2,
-                        ID=tuple(IDdict[it] if not it == '-' else None for it in indextuple),
+                        ID=tuple(IDdicts[k][it] if not it == '-' else None
+                                 for k, it in enumerate(indextuple)),
                         count=freq,
                         coreid=coreid)
 
@@ -2304,7 +2484,8 @@ def xcount_engine(
                             sampler.add_sample(
                                 category='callback_false',
                                 r1=r1, r2=r2, freq=freq,
-                                diagnostic='')
+                                diagnostic={'per_index_barcode_id': [IDdicts[k][it] if it != '-' else None
+                                    for k, it in enumerate(indextuple)]})
                         continue
 
             # All Components Valid
@@ -2539,7 +2720,8 @@ def write_failed_reads(samples, seen_counts, filepath, liner):
 
     :: samples
        type - dict
-       desc - dictionary of category -> list of (r1, r2, freq, diagnostic) tuples
+       desc - dictionary of category -> list of (r1, r2, freq, diagnostic) tuples;
+              diagnostic is dict / list / None, JSON-serialized at write time
     :: seen_counts
        type - dict
        desc - dictionary of category -> total samples seen
@@ -2561,9 +2743,9 @@ def write_failed_reads(samples, seen_counts, filepath, liner):
 
     # Write CSV
     # Note: use csv.writer to correctly quote fields that may contain delimiter
-    # characters/newlines/quotes (diagnostics use semicolons, but quoting keeps
-    # the file robust for downstream parsing).
+    # characters/newlines/quotes; diagnostics are JSON-serialized dicts.
     import csv
+    import json
     with open(filepath, 'w', newline='') as outfile:
         writer = csv.writer(outfile)
         writer.writerow(
@@ -2577,7 +2759,7 @@ def write_failed_reads(samples, seen_counts, filepath, liner):
                     r1 if r1 else '',
                     r2 if r2 else '',
                     freq,
-                    diagnostic if diagnostic else ''))
+                    json.dumps(diagnostic) if diagnostic else ''))
 
     # Final Updates
     liner.send(

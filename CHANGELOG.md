@@ -22,6 +22,11 @@
 21. Docs: fixed stale `any_conflict` refs → `any_conflict_count` in `docs/docs.md`.
 22. Docs: documented that column-conflict dicts may include `CompleteOligo` on integrity-mismatch runs in `docs/api.md` and `docs/docs.md`; reverted `cross_barcode_columns` type sig back to `str | list | None` in `docs/api.md`.
 23. Docs/Examples: reran `examples/OligopoolCalculatorInAction.ipynb` for v2026.02.18.
+24. Breaking (Analysis/Count): `DiagnosticDetails` values in failed-read samples changed from free-text strings to structured dicts (JSON-serialized in CSV output); new failure categories `barcode_prefix_missing`, `barcode_suffix_missing`, `associate_suffix_missing` added to `acount`/`xcount`.
+25. Breaking (Analysis/Count): xcount `anchor_missing` diagnostic normalized from list-of-dicts to dict-of-lists (`per_index_anchor`, `per_index_anchor_tolerance`, `per_index_anchor_role`) for consistency with other multi-index failure categories.
+26. Breaking (QC/Verify): renamed verify detail payload keys `excess_bp` → `excess_length` and `kmers` → `matched_kmers` for naming consistency.
+27. Docs (`docs/api.md`): documented `DiagnosticDetails` field schemas for all `acount`/`xcount` failure categories; merged redundant category lists with schema blocks; added `vars` dict conventions section and two-granularities contract.
+28. Docs: minor module docstring clarifications — backtick-formatted `NaN` in patch-mode notes, expanded `barcode_type` alias list, added `expand` parallelization note and `join` length-limit behavior note.
 
 2026.02.17
 1. Chore: version bump to `v2026.02.17`.

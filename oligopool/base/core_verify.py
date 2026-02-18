@@ -173,7 +173,7 @@ def verify_engine(
             length_details.append({
                 'oligo_length': length,
                 'length_limit': oligolimit,
-                'excess_bp': length - oligolimit,
+                'excess_length': length - oligolimit,
                 'column_lengths': column_lengths
             })
         else:
@@ -282,7 +282,7 @@ def verify_engine(
             if (row_idx + 1) % 1000 == 0 or row_idx + 1 == num_rows:
                 liner.send(' Background Evaluated  : Scanned {:>{},} Variant(s)'.format(row_idx + 1, plen))
             row_details = {
-                'kmers': [],
+                'matched_kmers': [],
                 'positions': [],
                 'columns': [],
                 'match_count': 0
@@ -298,7 +298,7 @@ def verify_engine(
                     kmer = oligo[i:i+K]
                     if kmer in bg:
                         has_conflict = True
-                        row_details['kmers'].append(kmer)
+                        row_details['matched_kmers'].append(kmer)
                         row_details['positions'].append(i)
                         row_details['columns'].append(
                             ut.get_boundary_column(i, boundaries))

@@ -49,15 +49,18 @@ def verify(
             `excluded_motifs`: one or more sources (list/dict), merged; strict ATGC only; CSV/DataFrame requires 'Exmotif';
             FASTA sources are supported.
         - Background conflict: any k-mer in an oligo matches a background DB; with multiple DBs, any match flags a conflict.
+        - Output DataFrame columns: `HasIntegrityConflict`, `HasLengthConflict`, `HasExmotifConflict`,
+            `HasBackgroundConflict`, `HasAnyConflicts` (bool flags); `IntegrityConflictDetails`,
+            `LengthConflictDetails`, `ExmotifConflictDetails`, `BackgroundConflictDetails`
+            (dict / list / `None`; JSON-serialized when written to CSV).
         - Conflict details are stored as dicts in the DataFrame; when written to CSV, they are
             serialized as JSON strings (parse back with `json.loads()` for any `*Details` column; currently
             the `*ConflictDetails` columns).
-        - When constituent DNA columns are present alongside `CompleteOligo`, conflict positions are
-            attributed to their originating column. The `columns` key in `ExmotifConflictDetails` and
-            `BackgroundConflictDetails`, and the `column_lengths` key in `LengthConflictDetails`, provide
-            this attribution. Rows with a `CompleteOligo`-vs-constituent mismatch attribute exmotif/background
-            hits to `CompleteOligo` instead of constituent columns. Stats include `excluded_motif_column_conflicts`
-            and `background_column_conflicts` dicts keyed by column name.
+        - Column attribution: when constituent columns accompany `CompleteOligo`, conflict positions are
+            attributed to their source column via the `columns` key (`ExmotifConflictDetails`,
+            `BackgroundConflictDetails`) and `column_lengths` key (`LengthConflictDetails`). Rows with
+            a `CompleteOligo`-vs-constituent mismatch override attribution to `CompleteOligo`. Stats include
+            per-column conflict counts in `excluded_motif_column_conflicts` and `background_column_conflicts`.
     '''
 
     # Preserve return style when the caller intentionally used ID as index.

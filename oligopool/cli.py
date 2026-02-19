@@ -314,7 +314,7 @@ Mixed Step List (also valid):
 
 Step Fields:
   name      Step identifier (required for dict-style steps)
-  command   oligopool command to run (defaults to name)
+  command   Oligopool command to run (defaults to name)
   after     List of step names to wait for (optional)
   config    Config section name (defaults to name)
 

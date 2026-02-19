@@ -1093,7 +1093,10 @@ Output columns: <index_name>.ID, BarcodeCount, AssociationCount
 ```
 
 **Stuff to Note:**
-- Reads with unresolved associates are excluded from the counts (that's the point of `acount`).
+- The two count columns track different things: `BarcodeCount` includes every read where
+  the barcode decoded successfully — even if the associate didn't match the reference.
+  `AssociationCount` is stricter: it only counts reads where both barcode *and* associate
+  matched. Reads that fail barcode decoding entirely don't appear in either column.
 - `callback` is Python-only; the CLI always runs with `callback=None`.
 - If you want to inspect *examples* of discarded reads, set `failed_reads_file` to write a small per-category diagnostic CSV.
 - `acount` operates on a single index + pack pair (for combinatorial counting, use `xcount`).

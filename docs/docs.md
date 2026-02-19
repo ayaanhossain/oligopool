@@ -1667,7 +1667,7 @@ pipeline:
 
 **Step fields:**
 - `name`: Step identifier (required)
-- `command`: Oligopool command to run (defaults to `name`)
+- `command`: `oligopool` command to run (defaults to `name`)
 - `after`: List of step names this step depends on (optional)
 - `config`: Config section name to use (defaults to `name`)
 

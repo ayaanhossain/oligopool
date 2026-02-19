@@ -1467,7 +1467,7 @@ op verify \
 
 [^ Back to TOC](#table-of-contents)
 
-**Purpose**: Inspect non-CSV artifacts produced by Oligopool Calculator (background DBs, index files, pack files).
+**Purpose**: Inspect non-CSV artifacts produced by `Oligopool Calculator` (background DBs, index files, pack files).
 
 **Signature**:
 ```python

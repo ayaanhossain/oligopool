@@ -1,3 +1,7 @@
+2026.02.19
+1. Docs (`docs/agent-skills.md`): added "Choosing a Surface" section with deployment surface comparison table (Python script, Jupyter notebook, CLI one-shot, YAML pipeline, Docker) and decision shortcuts for selecting surfaces based on project requirements (callbacks, reproducibility, parallelism, iteration, integration).
+2. Docs (`docs/agent-skills.md`): restructured agent policy into numbered escalation ladder with explicit "trust runtime help over static docs" tie-breaker; added "Stats Inspection Discipline" section with minimal debug loop, post-hoc inspection patterns, and step-targeted failure guidance; added general troubleshooting preamble.
+
 2026.02.18
 1. Refactor (QC/Verify): extracted computation logic from `verify.py` into `base/core_verify.py` (`verify_engine`), matching the codebase pattern where public modules handle validation/stats/output and `base/core_*.py` modules handle computation.
 2. Bugfix (QC/Verify): in Scenario A with `CompleteOligo`-vs-constituent integrity mismatches, exmotif/background hits attributed to `CompleteOligo` were silently dropped from `excluded_motif_column_conflicts`, `background_column_conflicts`, and `any_column_conflicts` because those dicts were keyed only by constituent columns; now tracked via a dynamic `conflict_columns` set that includes `CompleteOligo` when integrity overrides occur.

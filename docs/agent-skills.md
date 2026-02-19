@@ -16,13 +16,17 @@ parameter-by-parameter reference and `docs/docs.md` for tutorials/examples.
 - CLI YAML pipeline example (repo) [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/examples/cli-yaml-pipeline/README.md)]
 - Docker notes [[agent-link](https://raw.githubusercontent.com/ayaanhossain/oligopool/refs/heads/master/docs/docker-notes.md)]
 
-Agent policy: start with this guide, then explore only the minimum additional docs needed for the task:
-`docs/api.md` for exact signatures, allowed values and output schemas,
-`docs/docs.md` for workflows,
-and then module docstrings (`help(op.<module>)` in Python or `op manual <COMMAND>` in CLI) for runtime truth.
-Use the example notebook strategically when the task needs experimental context (for example assay framing,
-callback usage patterns, end-to-end interpretation, or practical tool-use intuition), rather than as default
-reading for every request.
+Agent policy — escalation ladder (stop at the first tier that answers your question):
+
+1. **This guide** (`agent-skills.md`) — orientation, contracts, recipes, troubleshooting
+2. **`docs/api.md`** — exact signatures, allowed values, output schemas, stats dict appendix
+3. **`docs/docs.md`** — workflows, tutorials, composability examples
+4. **`help(op.<module>)` / `op manual <COMMAND>`** — runtime ground truth; the closest
+   thing to source when source is unavailable. Reach for this before guessing.
+5. **Example notebook** — use strategically when the task needs experimental context
+   (assay framing, callback patterns, end-to-end interpretation), not as default reading.
+
+If static docs and runtime help disagree, trust runtime help for the installed version.
 
 ## Surface Area
 
@@ -46,6 +50,34 @@ Five modes (library + CLI):
 - CLI file outputs: prefer basenames (no suffix). The CLI appends the appropriate
   `.oligopool.<module>...` suffix(es). For commands that produce a CSV, an
   output basename (e.g., `--output-file out`) is required in CLI mode.
+
+## Choosing a Surface
+
+Five surfaces; each shares the same module semantics — pick based on project needs.
+
+| Surface | Best for | Unique capabilities |
+|---------|----------|---------------------|
+| **Python script** | Programmatic control, custom post-processing, embedding in larger applications | Callbacks (`acount`/`xcount`), in-memory DataFrames, arbitrary inter-step logic |
+| **Jupyter notebook** | Interactive exploration, parameter tuning, teaching/demos | Cell-by-cell execution, inline inspection of DataFrames and stats, iterative development |
+| **CLI (one-shot)** | Quick single-module runs, shell scripting | `--stats-file` auto-JSON, structured output filenames (`.oligopool.<module>...`), `--quiet` |
+| **YAML pipeline (CLI)** | Multi-step reproducible workflows, record-keeping, version-controlled configs | DAG parallelism, `--dry-run` validation, basename chaining, all inputs/outputs persisted on disk, per-command `--argument` overrides |
+| **Docker** | Cross-platform consistency (especially Windows), shared environments | Dependency isolation, Jupyter server integration |
+
+Decision shortcuts:
+- **Need callbacks?** → Python or Jupyter (CLI/YAML cannot run callbacks).
+- **Need reproducibility + record-keeping?** → YAML pipeline: config is version-controllable,
+  all intermediate CSVs and stats files persist on disk automatically.
+- **Need parallel step execution?** → YAML pipeline with parallel groups.
+- **Need a reproducible base with per-run tweaks?** → YAML pipeline + `--argument` overrides on the command line.
+- **Exploring / iterating on constraints?** → Jupyter: tune parameters cell-by-cell,
+  inspect stats and DataFrames inline, re-run individual steps without restarting.
+- **Integrating into a larger codebase?** → Python script: direct DataFrame hand-off,
+  no subprocess overhead.
+- **One-off run, no special needs?** → CLI one-shot is the fastest path.
+- **Cross-platform team or CI?** → Docker wraps any of the above.
+
+Note: Docker is a *container*, not a surface — it wraps Python, Jupyter, or CLI.
+The surface-specific guidance above still applies inside a container.
 
 ## Core Data Contract
 
@@ -89,7 +121,44 @@ Five modes (library + CLI):
 
 Two granularities:
 - `stats` is aggregate (pass/fail decisions and summary reporting).
-- Returned DataFrames / output files are per-row (drilldown details; may include structured payload columns, for example JSON-serialized `*Details` columns in `verify` outputs or per-category diagnostics in optional failed-reads outputs from counting).
+- Returned DataFrames / output files are per-row (drilldown details; may include
+structured payload columns, for example JSON-serialized `*Details` columns in `verify`
+outputs or per-category diagnostics in optional failed-reads outputs from counting).
+
+## Stats Inspection Discipline
+
+Every module returns a stats dict. Inspect it at every pipeline step — it is your
+primary diagnostic signal, especially when operating without source code access.
+
+**After every module call:**
+1. Check `stats['status']` (bool) — did the module succeed?
+2. Read `stats['basis']` — *why* it succeeded or failed (`'solved'`, `'infeasible'`,
+   `'unsolved'`, `'complete'`, `'verified'`, `'conflicts'`, `'corrupted'`).
+3. Inspect `stats['vars']` — module-specific diagnostics. For design modules this
+   accumulates progressively (partial on failure); for `verify` it is always fully
+   populated and should be read programmatically.
+4. Check `stats['warns']` — any warnings the module emitted.
+
+Minimal debug loop (Python):
+```python
+out_df, stats = op.barcode(input_data=df, barcode_column="BC", barcode_length=16, ...)
+print("status:", stats["status"])
+print("basis:", stats["basis"])
+print("step:", stats.get("step"), stats.get("step_name"))
+print("warns:", stats.get("warns", {}))
+print("vars keys:", sorted(stats.get("vars", {}).keys()))
+if not stats["status"]:
+    raise RuntimeError(f"barcode failed at {stats.get('step_name')}: {stats['basis']}")
+```
+
+**Post-hoc inspection:**
+- Python: `json.dump(stats, open('stats.json', 'w'), indent=2)` to persist for later analysis.
+- CLI: `--stats-file basename` writes the stats dict as JSON automatically.
+- When a run fails or produces unexpected output, dump and inspect the stats dict
+  rather than re-running blindly.
+
+**Design module failures:** `stats['step']` and `stats['step_name']` tell you exactly
+where the module stopped. Use this to target constraint relaxation rather than guessing.
 
 ## Special Contracts
 
@@ -323,6 +392,10 @@ Note: `'-'` is a conventional placeholder value; Patch Mode treats `'-'` as miss
 - Exact parameter semantics: `docs/api.md` (module sections for `barcode`, `primer`, `motif`, `spacer`, `index`, `pack`, `acount`, `xcount`, `compress`, `expand`, `verify`)
 
 ## Troubleshooting
+
+General rule: always read `stats['basis']` and `stats['vars']` before changing
+parameters. The stats dict tells you *what* failed and *where* — use it to make
+targeted adjustments rather than guessing.
 
 - Design fails: read `stats['basis']`; relax constraints (shorter repeats, wider
   Tm), increase design space (longer barcode/primer), or change algorithm type.

@@ -183,6 +183,7 @@ class vectorDB:
             t0 = tt.time()
             pt = False
             index = 0
+            pending = set()
             for seq in seq_list:
                 if not pt and self.VERB:
                     print('\n[Background Processing]')
@@ -197,9 +198,11 @@ class vectorDB:
                         seq = seq.replace('U', 'T')
                     for kmer in ut.stream_canon_spectrum(
                         seq=seq, k=self.K):
-                        if self._get(kmer) is None:
-                            self.DB[kmer] = True
-                            self.LEN += 1
+                        if self._get(kmer) is None and kmer not in pending:
+                            pending.add(kmer)
+            if pending:
+                self.DB.multiset((k, True) for k in pending)
+                self.LEN += len(pending)
             self.DB['LEN'] = self.LEN
             self.DB.sync()
             if self.VERB:
@@ -322,6 +325,7 @@ class vectorDB:
             t0 = tt.time()
             pt = False
             index = 0
+            pending = set()
             for seq in seq_list:
                 if not pt and self.VERB:
                     print('\n[Background Processing]')
@@ -336,13 +340,11 @@ class vectorDB:
                         seq = seq.replace('U', 'T')
                     for kmer in ut.stream_canon_spectrum(
                         seq=seq, k=self.K):
-                        if clear:
-                            self.DB.remove(kmer)
-                            self.LEN -= 1
-                        else:
-                            if self._get(kmer):
-                                self.DB.remove(kmer)
-                                self.LEN -= 1
+                        if clear or self._get(kmer):
+                            pending.add(kmer)
+            if pending:
+                self.DB.multiremove(pending)
+                self.LEN -= len(pending)
             self.DB.sync()
             self.DB['LEN'] = self.LEN
             if self.VERB:

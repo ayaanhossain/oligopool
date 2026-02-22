@@ -47,6 +47,7 @@ class vectorDB:
         # Create/Open ShareDB object
         self.DB = ShareDB(
             path=self.PATH,
+            serial='pickle',
             map_size=None)
 
         # Length setup
@@ -360,7 +361,7 @@ class vectorDB:
                   to consider for future operations
         '''
         self.drop()
-        self.DB = ShareDB(path=self.PATH, map_size=None)
+        self.DB = ShareDB(path=self.PATH, serial='pickle', map_size=None)
         self.LEN = 0
         self.DB['LEN'] = 0
         if maxreplen is None:

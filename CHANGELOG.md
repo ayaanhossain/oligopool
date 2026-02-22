@@ -1,3 +1,9 @@
+2026.02.22
+1. Chore: version bump to `v2026.02.22`.
+2. Dependency (`pyproject.toml`): bumped `sharedb>=1.1.2` → `sharedb>=2.0.2` to match the installed version and lock into the v2.0.x API.
+3. Fix (`base/vectordb.py`): explicitly pass `serial='pickle'` in both `ShareDB` constructor calls so serialization is independent of the installed version's default (which changed from `'msgpack'` in v1.1.x to `'pickle'` in v2.0.x).
+4. Perf (`base/vectordb.py`): `multiadd()` now collects new k-mers into a `pending` set (deduplicating cross-sequence repeats) and flushes via `DB.multiset()` in a single LMDB transaction instead of one transaction per k-mer; `multiremove()` similarly batches via `DB.multiremove()`.
+
 2026.02.19
 1. Docs (`docs/agent-skills.md`): added "Choosing a Surface" section with deployment surface comparison table (Python script, Jupyter notebook, CLI one-shot, YAML pipeline, Docker) and decision shortcuts for selecting surfaces based on project requirements (callbacks, reproducibility, parallelism, iteration, integration).
 2. Docs (`docs/agent-skills.md`): restructured agent policy into numbered escalation ladder with explicit "trust runtime help over static docs" tie-breaker; added "Stats Inspection Discipline" section with minimal debug loop, post-hoc inspection patterns, and step-targeted failure guidance; added general troubleshooting preamble.

@@ -1,5 +1,5 @@
-2026.02.22
-1. Chore: version bump to `v2026.02.22`.
+2026.02.22.1
+1. Chore: version bump to `v2026.02.22.1`.
 2. Dependency (`pyproject.toml`): bumped `sharedb>=1.1.2` → `sharedb>=2.0.2` to match the installed version and lock into the v2.0.x API.
 3. Fix (`base/vectordb.py`): explicitly pass `serial='pickle'` in both `ShareDB` constructor calls so serialization is independent of the installed version's default (which changed from `'msgpack'` in v1.1.x to `'pickle'` in v2.0.x).
 4. Perf (`base/vectordb.py`): `multiadd()` now collects new k-mers into a `pending` set (deduplicating cross-sequence repeats) and flushes via `DB.multiset()` in a single LMDB transaction instead of one transaction per k-mer; `multiremove()` similarly batches via `DB.multiremove()`.
